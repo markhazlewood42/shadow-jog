@@ -4,7 +4,7 @@ title: "Shadow Jog Engine — M7 build brief"
 project: shadow-jog
 created: 2026-10-12
 updated: 2026-10-12
-status: draft, decisions open
+status: approved 2026-10-12 (decisions answered)
 tags: [engine, m7, plan, 3d]
 ---
 
@@ -19,8 +19,9 @@ Facts in section 2 come from a read-only survey on 2026-10-12 ([m7-survey.md](m7
 - A story script can `await s.hack(...)` in the shipped game build. The call starts the real `Scene3D` on the real loop with the Phase 0 test scene (`HackScene` and its pure sim), and the script gets a result back. The call never hangs.
 - The 3D code stays in one lazy chunk (`lazy-3d`, cap 160 kB gzip, C5). A player who never hacks never downloads it.
 - Every end of a hack is a value: `success`, `fail`, `aborted` (`context-lost`, `user`, `error`) or `unsupported` (`no-webgl2`, `chunk-failed`). The story policy of E19 applies, with `via: 'dropped'` for a dropped story.
+- **The jump between the two game modes is a first-class deliverable (Mark, 2026-10-12: "What's important is a seamless, styled transition between the two game modes").** A styled jack-in (2D to 3D) and jack-out (3D to 2D) cover the chunk load, hand the shared WebGL context over without a visible seam, and return to the exact 2D scene state. It is not a cut. Three styles are built and switchable in DEV, and Mark picks one from pictures (D5).
 - The hidden-scene 3D draw skip is proved with no stale frame. The context grace is decided against a real context loss.
-- Not in M7: the real hacking scene (its design, input, gameplay and look are a separate iteration, `docs/IDEAS.md` entry 2), the look of the Phase 0 scene, a hack in Chapter 1 (unless Mark picks D1 option C), deleting `src/engine` (M8), M4 scenes, the other editors (ET).
+- Not in M7: a transition style chosen without Mark's look checkpoint, the real hacking scene (its design, input, gameplay and look are a separate iteration, `docs/IDEAS.md` entry 2), the look of the Phase 0 scene, a hack in Chapter 1 (unless Mark picks D1 option C), deleting `src/engine` (M8), M4 scenes, the other editors (ET).
 - Exit check (migration.md): the 10-cycle leak test, the context-loss test and the canary tests pass. After the flip, `unsupported` shows only when the 3D chunk fails to load. On a path with no WebGL 2, `s.hack` returns `unsupported` with reason `no-webgl2` (moved here from M1b, [m1b-brief.md](m1b-brief.md) item 6).
 
 ## 2. Survey facts that change the plan
@@ -37,7 +38,16 @@ Facts in section 2 come from a read-only survey on 2026-10-12 ([m7-survey.md](m7
 - **Contradiction 2:** migration.md and frame-and-rendering.md 7.4 say the no-WebGL 2 check runs "on the legacy path". The legacy path is gone since M6. The check runs on the door seam (pass line 6).
 - **Carry items:** `scripts/sjestage-refs.mjs:57` is stale (the crew moved to `public/art/crew/`). The `Date.now()` in `sje-battle.spec.ts` is a polling bound, not a seed. Neither is on the M7 path. They stay open.
 
+- **The Phase 0 entry had no transition.** The spike's `startHack` is `new HackScene` then `game.run(scene)`: a cut. Its flicker test only checks that no frame is mostly one color. A comment says the first-entry hitch is "hidden behind a transition", but none was built. Survey section 11.
+- **The chunk load stalls today with nothing styled.** The door awaits `import()` while the field stays on screen, running and unstyled, and the load has no time bound. The battle intro is the precedent: a 12-frame flash and `Promise.all([loadBattle(), game.wait(18)])` (`src/game/systems.ts:354-360`). If the load is slower, the screen returns to the plain field.
+- **Effects are gated by `fxLevel`, the display layer is not.** `FxSystem` `glitch`, `aberrate`, `shock`, `flare` need `full`. `lite` has particles and dim only, and `none` makes every call a no-op. Camera `fade`/`flash`/`shake`, `Graphics` masks and custom `createEffect` filters work at every level. Survey section 11.
+- **The 3D target is empty until its first `render()`**, which runs in the first `prerender`. The sprite must stay hidden under the cover until then, and the first render pays the shader compile (96 ms on the RTX 4070, 167 ms on SwiftShader).
+- **The field stays in the stack, paused, under a running hack**, so its state survives. A glitch layer left in `FxSystem` would not.
+
 **Decided by the session** (small choices, no decision for Mark):
+
+- The transition lives outside the 3D chunk (`src/hack3d/transition.ts`, no Three), because its first half runs before the chunk arrives. The door starts the chunk load at the first tick of the transition (the loader is memoized). The hold has a bound of 10 s. After it the result is `unsupported / chunk-failed` and the story continues.
+- Only the style that Mark picks ships. The other two load in DEV only (`import.meta.env.DEV`).
 
 - A hack definition is plain data in `src/data/hacks.json`, checked by `checkHacks` (the condition of E3). Fields: `id`, `seed`, `ticks`, `iceCount`, `traceLimit`, `hitCost`, optional `policy`. The file is new, so principle 8 holds. Approving this brief approves the format.
 - One seam file, `src/game/hackseam.ts`, imports `src/hack3d/door.ts` and `result.ts` only. The import test allows that file and nothing else.
@@ -51,29 +61,35 @@ Facts in section 2 come from a read-only survey on 2026-10-12 ([m7-survey.md](m7
 - The sim keeps ticking while a cover hides it. No cover scene exists in M7.
 - `colorprobe.ts` is not ported. The lab canary covers exact colors.
 
-## 3. Open decisions for Mark (recommendation first; the build uses it unless Mark says otherwise)
+## 3. Decisions for Mark (recommendation first). Answered 2026-10-12: D1 A, D2 B, D3 A (stands), D4 A. D5 is a look decision, answered at the checkpoint of task 10
 
 Raised as decision issues: D1 [#77](https://github.com/markhazlewood42/shadow-jog/issues/77), D2 [#78](https://github.com/markhazlewood42/shadow-jog/issues/78), D4 [#79](https://github.com/markhazlewood42/shadow-jog/issues/79). D3 keeps the approved C4 (1 s), so the session decides it with A; Mark can still overrule it.
 
-D1. **How does the game reach 3D in M7?**
+D1. **How does the game reach 3D in M7?** DECIDED: A (Mark, 2026-10-12). Mark's note: he will most likely want at least one hack in Chapter 1 later. M7 stays a DEV entry. The Chapter 1 beat comes with the real hacking iteration.
 - A (recommended). A DEV entry only: a `?scene=hack` route and a `__SJ__.hack` hook, plus test scripts that call `s.hack` through the real field script runner. Chapter 1 does not change. The 3D chunk ships in the build and a prod spec proves it loads. Consequence: no player sees the test scene. A prod run of a hack waits for the real hacking iteration.
 - B. A, plus a hidden URL flag in the shipped build that runs a hack. Consequence: prod can run a hack in a test, and any player can open an unreviewed test scene.
 - C. Wire a hack beat into Chapter 1 now. Consequence: players meet a 15 s scene with no input and an unreviewed look, and the story needs a design that does not exist (`docs/IDEAS.md` entry 2).
 
-D2. **Budget re-set (E17, Mark's one-bigger-total rule).**
+D2. **Budget re-set (E17, Mark's one-bigger-total rule).** DECIDED: B (Mark, 2026-10-12).
 - A. Count the 3D chunk in the total: total about 599 kB (451.9 + about 145 + about 1.5), first play about 394 kB. Consequence: the total gates a chunk that no one downloads until a hack.
 - B (recommended). The total excludes `lazy-3d`, and `bundle-budget.mjs` gets a new `lazy-3d` check for the game build (today the 160 kB check runs only for the lab): total 454 kB (451.9 plus about 1.5 for the door, rounded up to the next 1 kB), first play measured plus 1 kB (about 394 kB), `lazy-3d` 160 kB (C5, confirmed; expected 143 to 146 kB). Consequence: the everyday alarm stays sharp, as it did when the stages were a separate class, and the 3D chunk has its own cap. The numbers are set from the first build, not from this estimate.
 - C. Keep the 3D chunk out of the production build until a real hack ships (DEV only). Consequence: no re-set now, but the prod path of the chunk (hashed name, base path) is untested until later.
 
-D3. **The context grace of the watchdog (C4).**
+D3. **The context grace of the watchdog (C4).** DECIDED: A (Mark, 2026-10-12: approved all recommendations). It keeps the approved C4.
 - A (recommended). Keep 1 s, as a named option. A context that returns between 1 and 2 s is given up on, and E19 retries once, then auto-succeeds. Consequence: the research line "resolves within 2 seconds of the loss" holds (1,015 to 1,034 ms measured). A real loss test in the real game confirms or changes it.
 - B. 2 s, and move the line to 3 s. Consequence: more lost contexts recover without a retry, and every dead context holds the player 1 s longer.
 - C. No grace (the code as M1b built it). Consequence: the shortest wait, and a loss of 50 ms ends the hack and costs a retry.
 
-D4. **What does `s.hack` return?**
+D4. **What does `s.hack` return?** DECIDED: A (Mark, 2026-10-12). The approved sketch in interfaces.md section 12 changes to the `HackOutcome` shape.
 - A (recommended). **This changes an approved interface and needs Mark's explicit yes:** interfaces.md section 12 approves `hack(def: HackDef): Promise<HackResult>`, and B is that sketch. `s.hack(def, playAlternative?)` returns a `HackOutcome` (`outcome`, `via`, `results`) with the E19 policy applied. `via: 'dropped'` means the story must end. Consequence: one place applies the policy, and no story repeats it. interfaces.md section 12 is updated.
 - B. `s.hack(def)` returns the raw `HackResult` (the approved sketch, no change to the interface). Each story runs the policy through a helper. Consequence: a story that forgets `dropped` hangs on a dead stack.
 - C. Both: `s.hack` raw and `s.hackPlay` with policy. Consequence: two entry points to keep true.
+
+D5. **Which jack-in/jack-out style?** OPEN until the look checkpoint (task 10). Mark decides the look from pictures and GIFs in `media/m7-3d/transition/`. All three are built and switchable in DEV (`?jack=glitch|dissolve|collapse`). Each runs out in about 24 ticks, holds (alive, never frozen) while the chunk loads, then runs in for about 24 ticks. Jack-out is the same style in reverse.
+- A (recommended). **Datamosh tear.** The 2D picture tears into horizontal slices with a growing color split, a white flash at the peak, then the same tear decays over the 3D grid. Hold: a sustained low tear. Reuses `fx.glitch`, `fx.aberrate`, `fx.flare` and `game.flash`. It is a named moment in `src/data/fx.json`, so Mark can tune it in the FX lab (editor contract, no new shader). `lite`: flash, `shake` and `dim` only. `none`: a plain fade through the void color (`game.fadeOut`, `game.fadeIn`).
+- B. **Pixel dissolve into the grid.** The 2D picture breaks into game-pixel blocks (an ordered-noise threshold) that give way to the 3D grid. Hold: the dissolve parks at about a third and its blocks flicker. Reuses `createEffect` (a custom filter on a 2D snapshot sprite over `View3D`), a snapshot of the picture (as the battle intro does) and the seeded visual stream. One new small shader. `lite`: the same filter (it is display layer, not `FxSystem`). `none`: a plain fade.
+- C. **Scanline collapse.** The 2D picture squashes to one bright horizontal line (CRT power-off), the line pulses, then it opens into the 3D horizon. Hold: the line pulses. Reuses camera `flash`, a `Graphics` mask on the picture and on `View3D` (the iris of M1b), tweens, and `fx.flare` for the glow. No shader. `lite` and `none`: the same without the glow (this style degrades least).
+- Consequence of A: the strongest "jack in" look, but the glitch shader runs at `full` only, so Mark sees it on a real GPU and not on SwiftShader (`auto` gives `lite` there). B and C look the same at every level.
 
 ## 4. Hard pass lines
 
@@ -93,9 +109,16 @@ D4. **What does `s.hack` return?**
 14. **Bundle.** `npm run budget` exits 0 with the caps of D2. The game build has a `lazy-3d` chunk that holds Three, and no other chunk holds Three. `boot` and `first play` hold no Three. `grep -n "import(" src/hack3d/door.ts` shows one dynamic import of the chunk. A normal run in `e2e/default-path.spec.ts` (title, field, battle, Options) makes 0 requests for the 3D chunk. The new `prod.spec.ts` case loads the hashed chunk from the preview server by its manifest name (WebKit and Chromium; Firefox skips). **Controls:** a static `import 'three'` in `src/hack3d/door.ts` fails the budget (run once, revert); a wrong chunk name makes the `import()` reject.
 15. **The 2D game is unchanged.** `npx playwright test e2e/playthrough.spec.ts e2e/chaos.spec.ts e2e/default-path.spec.ts e2e/gameover.spec.ts --reporter=line` exits 0 and `git diff --stat main...HEAD -- tests/fixtures` shows no change. `git diff --stat main...HEAD -- src/field src/battle src/art src/story src/scenes/field.ts src/scenes/battle.ts` is empty, and `src/data` changes only by `hacks.json`.
 16. **Imports.** `npx vitest run tests/sje-imports.test.ts` exits 0: Three is imported only under `src/sje/three` and `src/hack3d`; `src/hack3d/door.ts` and `result.ts` import no Three; `src/hack3d/sim` imports nothing from `src/engine`; `src/game/hackseam.ts` is the only game file that imports `hack3d`; `src/hack3d/index.ts` is reached only by the door's dynamic import. `tests/screen-literals.test.ts` passes. **Control:** the existing negative cases.
-17. **GPU run, once, at the end (principle 12), by the main session:** `npm run perf` with a new game-page case (the running `HackScene` with bloom and the HUD). Interval p95 within 5% of the bare page, cost p95 at most 8 ms. The 2D, live-battle and field cases still pass their lines. A negative control (extra 3D frames per frame) fails both rules. The cold and warm first-entry times are recorded, not gated. Numbers go in `tooling-and-testing.md` section 7.
+17. **GPU run, once, at the end (principle 12), by the main session:** `npm run perf` with a new game-page case (the running `HackScene` with bloom and the HUD). Interval p95 within 5% of the bare page, cost p95 at most 8 ms. The 2D, live-battle and field cases still pass their lines. A negative control (extra 3D frames per frame) fails both rules. The cold and warm first-entry times are recorded, not gated. Numbers go in `tooling-and-testing.md` section 7. The transition frames are measured in the same run (line 25).
 18. **Docs and CI.** `CHANGELOG.md`, `GLOSSARY.md` (hack definition, door, outcome, grace, seam), `interfaces.md` section 12 (the D4 shape and the built shape), `frame-and-rendering.md` 7.4 (the grace result, and the "legacy path" sentence), `tooling-and-testing.md` sections 7 and 10, `docs/CI.md` and `ci.yml` (the spec in shard 6/8), and the record table below are filled. `npx vitest run tests/ci-shards.test.ts` exits 0.
-19. **Playable checkpoint (Mark).** After the last fix round, the main session gives the DEV URL of the hack scene, the pictures in `media/m7-3d/` (the look is evidence, not graded) and the perf numbers. Mark merges or names fixes.
+19. **No bad frame in the transition.** For each style, at `?fx=full` and `?fx=none`, a capture of every frame of jack-in and jack-out (fixed ticks with `__SJ__.step`, a canvas read for each frame). A frame may be one color (a single-color share of 0.9 or more) only inside a **uniform phase that the transition declares in its data**, as a tick range with a reason (for example the flash peak, or the middle of a fade through the void color at `none`). The check reads those ranges. Three more rules: a declared range ends at the cover peak and never reaches the reveal; the frame one tick after a range ends is not uniform (the 3D grid is already on screen); the declared ticks make up at most 40% of the transition. Any uniform frame outside a declared range fails. **Controls:** a mutant that skips the first 3D render under the cover (a blank target is revealed: the 3D target before its first render is cleared to one color, so the revealed frame is uniform) gives an undeclared uniform frame and fails; a mutant that draws one black frame at the hand-over fails; a style with a wider declared range than the rules allow fails.
+20. **A slow chunk does not freeze the screen (wall clock, not ticks).** The hold bound is 10,000 ms of wall-clock time, like the door's chunk wait. It is a field of `TransitionParams` (`holdBoundMs`, default 10000); a unit test pins the default, and the e2e cases pass a shortened value. Cases 1 and 2 run at `?fx=full` and `?fx=none`. At every `fxLevel`, the hold phase draws a moving element over the held picture (at `none`: a blinking cursor and a short "jacking in" line on the void color), so a hold is never one color and never a declared uniform range, and it does not count toward the 40% cap of line 19. Case 1: the chunk request is delayed 3 s with `page.route`. The transition keeps animating every tick while it holds: the picture hash changes at least every 10 ticks over the whole hold, no frame is blank, and when the chunk arrives the in phase runs in full and the hack plays. Case 2: the chunk request never completes and `holdBoundMs` is 1,500. The result is `unsupported / chunk-failed` after 1,500 ms (give or take 500), the story continues, and the 2D scene is back with no effect left (line 21). **Control:** a style with its hold phase turned off shows a frozen frame in case 1 and fails.
+21. **Jack-out returns the exact 2D state.** After jack-out, a hash of the field state (map, leader position and direction, party, flags, camera) equals the hash before jack-in, `fx.counts()` shows 0 shocks, hazes, glitches and particles, and the settled picture equals the picture before. This holds after a normal end, a `fail`, an abort and a drop. **Control:** a mutant that leaves a glitch layer, or advances the field, changes the hash.
+22. **The context hand-over has no seam.** During jack-in and jack-out: 0 GL errors and 0 console warnings. A unit case on a fake frame (the one `tests/sje-scene3d.test.ts` has) records the order of calls: `frame.render` has run at least once (`renders >= 1`) before the first frame in which the 3D sprite is visible. **Control:** a mutant that defers the first render to after the reveal must fail this case (the pixel-level mutant of line 19 is a second, separate guard).
+23. **`fxLevel` degrades to a plain, seamless version.** At `none`, `FxSystem` receives 0 calls, no filter is on the world, and lines 19 to 22 hold. At `lite` they hold too. At `full` the style uses its effects. **Control:** a style that calls `fx.glitch` at `none` makes the call count non-zero and fails.
+24. **Deterministic pictures (the normal path only).** The same style, `?seed` and tick give the same frame hash on two page loads, so the GIFs can be made again. This covers the normal, non-delayed path. A delayed chunk (line 20) changes the length of the hold by wall-clock time, so frame hashes there are not compared. **Control:** a different seed gives a different hash for the glitch and dissolve styles.
+25. **The speed line holds during the transition (GPU run, with line 17).** The frames of jack-in and jack-out are sampled in the same `npm run perf` run, for each style at `full`: interval p95 within 5% of the bare page, cost p95 at most 8 ms. The negative control of line 17 fails the same rules.
+26. **Playable checkpoint (Mark).** After the last fix round, the main session gives the DEV URL of the hack scene, the pictures in `media/m7-3d/` and the transition GIFs in `media/m7-3d/transition/` (D5) (the look is evidence, not graded) and the perf numbers. Mark merges or names fixes.
 
 ## 5. Tasks, in build order
 
@@ -105,21 +128,23 @@ D4. **What does `s.hack` return?**
 4. **The scene.** `Scene3D`: `contextGraceMs`, the restore path, `createHud` and `dispose3D` hooks (per D3). `HackScene`, `look`, `hud` (layout from `H`), `startHack` on today's class.
 5. **Hidden skip.** `SceneManager.prerender()` runs the `prerender` of a scene that the second `refreshLayout()` revealed. Unit and pixel cases of pass line 11.
 6. **Entry points (per D1).** `?scene=hack` route and `__SJ__.hack(id, opts)` in DEV. The game-page cases of lines 4 to 13.
-7. **Budget, CI and prod.** `scripts/bundle-budget.mjs`: check 2 inverted, check 3 split by class, caps per D2 with a dated comment. `ci.yml` and `docs/CI.md`. The `prod.spec.ts` chunk case and the `default-path.spec.ts` request assertion.
-8. **Perf case and docs.** The game-page 3D case in `perf.spec.ts`. Docs of pass line 18. Carry items stay open unless the diff touches them.
+7. **The transition (D5).** `src/hack3d/transition.ts` (no Three): the phases `out`, `hold` (bounded at 10 s), `in`, and the reverse for jack-out. The door starts the chunk load at the first tick. The first 3D frame is rendered under the cover before the reveal. The three styles as data plus code (an `fx.json` moment for A), `?jack=` in DEV, the degrade rules of pass line 23. Cases of lines 19 to 24.
+8. **Budget, CI and prod.** `scripts/bundle-budget.mjs`: check 2 inverted, check 3 split by class, caps per D2 with a dated comment. `ci.yml` and `docs/CI.md`. The `prod.spec.ts` chunk case and the `default-path.spec.ts` request assertion.
+9. **Perf case and docs.** The game-page 3D case in `perf.spec.ts`. Docs of pass line 18. Carry items stay open unless the diff touches them.
+10. **Look checkpoint (D5).** The runner makes every frame and one GIF for each style, at `full`, into `media/m7-3d/transition/` (fixed seed, so they can be made again). The main session sends the GIFs to Mark at once. Mark picks a style or names changes. Then the other two styles move to DEV only, and the budget numbers are set from the build that ships.
 
 ## 6. Editor contract (principle 11)
 
-(a) A hack's tunables are the fields of `HackDef` in `src/data/hacks.json`, documented in `checkHacks`. The grace is the engine option `contextGraceMs`. The bloom values and the look constants stay in code: the real hacking scene replaces the look, and no tool drives it now. (b) The file loads and saves through `checkHacks`, with a round-trip test. (c) A definition is read when a hack starts, so `__SJ__.hack(id)` picks up an edited file after a dev reload. A running hack does not swap. (d) `HackSim.snapshot()` and `restore()` are new; the look is derived from the sim, so the scene needs none. (e) `HackSim.step()` runs one tick, and `__SJ__.step(n)` drives the scene on the real loop. Control: pass line 12 (snapshot, restore and equal state) and line 3 (a bad file is rejected).
+(a) A hack's tunables are the fields of `HackDef` in `src/data/hacks.json`, documented in `checkHacks`. The grace is the engine option `contextGraceMs`. The bloom values and the look constants stay in code: the real hacking scene replaces the look, and no tool drives it now. (b) The file loads and saves through `checkHacks`, with a round-trip test. (c) A definition is read when a hack starts, so `__SJ__.hack(id)` picks up an edited file after a dev reload. A running hack does not swap. (d) `HackSim.snapshot()` and `restore()` are new; the look is derived from the sim, so the scene needs none. (f) The transition: style A is a named moment in `src/data/fx.json` (layers and durations as data, editable in the FX lab). B and C read one `TransitionParams` object with data defaults (durations in ticks, block size, line height). The `hold` bound is a field of it. `fx.step`, `snapshot` and `restore` already exist for scrubbing. (e) `HackSim.step()` runs one tick, and `__SJ__.step(n)` drives the scene on the real loop. Control: pass line 12 (snapshot, restore and equal state) and line 3 (a bad file is rejected).
 
 ## 7. Verifier plan (lean loop)
 
 | Agent | Model, effort | Job |
 |---|---|---|
 | Builder A | sonnet, high | Tasks 1 to 4 (survey, specs, data and story side, the scene). |
-| Builder B | sonnet, high | Tasks 5 to 8 (hidden skip, entry points, budget, CI, prod, perf case, docs). Starts after A is committed. |
-| Runner | sonnet, medium | Pass lines 1 to 16 and 18. Runs the expensive suites once. Makes the pictures. |
-| Reader | haiku, medium | Reads `git diff main...HEAD`: lines 11, 15 and 16; the dispose order and the `finally` that settles a dropped hack; no vacuous test; the controls really fail. |
+| Builder B | sonnet, high | Tasks 5 to 9 (hidden skip, entry points, the transition, budget, CI, prod, perf case, docs). Starts after A is committed. |
+| Runner | sonnet, medium | Pass lines 1 to 16 and 18 to 24. Runs the expensive suites once. Makes the pictures, and at task 10 the frames and one GIF per style into `media/m7-3d/transition/`. |
+| Reader | haiku, medium | Reads `git diff main...HEAD`: lines 11, 15, 16, 19 and 21; the dispose order and the `finally` that settles a dropped hack; no vacuous test; the controls really fail. |
 
 - Every builder prompt: no `Co-Authored-By` line and no `Claude-Session` trailer in any commit. Every agent call sets `effort`.
 - Pass: every line holds, no Critical or Important finding open. A Minor finding is a named fix. A fix round: one fresh verifier checks only the named findings. Cap 3 rounds.
@@ -133,6 +158,8 @@ D4. **What does `s.hack` return?**
 - **A restore path in `Scene3D`** touches the shared context, `releaseGpuData` and Three's own restore handler. The order is fragile (frame-and-rendering.md 7.2, rule 3). Pass line 8 guards it.
 - **Browsers:** the game-page 3D cases run on Chromium with SwiftShader only. WebKit runs the chunk load case in `prod.spec.ts`. CI Firefox has no WebGL 2. A WebKit-only fault in a running hack stays unseen until the real hack iteration.
 - **Hidden sim:** `update3D` keeps running under an opaque cover. No M7 scene covers a hack. The real iteration decides the pause rule.
+- **Transition cost:** the transition code sits in the start path and adds to first play (estimate 2 to 3 kB for the style that ships). Style A shows only at `full`, and SwiftShader gives `lite` on `auto`, so the GIFs for Mark are made with `?fx=full`. A software run is slower, but the capture is tick-driven.
+- **A new shader** (style B) is new GL code on the shared context. The canary suite covers filters on the shared context.
 - **Conflicts** in `CHANGELOG.md` and `docs/roadmap/roadmap.json`. Keep edits small. Merge `main` before each commit. `status.md` changes only by a PR to `main`.
 - **Scope creep:** input, sound, a real look, a Chapter 1 beat, a preload.
 
@@ -143,8 +170,8 @@ D4. **What does `s.hack` return?**
 | Brief | this file and `m7-survey.md`. Decisions D1 to D4 open | — | draft | — |
 | A: task 1 | | | | |
 | A: tasks 2 to 4 | | | | |
-| B: tasks 5 to 8 | | | | |
-| Runner | pass lines 1 to 16 and 18 | — | — | — |
+| B: tasks 5 to 9 | | | | |
+| Runner | pass lines 1 to 16 and 18 to 24 | — | — | — |
 | Reader | diff read | — | — | — |
-| Pass line 17 (GPU run) | `npm run perf` on the real GPU, numbers in `tooling-and-testing.md` section 7 | | | |
-| Open | Line 19, Mark's checkpoint | pictures in `media/m7-3d/` | waiting | |
+| Pass lines 17 and 25 (GPU run) | `npm run perf` on the real GPU (3D scene and transition frames), numbers in `tooling-and-testing.md` section 7 | | | |
+| Open | Task 10 and line 26: Mark picks the style (D5) and checks the build | pictures in `media/m7-3d/`, GIFs in `media/m7-3d/transition/` | waiting | |
