@@ -30,8 +30,8 @@ import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { isMainModule } from './is-main.mjs';
 
-/** The reporter's own port. The normal Command Center uses 3009 and the end-to-end tests 3010, so a person can run both. */
-export const REPORTER_PORT = 3011;
+/** The reporter's own port. The normal Command Center uses 3009 and the end-to-end tests 3010. Do not move it back to a 30xx port: `PW_PORT=3011` game Playwright runs use 3011 and the launcher reads an open port as "a reporter is running". It stays below 32768 so that no OS gives it out as the source port of an outgoing connection (Linux ephemeral range 32768-60999). */
+export const REPORTER_PORT = 29417;
 /** The folder of the reporter inside the main checkout. It is in .gitignore. */
 export const STATE_DIR = '.cc-reporter';
 /** A lock that was not touched for this long is dead (a crash, or a power cut). The launcher touches it every `LOCK_TOUCH_MS`. */
