@@ -10,7 +10,7 @@ export const OFFLINE_AFTER_SECONDS = 150;
 
 export type ReporterState = 'online' | 'offline' | 'not-running';
 export type Reporter = { state: ReporterState; writtenAt: string | null; ageSeconds: number | null; offlineAfterSeconds: number };
-/** `live` is the stored JSON as it is (the reporter's allow-listed fields), or null when the key is gone. */
+/** `live` is the stored JSON as it is, or null when the key is gone. This function does not filter it: the reporter (step 5) writes only the allow-listed fields of design.md section 11.1, and only it holds the read-write token. */
 export type LiveAnswer = { reporter: Reporter; live: unknown };
 
 /** The part of `fetch` that this function uses, so that a test can pass a small fake. */

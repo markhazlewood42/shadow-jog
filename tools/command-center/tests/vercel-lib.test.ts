@@ -206,9 +206,10 @@ describe('vercel.json', () => {
   const text = readFileSync(join(PACKAGE_DIR, 'vercel.json'), 'utf8');
   const config = JSON.parse(text) as {
     framework: string;
+    buildCommand: string;
     outputDirectory: string;
     ignoreCommand: string;
-    functions: Record<string, { maxDuration: number }>;
+    functions: Record<string, { maxDuration: number } | undefined>;
     rewrites: { source: string; destination: string }[];
   };
 
@@ -223,29 +224,34 @@ describe('vercel.json', () => {
     expect(existsSync(join(PACKAGE_DIR, 'scripts', 'vercel-ignore.mjs'))).toBe(true);
   });
 
-  it('sets maxDuration 30 for patterns that match real function files', () => {
-    const files = ['api/snapshot.ts', 'api/live.ts', 'api/docs/[...path].ts'];
-    for (const file of files) expect(existsSync(join(PACKAGE_DIR, file))).toBe(true);
-    for (const [pattern, setting] of Object.entries(config.functions)) {
-      expect(setting.maxDuration).toBe(30);
-      const regex = new RegExp(`^${pattern.replace(/[.[\]]/g, '\\$&').replace(/\*/g, '[^/]*')}$`);
-      expect(files.some((file) => regex.test(file))).toBe(true);
-    }
-    // Every function file is covered by a pattern.
-    for (const file of files) {
-      const covered = Object.keys(config.functions).some((pattern) => new RegExp(`^${pattern.replace(/[.[\]]/g, '\\$&').replace(/\*/g, '[^/]*')}$`).test(file));
-      expect(covered, file).toBe(true);
-    }
+  it('builds only the page: the function files are committed, because Vercel finds functions before the build', () => {
+    expect(config.buildCommand).toBe('vite build');
+    expect(existsSync(join(PACKAGE_DIR, 'scripts', 'build-functions.mjs'))).toBe(true);
+  });
+
+  it('sets maxDuration 30 for the committed function files in api/, whose sources are in functions/', () => {
+    // The sources are in functions/ (a folder Vercel does not look at). api/ holds the files that scripts/build-functions.mjs writes, and they are tracked by git.
+    for (const name of ['snapshot', 'live', 'docs']) expect(existsSync(join(PACKAGE_DIR, 'functions', `${name}.ts`)), name).toBe(true);
+    expect(Object.keys(config.functions)).toEqual(['api/*.js']);
+    expect(config.functions['api/*.js']?.maxDuration).toBe(30);
+    for (const name of ['snapshot', 'live', 'docs']) expect(existsSync(join(PACKAGE_DIR, 'api', `${name}.js`)), name).toBe(true);
+    // The pattern of vercel.json must match real files in the uploaded source, so the files must not be git-ignored.
+    expect(readFileSync(join(PACKAGE_DIR, '..', '..', '.gitignore'), 'utf8')).not.toMatch(/command-center\/api|api\/\*\.js/);
+  });
+
+  it('rewrites /api/docs/<path> to the docs function with the path as a query parameter, before the page rewrite', () => {
+    expect(config.rewrites).toHaveLength(2);
+    expect(config.rewrites[0]).toEqual({ source: '/api/docs/:path*', destination: '/api/docs?path=:path*' });
+    expect(config.rewrites[1]?.destination).toBe('/index.html');
   });
 
   it('sends no /api path to the page, and every other path to it', () => {
-    for (const rule of config.rewrites) {
-      expect(rule.destination).toBe('/index.html');
-      // The source is a path-to-regexp pattern with one regex group. As a plain regex it is the same text.
-      const regex = new RegExp(`^${rule.source}$`);
-      for (const api of ['/api', '/api/', '/api/snapshot', '/api/live', '/api/docs/docs/GDD.md', '/api/anything/else']) expect(regex.test(api), api).toBe(false);
-      for (const page of ['/', '/docs', '/docs/engine/decisions', '/workstreams', '/apis', '/apidocs/x']) expect(regex.test(page), page).toBe(true);
-    }
+    const rule = config.rewrites.find((candidate) => candidate.destination === '/index.html');
+    expect(rule).toBeDefined();
+    // The source is a path-to-regexp pattern with one regex group. As a plain regex it is the same text.
+    const regex = new RegExp(`^${rule?.source}$`);
+    for (const api of ['/api', '/api/', '/api/snapshot', '/api/live', '/api/docs', '/api/docs/docs/GDD.md', '/api/anything/else']) expect(regex.test(api), api).toBe(false);
+    for (const page of ['/', '/docs', '/docs/engine/decisions', '/workstreams', '/apis', '/apidocs/x']) expect(regex.test(page), page).toBe(true);
   });
 
   it('holds no secret and no environment values', () => {

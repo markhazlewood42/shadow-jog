@@ -5,8 +5,10 @@
   "outputDirectory": "dist",
   "ignoreCommand": "node scripts/vercel-ignore.mjs",
   "functions": {
-    "api/*.ts": { "maxDuration": 30 },
-    "api/docs/*.ts": { "maxDuration": 30 }
+    "api/*.js": { "maxDuration": 30 }
   },
-  "rewrites": [{ "source": "/((?!api/|api$).*)", "destination": "/index.html" }]
+  "rewrites": [
+    { "source": "/api/docs/:path*", "destination": "/api/docs?path=:path*" },
+    { "source": "/((?!api/|api$).*)", "destination": "/index.html" }
+  ]
 }

@@ -1,9 +1,12 @@
 # Tests for the Command Center (tools/command-center/). ci.yml skips this folder, so this workflow
 # runs them: typecheck, Vitest and the Playwright specs on Chromium.
 #
-# This workflow is not a required check, so a path filter is safe here. A required check must never
-# use a path filter (see ci.yml). The job is named `command-center`, not `check`, so it cannot
-# take the place of the required `check` job.
+# This workflow is a required check on main (Mark, 2026-10-12): a stale committed function bundle
+# (tools/command-center/api/*.js) must not merge. A required check must never use a path filter on
+# pull_request (see ci.yml): a skipped workflow never reports, and the pull request cannot merge. So
+# the job always starts, and the step "Check which files changed" skips the work when no changed file
+# is one the tests read. The job is named `command-center`, not `check`, so it cannot take the place
+# of the required `check` job.
 #
 # The tests need no GitHub token. They use fixtures and a fake `gh`, and they read no real
 # sessions (see tools/command-center/README.md).
@@ -11,14 +14,6 @@ name: Command Center
 
 on:
   pull_request:
-    paths:
-      - 'tools/command-center/**'
-      # The tests render every real doc and the markdown files at the root (tests/render.test.ts), so a change to one of them runs the tests.
-      - 'docs/**'
-      - '*.md'
-      # tests/decisions-parse.test.ts reads the real issue template, so a change to it must run the tests.
-      - '.github/ISSUE_TEMPLATE/decision.md'
-      - '.github/workflows/command-center.yml'
   push:
     branches: [main]
     paths:
@@ -54,20 +49,55 @@ jobs:
         working-directory: tools/command-center
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      # Finds out whether the pull request changes anything that the tests read: tools/command-center/,
+      # docs/, the root *.md files, the decision issue template or this workflow. If none, every later
+      # step is skipped but the job still reports success. It fails closed: `skip` is `true` only when
+      # git lists changed files and none of them is on the list. If git fails, or the step breaks, the
+      # job runs in full (the later steps test `!= 'true'`). The `case` list below must cover the paths under `push`; `*.md` there also matches nested files, which only runs more.
+      - name: Check which files changed
+        id: scope
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        run: |
+          skip=false
+          if git rev-parse --verify --quiet 'HEAD^2' > /dev/null \
+              && files=$(git diff --no-renames --name-only 'HEAD^1' HEAD) \
+              && [ -n "$files" ]; then
+            printf 'Changed files:\n%s\n' "$files"
+            skip=true
+            while IFS= read -r file; do
+              case "$file" in
+                tools/command-center/* | docs/* | *.md | .github/ISSUE_TEMPLATE/decision.md | .github/workflows/command-center.yml) skip=false; echo "Runs the tests: $file"; break ;;
+              esac
+            done <<< "$files"
+          else
+            echo 'No usable list of changed files, so everything runs.'
+          fi
+          if [ "$skip" = true ]; then
+            echo 'No file that the Command Center tests read changed, so the command-center job skipped its checks.' | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "skip=$skip" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@v4
+        if: steps.scope.outputs.skip != 'true'
         with:
           node-version: 24
           cache: npm
           cache-dependency-path: tools/command-center/package-lock.json
       - run: npm ci
+        if: steps.scope.outputs.skip != 'true'
       # Typecheck and Vitest.
       - run: npm run check
+        if: steps.scope.outputs.skip != 'true'
       # Only Chromium: playwright.config.ts has one project. Run in this folder, so the version
       # that installs is the one in this package.
       - run: npx playwright install --with-deps chromium
+        if: steps.scope.outputs.skip != 'true'
       # The config starts its own server on port 3010. CI is set by GitHub, so the config uses the
       # bundled Chromium and not Edge.
       - name: E2E on Chromium
+        if: steps.scope.outputs.skip != 'true'
         run: npm run e2e -- --trace retain-on-failure
       # A spec that fails only here leaves its trace and its error notes as a download of the run.
       - name: Keep the E2E results of a failed run

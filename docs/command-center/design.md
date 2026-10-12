@@ -486,6 +486,7 @@ After step 4, pushed work is live on the hosted page. After step 5, sessions and
 
 ### 11.4 Risks and open points
 
+- **Step 3 result (2026-10-12).** The functions are committed bundles (`api/*.js`, built from `functions/*.ts` by esbuild; a test fails on drift), because Vercel does not resolve extensionless TypeScript imports and cannot see files made by the build. The docs path is carried by a rewrite to `?path=`. Protection check passed: every route answered a 302 to the login without the bypass. The CDN cache behind the login is not yet proven.
 - **The page is public if the protection scope is wrong.** "Standard Protection" leaves the production URL open. The 401 check after each deploy catches it (section 7). The reporter also repeats the check every 10 minutes and stops publishing if the page answers with a 200 and the JSON body of `/api/live` (section 11.1). A 401 or a redirect to the login means protected. An error, a timeout or a 5xx changes nothing.
 - **Private data leaves this machine.** The allow-list of fields in section 11.1 limits what the reporter sends. The continuous protection check limits how long a wrong scope can matter.
 - **Upstash cap behavior is not stated.** The plan uses about half of the free commands in the worst case.

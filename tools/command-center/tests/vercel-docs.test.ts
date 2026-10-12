@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import docsFunction from '../api/docs/[...path]';
+import docsFunction from '../functions/docs';
 import { type DocFetch, contentsUrl, handleDocs } from '../src/hosted/docs';
 import { TOKEN, expectNoSecrets, jsonOf, request } from './vercel-helpers';
 
@@ -57,10 +57,76 @@ describe('GET /api/docs/<path>: good paths', () => {
     expect(new Uint8Array(await response.arrayBuffer())).toEqual(png);
   });
 
-  it('ignores the query string: no request can pick another ref, repo or path', async () => {
+  it('ignores every query parameter except path: no request can pick another ref or repo', async () => {
     const { fetchImpl, seen } = fakeGithub(() => reply('x'));
-    await handleDocs(request('/api/docs/docs/GDD.md?ref=other&repo=someone/else&path=../CLAUDE.md'), { env, fetchImpl });
+    await handleDocs(request('/api/docs/docs/GDD.md?ref=other&repo=someone/else&owner=x'), { env, fetchImpl });
     expect(seen.map((call) => call.url)).toEqual([`${BASE}/docs/GDD.md?ref=main`]);
+  });
+
+  it('reads the path from the path query parameter (the vercel.json rewrite sends it there)', async () => {
+    const { fetchImpl, seen } = fakeGithub(() => reply('x'));
+    const response = await handleDocs(request('/api/docs?path=docs/GLOSSARY.md'), { env, fetchImpl });
+    expect(response.status).toBe(200);
+    expect(seen.map((call) => call.url)).toEqual([`${BASE}/docs/GLOSSARY.md?ref=main`]);
+  });
+
+  it('reads a path that the platform encoded (docs%2FGLOSSARY.md) once, as the URL parser decodes it', async () => {
+    const { fetchImpl, seen } = fakeGithub(() => reply('x'));
+    await handleDocs(request('/api/docs?path=docs%2FGLOSSARY.md'), { env, fetchImpl });
+    expect(seen.map((call) => call.url)).toEqual([`${BASE}/docs/GLOSSARY.md?ref=main`]);
+  });
+
+  it('accepts the URL path and the query path together when they are the same text', async () => {
+    const { fetchImpl, seen } = fakeGithub(() => reply('x'));
+    const response = await handleDocs(request('/api/docs/docs/GLOSSARY.md?path=docs/GLOSSARY.md'), { env, fetchImpl });
+    expect(response.status).toBe(200);
+    expect(seen).toHaveLength(1);
+  });
+
+  // A client can put its own ?path= on the public URL, and the platform can add the original query to the rewritten one.
+  it.each([
+    ['a different path in the query than in the URL path', '/api/docs/docs/GDD.md?path=status.md'],
+    ['a query path that is allowed beside a URL path that is not', '/api/docs/package.json?path=docs/GDD.md'],
+    ['a URL path that is allowed beside a query path that is not', '/api/docs/docs/GDD.md?path=package.json'],
+    ['two path parameters', '/api/docs?path=docs/GDD.md&path=status.md'],
+    ['two path parameters, the first one hostile', '/api/docs?path=../CLAUDE.md&path=docs/GDD.md'],
+    ['no path at all', '/api/docs'],
+    ['an empty path parameter', '/api/docs?path='],
+    ['an empty path parameter beside a slash', '/api/docs/?path='],
+  ])('refuses %s with 400 and makes no GitHub request', async (_name, url) => {
+    const { fetchImpl, seen } = fakeGithub(() => reply('SECRET FILE'));
+    const response = await handleDocs(request(url), { env, fetchImpl });
+    expect(response.status).toBe(400);
+    expect(seen).toEqual([]);
+  });
+
+  // The allow-list runs on the value of the query parameter exactly as on a URL path.
+  it.each([
+    ['/api/docs?path=../CLAUDE.md', 400],
+    ['/api/docs?path=docs/../../CLAUDE.md', 400],
+    ['/api/docs?path=%2e%2e/CLAUDE.md', 400],
+    ['/api/docs?path=docs%252f..%252fCLAUDE.md', 400],
+    ['/api/docs?path=%252e%252e/CLAUDE.md', 400],
+    ['/api/docs?path=docs%5cGDD.md', 400],
+    ['/api/docs?path=docs/GDD.md%00.png', 400],
+    ['/api/docs?path=/etc/passwd', 400],
+    ['/api/docs?path=C:/Windows/win.ini', 400],
+    ['/api/docs?path=.env', 400],
+    ['/api/docs?path=docs/.git/config', 400],
+    ['/api/docs?path=docs/GDD.md/', 400],
+    ['/api/docs?path=docs//GDD.md', 400],
+    ['/api/docs?path=https://example.com/x.md', 400],
+    ['/api/docs?path=package.json', 404],
+    ['/api/docs?path=src/engine/game.ts', 404],
+    ['/api/docs?path=tools/command-center/README.md', 404],
+    ['/api/docs?path=docs/photo.jpg', 404],
+    ['/api/docs?path=docs', 404],
+  ])('refuses the query path in %s with %i and makes no GitHub request', async (url, status) => {
+    const { fetchImpl, seen } = fakeGithub(() => reply('SECRET FILE'));
+    const response = await handleDocs(request(url), { env, fetchImpl });
+    expect(response.status).toBe(status);
+    expect(seen).toEqual([]);
+    expect(await response.clone().text()).not.toContain('SECRET FILE');
   });
 
   it('builds the URL for the one repo and the ref main only', () => {
@@ -280,6 +346,7 @@ describe('GET /api/docs/<path>: configuration and GitHub failures', () => {
     vi.stubEnv('GITHUB_TOKEN', '');
     expect((await docsFunction.fetch(request(path))).status).toBe(500);
     expect((await docsFunction.fetch(request('/api/docs/%2e%2e/x.md'))).status).toBe(400);
+    expect((await docsFunction.fetch(request('/api/docs?path=%2e%2e/x.md'))).status).toBe(400);
     vi.unstubAllEnvs();
   });
 });

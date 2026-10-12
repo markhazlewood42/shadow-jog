@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import liveFunction from '../api/live';
+import liveFunction from '../functions/live';
 import { type LiveFetch, handleLive, OFFLINE_AFTER_SECONDS, reporterOf } from '../src/hosted/live';
 import { RO_TOKEN, RW_TOKEN, UPSTASH_URL, expectNoSecrets, jsonOf, request } from './vercel-helpers';
 

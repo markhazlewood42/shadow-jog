@@ -39,11 +39,32 @@ export function parseDocPath(pathname: string): DocPath {
   return { ok: false, status: 404, reason: 'not in the allow-list' };
 }
 
-/** The path of a request URL, as the URL parser gives it (it may already have removed dot segments, which is safe: the result is checked again). */
-export function pathnameOf(request: Request): string | null {
+/**
+ * Where the doc path of a request comes from. vercel.json rewrites `/api/docs/:path*` to `/api/docs?path=:path*`, because the multi-segment catch-all file was not
+ * matched on Vercel. So the path arrives in the `path` query parameter, or (no rewrite, or a platform that keeps the original URL) after `/api/docs/` in the URL path.
+ *   - One source: it is used.
+ *   - Both: they must be the same text, or the request is refused. (Vercel can add the original query to the rewritten one, and a client can send its own `?path=`.)
+ *   - More than one `path` parameter, or none: refused.
+ * The value is then checked by `parseDocPath` exactly as before. This function adds no permission: a value that comes from the query goes through the same allow-list.
+ * The query value is decoded once by the URL parser, so `%2e%2e` becomes `..` and `%252e` becomes `%2e`, and `parseDocPath` refuses both.
+ */
+export type DocRequest = { ok: true; pathname: string } | { ok: false; reason: string };
+
+export function docPathnameOf(requestUrl: string): DocRequest {
+  let url: URL;
   try {
-    return new URL(request.url).pathname;
+    url = new URL(requestUrl);
   } catch {
-    return null;
+    return { ok: false, reason: 'bad URL' };
   }
+  const queryValues = url.searchParams.getAll('path');
+  if (queryValues.length > 1) return { ok: false, reason: 'more than one path parameter' };
+  const fromQuery = queryValues[0];
+  // The URL parser may already have removed dot segments from the path. That is safe: the result is checked again.
+  const fromPath = url.pathname.startsWith(PREFIX) && url.pathname.length > PREFIX.length ? url.pathname.slice(PREFIX.length) : undefined;
+  if (url.pathname !== '/api/docs' && url.pathname !== PREFIX && fromPath === undefined) return { ok: false, reason: 'not a docs path' };
+  if (fromQuery !== undefined && fromPath !== undefined && fromQuery !== fromPath) return { ok: false, reason: 'the path and the path parameter differ' };
+  const value = fromQuery ?? fromPath;
+  if (value === undefined || value === '') return { ok: false, reason: 'empty path' };
+  return { ok: true, pathname: `${PREFIX}${value}` };
 }
