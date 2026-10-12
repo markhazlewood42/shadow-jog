@@ -22,7 +22,7 @@ A small website that runs on Mark's machine. It is the home base for all Shadow 
 
 Its plan is [plan-revision-2.md](plan-revision-2.md). A section marked "revision 2" replaces the version 1 text.
 
-**Revision 3 is approved, not built (2026-10-11).** Its source is the strategy draft 4 of 2026-10-11 (not in the repo, summarized in section 11). Mark approved it in a Claude Code session on 2026-10-11. Mark's merge of PR #63 is the record in the repo. It adds a hosted, live view of the project. It changes five things:
+**Revision 3 is approved (2026-10-11) and built (steps 1 to 5 merged 2026-10-12).** Its source is the strategy draft 4 of 2026-10-11 (not in the repo, summarized in section 11). Mark approved it in a Claude Code session on 2026-10-11. Mark's merge of PR #63 is the record in the repo. It adds a hosted, live view of the project. It changes five things:
 1. Each branch gets one workstream file in git, `docs/workstreams/<branch>.md`, where a branch with slashes becomes folders (section 5.9).
 2. A hosted copy of the page runs on Vercel. Vercel Authentication with the scope "All Deployments" lets only Mark open it (section 4.3).
 3. Vercel functions read GitHub live (section 6).
@@ -443,7 +443,7 @@ Choice: B. It keeps the live view cheap and leaves Your move untouched.
 
 Mark approved the strategy "Command Center: a live, hosted strategy" (draft 4) on 2026-10-11. This section holds the parts that do not fit in the sections above. The decisions are in section 2.2. The workstream file is in section 5.9. The hosted mode and the latency table are in section 4.3. The functions are in section 6. All code paths are under `tools/command-center/`.
 
-Steps 1 to 4 are built and merged. Step 5 is built on branch `reporter` (see the status note after section 11.3). Goal (Mark): one hosted URL that Mark always uses. It shows a change soon after Mark or any Claude Code session updates the project. It knows every active branch, worktree and session, and shows how each fits the current workstreams.
+Steps 1 to 4 are built and merged. Step 5 is built and merged (see the status note after section 11.3). Goal (Mark): one hosted URL that Mark always uses. It shows a change soon after Mark or any Claude Code session updates the project. It knows every active branch, worktree and session, and shows how each fits the current workstreams.
 
 ### 11.1 Local reporter (this machine)
 
@@ -484,7 +484,7 @@ Each step is one branch from `main`, one PR, and the lean loop (runner and reade
 
 After step 4, pushed work is live on the hosted page. After step 5, sessions and worktrees are live too.
 
-**Step 5 status (2026-10-12): built on branch `reporter`, not merged, not run against the real Upstash.** Mark still adds the settings file and the hook entry (README, section "The local reporter (step 5)"). What was built, and where it differs from section 11.1:
+**Step 5 status (2026-10-12): built, merged (PR #72) and running against the real Upstash (the reporter log said `publishing started` on 2026-10-12).** What was built, and where it differs from section 11.1:
 - **Code.** `src/server/publish/` (the allow-list mapper, the worktree reader, the Upstash writer, the protection check, the loop), `scripts/reporter-launch.mjs` (the pinned copy, the lock, the fetch every 2 minutes) and `scripts/reporter-hook.mjs` (the `SessionStart` hook). `main.ts --reporter` turns the module on. `npm run cc` does not publish.
 - **Own port 3011.** The reporter does not use 3009, so `npm run cc` and the reporter can run together.
 - **Fail closed at the start.** The first write waits for a check that says "protected". Until then the check repeats every minute. After the first "protected" answer, the 10-minute rule of section 11.1 applies with one change: an error, a timeout or a 5xx is "no answer", and the third "no answer" in a row (30 minutes) fails closed. The reporter then stops writing, deletes the key, and checks every minute until one check says "protected". A "protected" answer resets the count.
