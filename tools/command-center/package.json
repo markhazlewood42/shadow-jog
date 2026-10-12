@@ -14,6 +14,7 @@
     "github-api-dry-run": "tsx scripts/github-api-dry-run.ts",
     "test": "vitest run",
     "e2e": "playwright test",
+    "e2e:hosted": "playwright test -c playwright.hosted.config.ts",
     "check": "npm run typecheck && npm run test"
   },
   "dependencies": {

@@ -99,6 +99,10 @@ jobs:
       - name: E2E on Chromium
         if: steps.scope.outputs.skip != 'true'
         run: npm run e2e -- --trace retain-on-failure
+      # The hosted page: the page built with VITE_HOSTED=1 and served by vite preview, also on port 3010 (so after the local run, never together). The specs play the Vercel functions with page.route().
+      - name: E2E of the hosted page on Chromium
+        if: steps.scope.outputs.skip != 'true'
+        run: npm run e2e:hosted -- --trace retain-on-failure
       # A spec that fails only here leaves its trace and its error notes as a download of the run.
       - name: Keep the E2E results of a failed run
         if: failure()

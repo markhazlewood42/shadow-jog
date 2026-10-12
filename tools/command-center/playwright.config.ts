@@ -6,6 +6,8 @@ import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: 'e2e',
   testMatch: '**/*.spec.ts',
+  // The specs of the hosted page need the hosted build and no server: playwright.hosted.config.ts runs them (npm run e2e:hosted).
+  testIgnore: '**/hosted/**',
   timeout: 30_000,
   expect: { timeout: 10_000 },
   fullyParallel: false,
