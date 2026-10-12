@@ -12,6 +12,7 @@ import { HOSTED_REPO, WORKSTREAMS_PATH, isHosted, visibleNav } from '../src/web/
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
+
 const nav: NavSection[] = [
   { id: 'a', title: 'A', items: [{ kind: 'doc', slug: 'x', title: 'X', updated: '' }] },
   {

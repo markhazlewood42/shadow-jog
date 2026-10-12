@@ -4,6 +4,7 @@
 // or a page of HTML (design.md section 7). All three mean the same thing for the person: "Login expired: reload the page". So they get one kind, `login`,
 // and the page shows a banner. The request uses `redirect: 'manual'`: a redirect to another site would otherwise fail inside the browser as a network error
 // (the login page sends no CORS headers), and that would look like a lost connection.
+// An answer of 200 that is not JSON counts as a lost login only when it is HTML. Any other text is "unexpected answer", so the banner never asks for a sign-in that is not the cause.
 
 export type HostedErrorKind = 'login' | 'network' | 'http' | 'bad-response';
 
@@ -24,6 +25,9 @@ export type FetchFn = (url: string, init: RequestInit) => Promise<Pick<Response,
 
 export const LOGIN_MESSAGE = 'Login expired. Reload the page to sign in again.';
 const NETWORK_MESSAGE = 'Cannot reach the server. Check the connection.';
+
+export const NOT_JSON_MESSAGE = 'Unexpected answer from the server: it is not JSON.';
+const NOT_JSON_ERROR = (status: number): HostedError => ({ kind: 'bad-response', code: 'not-json', message: NOT_JSON_MESSAGE, status });
 
 const loginError = (status?: number): HostedError => ({ kind: 'login', code: 'login-expired', message: LOGIN_MESSAGE, ...(status === undefined ? {} : { status }) });
 
@@ -65,8 +69,12 @@ export async function fetchHostedJson<T>(url: string, fetchImpl: FetchFn = (targ
   }
 
   if (res.ok) {
-    // Status 2xx with something that is not JSON: the login page, or a host that has no such function.
-    if (!isJson) return { ok: false, error: loginError(res.status) };
+    if (!isJson) {
+      // Status 2xx with something that is not JSON. An HTML page is the login page of Vercel (or the page of a host that has no such function): the login is gone.
+      // Anything else is an answer that the page does not know, and it is said so: a wrong word here would send Mark to sign in again for nothing.
+      const html = (res.headers.get('content-type') ?? '').toLowerCase().includes('text/html') || text.trimStart().startsWith('<');
+      return { ok: false, error: html ? loginError(res.status) : NOT_JSON_ERROR(res.status) };
+    }
     return { ok: true, data: body as T };
   }
   // An error answer. A 2xx answer of HTML was handled above; a 4xx or 5xx of HTML (a platform error page) is an http error without a sentence.

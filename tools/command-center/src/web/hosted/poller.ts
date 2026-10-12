@@ -34,6 +34,8 @@ export function createPoller(options: { run: () => Promise<void>; intervalMs: nu
   const visibility = options.visibility ?? documentVisibility;
   let started = false;
   let running = false;
+  // The tab showed while a run was in flight: one more run follows at once when it ends, so the page is fresh when the eye lands on it.
+  let refreshQueued = false;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let stopListening: (() => void) | null = null;
 
@@ -44,7 +46,10 @@ export function createPoller(options: { run: () => Promise<void>; intervalMs: nu
 
   async function tick(): Promise<void> {
     clearTimer();
-    if (running) return;
+    if (running) {
+      refreshQueued = true;
+      return;
+    }
     running = true;
     try {
       await options.run();
@@ -53,8 +58,20 @@ export function createPoller(options: { run: () => Promise<void>; intervalMs: nu
     } finally {
       running = false;
     }
+    if (!started) {
+      refreshQueued = false;
+      return;
+    }
+    // A refresh that was asked for during the run starts now, if the tab is still visible.
+    if (refreshQueued) {
+      refreshQueued = false;
+      if (visibility.isVisible()) {
+        void tick();
+        return;
+      }
+    }
     // Schedule the next run only when the loop still runs and the tab is visible. A tab that went hidden during the run stays quiet until it shows again.
-    if (started && visibility.isVisible()) timer = setTimeout(() => void tick(), options.intervalMs);
+    if (visibility.isVisible()) timer = setTimeout(() => void tick(), options.intervalMs);
   }
 
   function onVisibility(): void {

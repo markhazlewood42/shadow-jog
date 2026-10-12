@@ -1,4 +1,4 @@
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { type Page, expect, test } from '@playwright/test';
 import { NOW, liveAnswer, liveState, richWorld, snapshot } from '../../fixtures/hosted/world';
@@ -302,6 +302,21 @@ test.describe('a lost login (design section 7)', () => {
     await mockApi(page, { snapshot: { json: world.snapshot }, live: { status: 401, body: 'Authentication Required', contentType: 'text/html' } });
     await page.goto('/workstreams');
     await expect(page.getByRole('alert').filter({ hasText: 'Login expired' }).first()).toBeVisible();
+  });
+});
+
+test.describe('the hosted build', () => {
+  // The hosted page only reads (design 2.2). The write call of the answer form is left out of the build, not only hidden: the build is the page that Vercel serves.
+  test('holds no call to the answer endpoint and no write token header', () => {
+    const assets = join(import.meta.dirname, '..', '..', 'dist-hosted', 'assets');
+    const code = readdirSync(assets)
+      .filter((name) => name.endsWith('.js'))
+      .map((name) => readFileSync(join(assets, name), 'utf8'))
+      .join('\n');
+    // The right build was read: it holds the address that the hosted page polls.
+    expect(code).toContain('/api/snapshot');
+    expect(code).not.toContain('/answer');
+    expect(code).not.toContain('X-CC-Token');
   });
 });
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { type FetchFn, LOGIN_MESSAGE, fetchHostedJson, fetchHostedText } from '../src/web/hosted/fetch';
+import { type FetchFn, LOGIN_MESSAGE, NOT_JSON_MESSAGE, fetchHostedJson, fetchHostedText } from '../src/web/hosted/fetch';
 
 // How a request of the hosted page is sorted (design 7): a lost login in any of its three forms is one kind, and nothing throws.
 
@@ -40,10 +40,19 @@ describe('fetchHostedJson', () => {
     ['a redirect that was not followed', { status: 0, type: 'opaqueredirect' }],
     ['a 302', { status: 302 }],
     ['a 200 answer that is HTML (the login page)', { body: '<!doctype html><html></html>' }],
-    ['a 200 answer that is empty', { body: '' }],
+    ['a 200 answer with a text/html type', { body: 'Log in', contentType: 'text/html; charset=utf-8' }],
   ] satisfies [string, Reply][])('says "login expired" for %s', async (_name, reply) => {
     const result = await fetchHostedJson('/api/x', fake(reply));
     expect(result).toMatchObject({ ok: false, error: { kind: 'login', code: 'login-expired', message: LOGIN_MESSAGE } });
+  });
+
+  it.each([
+    ['an empty answer', { body: '' }],
+    ['plain text', { body: 'OK', contentType: 'text/plain' }],
+    ['a 200 answer that cuts off inside the JSON', { body: '{"a":' }],
+  ] satisfies [string, Reply][])('says "unexpected answer", not "login expired", for %s with status 200', async (_name, reply) => {
+    const result = await fetchHostedJson('/api/x', fake(reply));
+    expect(result).toMatchObject({ ok: false, error: { kind: 'bad-response', code: 'not-json', message: NOT_JSON_MESSAGE } });
   });
 
   it('says "network" when fetch throws', async () => {

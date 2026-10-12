@@ -92,13 +92,66 @@ describe('createPoller', () => {
     const poller = createPoller({ run, intervalMs: 5_000, visibility: tab });
     poller.start();
     await vi.advanceTimersByTimeAsync(0);
-    // The tab hides and shows again while the first run is still in flight: no second run starts.
+    // The tab hides and shows again while the first run is still in flight: no second run starts at once.
     tab.set(false);
     tab.set(true);
     await vi.advanceTimersByTimeAsync(10_000);
     expect(run).toHaveBeenCalledTimes(1);
-    await vi.advanceTimersByTimeAsync(30_000);
+    await vi.advanceTimersByTimeAsync(60_000);
     expect(most).toBe(1);
+    poller.stop();
+  });
+
+  it('queues one refresh when the tab shows during a run, and starts it as soon as the run ends', async () => {
+    const tab = fakeTab();
+    let finish: () => void = () => {};
+    const run = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const poller = createPoller({ run, intervalMs: 60_000, visibility: tab });
+    poller.start();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(run).toHaveBeenCalledTimes(1);
+    // Hidden and shown twice while the run is in flight: still one queued refresh, not two.
+    tab.set(false);
+    tab.set(true);
+    tab.set(false);
+    tab.set(true);
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(run).toHaveBeenCalledTimes(1);
+    finish();
+    await vi.advanceTimersByTimeAsync(0);
+    // The refresh starts at once, long before the 60 s interval.
+    expect(run).toHaveBeenCalledTimes(2);
+    finish();
+    await vi.advanceTimersByTimeAsync(59_000);
+    expect(run).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(run).toHaveBeenCalledTimes(3);
+    poller.stop();
+  });
+
+  it('does not start the queued refresh when the tab is hidden again before the run ends', async () => {
+    const tab = fakeTab();
+    let finish: () => void = () => {};
+    const run = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const poller = createPoller({ run, intervalMs: 1_000, visibility: tab });
+    poller.start();
+    await vi.advanceTimersByTimeAsync(0);
+    tab.set(false);
+    tab.set(true);
+    tab.set(false);
+    finish();
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(run).toHaveBeenCalledTimes(1);
     poller.stop();
   });
 

@@ -3,7 +3,7 @@ import { defineConfig } from '@playwright/test';
 
 // The end-to-end tests of the HOSTED page (src/web/hosted). They run against the built page alone, served by `vite preview` on port 3010 (the same port as the
 // local tests, so the two configs run one after the other and never together). There is no Command Center server: each test answers /api/snapshot, /api/live and
-// /api/docs/<path> itself with page.route(), the way the Vercel functions would. `npm run e2e` runs both configs.
+// /api/docs/<path> itself with page.route(), the way the Vercel functions would. `npm run e2e:hosted` runs this config. `npm run e2e` runs the local one only.
 //
 // The page is built with VITE_HOSTED=1 into `dist-hosted/`, so the local build in `dist/` is not touched.
 const OUT_DIR = join(import.meta.dirname, 'dist-hosted');

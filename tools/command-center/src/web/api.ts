@@ -3,6 +3,10 @@ import type { ChangeEvent, Health, Panel } from '../shared/types';
 // The hosted page (Vercel) reads the snapshot, the live key and the doc files and not the local server (src/web/hosted). The choice is made when the page is built:
 // the Vercel build sets VITE_HOSTED=1. Vite writes the value into the code, so the local build drops every hosted branch below, and its dynamic imports with them.
 const HOSTED = import.meta.env.VITE_HOSTED === '1';
+let loggedHostedLoadFailure = false;
+
+/** How the hosted data layer is loaded: a file of its own, loaded when the first listener comes. A test replaces the loader to make the load fail. */
+export const hostedLoaders = { store: () => import('./hosted/store') };
 
 // How the page talks to the server: reads (JSON, and the event stream) and the one kind of
 // write. Nothing here throws for a server that is down or an answer that is odd, when it can
@@ -218,12 +222,23 @@ export function subscribeEvents(listener: (event: ServerEvent) => void): () => v
   // Hosted: no event stream. The store polls, and tells the same kinds of event when a poll finds a change (src/web/hosted/store.ts).
   if (HOSTED) {
     // The store loads in its own file, so the answer is a promise. Stopping before it arrives stops as soon as it does.
-    const stop = import('./hosted/store').then(({ hostedStore }) =>
-      hostedStore.subscribe((event) => {
-        if (event.type === 'connection') listener({ type: 'connection', state: event.state });
-        else if (event.type === 'changed') listener({ type: 'changed', event: event.event });
-      }),
-    );
+    // If the file cannot be loaded (a deploy replaced it while the tab was open, or the network failed), the page says that the connection is off and logs the reason once.
+    const stop = hostedLoaders
+      .store()
+      .then(({ hostedStore }) =>
+        hostedStore.subscribe((event) => {
+          if (event.type === 'connection') listener({ type: 'connection', state: event.state });
+          else if (event.type === 'changed') listener({ type: 'changed', event: event.event });
+        }),
+      )
+      .catch((error: unknown) => {
+        if (!loggedHostedLoadFailure) {
+          loggedHostedLoadFailure = true;
+          console.error('The data layer of the hosted page could not be loaded:', error);
+        }
+        listener({ type: 'connection', state: 'offline' });
+        return () => {};
+      });
     return () => void stop.then((unsubscribe) => unsubscribe());
   }
   listeners.add(listener);
