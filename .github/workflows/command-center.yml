@@ -55,7 +55,7 @@ jobs:
       # docs/, the root *.md files, the decision issue template or this workflow. If none, every later
       # step is skipped but the job still reports success. It fails closed: `skip` is `true` only when
       # git lists changed files and none of them is on the list. If git fails, or the step breaks, the
-      # job runs in full (the later steps test `!= 'true'`). The list is the one under `push` below.
+      # job runs in full (the later steps test `!= 'true'`). The `case` list below must cover the paths under `push`; `*.md` there also matches nested files, which only runs more.
       - name: Check which files changed
         id: scope
         if: github.event_name == 'pull_request'
