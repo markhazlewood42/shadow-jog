@@ -453,6 +453,25 @@ describe('the hack door (src/hack3d and the seam src/game/hackseam.ts, M7; docs/
     expect(sim.filter((e) => /^src\/engine(\/|$)/.test(e.target ?? '') || isThree(e.spec) || isPixi(e.spec)).map((e) => `${e.file} imports ${e.spec}`)).toEqual([]);
   });
 
+  /** The value re-exports of the 3D-only files that a facade text holds. Pure, so a control can run it on a made-up facade. */
+  function facade3dValueExports(facade: string): string[] {
+    return [...facade.matchAll(/^export\s+(?!type\b)[^;]*?from\s*['"]\.\/(display\/view3d|render\/frametexture)['"]/gm)].map((m) => m[0]);
+  }
+
+  // Found in M7 task 8. The facade `src/sje/index.ts` re-exported `View3D` and `ExternalFrameTexture` (3D-only code). The stage chunks import the facade, and Rolldown keeps a
+  // module for its side effects when the facade names it, so `view3d.ts`, `frametexture.ts` and eight Pixi WebGPU upload modules moved into a chunk of the START PATH
+  // (+7 kB gzip on first play, measured 398.6 against 391.6). They are exported from the 3D facade `src/sje/three/index.ts` now, behind the door's one dynamic import.
+  it('the engine facade re-exports no 3D-only file as a value (view3d, frametexture): that drags them into the start path', () => {
+    expect(facade3dValueExports(read('src/sje/index.ts'))).toEqual([]);
+    expect(read('src/sje/three/index.ts')).toMatch(/export \{ View3D \} from '\.\.\/display\/view3d'/);
+  });
+
+  it('the facade check can fail: a value re-export is found, a type re-export is not', () => {
+    expect(facade3dValueExports("export { View3D } from './display/view3d';\n")).toHaveLength(1);
+    expect(facade3dValueExports("export { ExternalFrameTexture, type FrameTexture } from './render/frametexture';\n")).toHaveLength(1);
+    expect(facade3dValueExports("export type { FrameTexture } from './render/frametexture';\n")).toEqual([]);
+  });
+
   it('no file in src/hack3d imports the old engine', () => {
     expect(hack.filter((e) => /^src\/engine(\/|$)/.test(e.target ?? '')).map((e) => `${e.file} imports ${e.spec}`)).toEqual([]);
   });
