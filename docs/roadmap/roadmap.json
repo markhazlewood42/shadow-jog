@@ -112,12 +112,14 @@
       "kind": "milestone",
       "label": "Flip default",
       "lane": "engine",
-      "status": "active",
+      "status": "done",
       "after": [
         "M5",
         "M4"
       ],
-      "notes": "?engine=sje becomes the default. The old presenter goes. M4 joins here if it is built. It is optional (dashed arrow). GPU timing check (npm run perf) once at the end, not in CI."
+      "notes": "?engine=sje becomes the default. The old presenter goes. M4 joins here if it is built. It is optional (dashed arrow). GPU timing check (npm run perf) once at the end, not in CI.",
+      "branch": "engine-m6-flip",
+      "pr": "#58 (merged 2026-10-11)"
     },
     {
       "id": "M7",

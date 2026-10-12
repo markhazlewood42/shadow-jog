@@ -3,8 +3,8 @@ type: status
 title: Shadow Jog — Project Status
 project: shadow-jog
 created: 2026-09-27
-updated: 2026-10-09
-milestone: M6
+updated: 2026-10-12
+milestone: none
 tags: [status]
 ---
 
@@ -22,7 +22,11 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 
 [PR #64](https://github.com/markhazlewood42/shadow-jog/pull/64) (branch `ci-speed`): 8 e2e shards balanced by measured time, one `e2e` gate job, a fix for 6 GPU-only parity tests that rendered about a minute each before they skipped, and a fix for the flaky `sje-battle` notice test (the notice clears after 6 s of real time). Lean loop: 3 rounds; round 3 passed (reader PASS; run 38188864991, 3 attempts green, wall time 9.9, 9.8 and 7.0 minutes, before about 12 to 16). Strategy, diagram and parked ideas (smoke set, nightly suite, test build, two workers): `docs/CI.md`. Path-based test selection was dropped: 13 of 17 specs boot the whole game. **Merged 2026-10-11** (merge 6554cdb). The `main` ruleset now requires `check`, `e2e-engines` and `e2e`. The first CI run on `main` took 7 minutes and was green. A follow-up PR (`ci-speed-cleanups`) puts `sje-scene3d` in shard 5/8 (Mark, 2026-10-11), makes the renderer probe retry after a failure, and fixes the parity spec headers.
 
-## M6 PR #58 state (2026-10-11)
+## M6 merged (2026-10-11)
+
+M6 "Flip default" is merged ([PR #58](https://github.com/markhazlewood42/shadow-jog/pull/58), da672d9, Mark, 2026-10-11). The new engine is the default and `src/engine/gl/` is gone. Mark's three answers are in: a one-time GPU notice (`src/game/gpunotice.ts`), the crew sheets in `public/art/crew/<id>/idle/`, and e2e in named shards (now eight, see `docs/CI.md`). Flake fixes found in CI: the battle stream is seeded in the default-path spec (`sj.seedBattle`), the playthrough warden walk holds the key (`walkUntil`), `gpufx` waits for a battle scene. Bundle: first play 391.6 of 392.4 kB, total 451.9 of 452 kB, so only 0.1 kB of room: re-set the alarm on purpose before any change that ships more code. Record: `docs/engine/m6-brief.md` section 9. **Next is M7 "3D mode" or M8 "Remove legacy"** (Mark picks; M7 first needs a brief with pass lines). Open follow-ups: `scripts/sjestage-refs.mjs` still points at the old Phaser layout; other specs seeded from `Date.now()` (`sje-battle`, stage parity) may share the turn-order flake; GPU fallback option B (automatic frame-time degrade) is a later idea.
+
+## M6 PR #58 state, before the merge (2026-10-11, history)
 
 CI on 95cea4a was green (`e2e` 31 min). The earlier red runs were a slow runner (same specs ran 2x slower; they pass alone in 7 min). Fixes: Game Over waits on tick count (908ed58); battle golden made again with the real crew art (c22aaed, Mark committed the Sprite Fusion sheets in 0ad6331); temp `m6-debug` workflow removed (3099419, a last CI run is on it). Checkpoint 2 is with Mark: dev server on 3007, pictures in `media/m6-flip/`. Open: move the sheets to `public/art/crew/<id>/idle/` (the prod build does not serve `spritefusion-tests/`), the frame-time GPU fallback decision, and a possible `e2e` shard or a longer cap (the 45-minute cap is close on a slow runner).
 
