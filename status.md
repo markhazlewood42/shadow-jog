@@ -18,6 +18,10 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 - **CI:** GitHub Actions, on pushes to `main` and on pull requests: three jobs at the same time (`check`, `e2e`, `e2e-engines`), all three required on `main` by the ruleset "Main branch protection" (2026-10-06). A docs-only change skips their steps. The real-speed playtest runs in `playtest.yml` after a merge and from the Actions button.
 - **Since 2026-10-01** work goes on a branch per major feature, with a PR for the Claude Code Review Action, and Mark merges.
 
+## CI speed, PR #64 (2026-10-11)
+
+[PR #64](https://github.com/markhazlewood42/shadow-jog/pull/64) (branch `ci-speed`): 8 e2e shards balanced by measured time, one `e2e` gate job, a fix for 6 GPU-only parity tests that rendered about a minute each before they skipped, and a fix for the flaky `sje-battle` notice test (the notice clears after 6 s of real time). Lean loop: 3 rounds; round 3 passed (reader PASS; run 38188864991, 3 attempts green, wall time 9.9, 9.8 and 7.0 minutes, before about 12 to 16). Strategy, diagram and parked ideas (smoke set, nightly suite, test build, two workers): `docs/CI.md`. Path-based test selection was dropped: 13 of 17 specs boot the whole game. **Mark:** right before the merge, set the required checks in the `main` ruleset to `check`, `e2e-engines` and `e2e` (remove `e2e (1/4)` to `(4/4)`).
+
 ## M6 PR #58 state (2026-10-11)
 
 CI on 95cea4a was green (`e2e` 31 min). The earlier red runs were a slow runner (same specs ran 2x slower; they pass alone in 7 min). Fixes: Game Over waits on tick count (908ed58); battle golden made again with the real crew art (c22aaed, Mark committed the Sprite Fusion sheets in 0ad6331); temp `m6-debug` workflow removed (3099419, a last CI run is on it). Checkpoint 2 is with Mark: dev server on 3007, pictures in `media/m6-flip/`. Open: move the sheets to `public/art/crew/<id>/idle/` (the prod build does not serve `spritefusion-tests/`), the frame-time GPU fallback decision, and a possible `e2e` shard or a longer cap (the 45-minute cap is close on a slow runner).
