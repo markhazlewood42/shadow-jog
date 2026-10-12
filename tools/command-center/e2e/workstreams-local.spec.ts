@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-// The local build has no Workstreams view yet (design.md section 11.3, step 6): its navigation must not offer the page, the docs navigation must not list it,
+// The local build has no Workstreams view (design.md section 11.3: step 6 was dropped, Mark uses only the hosted page): its navigation must not offer the page, the docs navigation must not list it,
 // and the address says that the hosted page has the view. The hosted build is tested in e2e/hosted/ (npm run e2e:hosted).
 
 test.describe('Workstreams in the local build', () => {

@@ -20,7 +20,7 @@ export const HOSTED_REPO = 'markhazlewood42/shadow-jog';
 export const WORKSTREAMS_PATH = '/workstreams';
 
 /**
- * The docs navigation as this build shows it. The Workstreams page exists only in the hosted build (the local server gets it in step 6 of design.md section 11.3),
+ * The docs navigation as this build shows it. The Workstreams page exists only in the hosted build (the local server never gets it: step 6 of design.md section 11.3 was dropped),
  * so the local build takes its entry out of the list. nav.json is one file for both builds.
  */
 export function visibleNav(nav: readonly NavSection[], hosted: boolean = isHosted()): NavSection[] {
