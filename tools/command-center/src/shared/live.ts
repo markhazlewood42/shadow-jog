@@ -23,7 +23,7 @@ export type LiveSessionRow = {
 
 /** One checkout (the main folder or a worktree) on the machine of the reporter. */
 export type LiveWorktree = {
-  /** The folder of the checkout. */
+  /** The NAME of the last folder of the checkout, never the full path (the full path shows the user name and the layout of the machine). A label only: the page joins a worktree to its workstream by `branch`. */
   path: string;
   /** The branch that is checked out, or null for a detached HEAD. */
   branch: string | null;

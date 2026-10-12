@@ -280,3 +280,81 @@ A poll runs only while the tab is visible. A hidden tab pauses the polls. A tab 
 **The live contract.** `src/shared/live.ts` is the shape of the `live` key that the reporter of step 5 writes (`writtenAt`, `sessions`, `worktrees`: titles, names and counts only). `parseLive` refuses any other shape.
 
 **Tests.** `npm run check` runs the unit tests. `npm run e2e` runs the local specs. `npm run e2e:hosted` builds the page with `VITE_HOSTED=1` and runs `e2e/hosted/` against `vite preview` on port 3010: each test plays the Vercel functions with `page.route()` and fails on any request to an endpoint that the hosted page should not use. Set `CC_SHOTS_DIR` to a folder outside the repo to save two pictures (the Workstreams view and an error state).
+
+## The local reporter (step 5)
+
+The reporter is the local server, run headless with `--reporter`. It reads the live sessions, their agents and the worktrees of this machine, and writes one JSON value to the Upstash key `live` (600 s expiry). The hosted page reads it through `/api/live`. Design: `docs/command-center/design.md` section 11.1. Code: `src/server/publish/`, `scripts/reporter-launch.mjs`, `scripts/reporter-hook.mjs`.
+
+**What leaves this machine (the allow-list).** Per session: id, title, git branch, the NAME of the working folder (never its path), busy or idle, start time, and agent names and counts. Per worktree: the NAME of its folder (never its path), the branch and the number of changed files. Never a message, a prompt, a result or a file body. `map.ts` writes each field by hand, and `parseLive` checks the value before every write. A value that fails is never sent. A session title is the text of a prompt, so it can hold a pasted secret: `map.ts` replaces secret-shaped text in titles (and in agent names) with `[redacted]` before the 120-character cut. It covers `ghp_`/`gho_`/`github_pat_` tokens, `sk-` keys, `sb_secret_`/`sb_publishable_` keys, `Bearer <token>`, `AKIA...` ids, `xoxb-`/`xoxp-` tokens, JWTs (`eyJ...`), `KEY=`/`TOKEN=`/`SECRET=`/`PASSWORD=` assignments, `password: x` / `pwd = x` / `api key: x` / "my token is x" in prose, `scheme://user:pass@` URLs, any run of 32 or more token characters (even all letters or all digits, so a 40 character git hash goes too), and any run of 24 or more that mixes letters and digits. A path with slashes is judged piece by piece, so a file path passes. Branch and folder names are checked the same way, but piece by piece between `-`, `_` and `/`, so a long kebab-case branch name still joins its workstream. The rules lean toward redacting: a plain title passes unchanged, and a long code-like word can be redacted by mistake.
+
+**What it does.**
+
+| Rule | Value |
+|---|---|
+| Write on change | At most once in 5 s |
+| Beat | At least once in 60 s |
+| Key expiry | 600 s |
+| Exit | After 30 minutes with no live shadow-jog session (code 0) |
+| Protection check | Every 10 minutes: one request to `<hosted page>/api/live` with no cookie and no token. 401 or a redirect to the Vercel login is protected. A 200 with JSON means the page is public: it stops, deletes the key and exits with code 3. An error, a timeout or a 5xx is "no answer": one or two in a row change nothing. The third "no answer" in a row (30 minutes without a confirmation) fails closed: the reporter stops writing, deletes the key, and checks every minute until one check says protected. A protected answer resets the count. |
+| Start | No write happens until one check says protected. Until then the check repeats every minute. |
+| Port | 3011 (its own). `npm run cc` stays on 3009. |
+
+**Setup (once).**
+
+1. Make the settings file `~/.shadow-jog-cc/upstash.env`. It lives outside every repo. Never commit it, never paste its content into a chat. It has three lines:
+
+   ```
+   KV_REST_API_URL=https://<your database>.upstash.io
+   KV_REST_API_TOKEN=<the READ-WRITE token of that database>
+   CC_HOSTED_URL=https://<the address of the hosted Command Center>
+   ```
+
+   `KV_REST_API_URL` is the same variable the Vercel project has. `KV_REST_API_TOKEN` is the read-write token (the one you deleted from the Vercel project). `CC_HOSTED_URL` is where the protection check looks. Without the file, or with a missing line, the reporter logs one line and does not write.
+2. After this branch is merged to `main`, start the reporter once by hand, from any shadow-jog folder: `npm run reporter` in `tools/command-center` (or `node tools/command-center/scripts/reporter-hook.mjs`). The first start makes the pinned copy and installs its packages. That takes a minute or two.
+3. Add the hook so that every session keeps it running. Add this to `~/.claude/settings.json` (merge it into an existing `hooks` object). The path is the pinned copy, so a branch switch in the shared checkout cannot break it:
+
+   ```json
+   {
+     "hooks": {
+       "SessionStart": [
+         {
+           "hooks": [
+             {
+               "type": "command",
+               "command": "node \"C:/Users/markh/home-base/projects/shadow-jog/.cc-reporter/pinned/tools/command-center/scripts/reporter-hook.mjs\"",
+               "timeout": 5
+             }
+           ]
+         }
+       ]
+     }
+   }
+   ```
+
+   The hook acts only when the session folder is inside a shadow-jog checkout or worktree. It starts the launcher detached, prints nothing and always exits 0.
+
+**The pinned copy.** `<main checkout>/.cc-reporter/pinned` is a sparse, shallow clone of `origin/main` (only `tools/command-center`). The folder is in `.gitignore`. The launcher runs `git fetch` in that clone every 2 minutes, never in your checkout. When `main` changed `tools/command-center/`, it updates the clone (and runs `npm ci` when the lock file changed) and starts the server again. Two launches at once: the second finds the lock (`.cc-reporter/reporter.lock`, touched every 30 s) or the open port and does nothing.
+
+**Failure rules of the launcher.** Git runs without blocking, so the lock heartbeat keeps going during a long clone. The copy counts as ready only with the marker file `pinned/.cc-ready`, which is written after the clone, the checkout and `npm ci` all worked. A `.git` folder without the marker is removed and made again. When the lock file changed, the marker `pinned/.cc-needs-install` is set before the code moves and removed after `npm ci` worked, so a failed install is tried again at the next round and the server never starts with new code and old packages. With no settings file the launcher logs one line and ends: it does not fetch the copy at every session start. A server that exits by itself is never started again by the update step. `npm ci` has a limit of 5 minutes: a hung install is ended, the log says `npm ci did not finish`, the launcher ends and the lock is released (before, the heartbeat kept the lock fresh for ever). The heartbeat writes only into a lock that still names this launcher (process id and start stamp). A launcher that slept with the laptop and finds its lock taken over by another launcher stops its own server, ends, logs why, and leaves the other lock alone.
+
+**Start, stop, look.**
+
+| Task | How |
+|---|---|
+| Start | `npm run reporter` (or just start a session in a shadow-jog folder, with the hook) |
+| Stop | `npm run reporter:stop`. It reads the process ids in the lock and kills a process only when the process start time in the lock matches the system and the command line is the launcher or the server. If it cannot verify a process, it kills nothing for it, writes the reason to the log and leaves the lock. It never kills by name. After it ended the server, it runs `main.ts --clear-live` from the pinned copy (at most 20 s), which deletes the `live` key, because a hard kill gives the server no time to do it. |
+| See the log | `.cc-reporter/reporter.log` (launcher lines and server lines, each with a time; the reporter never writes a token to it) |
+| Is it running? | The hosted page shows "Reporter offline" or "not running" when it is not. Or check that `.cc-reporter/reporter.lock` changed in the last minute. |
+| Test a branch before the merge | `node scripts/reporter-launch.mjs --branch <branch>` makes the pinned copy follow that branch |
+
+**Exit codes of the server.** 0: no session for 30 minutes. 3: the hosted page was public (the key was deleted). 4: no settings file or an incomplete one. Any other code is a crash: the launcher starts the server again, at most 3 restarts in 10 minutes (the 4th crash in that time ends the launcher with code 1). Codes 0, 3 and 4 end the launcher too.
+
+**The live key on a normal end.** The idle exit, SIGINT and SIGTERM delete the `live` key before the process exits (best effort: at most 3 s, logged on failure, so a slow store never blocks the exit). `--stop` does it through `main.ts --clear-live`. After a hard kill without `--stop` (power cut, Task Manager) the key expires by itself within 600 s. The page shows "Reporter offline" from 150 s.
+
+**A failing source.** When the agents source cannot read the sessions, the reporter writes nothing and logs one line (it used to publish the last good sessions, which looked live). The stored value then goes stale, the page says offline, and the 30 minute idle exit still counts.
+
+**Protection check, redirect rule.** A redirect proves protection only when the `Location` is `https://vercel.com` or a subdomain, and the path is `/login`, `/sso` or `/sso-api` (or starts with one of them), or the query has a `next` or `redirect...` parameter. Other redirects (the marketing page, a transfer page) are "no answer". No real `Location` of a protected deployment is recorded in the design, so this rule is an assumption: if a protected page stays "no answer" in the log, the log line names the place of the redirect (without its query), and the rule can be narrowed to it. A 200 with a body that is not JSON stays "no answer" and counts toward the 3-in-a-row fail-closed rule.
+
+**Node version.** `package.json` asks for Node 24.2 or later (`engines`) for the server and the tests. The hook (`reporter-hook.mjs`), the launcher (`reporter-launch.mjs`) and the server entry (`main.ts`) no longer use `import.meta.main` (it exists from Node 24.2 only: on Node 22 the hook did nothing and logged nothing). They use `scripts/is-main.mjs` (the real path of `process.argv[1]` against the real path of the file) and `dirname(fileURLToPath(import.meta.url))`, so the hook and the launcher need only Node 20.11 or later, and the hook starts the launcher on whatever `node` the PATH of Claude Code holds. The server in the pinned copy runs with the same `node` as the launcher; below Node 24.2 it is untested.
+
+**Tests.** `tests/publish-*.test.ts` (mapper, loop with a fake clock and store, protection check, store client, worktrees), `tests/reporter-launch.test.ts` and `tests/reporter-launch-fixes.test.ts` (lock, heartbeat, `npm ci` limit, crash cap, `--stop`, main guard, hook, config), `tests/publish-clear-live.test.ts` and `tests/reporter-main.test.ts` (the real server process against a fake store on this machine, with a temporary home folder). No test reads the real settings file or calls the real Upstash.

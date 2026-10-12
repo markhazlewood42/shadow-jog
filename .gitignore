@@ -24,3 +24,6 @@ media/
 
 # Default-path goldens (e2e/default-path.spec.ts): the soft set (SwiftShader, what CI runs) is committed; the gpu set is made locally.
 tests/fixtures/defaultpath/gpu/
+
+# The local reporter (tools/command-center/scripts/reporter-launch.mjs): its pinned copy of origin/main, lock, log and generated config. No secrets.
+.cc-reporter/

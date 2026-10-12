@@ -201,6 +201,7 @@ export const MESSAGES = {
   reasonViewNumber: 'gh {group} view takes a plain number first',
   reasonListOptions: 'gh {group} list takes only options',
   reasonRunList: 'a run list is exactly: run list {flags}',
+  reasonGitStatus: 'a git status is exactly: status {flags}',
   reasonApiPath: 'gh api reads only {path}<number>/events',
   reasonApiOption: 'the gh api option {name} is not on the list of read-only options',
   reasonComment: 'a comment is exactly: issue comment <number> --body <text>',
