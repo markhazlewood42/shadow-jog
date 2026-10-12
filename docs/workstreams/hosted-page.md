@@ -3,10 +3,7 @@ type: workstream
 title: Command Center step 4, hosted page
 branch: hosted-page
 roadmap: cc-followups
-state: active
-next_for_mark:
-  - Say go for the verifiers and the PR of hosted-page (the build is done and pushed, no PR yet)
-  - After the merge, open the hosted URL and check that Workstreams shows the open branches
+state: merged
 updated: 2026-10-12
 ---
 
