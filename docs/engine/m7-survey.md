@@ -123,3 +123,37 @@ Not built: `src/hack3d/` does not exist. `ScriptApi.hack`, `fieldHooks.hack`, `H
 - **State under the hack.** `SceneManager.tick` marks every scene under the top running scene `paused` unless `passUpdate` is set, and `refreshLayout` hides it under an opaque scene. The field is not destroyed, so its map, leader and flags stay. Effects in `FxSystem` are global, not per scene, so a transition must clear its own layers.
 - **First 3D frame.** `Scene3D.create` builds the frame and adds `frame.sprite`. The first `frame.render()` is in the first `prerender` (the private method `draw3D`, `scene3d.ts:126`; the task text calls it `drawFrame`, which does not exist on this branch). The door (`src/hack3d/door.ts`), `startHack` and `HackScene` exist only on `spike/engine-platform`, not in this tree. Before it, the render target holds nothing drawn. First entry compiles shaders: 96 ms (RTX 4070) and 167 ms (SwiftShader). Later entries take 12 to 54 ms (frame-and-rendering.md 7.5).
 - **Consequence for the plan:** the transition needs (a) the chunk load to start with it, (b) a bound on the hold, (c) a first render under the cover, (d) its layers cleared at the end, and (e) a defined look at each of the three `fxLevel` values. Brief section 3 D5 and pass lines 19 to 25.
+
+## 12. Task 1 re-check by runs (Builder A, 2026-10-12)
+
+Sections 1, 5, 6 and 7 were re-checked by running code, not by reading. Commit before the check: `4f8490a`. Everything below was reverted or turned into a test.
+
+| Claim | Run | Result |
+|---|---|---|
+| 5 case (b): a cover that closes inside its own `prerender` leaves the scene under it stale for one frame | Two unit cases, both with the cover closing itself in its `prerender` handler: `tests/sje-runtime.test.ts` (a counting scene) and `tests/sje-scene3d.test.ts` (a `Scene3D` on a fake frame). Un-skipped for one run | **Both fail: `prerenders` and `renders` are 0 where 1 is wanted.** The gap is real. They are committed with `it.skip` and a comment, and task 5 turns them on. Case (a) (a cover that closes in a tick) and "a hidden `Scene3D` calls `frame.render` 0 times over 30 draws" pass today, so the skip itself is built |
+| 6: `Scene3D` has no grace and no restore path | 9 new grace cases with fake timers in `tests/sje-scene3d.test.ts` | **8 fail** before task 4 (no timer, `lost` never clears, `gpuReleased` never resets, no `contextGraceMs`). The 9th (a loss never ends inside the event) passes |
+| 7: budget with a stub door | Spike `src/hack3d/*` copied in, plus one line in `src/game/systems.ts` that keeps `hackDoor` reachable; `npm run budget`; both reverted | See the numbers below |
+| The spike `HackScene` against today's `Scene3D` | `npx tsc --noEmit` with the spike `src/hack3d` copied in | 12 errors, listed below |
+
+**Spike compile errors** (all in `colorprobe.ts` and `hackscene.ts`; `door.ts`, `index.ts`, `look.ts`, `hud.ts`, `result.ts` and `sim/hacksim.ts` compiled as they were):
+
+- `create3D` is `protected` in the spike classes and `public` (abstract) in today's `Scene3D` (TS2415, 2 files). Fix: `create3D(): void` public.
+- `this.threeScene` does not exist (TS2339, 3 uses). Fix: `this.world3D`.
+- `this.camera` does not exist (TS2551, 3 uses). Fix: `create3D` makes a `PerspectiveCamera` (`look.ts` builds it, aspect `W / H`) and sets `this.camera3D`.
+- `override createHud()` and `override dispose3D()` are not in the base class (TS4117, TS4113). Fix: task 4 adds both as optional hooks to `Scene3D`.
+- `this.started` does not exist (TS2339). Fix: task 4 adds a `started` getter to `Scene3D` (true once `create` has finished).
+- Not an error but wrong: `hud.ts` has `STRIP` at 253/254/270 (a 270 px picture), and `hud.ts` and `hacksim.ts` import `src/engine` (font, `Rng`). Fix: the layout derives from `H`; the font and `Rng` come from `src/sje`.
+
+**Budget with a stub door** (spike `door.ts` + `index.ts` + `HackScene`, game build):
+
+| Measure | Base | With the stub | Delta |
+|---|---|---|---|
+| `lazy-3d` (`hack3d-*.js`) | none | 140.5 kB gzip, 560.9 kB raw | new; the 160 kB cap holds with 19.5 kB of room (estimate was 143 to 146 kB) |
+| Total JavaScript gzip | 451.9 kB | 597.8 kB | +145.9 kB (3D chunk 140.5 + 5.4 in the start path) |
+| First play (boot + lazy-2d) gzip | 391.6 kB | 397.0 kB | **+5.4 kB, not the 1 to 2 kB estimated** |
+| Largest chunk, raw | 363.2 kB | 560.9 kB (the 3D chunk) | check 3 fails, as the survey said |
+| Check 2 (Three in a game chunk) | ok | fails | as the survey said |
+
+- **Where the +5.4 kB comes from.** It is not the door and not the facade: with the door importing only `probeWebGL2` from `render/glcontext` and `type Game`, first play was 397.3 kB. A new shared chunk `sje-*.js` (20.6 kB raw, 6.8 kB gzip, was 3.0 / 1.5) now holds `display/view3d.ts`, `render/frametexture.ts`, `display/lights.ts` and eight Pixi WebGPU texture-upload modules (`GpuTextureSystem`, `ExternalSource`, ...). Rolldown moves modules that both the engine chunk and the 3D chunk use into a common chunk that the engine imports statically. Before the 3D chunk existed, `ExternalSource` was not reachable from the game, so tree shaking left it out. This is the real cost of the 3D chunk on the start path.
+- **For task 8.** Set the first-play cap from a build with the real door, and look at this chunk. A way to cut it is to keep `view3d.ts` and `frametexture.ts` out of the engine chunk's reach (only `lights.ts` needs a check: it names `ExternalFrameTexture`), if that is possible without a named group (check 5 forbids one).
+- The 3D chunk holds `src/sje/three/*`, `src/sje/core/runall.ts` and `src/hack3d/*` only. No game module is in it.

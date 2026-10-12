@@ -168,7 +168,7 @@ D5. **Which jack-in/jack-out style?** OPEN until the look checkpoint (task 10). 
 | Step | What changed | Numbers | Verdict | Named fixes |
 |---|---|---|---|---|
 | Brief | this file and `m7-survey.md`. Decisions D1 to D4 open | — | draft | — |
-| A: task 1 | | | | |
+| A: task 1 | Survey re-checked by runs: `m7-survey.md` section 12. Stale-frame gap confirmed by two failing unit cases (committed as `it.skip`, task 5 turns them on). Spike `HackScene` vs today's `Scene3D`: 12 tsc errors, all in `hackscene.ts` and `colorprobe.ts` (listed). Stub-door budget | `lazy-3d` 140.5 kB gzip, 560.9 kB raw; total 597.8 kB; **first play +5.4 kB (397.0), not +1 to 2**: a shared `sje-*` chunk (view3d, frametexture, lights, Pixi WebGPU upload code) lands in the start path | built, unverified | Task 8: set the first-play cap from a build with the real door and look at that shared chunk |
 | A: tasks 2 to 4 | | | | |
 | B: tasks 5 to 9 | | | | |
 | Runner | pass lines 1 to 16 and 18 to 24 | — | — | — |
