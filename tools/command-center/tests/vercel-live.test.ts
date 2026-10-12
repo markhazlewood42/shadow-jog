@@ -148,6 +148,12 @@ describe('GET /api/live: failures of the store', () => {
     ['a body that is not JSON', () => ({ ok: true, status: 200, text: async () => 'LEAK-MARKER <html>' }), 502, 'bad-stored-value'],
     ['a body with no result', () => upstash({ error: 'LEAK-MARKER' }), 502, 'bad-stored-value'],
     ['a value that is not JSON', () => upstash({ result: 'LEAK-MARKER not json' }), 502, 'bad-stored-value'],
+    ['a stored string', () => upstash({ result: JSON.stringify('LEAK-MARKER') }), 502, 'bad-stored-value'],
+    ['a stored number', () => upstash({ result: '123' }), 502, 'bad-stored-value'],
+    ['a stored boolean', () => upstash({ result: 'true' }), 502, 'bad-stored-value'],
+    ['a stored array', () => upstash({ result: '[1,2]' }), 502, 'bad-stored-value'],
+    ['a result that is a number', () => upstash({ result: 5 }), 502, 'bad-stored-value'],
+    ['a result that is an array', () => upstash({ result: [{ writtenAt: 'x' }] }), 502, 'bad-stored-value'],
   ])('maps %s to %i %s, with a fixed sentence', async (_name, answer, status, kind) => {
     const { fetchImpl } = fakeUpstash(answer);
     const response = await run({ env, fetchImpl });

@@ -61,6 +61,8 @@ export async function handleLive(request: Request, deps: LiveDeps): Promise<Resp
     if (typeof body !== 'object' || body === null || !('result' in body)) throw new Error('no result');
     result = (body as { result: unknown }).result;
     if (typeof result === 'string') result = JSON.parse(result);
+    // The stored value is the state object, or null when the key is gone. A string, a number, a boolean or an array is not a state.
+    if (result !== null && result !== undefined && (typeof result !== 'object' || Array.isArray(result))) throw new Error('not an object');
   } catch {
     return errorResponse(502, 'the stored value is not JSON', 'bad-stored-value');
   }

@@ -5,7 +5,6 @@ branch: vercel-functions
 roadmap: cc-followups
 state: review
 next_for_mark:
-  - Add the allow rule Bash(vercel api:*) through /permissions, so the agent can set the game project's ignore command
   - Create the read-only GitHub token (fine-grained, shadow-jog only) when the agent asks for it
 updated: 2026-10-12
 ---

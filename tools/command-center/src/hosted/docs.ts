@@ -1,7 +1,7 @@
 import { OWNER, REPO } from '../github-api/queries';
 import { type Env, readGithubToken } from './env';
 import { type ErrorMap, mapAdapterError, responseOf } from './errors';
-import { bytesResponse, CACHE, errorResponse, methodNotAllowed, notConfigured } from './http';
+import { bytesResponse, CACHE, errorResponse, notConfigured } from './http';
 import { type DocPath, parseDocPath, pathnameOf } from './doc-path';
 
 // `GET /api/docs/<repo path>` (design.md section 6): one doc from `main`, read through the GitHub contents API with the server token.
@@ -16,7 +16,10 @@ const TIMEOUT_MS = 20_000;
 /** The part of `fetch` that this function uses, so that a test can pass a small fake. */
 export type DocFetch = (url: string, init: { headers: Record<string, string>; signal?: AbortSignal }) => Promise<Pick<Response, 'ok' | 'status' | 'headers' | 'arrayBuffer' | 'body'>>;
 
-export type DocsDeps = { env: Env; fetchImpl?: DocFetch };
+export type DocsDeps = { env: Env; fetchImpl?: DocFetch; now?: () => Date };
+
+/** The media type of a Content-Type header: the part before `;`, trimmed, lower case. Empty when the header is missing. */
+export const mediaTypeOf = (contentType: string | null): string => (contentType ?? '').split(';')[0]?.trim().toLowerCase() ?? '';
 
 const CONTENT_TYPE = { markdown: 'text/markdown; charset=utf-8', png: 'image/png' } as const;
 
@@ -24,12 +27,18 @@ const CONTENT_TYPE = { markdown: 'text/markdown; charset=utf-8', png: 'image/png
 export const contentsUrl = (path: string): string => `https://api.github.com/repos/${OWNER}/${REPO}/contents/${path}?ref=${DOCS_REF}`;
 
 /** A non-OK reply of GitHub as an answer. The body of the reply is never read, so no GitHub text can reach the answer. */
-function failureOf(status: number, headers: Headers): Response {
+function failureOf(status: number, headers: Headers, now: Date): Response {
   if (status === 404) return errorResponse(404, 'not found', 'not-found');
   if (status === 401) return responseOf(mapAdapterError({ code: 'unauthorized' }));
-  if (status === 429 || (status === 403 && (headers.get('x-ratelimit-remaining') === '0' || headers.get('retry-after') !== null))) {
-    const seconds = Number(headers.get('retry-after'));
-    return responseOf(mapAdapterError({ code: 'rate-limited', ...(headers.get('retry-after') !== null && Number.isFinite(seconds) ? { retryAfter: seconds } : {}) }));
+  const retryAfter = headers.get('retry-after');
+  const exhausted = headers.get('x-ratelimit-remaining') === '0';
+  if (status === 429 || (status === 403 && (exhausted || retryAfter !== null))) {
+    // The seconds to wait: `retry-after` (a secondary limit) first, then the reset time of the primary limit (epoch seconds) minus now. `mapAdapterError` clamps to 1..3600.
+    const reset = Number(headers.get('x-ratelimit-reset'));
+    const fromReset = exhausted && headers.get('x-ratelimit-reset') !== null && Number.isFinite(reset) ? reset - now.getTime() / 1000 : undefined;
+    const fromRetry = retryAfter !== null && retryAfter !== '' && Number.isFinite(Number(retryAfter)) ? Number(retryAfter) : undefined;
+    const seconds = fromRetry ?? fromReset;
+    return responseOf(mapAdapterError({ code: 'rate-limited', ...(seconds === undefined ? {} : { retryAfter: seconds }) }));
   }
   const map: ErrorMap = mapAdapterError({ code: 'http-error' });
   return responseOf(map);
@@ -64,8 +73,8 @@ async function readCapped(reply: Pick<Response, 'arrayBuffer' | 'body'>, max: nu
 }
 
 export async function handleDocs(request: Request, deps: DocsDeps): Promise<Response> {
-  const refused = methodNotAllowed(request);
-  if (refused !== null) return refused;
+  // GET only. A HEAD request (the CDN may send one) must not cost a GitHub call.
+  if (request.method !== 'GET') return errorResponse(405, 'method not allowed', 'method', { Allow: 'GET' });
 
   // The path is checked before anything else, so a bad path gets its answer even when the server is not configured.
   const pathname = pathnameOf(request);
@@ -87,9 +96,10 @@ export async function handleDocs(request: Request, deps: DocsDeps): Promise<Resp
       },
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
-    if (!reply.ok) return failureOf(reply.status, reply.headers);
-    // A folder (or anything that is not a file) comes back as JSON even with the raw type. A doc is never JSON.
-    if ((reply.headers.get('content-type') ?? '').toLowerCase().includes('json')) return responseOf(mapAdapterError({ code: 'bad-response' }));
+    if (!reply.ok) return failureOf(reply.status, reply.headers, (deps.now ?? (() => new Date()))());
+    // A folder comes back as `application/json` (checked against the real API). A file comes back as `application/vnd.github.raw+json`, which is NOT a listing.
+    // So only the media type `application/json` exactly (the part before `;`, any case) is refused.
+    if (mediaTypeOf(reply.headers.get('content-type')) === 'application/json') return responseOf(mapAdapterError({ code: 'bad-response' }));
     // Refuse on the announced size before reading anything, then cap the read itself (a reply with no or a wrong content-length).
     const announced = Number(reply.headers.get('content-length'));
     if (Number.isFinite(announced) && announced > MAX_BYTES) return errorResponse(502, 'file is too large', 'too-large');

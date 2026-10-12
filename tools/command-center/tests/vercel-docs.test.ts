@@ -27,7 +27,7 @@ afterEach(() => vi.restoreAllMocks());
 
 describe('GET /api/docs/<path>: good paths', () => {
   it('returns a markdown doc from main, cached 60 seconds', async () => {
-    const { fetchImpl, seen } = fakeGithub(() => reply('# GDD\n\ntext', 200, { 'content-type': 'text/plain; charset=utf-8' }));
+    const { fetchImpl, seen } = fakeGithub(() => reply('# GDD\n\ntext', 200, { 'content-type': 'application/vnd.github.raw+json; charset=utf-8' }));
     const response = await handleDocs(request('/api/docs/docs/GDD.md'), { env, fetchImpl });
     expect(response.status).toBe(200);
     expect(await response.text()).toBe('# GDD\n\ntext');
@@ -50,7 +50,7 @@ describe('GET /api/docs/<path>: good paths', () => {
 
   it('returns a diagram PNG as the bytes it got', async () => {
     const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 255, 128]);
-    const { fetchImpl } = fakeGithub(() => reply(png, 200, { 'content-type': 'application/octet-stream' }));
+    const { fetchImpl } = fakeGithub(() => reply(png, 200, { 'content-type': 'application/vnd.github.raw+json; charset=utf-8' }));
     const response = await handleDocs(request('/api/docs/docs/engine/diagrams/engine-frame.png'), { env, fetchImpl });
     expect(response.status).toBe(200);
     expect(response.headers.get('Content-Type')).toBe('image/png');
@@ -216,11 +216,64 @@ describe('GET /api/docs/<path>: configuration and GitHub failures', () => {
     expect(JSON.stringify(log.mock.calls)).not.toContain(TOKEN);
   });
 
-  it('refuses a method that is not GET or HEAD', async () => {
+  it.each(['HEAD', 'PUT', 'POST', 'DELETE', 'OPTIONS'])('answers 405 to %s and makes no GitHub call', async (method) => {
     const fetchImpl = vi.fn();
-    const response = await handleDocs(request(path, { method: 'PUT', body: 'x' }), { env, fetchImpl });
+    const response = await handleDocs(request(path, { method, ...(method === 'PUT' || method === 'POST' ? { body: 'x' } : {}) }), { env, fetchImpl });
     expect(response.status).toBe(405);
+    expect(response.headers.get('Allow')).toBe('GET');
     expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  describe('the real content types of the GitHub contents API (checked against the live API)', () => {
+    const FILE = 'application/vnd.github.raw+json; charset=utf-8';
+    const FOLDER = 'application/json; charset=utf-8';
+
+    it('serves a file that GitHub labels application/vnd.github.raw+json', async () => {
+      const { fetchImpl } = fakeGithub(() => reply('# text', 200, { 'content-type': FILE }));
+      const response = await handleDocs(request(path), { env, fetchImpl });
+      expect(response.status).toBe(200);
+      expect(await response.text()).toBe('# text');
+    });
+
+    it.each([FOLDER, 'application/json', 'Application/JSON; charset=utf-8', ' application/json ;charset=utf-8'])('refuses a folder listing labeled %j', async (type) => {
+      const { fetchImpl } = fakeGithub(() => reply('[{"name":"x"}]', 200, { 'content-type': type }));
+      const response = await handleDocs(request(path), { env, fetchImpl });
+      expect(response.status).toBe(502);
+      expect((await jsonOf(response)).kind).toBe('bad-response');
+    });
+
+    it('does not treat another +json type as a listing', async () => {
+      const { fetchImpl } = fakeGithub(() => reply('# text', 200, { 'content-type': 'application/vnd.github.v3.raw+json' }));
+      expect((await handleDocs(request(path), { env, fetchImpl })).status).toBe(200);
+    });
+  });
+
+  describe('Retry-After from the rate-limit headers', () => {
+    const NOW = new Date('2026-10-12T12:00:00Z');
+    const epoch = (secondsFromNow: number): string => String(Math.floor(NOW.getTime() / 1000) + secondsFromNow);
+    const limited = (headers: Record<string, string>, status = 403) => fakeGithub(() => reply('LEAK-MARKER', status, headers)).fetchImpl;
+
+    it.each([
+      ['the reset time of the primary limit', { 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': epoch(120) }, 403, '120'],
+      ['a reset time in the past (at least 1)', { 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': epoch(-50) }, 403, '1'],
+      ['a reset time far away (at most 3600)', { 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': epoch(99999) }, 403, '3600'],
+      ['no reset time (the default)', { 'x-ratelimit-remaining': '0' }, 403, '60'],
+      ['a reset time that is not a number (the default)', { 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': 'soon' }, 403, '60'],
+      ['retry-after of a secondary limit', { 'retry-after': '45' }, 403, '45'],
+      ['retry-after before the reset time', { 'retry-after': '45', 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': epoch(500) }, 403, '45'],
+      ['a 429 with the reset time', { 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': epoch(30) }, 429, '30'],
+    ])('uses %s', async (_name, headers, status, expected) => {
+      const response = await handleDocs(request(path), { env, fetchImpl: limited(headers, status), now: () => NOW });
+      expect(response.status).toBe(503);
+      expect(response.headers.get('Retry-After')).toBe(expected);
+      expect(await response.clone().text()).not.toContain('LEAK-MARKER');
+    });
+
+    it('ignores the reset time when the limit is not used up', async () => {
+      const response = await handleDocs(request(path), { env, fetchImpl: limited({ 'x-ratelimit-remaining': '12', 'x-ratelimit-reset': epoch(120) }), now: () => NOW });
+      expect(response.status).toBe(502);
+      expect(response.headers.get('Retry-After')).toBeNull();
+    });
   });
 
   it('is wired as a Web standard handler: the default export has fetch(request)', async () => {
