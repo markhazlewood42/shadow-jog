@@ -12,6 +12,7 @@
  */
 import { Scene3D, type Scene3DAbort, type Scene3DOptions } from '../sje/three';
 import { captionFor, HackHud } from './hud';
+import type { JackOptions } from './jack';
 import { buildLook, GRID_PERIOD, type Look } from './look';
 import type { HackDef, HackResult } from './result';
 import { HackSim, ICE_KINDS, type IceKind } from './sim/hacksim';
@@ -25,6 +26,13 @@ export interface HackOptions extends Scene3DOptions {
   hud?: boolean;
   /** False leaves the bloom out (the exact-color check of pass line 13 reads one pixel, and the glow would change it). Default true. */
   bloom?: boolean;
+  /**
+   * The jack-out hook: called once when the sim has ended, with the result. The scene keeps drawing (its last state) until the promise settles, then closes with the result.
+   * The door passes the transition's out phase here, so the 3D picture gives way to the cover before the scene goes. A rejected promise does not trap the story: the scene closes.
+   */
+  gate?: (result: HackResult) => Promise<void>;
+  /** The transition into and out of the scene (read by the door, not by the scene): the style and its numbers. `style: 'cut'` is no transition. */
+  jack?: JackOptions;
 }
 
 export class HackScene extends Scene3D<HackResult> {
@@ -37,6 +45,9 @@ export class HackScene extends Scene3D<HackResult> {
   onAbandoned: (() => void) | null = null;
 
   private readonly hudOn: boolean;
+  private readonly gate: HackOptions['gate'];
+  /** True while the gate is open: the sim has ended and the scene waits to be let go. */
+  private ending = false;
   private readonly bloomOn: boolean;
 
   constructor(
@@ -46,6 +57,7 @@ export class HackScene extends Scene3D<HackResult> {
     super(options);
     this.hudOn = options.hud !== false;
     this.bloomOn = options.bloom !== false;
+    this.gate = options.gate;
     this.sim = new HackSim(def);
   }
 
@@ -62,9 +74,20 @@ export class HackScene extends Scene3D<HackResult> {
   }
 
   update3D(): void {
+    if (this.ending) return;
     this.sim.step();
     if (this.sim.status !== 'running') {
-      this.close({ status: this.sim.status, data: { ticks: this.sim.tick, trace: this.sim.tracePercent, hits: this.sim.hits } });
+      const result: HackResult = { status: this.sim.status, data: { ticks: this.sim.tick, trace: this.sim.tracePercent, hits: this.sim.hits } };
+      if (!this.gate) {
+        this.close(result);
+        return;
+      }
+      // The jack-out: the transition covers the picture first, then lets the scene go. A gate that fails must not trap the story.
+      this.ending = true;
+      const done = (): void => {
+        if (!this.closed) this.close(result);
+      };
+      this.gate(result).then(done, done);
     }
   }
 

@@ -8,9 +8,14 @@
  *                                  (`shared-context` | `canvas-copy`), `contextGraceMs`, `hud`, `alternative` (`success` | `fail`: what the 2D stand-in gives)
  *   hackDev.set({ env, options })  replace the door's environment (`probe`, `load`) and/or the scene options for the hacks that start from now on; `hackDev.clear()`
  *   hackState()                    `{ running, tick, status, scene }` of the HackScene on the stack, or `{ running: false, ... }`
+ *   jackState()                    the transition cover now: `{ phase, t, total, aborted }` or null
  *   hackChunk()                    the loaded 3D chunk (`hostsCreated`, `frame3dTestSeams`, ...): the door's one `import()`
  *   hackTest.coverInPrerender()    push an opaque scene that lets the sim below run and closes itself INSIDE its own `prerender` when armed (pass line 11)
  *   hackTest.mutantPrerender(on)   put the old `prerender` (no second pass) on the scene manager, or the real one back (the control of pass line 11)
+ *   hackTest.skipFirstRenders(n)   MUTANT (pass line 19): the next hack's first `n` 3D renders do nothing, so a blank target is revealed
+ *   hackTest.blackFrameAtHandover(on)   MUTANT (pass line 19): one black frame at the first tick of the reveal
+ *   hackTest.skipHoldUi(on)        MUTANT (pass line 20): the hold draws no moving element
+ *   hackTest.endHack(reason)       end the running HackScene early (`aborted` with this reason)
  *   hackTest.scenes()              the class names of the scenes on the stack, bottom first
  *   hackTest.resetToIdle()         `game.reset` onto an idle scene (the story is dropped)
  *   hackTest.hudReference()        the top right HUD panel drawn with plain Canvas 2D (the game's font, no engine): `{ x, y, w, h, base64 }`, RGBA, top row first (pass line 13)
@@ -22,6 +27,7 @@
 import { colorMatrixEffect, Container, drawText, type Effect, type Game, Graphics, H, Scene, W } from '../sje';
 import { type DoorEnv, loadChunk } from '../hack3d/door';
 import { HUD_FIXED } from '../hack3d/hud';
+import { type JackOptions, jackProbe } from '../hack3d/jack';
 import { type HackDef, type HackOptions, type HackOutcome, hackDef, hackDevOverride, runHack, setHackDevOverride } from '../game/hackseam';
 
 /** What a test may set for one `hack()` call. */
@@ -32,6 +38,8 @@ export interface HackCallOptions {
   contextGraceMs?: number;
   hud?: boolean;
   bloom?: boolean;
+  /** The transition: `{ style: 'cut' | 'glitch' | 'dissolve' | 'collapse', params: { holdBoundMs: 1500 } }`. Without it: `?jack=` of the page, else the style that ships. */
+  jack?: JackOptions;
   /** What the 2D stand-in gives when 3D is unsupported. Without it the hack counts as won (the seam's default). */
   alternative?: 'success' | 'fail';
 }
@@ -70,6 +78,7 @@ export function attachHackHook(sj: Record<string, unknown>, game: Game): void {
   let cover: CoverScene | null = null;
   let gap: { root: Container; effect: Effect } | null = null;
   let removeQuad: (() => void) | null = null;
+  let black: Graphics | null = null;
 
   const hook = {
     hackDef: (id: string, over?: Partial<HackDef>): HackDef => hackDef(id, over),
@@ -79,7 +88,7 @@ export function attachHackHook(sj: Record<string, unknown>, game: Game): void {
       const alt = opts.alternative;
       const playAlt = alt ? async () => alt : undefined;
       const before = hackDevOverride();
-      const options: HackOptions = { ...before?.options, ...(opts.frame ? { frame: opts.frame } : {}), ...(opts.contextGraceMs !== undefined ? { contextGraceMs: opts.contextGraceMs } : {}), ...(opts.hud !== undefined ? { hud: opts.hud } : {}), ...(opts.bloom !== undefined ? { bloom: opts.bloom } : {}) };
+      const options: HackOptions = { ...before?.options, ...(opts.frame ? { frame: opts.frame } : {}), ...(opts.contextGraceMs !== undefined ? { contextGraceMs: opts.contextGraceMs } : {}), ...(opts.hud !== undefined ? { hud: opts.hud } : {}), ...(opts.bloom !== undefined ? { bloom: opts.bloom } : {}), ...(opts.jack ? { jack: opts.jack } : {}) };
       setHackDevOverride({ ...before, options });
       try {
         const field = (sj.field as (() => FieldLike | null) | undefined)?.() ?? null;
@@ -112,6 +121,9 @@ export function attachHackHook(sj: Record<string, unknown>, game: Game): void {
 
     hackChunk: () => loadChunk(),
 
+    /** The transition cover on screen now: `{ phase, t, total, aborted }`, or null when there is none. */
+    jackState: () => jackProbe.current?.state ?? null,
+
     hackTest: {
       /** Push the cover (it lets the sim below run). Call `arm()` on the result to make it close itself in its next `prerender`. */
       coverInPrerender(): { arm(): void; closed(): boolean } {
@@ -142,6 +154,52 @@ export function attachHackHook(sj: Record<string, unknown>, game: Game): void {
           }
           mgr.refreshLayout();
         };
+      },
+      /** MUTANT (pass line 19): the first `n` 3D renders of the next hack do nothing, so the target is blank when the cover goes (the sprite shows an empty target). */
+      async skipFirstRenders(n: number): Promise<void> {
+        const chunk = await loadChunk();
+        const before = hackDevOverride();
+        setHackDevOverride({
+          ...before,
+          options: {
+            ...before?.options,
+            makeFrame: (setup, host) => {
+              const renderer = game.renderer as unknown as Parameters<typeof chunk.createFrame3D>[0];
+              const frame = chunk.createFrame3D(renderer, host, setup, before?.options?.frame ?? 'auto');
+              const render = frame.render.bind(frame);
+              let seen = 0;
+              frame.render = () => {
+                if (seen++ >= n) render();
+              };
+              return frame;
+            },
+          },
+        });
+      },
+      /** MUTANT (pass line 19): one black frame, the first frame of the reveal. */
+      blackFrameAtHandover(on: boolean): void {
+        if (!on) {
+          black?.destroy();
+          black = null;
+          return;
+        }
+        if (black) return;
+        const g = new Graphics(game).fillStyle(0x000000, 1).fillRect(0, 0, W, H).setVisible(false);
+        game.screen.overlayRoot.add(g);
+        black = g;
+        game.events.on('prerender', () => {
+          const st = jackProbe.current?.state;
+          g.setVisible(!!st && st.phase === 'in' && st.t === 0);
+        });
+      },
+      /** MUTANT (pass line 20): the hold draws no moving element. */
+      skipHoldUi(on: boolean): void {
+        jackProbe.skipHoldUi = on;
+      },
+      endHack(reason: 'user' | 'error' | 'context-lost'): void {
+        const s = hackScene() as unknown as { endEarly(r: string): void } | null;
+        if (!s) throw new Error('no HackScene is running');
+        s.endEarly(reason);
       },
       scenes: (): string[] => stack().map((s) => s.constructor.name),
       /** `game.reset(...)` with a scene that does nothing: what a loaded save or the title screen does to a story (pass line 5). */

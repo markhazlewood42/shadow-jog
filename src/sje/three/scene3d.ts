@@ -60,6 +60,11 @@ export interface Scene3DOptions {
   makeFrame?: FrameMaker;
   /** How long a lost context may take to come back, in ms (default `CONTEXT_GRACE_MS`, 1000). 0 means no grace. */
   contextGraceMs?: number;
+  /**
+   * Called once, in the draw phase, right after the scene's FIRST 3D frame is drawn (`frame.render()` has run). The jack-in transition waits for it: the first frame pays
+   * the shader compile, and it must land under the cover, before the reveal (M7 pass line 22).
+   */
+  onFirstRender?: () => void;
 }
 
 export abstract class Scene3D<R> extends Scene<R> {
@@ -75,6 +80,7 @@ export abstract class Scene3D<R> extends Scene<R> {
   private lost = false;
   private graceTimer: ReturnType<typeof setTimeout> | null = null;
   private _started = false;
+  private rendered = false;
 
   constructor(private readonly options: Scene3DOptions = {}) {
     super();
@@ -193,6 +199,10 @@ export abstract class Scene3D<R> extends Scene<R> {
     if (this.lost) return;
     this.sync3D();
     frame.render();
+    if (!this.rendered) {
+      this.rendered = true;
+      this.options.onFirstRender?.();
+    }
   };
 
   private readonly free = (): void => {

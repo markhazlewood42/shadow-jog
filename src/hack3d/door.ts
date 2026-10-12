@@ -15,6 +15,7 @@
  */
 import type { Game } from '../sje';
 import { probeWebGL2 } from '../sje/render/glcontext';
+import { type Jack, makeJack } from './jack';
 import type { HackOptions } from './hackscene';
 import { DEFAULT_POLICY, decideHack, type HackDef, type HackOutcome, type HackResult } from './result';
 
@@ -29,6 +30,11 @@ export interface DoorEnv {
   probe(): boolean;
   /** Load the 3D chunk. Rejects if the file cannot be fetched. */
   load(): Promise<{ startHack(game: Game, def: HackDef, options?: HackOptions): Promise<HackResult> }>;
+  /**
+   * The cover for the jump between the 2D game and the 3D scene (`jack.ts`), or null for a cut. Left out, there is no transition (a unit test, and the Phase 0 behavior).
+   * The real environment makes the style that ships (`?jack=` picks another in a DEV build).
+   */
+  jack?(game: Game, def: HackDef, options?: HackOptions): Promise<Jack | null>;
 }
 
 /**
@@ -41,16 +47,25 @@ export const loadChunk = () => import('./index');
 export const realDoorEnv: DoorEnv = {
   probe: probeWebGL2,
   load: loadChunk,
+  jack: (game, def, options) => makeJack(game, def.seed, options?.jack),
 };
 
 /**
  * One try at a hack. Resolves, never rejects:
  *   no WebGL2 (probed first, so the chunk is not even requested)   -> `unsupported / no-webgl2`
- *   the chunk would not load (offline, a bad deploy)                -> `unsupported / chunk-failed`
+ *   the chunk would not load (offline, a bad deploy), or took longer
+ *   than the hold bound (`holdBoundMs`, 10 s)                       -> `unsupported / chunk-failed`
  *   the context is lost right now                                   -> `aborted / context-lost`, at once
  *   the story was dropped (`game.abandon`, `game.reset`) while the
  *   chunk loaded                                                     -> `aborted / user`, no scene is started
  *   anything else: whatever the scene gives (`startHack` always resolves too).
+ *
+ * THE JUMP (M7 decision D5, pass lines 19 to 24). With a cover (`env.jack`) the door plays it around the scene:
+ *   jack in   out phase over the 2D picture, chunk load from the first tick, hold while it loads, then under the solid cover the scene is started and draws its first frame
+ *             (`onFirstRender`), then the reveal.
+ *   jack out  when the scene's sim has ended, the scene calls the `gate`: the cover closes over the last 3D frame, and only then does the scene close. Then the reveal of the
+ *             2D picture. A scene that ends any other way (abort, drop, error) gets no cover: it is gone, and so is the cover.
+ * The cover is removed in a `finally`, so no way out of this function leaves it on screen.
  */
 export async function hackDoor(game: Game, def: HackDef, options?: HackOptions, env: DoorEnv = realDoorEnv): Promise<HackResult> {
   if (!env.probe()) return { status: 'unsupported', reason: 'no-webgl2' };
@@ -58,7 +73,25 @@ export async function hackDoor(game: Game, def: HackDef, options?: HackOptions, 
   if (game.contextLost) return { status: 'aborted', reason: 'context-lost' };
   // The chunk takes time to load. If the story is dropped meanwhile, the hack it asked for is dropped too.
   const dropsBefore = game.dropCount;
-  let chunk: Awaited<ReturnType<DoorEnv['load']>>;
+  let jack: Jack | null = null;
+  try {
+    jack = (await env.jack?.(game, def, options)) ?? null;
+  } catch (e) {
+    // A cover that cannot start must not stop the hack: it is a cut then.
+    console.error('[sje] the transition could not start:', e);
+  }
+  try {
+    return jack ? await withCover(game, def, options, env, jack, dropsBefore) : await withoutCover(game, def, options, env, dropsBefore);
+  } finally {
+    jack?.dispose();
+  }
+}
+
+type Chunk = Awaited<ReturnType<DoorEnv['load']>>;
+
+/** Load the chunk and start the scene, with no cover (a cut). */
+async function withoutCover(game: Game, def: HackDef, options: HackOptions | undefined, env: DoorEnv, dropsBefore: number): Promise<HackResult> {
+  let chunk: Chunk;
   try {
     chunk = await env.load();
   } catch (e) {
@@ -73,6 +106,88 @@ export async function hackDoor(game: Game, def: HackDef, options?: HackOptions, 
     console.error('[sje] the hack threw:', e);
     return { status: 'aborted', reason: 'error' };
   }
+}
+
+/** The state that the cover's polls read. Plain fields: the cover asks on its ticks, so no frame depends on when a promise settles. */
+interface CoverState {
+  chunk: Chunk | null;
+  loadError: unknown;
+  loadSettled: boolean;
+  scene: Promise<HackResult> | null;
+  rendered: boolean;
+  sceneSettled: boolean;
+  outRun: Promise<'done' | 'aborted'> | null;
+}
+
+async function withCover(game: Game, def: HackDef, options: HackOptions | undefined, env: DoorEnv, jack: Jack, dropsBefore: number): Promise<HackResult> {
+  const st: CoverState = { chunk: null, loadError: null, loadSettled: false, scene: null, rendered: false, sceneSettled: false, outRun: null };
+  // The chunk load starts at the first tick of the cover (the loader is memoized, so a second hack does not fetch again).
+  void jack.started
+    .then(() => env.load())
+    .then(
+      (c) => {
+        st.chunk = c;
+        st.loadSettled = true;
+      },
+      (e) => {
+        st.loadError = e;
+        st.loadSettled = true;
+      },
+    );
+
+  const into = jack.run({
+    // A dropped story ends the wait at once: the swap then sees the drop and goes back.
+    holdReleased: () => st.loadSettled || game.dropCount !== dropsBefore,
+    onSwap: () => {
+      const chunk = st.chunk;
+      if (!chunk || st.loadError !== null || game.dropCount !== dropsBefore) return 'abort';
+      // Under the solid cover: start the scene. Its first frame is drawn in the next draw, and the reveal waits for it (`swapDone`).
+      const own: HackOptions = {
+        ...options,
+        onFirstRender: () => {
+          st.rendered = true;
+          options?.onFirstRender?.();
+        },
+        // Jack out: when the sim ends, close the cover over the last frame first.
+        gate: () =>
+          new Promise<void>((resolve) => {
+            st.outRun = jack.run({
+              onSwap: () => {
+                resolve();
+                return 'go';
+              },
+              swapDone: () => st.sceneSettled,
+            });
+          }),
+      };
+      st.scene = chunk.startHack(game, def, own).finally(() => {
+        st.sceneSettled = true;
+      });
+      // `startHack` always resolves; if it ever rejected, it is read (and answered) below, after the reveal, so it must not count as unhandled meanwhile.
+      st.scene.catch(() => undefined);
+      return 'go';
+    },
+    swapDone: () => st.rendered || st.sceneSettled,
+  });
+  const how = await into;
+  const scene = st.scene;
+  if (how === 'aborted' || !scene) {
+    // The way back to the 2D picture has begun (the hold timed out, the load failed, or the story was dropped).
+    if (game.dropCount !== dropsBefore) return { status: 'aborted', reason: 'user' };
+    if (st.loadError !== null) console.error('[sje] the 3D chunk would not load:', st.loadError);
+    else console.error('[sje] the 3D chunk took longer to load than the hold bound allows');
+    return { status: 'unsupported', reason: 'chunk-failed' };
+  }
+  let result: HackResult;
+  try {
+    result = await scene;
+  } catch (e) {
+    console.error('[sje] the hack threw:', e);
+    return { status: 'aborted', reason: 'error' };
+  }
+  // The gate ran when the sim ended: the cover closed, the scene went, and the 2D picture is being revealed. Wait for it, so the story goes on over a clean picture.
+  if (st.outRun) await st.outRun;
+  return result;
 }
 
 /**

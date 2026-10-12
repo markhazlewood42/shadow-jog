@@ -8,9 +8,11 @@
  */
 import raw from '../data/hacks.json';
 import type { HackDef, HackPolicy } from './result';
+import { checkUniformRanges, JACK_LEVELS, JACK_STYLES, type TransitionParams } from './transition';
 
-/** The file's shape: a list of definitions. */
+/** The file's shape: the transition's defaults and a list of definitions. */
 export interface HacksFile {
+  transition: TransitionParams;
   hacks: HackDef[];
 }
 
@@ -18,6 +20,9 @@ const DEF_KEYS = ['id', 'seed', 'ticks', 'iceCount', 'traceLimit', 'hitCost', 'p
 const ID = /^[a-z][a-z0-9_-]*$/;
 const ABORTED: readonly HackPolicy['aborted'][] = ['retry-then-succeed', 'succeed', 'fail'];
 const UNSUPPORTED: readonly HackPolicy['unsupported'][] = ['alternative', 'succeed', 'fail'];
+
+const TRANSITION_NUMBERS = ['outTicks', 'inTicks', 'swapMinTicks', 'holdBoundMs', 'holdCover', 'dissolveHold', 'block', 'lineHeight', 'cursorPeriod'] as const;
+const RANGE_PHASES = ['out', 'swap', 'in'];
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
@@ -30,7 +35,8 @@ const isInt = (v: unknown): v is number => isNum(v) && Number.isInteger(v);
 export function checkHacks(file: unknown): string[] {
   const problems: string[] = [];
   if (!isObj(file)) return ['the file must be an object with a "hacks" list'];
-  for (const key of Object.keys(file)) if (key !== 'hacks') problems.push(`unknown key "${key}" at the top of the file`);
+  for (const key of Object.keys(file)) if (key !== 'hacks' && key !== 'transition') problems.push(`unknown key "${key}" at the top of the file`);
+  problems.push(...checkTransition(file.transition));
   const list = file.hacks;
   if (!Array.isArray(list)) return [...problems, '"hacks" must be a list'];
   const seen = new Set<string>();
@@ -61,12 +67,57 @@ export function checkHacks(file: unknown): string[] {
   return problems;
 }
 
+/** The problems of the `transition` block: its numbers, and the declared uniform ranges of every style and level (the rules of pass line 19 are `checkUniformRanges`). */
+export function checkTransition(t: unknown): string[] {
+  if (!isObj(t)) return ['"transition" must be an object'];
+  const out: string[] = [];
+  for (const key of Object.keys(t)) if (key !== 'uniform' && !(TRANSITION_NUMBERS as readonly string[]).includes(key)) out.push(`transition: unknown key "${key}"`);
+  for (const key of TRANSITION_NUMBERS) {
+    const v = t[key];
+    if (!isNum(v) || v < 0) out.push(`transition: ${key} must be a number, 0 or more`);
+  }
+  for (const key of ['outTicks', 'inTicks', 'swapMinTicks', 'cursorPeriod', 'block', 'lineHeight'] as const) if (!isInt(t[key]) || (t[key] as number) < 1) out.push(`transition: ${key} must be a whole number, 1 or more`);
+  for (const key of ['holdCover', 'dissolveHold'] as const) if (isNum(t[key]) && (t[key] as number) > 1) out.push(`transition: ${key} must be at most 1`);
+  if (isNum(t.holdBoundMs) && t.holdBoundMs < 1) out.push('transition: holdBoundMs must be at least 1');
+  const uniform = t.uniform;
+  if (!isObj(uniform)) return [...out, 'transition: "uniform" must be an object with a list for each style and level'];
+  for (const style of JACK_STYLES) {
+    const byLevel = uniform[style];
+    if (!isObj(byLevel)) {
+      out.push(`transition.uniform: no entry for style "${style}"`);
+      continue;
+    }
+    for (const level of JACK_LEVELS) {
+      const list = byLevel[level];
+      const at = `transition.uniform.${style}.${level}`;
+      if (!Array.isArray(list)) {
+        out.push(`${at}: must be a list of ranges`);
+        continue;
+      }
+      let shapes = true;
+      for (const r of list) {
+        if (!isObj(r) || !RANGE_PHASES.includes(r.phase as string) || !isInt(r.from) || !(r.to === null || isInt(r.to)) || typeof r.reason !== 'string') {
+          out.push(`${at}: each range needs phase (out, swap, in), from, to (a number or null) and a reason`);
+          shapes = false;
+        }
+      }
+      if (shapes && isInt(t.outTicks) && isInt(t.inTicks) && isInt(t.swapMinTicks)) {
+        out.push(...checkUniformRanges(t as unknown as TransitionParams, list as never).map((m) => `${at}: ${m}`));
+      }
+    }
+  }
+  return out;
+}
+
 const problems = checkHacks(raw);
 // A bad file is a build-time mistake: fail loudly where the file is read, not later in the middle of a story.
 if (problems.length) throw new Error(`src/data/hacks.json is not valid:\n- ${problems.join('\n- ')}`);
 
 /** The definitions of the file. Read-only: copy before you change one (`hackDef` and `makeHackDef` do). */
 export const HACKS: readonly HackDef[] = (raw as unknown as HacksFile).hacks;
+
+/** The transition's defaults. Read-only: a caller lays its own fields over a copy. */
+export const TRANSITION: TransitionParams = (raw as unknown as HacksFile).transition;
 
 /** The definition `makeHackDef` starts from: the first one in the file. */
 const BASE: HackDef = (() => {

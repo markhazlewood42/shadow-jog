@@ -397,7 +397,7 @@ describe('the hack door (src/hack3d and the seam src/game/hackseam.ts, M7; docs/
   const read = (f: string) => readFileSync(join(ROOT, f), 'utf8');
   const hack = edges(['src/hack3d']);
   /** The hack3d files that sit in the START PATH: the shipped game loads them up front, so they must hold no Three. */
-  const START_FILES = ['src/hack3d/door.ts', 'src/hack3d/result.ts', 'src/hack3d/data.ts'];
+  const START_FILES = ['src/hack3d/door.ts', 'src/hack3d/result.ts', 'src/hack3d/data.ts', 'src/hack3d/transition.ts', 'src/hack3d/jack.ts'];
 
   /** Every problem of the start-path files: a Three import, an import of the 3D chunk's files as a value, or an import of the old engine. Pure, so a control can run it on made-up edges. */
   function startPathProblems(edgeList: Edge[], text: (f: string) => string): string[] {
@@ -406,7 +406,7 @@ describe('the hack door (src/hack3d and the seam src/game/hackseam.ts, M7; docs/
       if (!START_FILES.includes(e.file)) continue;
       const t = e.target ?? '';
       if (isThree(e.spec) || /^src\/sje\/three(\/|$)/.test(t)) problems.push(`${e.file} imports ${e.spec} (Three or the 3D facade)`);
-      if (/^src\/hack3d\/(index|hackscene|hud|look|colorprobe)$/.test(t) && !onlyTypeImports(text(e.file), e.spec) && !(e.file === 'src/hack3d/door.ts' && e.spec === './index')) {
+      if (/^src\/hack3d\/(index|hackscene|hud|look|colorprobe|devprobe|jackdissolve|jackcollapse)$/.test(t) && !onlyTypeImports(text(e.file), e.spec) && !(e.file === 'src/hack3d/door.ts' && e.spec === './index') && !(e.file === 'src/hack3d/jack.ts' && /^\.\/jack(dissolve|collapse)$/.test(e.spec))) {
         problems.push(`${e.file} imports ${e.spec} as a value (it is in the chunk)`);
       }
       if (/^src\/engine(\/|$)/.test(t)) problems.push(`${e.file} imports the old engine: ${e.spec}`);
@@ -428,6 +428,18 @@ describe('the hack door (src/hack3d and the seam src/game/hackseam.ts, M7; docs/
     expect(startPathProblems([e('src/hack3d/door.ts', './hackscene', 'src/hack3d/hackscene')], () => value)).toHaveLength(1);
     expect(startPathProblems([e('src/hack3d/door.ts', './hackscene', 'src/hack3d/hackscene')], () => "import type { HackOptions } from './hackscene';")).toEqual([]);
     expect(startPathProblems([e('src/hack3d/data.ts', '../engine/rng', 'src/engine/rng')], () => '')).toHaveLength(1);
+  });
+
+  it('jack.ts reaches the DEV-only styles (jackdissolve, jackcollapse) by a dynamic import behind import.meta.env.DEV, and nothing else imports them (decision D5: only the style Mark picks ships)', () => {
+    const code = read('src/hack3d/jack.ts').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+    expect(importsOf(code).filter((spec) => /jackdissolve|jackcollapse/.test(spec))).toEqual(['./jackdissolve', './jackcollapse']);
+    // Both appear inside the one `else if (import.meta.env.DEV) { ... }` branch, as dynamic imports.
+    const branch = /else if \(import\.meta\.env\.DEV\) \{([\s\S]*?)\} else/.exec(code)?.[1] ?? '';
+    expect(branch).toMatch(/import\('\.\/jackdissolve'\)/);
+    expect(branch).toMatch(/import\('\.\/jackcollapse'\)/);
+    expect(code.match(/^\s*import [^(]*from '\.\/jack(dissolve|collapse)'/gm) ?? []).toEqual([]);
+    const into = all.filter((e) => /^src\/hack3d\/jack(dissolve|collapse)$/.test(e.target ?? '') && !/^(tests|e2e|scripts)\//.test(e.file));
+    expect([...new Set(into.map((e) => e.file))]).toEqual(['src/hack3d/jack.ts']);
   });
 
   it('door.ts has exactly one dynamic import, of the chunk entry ./index', () => {

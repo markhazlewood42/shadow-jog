@@ -48,6 +48,23 @@ function forcedFx(): FxRequest | null {
   return v === 'full' || v === 'lite' || v === 'none' ? v : null;
 }
 
+/**
+ * `?seed=N` seeds the effects' visual stream (the screen tears, the transition's blocks), so two page loads draw the same pictures and a capture can be made again
+ * (pass line 24 of docs/engine/m7-brief.md). DEV builds only: a shipped game keeps the engine's own seed.
+ */
+function forcedSeed(): number | undefined {
+  if (!import.meta.env.DEV) return undefined;
+  const v = new URLSearchParams(location.search).get('seed');
+  const n = v === null ? Number.NaN : Number(v);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+/** The `seed` field of the game config, or nothing. */
+function seedOption(): { seed?: number } {
+  const seed = forcedSeed();
+  return seed === undefined ? {} : { seed };
+}
+
 /** The part of the old `Display` that `src/boot.ts` and the dev routes call, over the new `Display`. */
 interface DisplayAdapter {
   /** Always `integer`. `boot()` assigns `settings.scale` (also `integer`) to it. */
@@ -70,6 +87,7 @@ export async function startSje(markStarted: () => void): Promise<void> {
     parent: stage,
     input,
     fxLevel: forcedFx() ?? settings.fxLevel, // the ?fx= override wins over the setting: dev and test only (see forcedFx)
+    ...seedOption(),
     dev: import.meta.env.DEV,
     compat: {
       reportError,

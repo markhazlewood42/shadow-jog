@@ -12,8 +12,10 @@
  *
  * Run:  CI=1 PW_PORT=3012 npx playwright test e2e/sje-hack.spec.ts --project=chromium --reporter=line
  */
+import { readFileSync } from 'node:fs';
 import { expect, type Page, test } from '@playwright/test';
-import { type GamePage, openGame, sj, unevenBlocks, waitTop, waitUntil } from './sjegamekit';
+import { checkUniformRanges, inRanges, type JackLevel, type JackStyle, type TransitionParams, type UniformRange } from '../src/hack3d/transition';
+import { advance, type GamePage, openGame, sj, unevenBlocks, waitTop, waitUntil } from './sjegamekit';
 
 const W = 640;
 const H = 360;
@@ -22,16 +24,25 @@ const LOSS_NOISE = [/context lost/i, /WEBGL_lose_context/i, /CONTEXT_LOST_WEBGL/
 /** The HUD's top right panel (src/hack3d/hud.ts HUD_FIXED.node): its edge is #1f5cff and its fill #0a0918. */
 const NODE = { x: W - 6 - 78, y: 6, w: 78, h: 18 };
 
+/**
+ * A page on the title. Most cases here are about the scene and the door, not about the jump, so they run with `&jack=cut` (no transition): the 3D scene then starts at once and
+ * counts its own ticks. The cases of the jump itself (the last describe) and the story bridge pass their own query.
+ */
 async function openTitle(browser: import('@playwright/test').Browser, o: { allow?: RegExp[]; viewport?: { width: number; height: number }; dpr?: number; query?: string } = {}): Promise<GamePage> {
-  const g = await openGame(browser, { ...o });
+  const g = await openGame(browser, { ...o, query: o.query ?? '&jack=cut' });
   expect(await waitTop(g.page, 'TitleScene')).toBe(true);
   return g;
 }
 
-async function openField(browser: import('@playwright/test').Browser, o: { allow?: RegExp[] } = {}): Promise<GamePage> {
+async function openField(browser: import('@playwright/test').Browser, o: { allow?: RegExp[]; query?: string; interior?: boolean } = {}): Promise<GamePage> {
   const g = await openTitle(browser, o);
   await sj(g.page, "sj.stage('town')");
   expect(await waitUntil(g.page, 'sj.top() === "FieldScene" && sj.idle()', 30_000)).toBe(true);
+  if (o.interior) {
+    // An interior has no rain, so its picture depends on the field's own tick count and on nothing random (the town's rain does).
+    await sj(g.page, "sj.tp('armory', 6, 8, 'down')");
+    expect(await waitUntil(g.page, 'sj.field().def.id === "armory" && sj.idle()', 30_000)).toBe(true);
+  }
   return g;
 }
 
@@ -121,7 +132,8 @@ test.describe('the story bridge on the real loop (pass lines 4 and 5)', () => {
     ['test-fail', 'fail'],
   ] as const) {
     test(`a 2D line, the hack (${id}), a 2D line: the story continues with the result (${expected}) and the same 2D scene is back, unchanged`, async ({ browser }) => {
-      const g = await openField(browser);
+      // The default transition (style A): the 2D scene gives way to the cover, the hack plays, and the 2D scene is back (the jump to 3D and back, pass line 4).
+      const g = await openField(browser, { query: '' });
       try {
         const { page } = g;
         const before = await sj<string>(page, FIELD_STATE);
@@ -638,4 +650,352 @@ test.describe('determinism, pixels and colors at 640x360 (pass lines 12 and 13)'
       await g.close();
     }
   });
+});
+
+// ---- pass lines 19 to 24: the jump between the 2D game and the 3D game (M7 task 7) --------------------------------------------------------
+//
+// Three styles (decision D5), each at every effects level: the picture out (jack in), the hold while the chunk loads, the swap under a solid cover, the picture in, and the same
+// back (jack out). The frames are captured one tick at a time on a frozen game (`sj.step(1)` and a read of the back buffer in one task). A frame may be one color (a single-color
+// share of 0.9 or more) only inside a uniform range that the transition DECLARES in `src/data/hacks.json`, with a reason; the hold is judged by its own rules (line 20).
+
+const TRANSITION = JSON.parse(readFileSync('src/data/hacks.json', 'utf8')).transition as TransitionParams;
+const STYLES: readonly JackStyle[] = ['glitch', 'dissolve', 'collapse'];
+const LEVELS: readonly JackLevel[] = ['full', 'lite', 'none'];
+
+interface Frame {
+  phase: string | null;
+  t: number;
+  share: number;
+  hash: string;
+  filters: number;
+  fxCalls: number;
+  running: boolean;
+  done: boolean;
+}
+
+/** In one task: one tick, then everything a frame check needs. `share` is the single-color share (the most common color's part of the 640x360 picture). */
+const FRAME = `(() => {
+  sj.step(1);
+  const st = sj.jackState();
+  const p = sj.pixels({ x: 0, y: 0, w: ${W}, h: ${H} });
+  const u = new Uint32Array(p.data.buffer, p.data.byteOffset, p.data.byteLength >> 2);
+  const m = new Map(); let best = 0;
+  for (let i = 0; i < u.length; i++) { const n = (m.get(u[i]) || 0) + 1; m.set(u[i], n); if (n > best) best = n; }
+  const f = sj.game.screen.worldRoot.node.filters;
+  return { phase: st ? st.phase : null, t: st ? st.t : -1, share: best / u.length, hash: sj.frameHash(), filters: Array.isArray(f) ? f.length : f ? 1 : 0,
+    fxCalls: window.__fxCalls ? window.__fxCalls.length : 0, running: sj.hackState().running, done: window.__h !== null };
+})()`;
+
+/** Count the calls that make an effect (the effects system's own per-tick work is not counted): installed on the page's `game.fx`. */
+const COUNT_FX = `(() => {
+  const fx = sj.game.fx; window.__fxCalls = [];
+  for (const name of ['playMoment', 'glitch', 'aberrate', 'shock', 'flare', 'haze', 'dim', 'emit']) {
+    const orig = fx[name].bind(fx);
+    fx[name] = (...a) => { window.__fxCalls.push(name); return orig(...a); };
+  }
+  return true;
+})()`;
+
+/** Capture every frame of a hack on a frozen page, from the first tick of the cover to its end. `pause` is the real time between ticks, so a chunk load can finish. */
+async function capture(page: Page, id: string, opts: Record<string, unknown>, o: { pause?: number; maxSteps?: number; afterDone?: number } = {}): Promise<Frame[]> {
+  await freeze(page);
+  await sj(page, COUNT_FX);
+  await sj(page, `(window.__h = null, sj.hack(${JSON.stringify(id)}, ${JSON.stringify(opts)}).then((out) => { window.__h = { out, at: performance.now() }; }), true)`);
+  const frames: Frame[] = [];
+  let tail = 0;
+  for (let i = 0; i < (o.maxSteps ?? 900); i++) {
+    const f = await sj<Frame>(page, FRAME);
+    frames.push(f);
+    if (f.done && f.phase === null) tail++;
+    if (tail > (o.afterDone ?? 3)) break;
+    await page.waitForTimeout(o.pause ?? 6);
+  }
+  return frames;
+}
+
+/** The problems of a capture under pass line 19: uniform frames outside the declared ranges, and the three more rules. The hold is outside this rule (line 20 judges it). */
+function uniformProblems(frames: readonly Frame[], ranges: readonly UniformRange[]): string[] {
+  const out: string[] = [...checkUniformRanges(TRANSITION, ranges)];
+  let declared = 0;
+  let judged = 0;
+  frames.forEach((f, i) => {
+    if (f.phase === 'hold') return;
+    judged++;
+    const uniform = f.share >= 0.9;
+    const phase = (f.phase ?? 'none') as 'out' | 'swap' | 'in' | 'none';
+    const inside = f.phase !== null && inRanges(ranges, f.phase as 'out', f.t);
+    if (f.phase === 'swap') declared++;
+    if (uniform && inside && f.phase !== 'swap') declared++;
+    if (uniform && !inside) out.push(`frame ${i} (${phase}:${f.t}) is one color (share ${f.share.toFixed(3)}) and is in no declared range`);
+  });
+  if (declared > 0.4 * judged) out.push(`declared ticks ${declared} are over 40% of ${judged} frames`);
+  return out;
+}
+
+/** The problems of the hold frames under pass line 20: it must move (the hash changes in every window of 10 ticks) and never be blank (every pixel one color). */
+function holdProblems(frames: readonly Frame[]): string[] {
+  const hold = frames.filter((f) => f.phase === 'hold');
+  const out: string[] = [];
+  if (hold.length < 20) out.push(`only ${hold.length} hold frames: the chunk was not held`);
+  hold.forEach((f, i) => {
+    if (f.share >= 1) out.push(`hold frame ${i} is blank`);
+  });
+  for (let i = 0; i + 10 <= hold.length; i++) if (new Set(hold.slice(i, i + 10).map((f) => f.hash)).size < 2) out.push(`the picture did not change over hold ticks ${i} to ${i + 9}`);
+  return out;
+}
+
+const chunkUrl = /\/src\/hack3d\/index\.ts/;
+
+test.describe('the jump between 2D and 3D: no bad frame, a held chunk, an exact way back (pass lines 19 to 24)', () => {
+  for (const style of STYLES) {
+    for (const level of LEVELS) {
+      test(`${style} at fx ${level}: every frame of jack in and jack out is judged (lines 19, 22, 23): no undeclared one-color frame, 0 GL errors, 0 console warnings`, async ({ browser }) => {
+        const g = await openTitle(browser, { query: `&jack=${style}&fx=${level}&seed=5` });
+        try {
+          const { page } = g;
+          const frames = await capture(page, 'test-short', { over: { ticks: 40 } });
+          const out = await sj<{ outcome: string; via: string }>(page, 'window.__h.out');
+          expect(out).toMatchObject({ outcome: 'success', via: 'played' });
+          // The phases, in order: the cover's first round (jack in) and its second (jack out).
+          const phases = frames.map((f) => f.phase).filter((p, i, all) => p !== all[i - 1]);
+          expect(phases.filter((p) => p !== null)).toEqual(expect.arrayContaining(['out', 'swap', 'in']));
+          expect(phases.filter((p) => p === 'out')).toHaveLength(2);
+          expect(phases.filter((p) => p === 'swap')).toHaveLength(2);
+          // (The first tick of `out` is painted before the first step, so a capture sees ticks 1 to outTicks - 1 of each round.)
+          expect(frames.filter((f) => f.phase === 'out')).toHaveLength(2 * (TRANSITION.outTicks - 1));
+          expect(frames.filter((f) => f.phase === 'in')).toHaveLength(2 * TRANSITION.inTicks);
+          // Line 19.
+          expect(uniformProblems(frames, TRANSITION.uniform[style][level])).toEqual([]);
+          // Line 23: at none, no effects call and no world filter; at lite no world filter; at full the glitch style uses its effects.
+          if (level === 'none') expect(frames.map((f) => f.fxCalls).at(-1)).toBe(0);
+          if (level !== 'full') expect(Math.max(...frames.map((f) => f.filters)), 'a filter is on the world').toBe(0);
+          if (level === 'full' && style === 'glitch') expect(frames.map((f) => f.fxCalls).at(-1)).toBeGreaterThan(0);
+          // Line 22: the 3D scene was on screen under the reveal, and nothing broke.
+          expect(frames.some((f) => f.phase === 'in' && f.running)).toBe(true);
+          expect(await glErrors(page)).toEqual([]);
+          expect(g.problems).toEqual([]);
+        } finally {
+          await g.close();
+        }
+      });
+    }
+  }
+
+  // Controls of line 19, on the glitch style at full.
+  test('CONTROL: a mutant that skips the first 3D renders reveals a blank target, a mutant that draws one black frame at the hand-over shows one: both give an undeclared one-color frame', async ({ browser }) => {
+    for (const mutant of ['blank', 'black'] as const) {
+      const g = await openTitle(browser, { query: '&jack=glitch&fx=full&seed=5' });
+      try {
+        const { page } = g;
+        if (mutant === 'blank') await sj(page, 'sj.hackTest.skipFirstRenders(8)');
+        else await sj(page, '(sj.hackTest.blackFrameAtHandover(true), true)');
+        const frames = await capture(page, 'test-short', { over: { ticks: 40 } });
+        const problems = uniformProblems(frames, TRANSITION.uniform.glitch.full);
+        expect(problems.length, `${mutant}: the check finds the bad frame`).toBeGreaterThan(0);
+      } finally {
+        await g.close();
+      }
+    }
+    // And the rules reject a style that declares more than they allow (the unit test of the rules has the full list).
+    const wide: UniformRange[] = [...TRANSITION.uniform.glitch.full, { phase: 'in', from: 0, to: TRANSITION.inTicks - 1, reason: 'too wide' }];
+    expect(uniformProblems([], wide)).not.toEqual([]);
+  });
+
+  // Line 20, case 1: a slow chunk. The request is delayed 3 s: the hold keeps animating, never blank, and when the chunk arrives the in phase runs in full and the hack plays.
+  for (const style of STYLES) {
+    for (const level of LEVELS) {
+      test(`${style} at fx ${level}: a chunk delayed 3 s is held with a moving picture (never blank), then the reveal runs in full and the hack plays (line 20, case 1)`, async ({ browser }) => {
+        const g = await openTitle(browser, { query: `&jack=${style}&fx=${level}&seed=5` });
+        try {
+          const { page } = g;
+          await page.route(chunkUrl, async (route) => {
+            await new Promise((r) => setTimeout(r, 3000));
+            await route.continue();
+          });
+          const frames = await capture(page, 'test-short', { over: { ticks: 30 } }, { pause: 14, maxSteps: 1500 });
+          expect(holdProblems(frames)).toEqual([]);
+          expect(frames.filter((f) => f.phase === 'in').length, 'the reveal ran in full (the jack-in round and the jack-out round)').toBe(2 * TRANSITION.inTicks);
+          expect(await sj(page, 'window.__h.out')).toMatchObject({ outcome: 'success', via: 'played' });
+          expect(g.problems).toEqual([]);
+        } finally {
+          await g.close();
+        }
+      });
+    }
+  }
+
+  test('CONTROL: a style with its hold element turned off shows a blank, frozen hold in case 1 and fails the check', async ({ browser }) => {
+    const g = await openTitle(browser, { query: '&jack=glitch&fx=none&seed=5' });
+    try {
+      const { page } = g;
+      await page.route(chunkUrl, async (route) => {
+        await new Promise((r) => setTimeout(r, 2500));
+        await route.continue();
+      });
+      await sj(page, '(sj.hackTest.skipHoldUi(true), true)');
+      const frames = await capture(page, 'test-short', { over: { ticks: 30 } }, { pause: 14, maxSteps: 1500 });
+      expect(holdProblems(frames).length).toBeGreaterThan(0);
+    } finally {
+      await g.close();
+    }
+  });
+
+
+  // Line 20, case 2: the chunk never arrives. The hold bound (1,500 ms here) ends it: unsupported / chunk-failed, the story goes on, the 2D scene is back clean (line 21).
+  for (const level of ['full', 'none'] as const) {
+    test(`fx ${level}: the chunk never completes and holdBoundMs is 1500: unsupported / chunk-failed after about 1.5 s of hold, the story continues, and the 2D scene is back with no effect left`, async ({ browser }) => {
+      const g = await openGame(browser, { query: `&jack=glitch&fx=${level}&seed=5`, allow: [/\[sje\] the 3D chunk took longer/] });
+      try {
+        const { page } = g;
+        expect(await waitTop(page, 'TitleScene')).toBe(true);
+        await sj(page, "sj.stage('town')");
+        expect(await waitUntil(page, 'sj.top() === "FieldScene" && sj.idle()', 30_000)).toBe(true);
+        const before = await sj<string>(page, FIELD_STATE);
+        await page.route(chunkUrl, () => {
+          /* the request never completes */
+        });
+        await sj(page, "(sj.hackDev.set({ options: { jack: { params: { holdBoundMs: 1500 } } } }), true)");
+        // The page notes when the hold begins (a 5 ms poll) and when the story gets its answer.
+        await sj(
+          page,
+          `(() => { const st = (window.__story = { log: [], done: false, outcome: null, holdAt: 0, at: 0 });
+            const poll = setInterval(() => { const j = sj.jackState(); if (j && j.phase === 'hold' && !st.holdAt) { st.holdAt = performance.now(); clearInterval(poll); } }, 5);
+            sj.field().runScript(async (s) => { st.log.push('line-1'); st.outcome = await s.hack(sj.hackDef('test-short'), async () => { st.log.push('alternative'); return 'success'; }); st.at = performance.now(); st.log.push('line-2'); }).then(() => { st.done = true; });
+            return true; })()`,
+        );
+        expect(await waitUntil(page, 'window.__story.done', 20_000)).toBe(true);
+        const st = await sj<{ log: string[]; outcome: { outcome: string; via: string; results: Array<{ status: string; reason?: string }> }; holdAt: number; at: number }>(page, 'window.__story');
+        expect(st.outcome.results).toEqual([{ status: 'unsupported', reason: 'chunk-failed' }]);
+        expect(st.log, 'the story continues: the 2D alternative, then the next line').toEqual(['line-1', 'alternative', 'line-2']);
+        expect(st.holdAt, 'the hold began').toBeGreaterThan(0);
+        expect(st.at - st.holdAt, 'ms from the start of the hold to the answer').toBeGreaterThan(1000);
+        expect(st.at - st.holdAt).toBeLessThan(2000);
+        // The way back runs for 24 more ticks, then the cover is gone and nothing is left of it (line 21).
+        expect(await waitUntil(page, 'sj.jackState() === null', 10_000)).toBe(true);
+        expect(await waitUntil(page, 'sj.top() === "FieldScene" && sj.idle()', 10_000)).toBe(true);
+        expect(await sj<string>(page, FIELD_STATE)).toBe(before);
+        expect(await sj<Record<string, number>>(page, 'sj.fxCounts()')).toMatchObject({ shocks: 0, hazes: 0, glitches: 0 });
+        expect(g.problems).toEqual([]);
+      } finally {
+        await g.close();
+      }
+    });
+  }
+
+  // ---- line 21: the way back is exact ----------------------------------------------------------------------------------------------
+
+  for (const end of ['success', 'fail', 'abort', 'drop'] as const) {
+    for (const level of ['full', 'lite'] as const) {
+      test(`fx ${level}: after a ${end} the 2D scene state is the state before${end === 'drop' ? ' (a drop leaves no scene: the cover and the effects are gone)' : ', no effect is left, and the cover is gone'} (line 21)`, async ({ browser }) => {
+        const g = await openField(browser, { query: `&jack=glitch&fx=${level}&seed=5` });
+        try {
+          const { page } = g;
+          const before = await sj<string>(page, FIELD_STATE);
+          const jackCovers = () => sj<number>(page, "sj.game.screen.overlayRoot.list.filter((c) => c.name === 'jack').length");
+          expect(await jackCovers()).toBe(0);
+          const id = end === 'fail' ? 'test-fail' : end === 'success' ? 'test-short' : 'test-hack';
+          await sj(page, `(window.__h = null, sj.hack(${JSON.stringify(id)}, { over: ${end === 'success' ? '{ ticks: 40 }' : '{}'} }).then((out) => { window.__h = out; }), true)`);
+          if (end === 'abort' || end === 'drop') {
+            expect(await waitUntil(page, 'sj.hackState().running && sj.hackState().tick > 20', 30_000)).toBe(true);
+            await sj(page, end === 'abort' ? "(sj.hackTest.endHack('error'), true)" : '(sj.game.abandon(), true)');
+          }
+          expect(await waitUntil(page, 'window.__h !== null', 40_000)).toBe(true);
+          const out = await sj<{ outcome: string; via: string }>(page, 'window.__h');
+          expect(out).toMatchObject(
+            { success: { outcome: 'success', via: 'played' }, fail: { outcome: 'fail', via: 'played' }, abort: { outcome: 'success', via: 'policy' }, drop: { outcome: 'fail', via: 'dropped' } }[end],
+          );
+          expect(await waitUntil(page, 'sj.jackState() === null', 10_000)).toBe(true);
+          if (end !== 'drop') {
+            expect(await waitUntil(page, 'sj.top() === "FieldScene" && sj.idle()', 10_000)).toBe(true);
+            expect(await sj<string>(page, FIELD_STATE), 'the field state is the state before').toBe(before);
+          }
+          const counts = await sj<Record<string, number>>(page, 'sj.fxCounts()');
+          expect([counts.shocks, counts.hazes, counts.glitches], 'no effect is left').toEqual([0, 0, 0]);
+          expect(await jackCovers(), 'the cover is gone').toBe(0);
+          expect(await sj<boolean>(page, 'sj.hackState().running')).toBe(false);
+          if (end === 'success' && level === 'full') {
+            // CONTROL: a layer left behind shows in the counts, and a field that moved shows in the state hash.
+            await sj(page, '(sj.game.fx.glitch(320, 180, { w: 100, h: 60, strength: 5, life: 300 }), true)');
+            expect((await sj<Record<string, number>>(page, 'sj.fxCounts()')).glitches, 'the control: a glitch layer is seen').toBeGreaterThan(0);
+            await sj(page, '(sj.field().leader.x += 1, true)');
+            expect(await sj<string>(page, FIELD_STATE), 'the control: a moved field is seen').not.toBe(before);
+          }
+          expect(g.problems).toEqual([]);
+        } finally {
+          await g.close();
+        }
+      });
+    }
+  }
+
+  test('fx none: the settled picture after jack out equals the picture of a run that was never covered, at the same field frame', async ({ browser }) => {
+    const q = '&jack=glitch&fx=none&seed=5';
+    const a = await openField(browser, { query: q, interior: true });
+    let f1 = 0;
+    let hashA = '';
+    try {
+      const { page } = a;
+      await capture(page, 'test-short', { over: { ticks: 30 } }, { afterDone: 6 });
+      expect(await sj(page, 'sj.jackState()')).toBeNull();
+      f1 = await sj<number>(page, 'sj.field().frame');
+      hashA = await sj<string>(page, '(sj.step(0), sj.frameHash())');
+      expect(a.problems).toEqual([]);
+    } finally {
+      await a.close();
+    }
+    const b = await openField(browser, { query: q, interior: true });
+    try {
+      const { page } = b;
+      await freeze(page);
+      const fb = await sj<number>(page, 'sj.field().frame');
+      expect(fb, 'the reference run is not past the frame').toBeLessThanOrEqual(f1);
+      await frozenStep(page, f1 - fb);
+      expect(await sj<number>(page, 'sj.field().frame')).toBe(f1);
+      expect(await sj<string>(page, '(sj.step(0), sj.frameHash())'), 'the settled picture').toBe(hashA);
+      // CONTROL: one more tick is another picture (the hash is not constant).
+      await frozenStep(page, 7);
+      expect(await sj<string>(page, '(sj.step(0), sj.frameHash())')).not.toBe(hashA);
+    } finally {
+      await b.close();
+    }
+  });
+
+  // ---- line 24: deterministic pictures (the normal path) ---------------------------------------------------------------------------
+
+  /** A page on a fake clock with a fixed seed: the frames of the out and in phases of a jack, as `round:phase:tick` -> hash. The hold is left out (its length depends on the load). */
+  async function sequence(browser: import('@playwright/test').Browser, style: JackStyle, seed: number): Promise<Record<string, string>> {
+    const g = await openGame(browser, { query: `&jack=${style}&fx=full&seed=${seed}`, fakeClock: true });
+    try {
+      const { page } = g;
+      expect(await waitUntil(page, 'sj.game.stack.length > 0', 30_000)).toBe(true);
+      await advance(page, 700);
+      const frames = await capture(page, 'test-short', { over: { ticks: 40 } });
+      const keyed: Record<string, string> = {};
+      let round = 0;
+      let last: string | null = null;
+      for (const f of frames) {
+        if (f.phase === 'out' && last !== 'out') round++;
+        last = f.phase;
+        if (f.phase === 'out' || f.phase === 'in') keyed[`${round}:${f.phase}:${f.t}`] = f.hash;
+      }
+      expect(g.problems).toEqual([]);
+      return keyed;
+    } finally {
+      await g.close();
+    }
+  }
+
+  for (const style of STYLES) {
+    test(`${style}: the same style, seed and tick give the same frame hash on two page loads (line 24)${style === 'collapse' ? '' : '; CONTROL: another seed gives another picture'}`, async ({ browser }) => {
+      const one = await sequence(browser, style, 5);
+      const two = await sequence(browser, style, 5);
+      expect(Object.keys(one).length, 'the frames of both rounds').toBe(2 * (TRANSITION.outTicks - 1) + 2 * TRANSITION.inTicks);
+      expect(two).toEqual(one);
+      if (style !== 'collapse') {
+        const other = await sequence(browser, style, 6);
+        const differing = Object.keys(one).filter((k) => one[k] !== other[k]).length;
+        expect(differing, 'frames that differ with another seed').toBeGreaterThan(0);
+      }
+    });
+  }
 });
