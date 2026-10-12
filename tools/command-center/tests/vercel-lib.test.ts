@@ -225,7 +225,8 @@ describe('vercel.json', () => {
   });
 
   it('builds only the page: the function files are committed, because Vercel finds functions before the build', () => {
-    expect(config.buildCommand).toBe('vite build');
+    // VITE_HOSTED=1 builds the hosted page (src/web/hosted): it polls /api/snapshot and /api/live. Without it the page would look for the local server, which Vercel does not run.
+    expect(config.buildCommand).toBe('VITE_HOSTED=1 vite build');
     expect(existsSync(join(PACKAGE_DIR, 'scripts', 'build-functions.mjs'))).toBe(true);
   });
 

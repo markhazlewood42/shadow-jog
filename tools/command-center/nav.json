@@ -48,7 +48,7 @@
     {
       "id": "command-center",
       "title": "Command center",
-      "items": ["docs/command-center/", "tools/command-center/README.md"]
+      "items": ["docs/command-center/", "tools/command-center/README.md", { "page": "/workstreams", "title": "Workstreams" }]
     }
   ]
 }

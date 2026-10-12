@@ -1,5 +1,5 @@
 import { Chip } from '@heroui/react';
-import { CircleAlert, CircleCheck, ExternalLink, FileText, Gavel, GitPullRequest, Info, ListChecks, type LucideIcon, MessageSquare, TriangleAlert } from 'lucide-react';
+import { CircleAlert, CircleCheck, ExternalLink, FileText, Gavel, GitBranch, GitPullRequest, Info, ListChecks, type LucideIcon, MessageSquare, TriangleAlert } from 'lucide-react';
 import { useId } from 'react';
 import { Link } from 'react-router';
 import type { ModuleName, YourMoveInfo, YourMoveItem, YourMoveSource } from '../../shared/types';
@@ -21,6 +21,7 @@ const SOURCE_LABELS: Record<YourMoveSource, string> = {
   pr: 'Pull request',
   'doc-decision': 'Engine decision',
   status: 'Status',
+  workstream: 'Workstream',
 };
 
 const SOURCE_ICONS: Record<YourMoveSource, LucideIcon> = {
@@ -29,6 +30,7 @@ const SOURCE_ICONS: Record<YourMoveSource, LucideIcon> = {
   pr: GitPullRequest,
   'doc-decision': FileText,
   status: ListChecks,
+  workstream: GitBranch,
 };
 
 /**

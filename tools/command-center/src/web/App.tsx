@@ -5,10 +5,18 @@ import { Route, Routes, useLocation } from 'react-router';
 import { AgentsPage } from './agents/AgentsPage';
 import { DecisionRoute } from './decisions/DecisionPage';
 import { DocsRoutes } from './docs/DocsRoutes';
+import { WORKSTREAMS_PATH } from './hosted/mode';
+import { LocalWorkstreams } from './workstreams/LocalWorkstreams';
 
 // The Now page is loaded when it is first asked for, and not with the rest of the app. It is the one page that draws glass (PlasmaUI, which brings a WebGL
 // renderer), so a chunk of its own keeps that code out of the docs pages and the decision pages: they never download it. (A test scans the build for this.)
 const NowPage = lazy(() => import('./now/NowPage').then((module) => ({ default: module.NowPage })));
+
+// The hosted build (VITE_HOSTED=1, set by the Vercel build) has two more parts: the banner for a lost login and the Workstreams view. Vite writes the flag into the code, so
+// in the local build these two lines become null and their files are not built at all.
+const HOSTED = import.meta.env.VITE_HOSTED === '1';
+const HostedBanner = HOSTED ? lazy(() => import('./hosted/HostedBanner').then((module) => ({ default: module.HostedBanner }))) : null;
+const WorkstreamsPage = HOSTED ? lazy(() => import('./workstreams/WorkstreamsPage').then((module) => ({ default: module.WorkstreamsPage }))) : null;
 
 /** What the page shows for the moment that the file of the Now page is on its way. It is local, so this is short. */
 function NowLoading() {
@@ -60,7 +68,7 @@ export class PageErrorBoundary extends Component<{ children: ReactNode; resetKey
 
 /**
  * The pages of the app, by address. /docs and everything under it is the docs site, /decisions/<n> is the page of one
- * decision, and /agents is the list of the sessions with their agents. Every other address shows the Now page, so a page
+ * decision, /agents is the list of the sessions with their agents, and /workstreams is the Workstreams view (the hosted build has data for it). Every other address shows the Now page, so a page
  * that a later task adds is one more <Route> above the last.
  * The router itself (BrowserRouter) is in main.tsx, so a test can put this under a router of its own.
  */
@@ -68,10 +76,28 @@ export function App() {
   const { pathname } = useLocation();
   return (
     <PageErrorBoundary resetKey={pathname}>
+      {/* Hosted build only: the banner for a lost login (design 7). */}
+      {HostedBanner !== null && (
+        <Suspense fallback={null}>
+          <HostedBanner />
+        </Suspense>
+      )}
       <Routes>
         <Route path="/docs/*" element={<DocsRoutes />} />
         <Route path="/decisions/:number" element={<DecisionRoute />} />
         <Route path="/agents" element={<AgentsPage />} />
+        <Route
+          path={WORKSTREAMS_PATH}
+          element={
+            WorkstreamsPage === null ? (
+              <LocalWorkstreams />
+            ) : (
+              <Suspense fallback={<NowLoading />}>
+                <WorkstreamsPage />
+              </Suspense>
+            )
+          }
+        />
         <Route
           path="*"
           element={

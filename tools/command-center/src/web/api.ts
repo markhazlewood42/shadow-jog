@@ -1,5 +1,13 @@
 import type { ChangeEvent, Health, Panel } from '../shared/types';
 
+// The hosted page (Vercel) reads the snapshot, the live key and the doc files and not the local server (src/web/hosted). The choice is made when the page is built:
+// the Vercel build sets VITE_HOSTED=1. Vite writes the value into the code, so the local build drops every hosted branch below, and its dynamic imports with them.
+const HOSTED = import.meta.env.VITE_HOSTED === '1';
+let loggedHostedLoadFailure = false;
+
+/** How the hosted data layer is loaded: a file of its own, loaded when the first listener comes. A test replaces the loader to make the load fail. */
+export const hostedLoaders = { store: () => import('./hosted/store') };
+
 // How the page talks to the server: reads (JSON, and the event stream) and the one kind of
 // write. Nothing here throws for a server that is down or an answer that is odd, when it can
 // say so as data instead: a panel must show its own error, not crash the page.
@@ -81,6 +89,10 @@ export async function getJson<T>(url: string): Promise<T> {
  * answer that is not a panel all come back as a failed panel, which a PanelFrame shows.
  */
 export async function getPanel<T>(url: string): Promise<Panel<T>> {
+  if (HOSTED) {
+    const { hostedPanel } = await import('./hosted/resolve');
+    return hostedPanel<T>(url);
+  }
   let res: Response;
   try {
     res = await fetch(url, { headers: { Accept: 'application/json' }, cache: 'no-store' });
@@ -112,6 +124,10 @@ export function mergeLastGood<T>(previous: Panel<T> | null, next: Panel<T>): Pan
  * arrived), so the shell shows it in a PanelFrame, with the same error state as every panel.
  */
 export async function loadHealthPanel(): Promise<Panel<Health>> {
+  if (HOSTED) {
+    const { hostedHealth } = await import('./hosted/panels');
+    return { ok: true, data: hostedHealth(window.location.origin), updatedAt: new Date().toISOString() };
+  }
   try {
     const health = await getJson<Health>('/api/health');
     return { ok: true, data: health, updatedAt: new Date().toISOString() };
@@ -203,6 +219,28 @@ function openStream(): void {
  * change. Returns the function that stops listening.
  */
 export function subscribeEvents(listener: (event: ServerEvent) => void): () => void {
+  // Hosted: no event stream. The store polls, and tells the same kinds of event when a poll finds a change (src/web/hosted/store.ts).
+  if (HOSTED) {
+    // The store loads in its own file, so the answer is a promise. Stopping before it arrives stops as soon as it does.
+    // If the file cannot be loaded (a deploy replaced it while the tab was open, or the network failed), the page says that the connection is off and logs the reason once.
+    const stop = hostedLoaders
+      .store()
+      .then(({ hostedStore }) =>
+        hostedStore.subscribe((event) => {
+          if (event.type === 'connection') listener({ type: 'connection', state: event.state });
+          else if (event.type === 'changed') listener({ type: 'changed', event: event.event });
+        }),
+      )
+      .catch((error: unknown) => {
+        if (!loggedHostedLoadFailure) {
+          loggedHostedLoadFailure = true;
+          console.error('The data layer of the hosted page could not be loaded:', error);
+        }
+        listener({ type: 'connection', state: 'offline' });
+        return () => {};
+      });
+    return () => void stop.then((unsubscribe) => unsubscribe());
+  }
   listeners.add(listener);
   listener({ type: 'connection', state: connection });
   if (source === null) openStream();

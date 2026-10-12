@@ -3,6 +3,7 @@ import { useId, useState } from 'react';
 import { Link } from 'react-router';
 import type { DocsListing, NavItem, NavSection } from '../../shared/types';
 import { PanelFrame } from '../PanelFrame';
+import { visibleNav } from '../hosted/mode';
 import type { PanelResult } from '../usePanel';
 import { docPath } from './paths';
 import { useDocumentTitle } from './useDocumentTitle';
@@ -21,9 +22,12 @@ function PageRow({ item }: { item: NavItem }) {
       </Link>
       {item.kind === 'doc' ? (
         // The day the doc last changed, as the server wrote it. A time zone must not move it, so it is shown as text.
-        <time dateTime={item.updated} className="shrink-0 font-mono text-xs text-cc-soft">
-          {item.updated}
-        </time>
+        // The hosted page has no day for a doc it has not read: nothing is shown then.
+        item.updated !== '' && (
+          <time dateTime={item.updated} className="shrink-0 font-mono text-xs text-cc-soft">
+            {item.updated}
+          </time>
+        )
       ) : (
         <span className="shrink-0 font-mono text-xs text-cc-soft">page</span>
       )}
@@ -77,14 +81,15 @@ function Problems({ problems }: { problems: readonly string[] }) {
 }
 
 function Cards({ listing }: { listing: DocsListing }) {
-  if (listing.nav.length === 0) return <p className="text-cc-muted">No docs</p>;
+  const nav = visibleNav(listing.nav);
+  if (nav.length === 0) return <p className="text-cc-muted">No docs</p>;
   return (
     <div className="flex flex-col gap-5">
       <p className="text-sm text-cc-muted">
-        {listing.docs.length} {listing.docs.length === 1 ? 'doc' : 'docs'} · {listing.nav.length} {listing.nav.length === 1 ? 'section' : 'sections'}
+        {listing.docs.length} {listing.docs.length === 1 ? 'doc' : 'docs'} · {nav.length} {nav.length === 1 ? 'section' : 'sections'}
       </p>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {listing.nav.map((section) => (
+        {nav.map((section) => (
           <SectionCard key={section.id} section={section} />
         ))}
       </div>

@@ -586,7 +586,7 @@ export type AnswerErrorBody = ApiErrorBody & { step?: AnswerStep };
 // must show them as text.
 
 /** Where an item of "Your move" comes from. The page names the source in the notice for a source that could not be read. */
-export type YourMoveSource = 'decision-issue' | 'session' | 'pr' | 'doc-decision' | 'status';
+export type YourMoveSource = 'decision-issue' | 'session' | 'pr' | 'doc-decision' | 'status' | 'workstream';
 
 /**
  * One thing that waits for Mark. `text` is plain words. `href` is where its source is: an address of this site (it starts with `/`), an
