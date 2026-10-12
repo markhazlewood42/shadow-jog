@@ -14,7 +14,7 @@
  *    the run when `SJEFIELD_STRICT=1`.
  *  - THE MEASURED BOUNDS: what was measured, rounded up, per kind and effects level. A regression guard: it fails when the new field drifts further from the old one. It is not
  *    the gate and not a decision about the tolerance (that is Mark's, brief decision 4).
- *  Controls that must FAIL the bounds: a 2/255 step, an actor one pixel off, a wrong light radius.
+ *  Controls that must FAIL the bounds (a 2/255 step, an actor one pixel off, a wrong light radius): in part D, not in this part.
  *
  * Also checked: the inputs are pinned (the SHA-256 of every map file the references depend on; a changed file fails first with the command that makes the references again),
  * every map of the game has a state, the new frame is crisp (no uneven 2x2 block) and the page logs nothing.
@@ -26,29 +26,14 @@
  */
 import { test } from '@playwright/test';
 import { CASES } from './sjefieldkit';
-import { CONTROL_IDS, lightControl, nudgeControl, stateBody, stepControl } from './sjefieldparityparts';
+import { PART_SLICES, stateBody } from './sjefieldparityparts';
 
-// Part B: the other 16 states (the interiors, the day case of the bar, and the GPU-only effect-stack states, which skip themselves on CI) and the 6 controls.
+// Part B: states 8 to 14 (the world map by day, the yard and its two variants, the sinkline, the annex and the dock).
 test.describe('field parity: the new field against the old one', () => {
   test.setTimeout(240_000);
-  for (const c of CASES.slice(15)) {
+  for (const c of CASES.slice(...PART_SLICES[1]!)) {
     test(`${c.id}: ${c.note}`, async ({ browser }) => {
       await stateBody(browser, c);
-    });
-  }
-});
-
-test.describe('field parity: the bounds can fail (controls)', () => {
-  test.setTimeout(240_000);
-  for (const id of CONTROL_IDS) {
-    test(`${id}: a 2/255 step is rejected`, async ({ browser }) => {
-      await stepControl(browser, id);
-    });
-    test(`${id}: an actor one pixel off is rejected`, async ({ browser }) => {
-      await nudgeControl(browser, id);
-    });
-    test(`${id}: a wrong light radius is rejected`, async ({ browser }) => {
-      await lightControl(browser, id);
     });
   }
 });
