@@ -4,7 +4,7 @@ title: "Shadow Jog Command Center — Design"
 project: shadow-jog
 created: 2026-10-05
 updated: 2026-10-11
-status: approved by Mark 2026-10-05 (decision inbox and look added the same day). Revision 2 (live feedback of 2026-10-07) approved by Mark 2026-10-07. Revision 3 (live, hosted view) approved by Mark 2026-10-11.
+status: approved by Mark 2026-10-05 (decision inbox and look added the same day). Revision 2 (live feedback of 2026-10-07) approved by Mark 2026-10-07. Revision 3 (live, hosted view) approved by Mark 2026-10-11, in a Claude Code session on that date. Mark's merge of PR #63 is the record in the repo.
 tags: [tooling, command-center, design]
 ---
 
@@ -22,8 +22,8 @@ A small website that runs on Mark's machine. It is the home base for all Shadow 
 
 Its plan is [plan-revision-2.md](plan-revision-2.md). A section marked "revision 2" replaces the version 1 text.
 
-**Revision 3 is approved, not built (2026-10-11).** Its source is the approved strategy of 2026-10-11, summarized in section 11. It adds a hosted, live view of the project. It changes five things:
-1. Each branch gets one workstream file in git, `docs/workstreams/<branch-slug>.md` (section 5.9).
+**Revision 3 is approved, not built (2026-10-11).** Its source is the strategy draft 4 of 2026-10-11 (not in the repo, summarized in section 11). Mark approved it in a Claude Code session on 2026-10-11. Mark's merge of PR #63 is the record in the repo. It adds a hosted, live view of the project. It changes five things:
+1. Each branch gets one workstream file in git, `docs/workstreams/<branch>.md`, where a branch with slashes becomes folders (section 5.9).
 2. A hosted copy of the page runs on Vercel. Vercel Authentication with the scope "All Deployments" lets only Mark open it (section 4.3).
 3. Vercel functions read GitHub live (section 6).
 4. A local reporter writes sessions, agents and worktrees to one Upstash Redis key that expires (section 11).
@@ -83,7 +83,7 @@ Mark works on the game and the engine across many sessions. The docs, the tools 
 
 | Question | Answer |
 |---|---|
-| Workstream state | One file per branch in git, `docs/workstreams/<branch-slug>.md`. A database for authored state was rejected: it would drift from the markdown docs. |
+| Workstream state | One file per branch in git, `docs/workstreams/<branch>.md`. A database for authored state was rejected: it would drift from the markdown docs. |
 | Hosted view | Yes, on Vercel (Hobby plan, account `markhazlewood42`). No Supabase. |
 | Live sessions, agents, worktrees | A small store for heartbeats only: Upstash Redis, installed through the Vercel Marketplace. |
 | `git fetch` by the local CC | Allowed, every 2 minutes, remote-tracking refs only. Only the optional local work (step 6, section 11) needs it. |
@@ -112,6 +112,7 @@ Mark works on the game and the engine across many sessions. The docs, the tools 
 **Revision 3 (changed scope):** a hosted view on Vercel is now in scope (section 4.3). It shows Shadow Jog only.
 - **Still out of scope:** write actions on the hosted page, including decision answers. Heartbeats from cloud sessions. Other projects.
 - **A cloud session** shows only through what it pushes. Its pushes show through `/api/snapshot`.
+
 ---
 
 ## 4. Architecture
@@ -158,7 +159,7 @@ sessions --files--> local reporter --write, keys expire--> Upstash Redis <--read
 
 - **Poll, not push.** On Hobby a function runs at most 300 s, and SSE from a Vercel function is not confirmed in the docs. A poll of a small JSON every 5 to 15 s, only while the tab is visible, is simple and inside the limits (section 11).
 - **Data layer switch.** On Vercel the page polls `/api/snapshot` (15 s) and `/api/live` (10 s), only while the tab is visible. Locally it keeps `/api/*` and SSE. The look does not change.
-- **Login.** Vercel Authentication with the scope "All Deployments" (free on Hobby). The default scope, "Standard Protection", does not protect the production URL. Same-origin `fetch('/api/...')` carries the login cookie. Only members of Mark's Vercel team can open the page or call its functions.
+- **Login.** Vercel Authentication with the scope "All Deployments" (free on Hobby). Source: Vercel docs, checked 2026-10-11: "Protecting all deployments is available on all plans" (https://vercel.com/docs/deployment-protection). Password Protection is not available on Hobby, so Vercel Authentication is the method. The default scope, "Standard Protection", does not protect the production URL. Same-origin `fetch('/api/...')` carries the login cookie. Only members of Mark's Vercel team can open the page or call its functions.
 - **Deploys.** A separate Vercel project from the game, with root `tools/command-center`. An Ignored Build Step deploys only when `tools/command-center/` changes on `main`.
 - **Architecture fit.** The local server reads through the `git` and `gh` CLIs. Vercel has no checkout, so the functions are a new GitHub API adapter (section 6). It returns the same types (`src/shared/types.ts`), so the page and the parsers do not change.
 
@@ -281,7 +282,7 @@ Data:
 - CI on main is new. The GitHub module reads `gh run list --workflow ci.yml --branch main --limit 1` with the PRs, every 60 seconds. This adds one exact command to the allow-list of the `gh` runner.
 - A row whose source failed shows an error label and a Retry button. The other rows stay.
 
-**Known gap (revision 3).** All sessions edit one `status.md`. The panel reads the "Next up for Mark" list under the first "Right now" heading. The newest state (2026-10-11) is under "M6 PR #58 state", so the panel shows the 2026-10-10 list, with no error. Workstream files (section 5.9) replace `status.md` as the source of per-branch state. `status.md` keeps the overview and the roster. Other gaps of the local CC: it reads only the checked-out branch, the page does not show worktrees or the session `gitBranch`, no module reads `docs/roadmap/roadmap.json`, and it is local only.
+**Known gap (revision 3).** All sessions edit one `status.md`. The panel reads the "Next up for Mark" list under the first "Right now" heading. When a newer state sits under another heading, the panel shows the older list with no error (seen on 2026-10-11). Workstream files (section 5.9) replace `status.md` as the source of per-branch state. `status.md` keeps the overview and the roster. Other gaps of the local CC: it reads only the checked-out branch, the page does not show worktrees or the session `gitBranch`, no module reads `docs/roadmap/roadmap.json`, and it is local only.
 
 ### 5.7 Copy and Download (revision 2)
 
@@ -333,10 +334,12 @@ updated: 2026-10-11
 ---
 ```
 
+The file path is the branch name: `docs/workstreams/<branch>.md`. A branch with slashes becomes folders, so `spike/foo` gives `docs/workstreams/spike/foo.md`. Branch names stay lowercase kebab-case. Two files cannot collide, because git refuses two branches whose names map to the same path (a branch `spike` and a branch `spike/foo` cannot exist together). One branch has exactly one file.
+
 Rules for sessions (they go into `CLAUDE.md` with the build):
 - A session writes only the workstream file of its own branch, and commits and pushes it with its work. One file per branch, so two sessions never edit the same file.
 - `status.md` keeps the overview and the roster. Only a PR to `main` changes it.
-- Lookup order: the file on its branch first. If the branch is gone (merged and deleted), the file on `main`. The page shows merged workstreams for 14 days.
+- Lookup order: the file on its branch first. If the branch is gone (merged and deleted), the file on `main`. The page shows merged workstreams for 14 days. (Revision 3) The merged list comes from merged PRs in the same GraphQL query (`headRefName`, `mergedAt`). The 14 days count from `mergedAt`. The function reads `main:docs/workstreams/<headRefName>.md`. The page derives "merged" from the PR, not from the file. A branch deleted without a merge has no row, and its closed PR shows on GitHub only.
 - A file that fails validation shows as a red row with its path and the error (section 7).
 
 The page:
@@ -364,12 +367,12 @@ The session files take more than 300 MB on disk. The site reads only the end of 
 The process list is an internal file of Claude Code, and its format is not promised. The `agents` module must not fail when the format changes. It falls back to the file ages and says so (section 5.4).
 
 **Vercel functions (revision 3).** All paths are under `tools/command-center/`.
-- **`/api/snapshot`**: two GitHub GraphQL calls. The first lists every branch (`refs(refPrefix: "refs/heads/")`) with its head commit, the open and recent PRs with checks (`statusCheckRollup`) and review state, and the CI result on `main`. The second reads, with one aliased `object(expression: "<branch>:docs/workstreams/<slug>.md")` per branch, every workstream file. It also reads `status.md`, `roadmap.json`, `docs/engine/migration.md` and the decision issues from `main`. Each call costs about 1 to 5 of the 5,000 points an hour. Step 2 tests the exact query shape against the real repo.
-- **Cache**: function instances do not share memory, so the cache is the Vercel CDN (`Cache-Control: s-maxage=15, stale-while-revalidate`) or the Vercel Runtime Cache. Step 3 proves which one works behind Vercel Authentication.
+- **`/api/snapshot`**: two GitHub GraphQL calls. The first lists every branch (`refs(refPrefix: "refs/heads/")`) with its head commit, the open and recent PRs with checks (`statusCheckRollup`) and review state, and the CI result on `main`. The second reads, with one aliased `object(expression: "<branch>:docs/workstreams/<branch>.md")` per branch, every workstream file. The merged list comes from merged PRs in the same query (`headRefName`, `mergedAt`). It also reads `status.md`, `roadmap.json`, `docs/engine/migration.md` and the decision issues from `main`. Each call costs about 1 to 5 of the 5,000 points an hour. Step 2 tests the exact query shape against the real repo.
+- **Cache**: function instances do not share memory, so the cache is the Vercel CDN (`Cache-Control: s-maxage=15, stale-while-revalidate`) or the Vercel Runtime Cache. Step 3 proves which one works behind Vercel Authentication. Vercel docs do not state whether the CDN caches responses on a protected deployment. If step 3 shows that the CDN does not cache behind the login, the function caches the snapshot itself for 15 s (Vercel Runtime Cache, or one Upstash key), so GraphQL use stays bounded however many tabs poll.
 - **`/api/docs/<path>`**: one doc from `main`, fetched on demand and cached. The page keeps its current doc views.
 - **`/api/live`**: reads the `live` key from Upstash with a read-only token.
 - **Token**: a fine-grained GitHub token, read-only, for `markhazlewood42/shadow-jog` only, in a Vercel environment variable. Vercel gets only the read-only Upstash token.
-- **Trust**: the same rule as now. Only issues, comments and labels by `markhazlewood42` count. The decision parser and the workstream validator are shared code, used locally and on Vercel.
+- **Trust**: the same rule as now. Only issues, comments and labels by `markhazlewood42` count. The GitHub API adapter applies the same filters as the `gh` commands in `CLAUDE.md`: it reads each comment's author and each `LabeledEvent` actor for `decided`, and counts only `markhazlewood42`. Step 2 adds a test where a comment and a label by another account must not count as an answer. The decision parser and the workstream validator are shared code, used locally and on Vercel.
 - **Adapter**: it returns the same types as the local modules (section 4.3). No GitHub Action is needed.
 
 ---
@@ -383,7 +386,8 @@ The process list is an internal file of Claude Code, and its format is not promi
 - (Revision 2) A Status row whose source failed shows an error label and Retry. The other rows stay.
 - (Revision 2) Copy and Download show "Copy failed" or "Download failed" on the button. They never fail silently.
 - (Revision 3) An invalid workstream file shows as a red row with its path and the error. Nothing fails in silence.
-- (Revision 3) "Reporter offline": the page marks local rows with this label when `writtenAt` of the `live` key is older than 150 s, or when the key is gone. Pushed work still shows.
+- (Revision 3) "Reporter offline": the page marks local rows with this label when `writtenAt` of the `live` key is older than 150 s ("reporter offline since <writtenAt time>"), or "reporter not running" when the key is gone. Pushed work still shows.
+- (Revision 3) A 401, a redirect, or a response that is not JSON on any poll shows a banner "Login expired: reload the page". The panels mark their data as stale with its time. Nothing fails in silence.
 - (Revision 3) After each deploy, a check without the login cookie (`curl` of the page and of `/api/live`) must return 401. Any other answer means the page is public.
 
 ---
@@ -435,23 +439,26 @@ Nothing in revision 3 is built. Goal (Mark): one hosted URL that Mark always use
 ### 11.1 Local reporter (this machine)
 
 - **It is the local CC server, run headless** (`CC_NO_OPEN=1`) with a new `publish` module. The server already parses session files, the process list (busy or idle), agents and workflows every 3 s. The reporter adds worktrees (`git worktree list`), their dirty file counts, and the workstream files of checked-out branches as they are on disk.
-- **One key, written on change, plus a beat.** The whole live state is one JSON key, `live`, with a 150 s expiry and a `writtenAt` time. The reporter writes it when the state changes, at most once each 5 s, and at least once each 60 s as the beat. No cleanup job is needed. The reporter exits after 30 minutes with no live shadow-jog session.
+- **One key, written on change, plus a beat.** The whole live state is one JSON key, `live`, with a 600 s expiry and a `writtenAt` time. The expiry is longer than the offline threshold of 150 s (section 7), so the page can show "reporter offline since" before the key is gone. The reporter writes it when the state changes, at most once each 5 s, and at least once each 60 s as the beat. No cleanup job is needed. The reporter exits after 30 minutes with no live shadow-jog session.
 - **Private text.** Uncommitted workstream text is not public, unlike the repo. Only Vercel Authentication and the read-only token protect it.
 - **It keeps running on its own.** A `SessionStart` hook starts the reporter if it is not running (a lock file plus a port check). The hook detaches at once with a 1 s budget, so it never slows a session. The hook goes in user-level settings, because sessions often start in `home-base`. It acts only when the session's cwd is inside a shadow-jog checkout or worktree.
 - **It runs from a pinned copy of `origin/main`** in a git-ignored folder, rebuilt when `main` changes `tools/command-center/`. A branch switch in the shared checkout then cannot change its code.
-- **No message text, ever.** Titles, names and counts only, as the local CC does now.
-- **Write token**: the Upstash read-write token, in `C:\Users\markh\.shadow-jog-cc\upstash.env`, outside every repo. The reporter writes to Upstash directly, so it does not pass through Vercel Authentication.
+- **No message text, ever.** Titles, names and counts only, as the local CC does now. The reporter sends only an allow-list of fields: session title, branch, cwd folder name, busy or idle, agent names and counts, worktree path and dirty count, and the frontmatter fields of the workstream schema. Never message text, never file bodies other than workstream frontmatter.
+- **Continuous protection check.** Every 10 minutes the reporter makes one request to `/api/live` without the login cookie. If the answer is not 401, the reporter stops publishing, deletes the `live` key, and logs the reason.
+- **Write token**: the Upstash read-write token, in `~/.shadow-jog-cc/upstash.env`, outside every repo. The reporter writes to Upstash directly, so it does not pass through Vercel Authentication.
 - Cloud sessions send no heartbeat. Their pushes still show through `/api/snapshot`.
 
 ### 11.2 Limits on Hobby (checked 2026-10-11, vercel.com/docs)
 
 | Item | Hobby limit | This plan, rough use |
 |---|---|---|
-| Function invocations | 1,000,000 a month | Page open 8 hours a day: about 230,000 a month |
+| Function invocations | 1,000,000 a month | Page open 8 hours a day, one tab: `/api/live` every 10 s is 2,880 calls a day, `/api/snapshot` every 15 s is 1,920 calls a day. Total 4,800 a day, about 144,000 a month (one tab) |
 | Function duration | 300 s max | Each call is short |
 | Active CPU | 4 hours a month | Small JSON work, cached |
-| GitHub GraphQL | 5,000 points an hour | At most about 240 queries an hour |
+| GitHub GraphQL | 5,000 points an hour | Each snapshot is two GraphQL calls. The cache allows at most one snapshot each 15 s for all tabs together, so at most 480 calls an hour. That is about 2,400 points at the high end of 1 to 5 points each, under the 5,000 limit |
 | Upstash free tier (upstash.com/pricing) | 500,000 commands a month, 250 MB | 8 active hours a day: beats 480, change writes up to 5,760 (cap), page reads 2,880 a day. Worst case about 275,000 a month |
+
+The estimate assumes 8 active hours. A tab that stays visible all day triples the reads, so step 5 measures real use and raises the poll interval if use passes half the cap.
 
 Reads are one `GET` of one key, so they do not grow with the number of sessions. What Upstash does at the cap is not stated. The Marketplace free plan is to confirm at install.
 
@@ -470,7 +477,8 @@ After step 4, pushed work is live on the hosted page. After step 5, sessions and
 
 ### 11.4 Risks and open points
 
-- **The page is public if the protection scope is wrong.** "Standard Protection" leaves the production URL open. The 401 check after each deploy catches it (section 7).
+- **The page is public if the protection scope is wrong.** "Standard Protection" leaves the production URL open. The 401 check after each deploy catches it (section 7). The reporter also repeats the check every 10 minutes and stops publishing if the page answers anything but 401 (section 11.1).
+- **Private data leaves this machine.** The allow-list of fields in section 11.1 limits what the reporter sends. The continuous protection check limits how long a wrong scope can matter.
 - **Upstash cap behavior is not stated.** The plan uses about half of the free commands in the worst case.
 - **The GraphQL query shape is from memory.** Step 2 tests it first.
 - **The reporter is a background process on this machine.** If the machine sleeps, local rows show "reporter offline". Pushed work still shows.
