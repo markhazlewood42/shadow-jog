@@ -1,9 +1,9 @@
 import { posix } from 'node:path';
 import { slug as headingId } from 'github-slugger';
-import type { DecisionAnswer, DecisionDocLink, DecisionIssue, DecisionOption } from '../../shared/types';
+import type { DecisionAnswer, DecisionDocLink, DecisionIssue, DecisionOption, DecisionsInfo } from '../../shared/types';
+import { slugOf } from '../../shared/doc-slug';
 import { decodeOrKeep } from '../docs/links';
 import { httpUrl, isMarkLogin } from '../github/github';
-import { slugOf } from '../docs/index';
 import { say } from '../messages';
 import { PanelError } from '../source';
 
@@ -376,3 +376,32 @@ export function readDecisionIssue(rawIssue: unknown, events: unknown): { issue: 
 export function parseDecisionIssue(rawIssue: unknown, events: unknown): DecisionIssue | null {
   return readDecisionIssue(rawIssue, events)?.issue ?? null;
 }
+
+// ---- the lists ----
+
+/** An answer stays in the list of recent answers for 7 days. */
+const RECENT_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** Whether a time is not more than 7 days before `now`. A time in the future (a clock that is a little off) counts as recent. A text that is not a time does not. */
+export function isRecent(at: string, now: number): boolean {
+  const ms = Date.parse(at);
+  return Number.isFinite(ms) && now - ms <= RECENT_MS;
+}
+
+/**
+ * Puts a decision on the list it belongs to: the open ones, or the ones answered in the last week. Any other (a closed one, an old answer) is on neither list.
+ * The GitHub API adapter (src/github-api) uses it too, so both sources sort decisions in one way.
+ */
+export function addDecision(info: DecisionsInfo, issue: DecisionIssue, now: number): void {
+  if (issue.state === 'open') info.open.push(issue);
+  else if (issue.state === 'answered' && issue.answer !== null && isRecent(issue.answer.at, now)) info.recent.push(issue);
+}
+
+/** The oldest question first, as a list of things to do. The newest answer first, as a list of what happened. */
+export function sortDecisions(info: DecisionsInfo): void {
+  info.open.sort((a, b) => a.number - b.number);
+  info.recent.sort((a, b) => answeredAt(b) - answeredAt(a) || b.number - a.number);
+}
+
+/** The time of the answer as milliseconds, for sorting. */
+const answeredAt = (issue: DecisionIssue): number => Date.parse(issue.answer?.at ?? '') || 0;

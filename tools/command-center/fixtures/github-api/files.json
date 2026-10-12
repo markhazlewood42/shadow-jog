@@ -1,0 +1,12 @@
+{
+  "a010000000000000000000000000000000000000:docs/workstreams/feature-a.md": "---\ntype: workstream\ntitle: Fixture feature-a\nbranch: feature-a\nroadmap: fixture-item\nstate: active\nnext_for_mark: []\nblocked_on: []\nupdated: 2026-10-11\n---\n\nBody text of feature-a.\n",
+  "5a10000000000000000000000000000000000000:docs/workstreams/spike/bad-checks.md": "---\ntype: workstream\ntitle: Broken\nbranch: spike/bad-checks\nstate: someday\n---\n",
+  "b010000000000000000000000000000000000000:docs/workstreams/draft-b.md": null,
+  "c090000000000000000000000000000000000000:docs/workstreams/done-c.md": "---\ntype: workstream\ntitle: Fixture done-c\nbranch: done-c\nroadmap: fixture-item\nstate: active\nnext_for_mark: []\nblocked_on: []\nupdated: 2026-10-11\n---\n\nBody text of done-c.\n",
+  "f020000000000000000000000000000000000000:docs/workstreams/moved-f.md": "---\ntype: workstream\ntitle: Fixture moved-f\nbranch: moved-f\nroadmap: fixture-item\nstate: active\nnext_for_mark: []\nblocked_on: []\nupdated: 2026-10-11\n---\n\nBody text of moved-f.\n",
+  "9a10000000000000000000000000000000000000:docs/workstreams/plain-g.md": "---\ntype: workstream\ntitle: Fixture plain-g\nbranch: plain-g\nroadmap: fixture-item\nstate: active\nnext_for_mark: []\nblocked_on: []\nupdated: 2026-10-11\n---\n\nBody text of plain-g.\n",
+  "d090000000000000000000000000000000000000:docs/workstreams/gone-d.md": "---\ntype: workstream\ntitle: Fixture gone-d\nbranch: gone-d\nroadmap: fixture-item\nstate: active\nnext_for_mark: []\nblocked_on: []\nupdated: 2026-10-11\n---\n\nBody text of gone-d.\n",
+  "main:status.md": "# Status\n\nFixture status.\n",
+  "main:docs/roadmap/roadmap.json": "{\"items\":[]}\n",
+  "main:docs/engine/migration.md": "# Migration\n\nFixture migration plan.\n"
+}

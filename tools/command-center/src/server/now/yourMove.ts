@@ -1,6 +1,6 @@
 import { type Decision, type DecisionIssue, type DecisionsInfo, type GithubInfo, type Panel, type PullRequest, type SessionInfo, type SessionsInfo, type StatusInfo, type YourMoveInfo, type YourMoveItem, type YourMoveSource, sessionHref } from '../../shared/types';
 import { docUrl } from '../docs/links';
-import { slugOf } from '../docs/index';
+import { slugOf } from '../../shared/doc-slug';
 import { inlineText } from '../engine/decisions';
 import { say } from '../messages';
 import { STATUS_DOC_PATH } from '../status/status';

@@ -1,0 +1,871 @@
+{
+  "data": {
+    "rateLimit": {
+      "cost": 5,
+      "remaining": 4000
+    },
+    "repository": {
+      "refs": {
+        "totalCount": 10,
+        "pageInfo": {
+          "hasNextPage": false,
+          "endCursor": "REFS-END"
+        },
+        "nodes": [
+          {
+            "name": "Bot-Branch.v1",
+            "target": {
+              "__typename": "Commit",
+              "oid": "b070000000000000000000000000000000000000",
+              "committedDate": "2026-10-01T00:00:00Z",
+              "messageHeadline": "Fixture commit"
+            }
+          },
+          {
+            "name": "Wrong_Name",
+            "target": {
+              "__typename": "Commit",
+              "oid": "3a10000000000000000000000000000000000000",
+              "committedDate": "2026-10-10T00:00:00Z",
+              "messageHeadline": "Fixture commit"
+            }
+          },
+          {
+            "name": "done-c",
+            "target": {
+              "__typename": "Commit",
+              "oid": "c010000000000000000000000000000000000000",
+              "committedDate": "2026-10-09T00:00:00Z",
+              "messageHeadline": "Fixture commit"
+            }
+          },
+          {
+            "name": "draft-b",
+            "target": {
+              "__typename": "Commit",
+              "oid": "b010000000000000000000000000000000000000",
+              "committedDate": "2026-10-10T08:00:00Z",
+              "messageHeadline": "Fixture commit"
+            }
+          },
+          {
+            "name": "feature-a",
+            "target": {
+              "__typename": "Commit",
+              "oid": "a010000000000000000000000000000000000000",
+              "committedDate": "2026-10-11T09:00:00Z",
+              "messageHeadline": "Fixture commit"
+            }
+          },
+          {
+            "name": "hack\"})}{#$e0",
+            "target": {
+              "__typename": "Commit",
+              "oid": "0b10000000000000000000000000000000000000",
+              "committedDate": "2026-10-05T00:00:00Z",
+              "messageHeadline": "Fixture commit"
+            }
+          },
+          {
+            "name": "main",
+            "target": {
+              "__typename": "Commit",
+              "oid": "ae10000000000000000000000000000000000000",
+              "committedDate": "2026-10-12T03:00:00Z",
+              "messageHeadline": "Fixture commit"
+            }
+          },
+          {
+            "name": "moved-f",
+            "target": {
+              "__typename": "Commit",
+              "oid": "f020000000000000000000000000000000000000",
+              "committedDate": "2026-10-11T00:00:00Z",
+              "messageHeadline": "Fixture commit"
+            }
+          },
+          {
+            "name": "plain-g",
+            "target": {
+              "__typename": "Commit",
+              "oid": "9a10000000000000000000000000000000000000",
+              "committedDate": "2026-10-08T00:00:00Z",
+              "messageHeadline": "Fixture commit"
+            }
+          },
+          {
+            "name": "spike/bad-checks",
+            "target": {
+              "__typename": "Commit",
+              "oid": "5a10000000000000000000000000000000000000",
+              "committedDate": "2026-10-07T00:00:00Z",
+              "messageHeadline": "Fixture commit"
+            }
+          }
+        ]
+      },
+      "open": {
+        "pageInfo": {
+          "hasNextPage": false
+        },
+        "nodes": [
+          {
+            "number": 10,
+            "title": "Fixture pull request 10",
+            "url": "https://github.com/fixture-owner/fixture-repo/pull/10",
+            "state": "OPEN",
+            "isDraft": false,
+            "headRefName": "feature-a",
+            "headRefOid": "a010000000000000000000000000000000000000",
+            "isCrossRepository": false,
+            "updatedAt": "2026-10-11T10:00:00Z",
+            "mergedAt": null,
+            "reviewDecision": "APPROVED",
+            "author": {
+              "login": "markhazlewood42"
+            },
+            "mergeCommit": null,
+            "latestReviews": {
+              "nodes": [
+                {
+                  "author": {
+                    "login": "fixture-reviewer"
+                  },
+                  "state": "APPROVED",
+                  "submittedAt": "2026-10-11T09:30:00Z"
+                }
+              ]
+            },
+            "files": {
+              "nodes": []
+            },
+            "statusCheckRollup": {
+              "contexts": {
+                "nodes": [
+                  {
+                    "__typename": "CheckRun",
+                    "name": "check",
+                    "status": "COMPLETED",
+                    "conclusion": "SUCCESS",
+                    "detailsUrl": "https://github.com/fixture-owner/fixture-repo/actions/runs/check"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "number": 11,
+            "title": "Fixture pull request 11",
+            "url": "https://github.com/fixture-owner/fixture-repo/pull/11",
+            "state": "OPEN",
+            "isDraft": false,
+            "headRefName": "spike/bad-checks",
+            "headRefOid": "5a10000000000000000000000000000000000000",
+            "isCrossRepository": false,
+            "updatedAt": "2026-10-11T10:00:00Z",
+            "mergedAt": null,
+            "reviewDecision": null,
+            "author": {
+              "login": "markhazlewood42"
+            },
+            "mergeCommit": null,
+            "latestReviews": {
+              "nodes": []
+            },
+            "files": {
+              "nodes": []
+            },
+            "statusCheckRollup": {
+              "contexts": {
+                "nodes": [
+                  {
+                    "__typename": "CheckRun",
+                    "name": "check",
+                    "status": "COMPLETED",
+                    "conclusion": "FAILURE",
+                    "detailsUrl": "https://github.com/fixture-owner/fixture-repo/actions/runs/check"
+                  },
+                  {
+                    "__typename": "StatusContext",
+                    "context": "deploy",
+                    "state": "PENDING",
+                    "targetUrl": "https://example.com/deploy"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "number": 12,
+            "title": "Fixture pull request 12",
+            "url": "https://github.com/fixture-owner/fixture-repo/pull/12",
+            "state": "OPEN",
+            "isDraft": true,
+            "headRefName": "draft-b",
+            "headRefOid": "b010000000000000000000000000000000000000",
+            "isCrossRepository": false,
+            "updatedAt": "2026-10-11T10:00:00Z",
+            "mergedAt": null,
+            "reviewDecision": null,
+            "author": {
+              "login": "markhazlewood42"
+            },
+            "mergeCommit": null,
+            "latestReviews": {
+              "nodes": []
+            },
+            "files": {
+              "nodes": []
+            },
+            "statusCheckRollup": null
+          },
+          {
+            "number": 15,
+            "title": "Fixture pull request 15",
+            "url": "https://github.com/fixture-owner/fixture-repo/pull/15",
+            "state": "OPEN",
+            "isDraft": false,
+            "headRefName": "Wrong_Name",
+            "headRefOid": "3a10000000000000000000000000000000000000",
+            "isCrossRepository": false,
+            "updatedAt": "2026-10-11T10:00:00Z",
+            "mergedAt": null,
+            "reviewDecision": "CHANGES_REQUESTED",
+            "author": {
+              "login": "markhazlewood42"
+            },
+            "mergeCommit": null,
+            "latestReviews": {
+              "nodes": []
+            },
+            "files": {
+              "nodes": [
+                {
+                  "path": "docs/workstreams/Wrong_Name.md"
+                }
+              ]
+            },
+            "statusCheckRollup": {
+              "contexts": {
+                "nodes": [
+                  {
+                    "__typename": "CheckRun",
+                    "name": "check",
+                    "status": "IN_PROGRESS",
+                    "conclusion": null,
+                    "detailsUrl": "https://github.com/fixture-owner/fixture-repo/actions/runs/check"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "number": 19,
+            "title": "Fixture pull request 19",
+            "url": "https://github.com/fixture-owner/fixture-repo/pull/19",
+            "state": "OPEN",
+            "isDraft": false,
+            "headRefName": "feature-a",
+            "headRefOid": "fa10000000000000000000000000000000000000",
+            "isCrossRepository": true,
+            "updatedAt": "2026-10-11T10:00:00Z",
+            "mergedAt": null,
+            "reviewDecision": null,
+            "author": {
+              "login": "fork-user"
+            },
+            "mergeCommit": null,
+            "latestReviews": {
+              "nodes": []
+            },
+            "files": {
+              "nodes": []
+            },
+            "statusCheckRollup": {
+              "contexts": {
+                "nodes": [
+                  {
+                    "__typename": "CheckRun",
+                    "name": "check",
+                    "status": "COMPLETED",
+                    "conclusion": "SUCCESS",
+                    "detailsUrl": "https://github.com/fixture-owner/fixture-repo/actions/runs/check"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "recent": {
+        "pageInfo": {
+          "hasNextPage": false
+        },
+        "nodes": [
+          {
+            "number": 13,
+            "title": "Fixture pull request 13",
+            "url": "https://github.com/fixture-owner/fixture-repo/pull/13",
+            "state": "MERGED",
+            "isDraft": false,
+            "headRefName": "done-c",
+            "headRefOid": "c010000000000000000000000000000000000000",
+            "isCrossRepository": false,
+            "updatedAt": "2026-10-11T10:00:00Z",
+            "mergedAt": "2026-10-09T12:00:00Z",
+            "reviewDecision": null,
+            "author": {
+              "login": "markhazlewood42"
+            },
+            "mergeCommit": {
+              "oid": "c090000000000000000000000000000000000000"
+            },
+            "latestReviews": {
+              "nodes": []
+            },
+            "files": {
+              "nodes": []
+            },
+            "statusCheckRollup": {
+              "contexts": {
+                "nodes": [
+                  {
+                    "__typename": "CheckRun",
+                    "name": "check",
+                    "status": "COMPLETED",
+                    "conclusion": "SUCCESS",
+                    "detailsUrl": "https://github.com/fixture-owner/fixture-repo/actions/runs/check"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "number": 14,
+            "title": "Fixture pull request 14",
+            "url": "https://github.com/fixture-owner/fixture-repo/pull/14",
+            "state": "MERGED",
+            "isDraft": false,
+            "headRefName": "moved-f",
+            "headRefOid": "f010000000000000000000000000000000000000",
+            "isCrossRepository": false,
+            "updatedAt": "2026-10-11T10:00:00Z",
+            "mergedAt": "2026-10-10T12:00:00Z",
+            "reviewDecision": null,
+            "author": {
+              "login": "markhazlewood42"
+            },
+            "mergeCommit": {
+              "oid": "f090000000000000000000000000000000000000"
+            },
+            "latestReviews": {
+              "nodes": []
+            },
+            "files": {
+              "nodes": []
+            },
+            "statusCheckRollup": null
+          },
+          {
+            "number": 16,
+            "title": "Fixture pull request 16",
+            "url": "https://github.com/fixture-owner/fixture-repo/pull/16",
+            "state": "MERGED",
+            "isDraft": false,
+            "headRefName": "gone-d",
+            "headRefOid": "d010000000000000000000000000000000000000",
+            "isCrossRepository": false,
+            "updatedAt": "2026-10-11T10:00:00Z",
+            "mergedAt": "2026-10-10T18:00:00Z",
+            "reviewDecision": null,
+            "author": {
+              "login": "markhazlewood42"
+            },
+            "mergeCommit": {
+              "oid": "d090000000000000000000000000000000000000"
+            },
+            "latestReviews": {
+              "nodes": []
+            },
+            "files": {
+              "nodes": []
+            },
+            "statusCheckRollup": {
+              "contexts": {
+                "nodes": [
+                  {
+                    "__typename": "CheckRun",
+                    "name": "check",
+                    "status": "COMPLETED",
+                    "conclusion": "SKIPPED",
+                    "detailsUrl": "https://github.com/fixture-owner/fixture-repo/actions/runs/check"
+                  },
+                  {
+                    "__typename": "CheckRun",
+                    "name": "lint",
+                    "status": "COMPLETED",
+                    "conclusion": "NEUTRAL",
+                    "detailsUrl": "https://github.com/fixture-owner/fixture-repo/actions/runs/lint"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "number": 17,
+            "title": "Fixture pull request 17",
+            "url": "https://github.com/fixture-owner/fixture-repo/pull/17",
+            "state": "MERGED",
+            "isDraft": false,
+            "headRefName": "gone-e",
+            "headRefOid": "e010000000000000000000000000000000000000",
+            "isCrossRepository": false,
+            "updatedAt": "2026-10-11T10:00:00Z",
+            "mergedAt": "2026-09-10T12:00:00Z",
+            "reviewDecision": null,
+            "author": {
+              "login": "markhazlewood42"
+            },
+            "mergeCommit": {
+              "oid": "e090000000000000000000000000000000000000"
+            },
+            "latestReviews": {
+              "nodes": []
+            },
+            "files": {
+              "nodes": []
+            },
+            "statusCheckRollup": null
+          },
+          {
+            "number": 18,
+            "title": "Fixture pull request 18",
+            "url": "https://github.com/fixture-owner/fixture-repo/pull/18",
+            "state": "MERGED",
+            "isDraft": false,
+            "headRefName": "gone-h",
+            "headRefOid": "0e10000000000000000000000000000000000000",
+            "isCrossRepository": false,
+            "updatedAt": "2026-10-11T10:00:00Z",
+            "mergedAt": "2026-10-11T12:00:00Z",
+            "reviewDecision": null,
+            "author": {
+              "login": "markhazlewood42"
+            },
+            "mergeCommit": {
+              "oid": "0e90000000000000000000000000000000000000"
+            },
+            "latestReviews": {
+              "nodes": []
+            },
+            "files": {
+              "nodes": []
+            },
+            "statusCheckRollup": null
+          },
+          {
+            "number": 20,
+            "title": "Fixture pull request 20",
+            "url": "https://github.com/fixture-owner/fixture-repo/pull/20",
+            "state": "CLOSED",
+            "isDraft": false,
+            "headRefName": "hack\"})}{#$e0",
+            "headRefOid": "0e20000000000000000000000000000000000000",
+            "isCrossRepository": true,
+            "updatedAt": "2026-10-11T10:00:00Z",
+            "mergedAt": null,
+            "reviewDecision": null,
+            "author": {
+              "login": "stranger"
+            },
+            "mergeCommit": null,
+            "latestReviews": {
+              "nodes": []
+            },
+            "files": {
+              "nodes": []
+            },
+            "statusCheckRollup": null
+          },
+          {
+            "number": 21,
+            "title": "Fixture pull request 21",
+            "url": "https://github.com/fixture-owner/fixture-repo/pull/21",
+            "state": "CLOSED",
+            "isDraft": false,
+            "headRefName": "closed-i",
+            "headRefOid": "1a10000000000000000000000000000000000000",
+            "isCrossRepository": false,
+            "updatedAt": "2026-10-11T10:00:00Z",
+            "mergedAt": null,
+            "reviewDecision": null,
+            "author": {
+              "login": "markhazlewood42"
+            },
+            "mergeCommit": null,
+            "latestReviews": {
+              "nodes": []
+            },
+            "files": {
+              "nodes": []
+            },
+            "statusCheckRollup": null
+          }
+        ]
+      },
+      "ci": {
+        "target": {
+          "history": {
+            "nodes": [
+              {
+                "oid": "ae10000000000000000000000000000000000000",
+                "checkSuites": {
+                  "nodes": [
+                    {
+                      "status": "QUEUED",
+                      "conclusion": null,
+                      "workflowRun": null
+                    },
+                    {
+                      "status": "COMPLETED",
+                      "conclusion": "SUCCESS",
+                      "workflowRun": {
+                        "createdAt": "2026-10-12T03:01:00Z",
+                        "url": "https://github.com/fixture-owner/fixture-repo/actions/runs/Playtest-2026-10-12T03:01:00Z",
+                        "workflow": {
+                          "name": "Playtest"
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "oid": "ae00000000000000000000000000000000000000",
+                "checkSuites": {
+                  "nodes": [
+                    {
+                      "status": "COMPLETED",
+                      "conclusion": "FAILURE",
+                      "workflowRun": {
+                        "createdAt": "2026-10-11T20:00:00Z",
+                        "url": "https://github.com/fixture-owner/fixture-repo/actions/runs/CI-2026-10-11T20:00:00Z",
+                        "workflow": {
+                          "name": "CI"
+                        }
+                      }
+                    },
+                    {
+                      "status": "COMPLETED",
+                      "conclusion": "SUCCESS",
+                      "workflowRun": {
+                        "createdAt": "2026-10-11T20:05:00Z",
+                        "url": "https://github.com/fixture-owner/fixture-repo/actions/runs/CI-2026-10-11T20:05:00Z",
+                        "workflow": {
+                          "name": "CI"
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "oid": "ae90000000000000000000000000000000000000",
+                "checkSuites": {
+                  "nodes": [
+                    {
+                      "status": "COMPLETED",
+                      "conclusion": "FAILURE",
+                      "workflowRun": {
+                        "createdAt": "2026-10-01T00:00:00Z",
+                        "url": "https://github.com/fixture-owner/fixture-repo/actions/runs/CI-2026-10-01T00:00:00Z",
+                        "workflow": {
+                          "name": "CI"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      },
+      "waiting": {
+        "nodes": [
+          {
+            "number": 30,
+            "title": "Decision: fixture 30",
+            "url": "https://github.com/fixture-owner/fixture-repo/issues/30",
+            "state": "OPEN",
+            "body": "## Question\nWhich one?\n\n## Context\nA fixture decision.\n\n## Options\n- A: first option\n- B: second option\n\n## Recommendation\nA: it is first.\n\n## Raised by\nthe fixtures\n\n## Waits on this\nnothing\n",
+            "createdAt": "2026-10-10T00:00:00Z",
+            "author": {
+              "login": "markhazlewood42"
+            },
+            "labels": {
+              "nodes": [
+                {
+                  "name": "decision"
+                }
+              ]
+            },
+            "comments": {
+              "pageInfo": {
+                "hasNextPage": false,
+                "endCursor": "END"
+              },
+              "nodes": [
+                {
+                  "author": {
+                    "login": "stranger-1"
+                  },
+                  "body": "Decision: A. I say so",
+                  "createdAt": "2026-10-10T01:00:00Z"
+                }
+              ]
+            },
+            "timelineItems": {
+              "nodes": []
+            }
+          },
+          {
+            "number": 33,
+            "title": "Decision: fixture 33",
+            "url": "https://github.com/fixture-owner/fixture-repo/issues/33",
+            "state": "OPEN",
+            "body": "## Question\nWhich one?\n\n## Context\nA fixture decision.\n\n## Options\n- A: first option\n- B: second option\n\n## Recommendation\nA: it is first.\n\n## Raised by\nthe fixtures\n\n## Waits on this\nnothing\n",
+            "createdAt": "2026-10-10T00:00:00Z",
+            "author": {
+              "login": "stranger-2"
+            },
+            "labels": {
+              "nodes": [
+                {
+                  "name": "decision"
+                }
+              ]
+            },
+            "comments": {
+              "pageInfo": {
+                "hasNextPage": false,
+                "endCursor": "END"
+              },
+              "nodes": []
+            },
+            "timelineItems": {
+              "nodes": []
+            }
+          },
+          {
+            "number": 34,
+            "title": "Decision: fixture 34",
+            "url": "https://github.com/fixture-owner/fixture-repo/issues/34",
+            "state": "OPEN",
+            "body": "## Question\nWhich one?\n\n## Context\nA fixture decision.\n\n## Options\n- A: first option\n- B: second option\n\n## Recommendation\nA: it is first.\n\n## Raised by\nthe fixtures\n\n## Waits on this\nnothing\n",
+            "createdAt": "2026-10-10T00:00:00Z",
+            "author": {
+              "login": "markhazlewood42"
+            },
+            "labels": {
+              "nodes": [
+                {
+                  "name": "decision"
+                }
+              ]
+            },
+            "comments": {
+              "pageInfo": {
+                "hasNextPage": false,
+                "endCursor": "END"
+              },
+              "nodes": [
+                {
+                  "author": {
+                    "login": "markhazlewood42x"
+                  },
+                  "body": "Decision: A",
+                  "createdAt": "2026-10-10T02:00:00Z"
+                },
+                {
+                  "author": {
+                    "login": "markhazlewood-42"
+                  },
+                  "body": "Decision: A",
+                  "createdAt": "2026-10-10T03:00:00Z"
+                },
+                {
+                  "author": {
+                    "login": "mark-hazlewood42"
+                  },
+                  "body": "Decision: B",
+                  "createdAt": "2026-10-10T04:00:00Z"
+                },
+                {
+                  "author": null,
+                  "body": "Decision: B",
+                  "createdAt": "2026-10-10T05:00:00Z"
+                }
+              ]
+            },
+            "timelineItems": {
+              "nodes": []
+            }
+          }
+        ]
+      },
+      "decided": {
+        "nodes": [
+          {
+            "number": 31,
+            "title": "Decision: fixture 31",
+            "url": "https://github.com/fixture-owner/fixture-repo/issues/31",
+            "state": "CLOSED",
+            "body": "## Question\nWhich one?\n\n## Context\nA fixture decision.\n\n## Options\n- A: first option\n- B: second option\n\n## Recommendation\nA: it is first.\n\n## Raised by\nthe fixtures\n\n## Waits on this\nnothing\n",
+            "createdAt": "2026-10-09T00:00:00Z",
+            "author": {
+              "login": "markhazlewood42"
+            },
+            "labels": {
+              "nodes": [
+                {
+                  "name": "decided"
+                }
+              ]
+            },
+            "comments": {
+              "pageInfo": {
+                "hasNextPage": false,
+                "endCursor": "END"
+              },
+              "nodes": [
+                {
+                  "author": {
+                    "login": "markhazlewood42"
+                  },
+                  "body": "Decision: B. because it is smaller",
+                  "createdAt": "2026-10-11T10:00:00Z"
+                },
+                {
+                  "author": {
+                    "login": "markhazlewood42x"
+                  },
+                  "body": "Decision: A. I replace his answer",
+                  "createdAt": "2026-10-11T11:00:00Z"
+                }
+              ]
+            },
+            "timelineItems": {
+              "nodes": [
+                {
+                  "__typename": "LabeledEvent",
+                  "createdAt": "2026-10-11T10:01:00Z",
+                  "label": {
+                    "name": "decided"
+                  },
+                  "actor": {
+                    "login": "markhazlewood42"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "number": 32,
+            "title": "Decision: fixture 32",
+            "url": "https://github.com/fixture-owner/fixture-repo/issues/32",
+            "state": "CLOSED",
+            "body": "## Question\nWhich one?\n\n## Context\nA fixture decision.\n\n## Options\n- A: first option\n- B: second option\n\n## Recommendation\nA: it is first.\n\n## Raised by\nthe fixtures\n\n## Waits on this\nnothing\n",
+            "createdAt": "2026-10-08T00:00:00Z",
+            "author": {
+              "login": "markhazlewood42"
+            },
+            "labels": {
+              "nodes": [
+                {
+                  "name": "decided"
+                }
+              ]
+            },
+            "comments": {
+              "pageInfo": {
+                "hasNextPage": false,
+                "endCursor": "END"
+              },
+              "nodes": [
+                {
+                  "author": {
+                    "login": "markhazlewood42"
+                  },
+                  "body": "Decision: A",
+                  "createdAt": "2026-10-11T09:00:00Z"
+                }
+              ]
+            },
+            "timelineItems": {
+              "nodes": [
+                {
+                  "__typename": "LabeledEvent",
+                  "createdAt": "2026-10-11T09:01:00Z",
+                  "label": {
+                    "name": "decided"
+                  },
+                  "actor": {
+                    "login": "someone-else"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "number": 35,
+            "title": "Decision: fixture 35",
+            "url": "https://github.com/fixture-owner/fixture-repo/issues/35",
+            "state": "CLOSED",
+            "body": "## Question\nWhich one?\n\n## Context\nA fixture decision.\n\n## Options\n- A: first option\n- B: second option\n\n## Recommendation\nA: it is first.\n\n## Raised by\nthe fixtures\n\n## Waits on this\nnothing\n",
+            "createdAt": "2026-10-07T00:00:00Z",
+            "author": {
+              "login": "markhazlewood42"
+            },
+            "labels": {
+              "nodes": [
+                {
+                  "name": "decided"
+                }
+              ]
+            },
+            "comments": {
+              "pageInfo": {
+                "hasNextPage": true,
+                "endCursor": "CURSOR-1"
+              },
+              "nodes": [
+                {
+                  "author": {
+                    "login": "stranger-3"
+                  },
+                  "body": "noise",
+                  "createdAt": "2026-10-11T08:00:00Z"
+                }
+              ]
+            },
+            "timelineItems": {
+              "nodes": [
+                {
+                  "__typename": "LabeledEvent",
+                  "createdAt": "2026-10-11T08:30:00Z",
+                  "label": {
+                    "name": "decided"
+                  },
+                  "actor": {
+                    "login": "markhazlewood42"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

@@ -18,5 +18,5 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["src", "tests", "e2e", "fixtures", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"]
+  "include": ["src", "tests", "e2e", "fixtures", "scripts", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"]
 }
