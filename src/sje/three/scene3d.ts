@@ -153,8 +153,9 @@ export abstract class Scene3D<R> extends Scene<R> {
     this.lost = true;
     this.releaseOnce();
     const grace = this.options.contextGraceMs ?? CONTEXT_GRACE_MS;
-    // No grace: the first draw after the loss ends the scene (see `draw3D`).
-    if (grace > 0) this.graceTimer = setTimeout(this.graceExpired, grace);
+    // With a grace, the timer ends the scene when it runs out. With no grace (0) the timer still runs, at 0 ms: a loss that only the game event reports would else wait for
+    // the next draw, and a scene whose draw is skipped (hidden) would freeze. A loss that the draw sees ends the scene in that draw first, and `free` clears this timer.
+    this.graceTimer = setTimeout(this.graceExpired, grace > 0 ? grace : 0);
   }
 
   /** The context is back before the grace ran out: draw again. Three's objects upload again in the next `render()`, and the frame rewraps its texture. */

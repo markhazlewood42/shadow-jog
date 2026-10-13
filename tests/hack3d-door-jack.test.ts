@@ -43,6 +43,7 @@ class FakeJack implements Jack {
         this.holdTicks++;
         if (this.o.holdBoundTicks !== undefined && this.holdTicks > this.o.holdBoundTicks) {
           this.log.push('hold-timeout');
+          this.startBack();
           return 'aborted';
         }
         await tick();
@@ -51,6 +52,7 @@ class FakeJack implements Jack {
     this.log.push('swap');
     if (r.onSwap() === 'abort') {
       this.log.push('abort');
+      this.startBack();
       return 'aborted';
     }
     // MUTANT of a cover whose tick threw after the scene started: the run ends 'aborted' and the cover is gone (a later run on it ends 'done' at once, like a disposed cover).
@@ -64,6 +66,17 @@ class FakeJack implements Jack {
     await tick();
     this.log.push('revealed');
     return 'done';
+  }
+  /** The way back of an aborted run takes a few ticks (the real cover fades back to the 2D picture); `backDone` is when it is over. */
+  private back: Promise<void> = Promise.resolve();
+  private startBack(): void {
+    this.back = (async () => {
+      for (let i = 0; i < 5; i++) await tick();
+      this.log.push('back-done');
+    })();
+  }
+  whenGone(): Promise<void> {
+    return this.back;
   }
   dispose(): void {
     this.disposed++;
@@ -172,6 +185,24 @@ describe('hackDoor with a cover: the order of the jump', () => {
     expect(log).not.toContain('startHack');
     expect(console.error).toHaveBeenCalledTimes(1);
     expect(jack.disposed).toBe(1);
+  });
+
+  it('R4-3: after an aborted run the door answers only when the way back is over (control: the abort is logged BEFORE the way back ends, so the wait is real)', async () => {
+    for (const how of ['load-fails', 'hold-times-out'] as const) {
+      const log: string[] = [];
+      const jack = new FakeJack(log, how === 'hold-times-out' ? { holdBoundTicks: 5 } : {});
+      const load = how === 'load-fails' ? async () => Promise.reject(new Error('offline')) : () => new Promise<never>(() => undefined);
+      const answer = hackDoor(game(), DEF, undefined, env(jack, load as DoorEnv['load'])).then((r) => {
+        log.push('door-answered');
+        return r;
+      });
+      expect(await answer).toEqual({ status: 'unsupported', reason: 'chunk-failed' });
+      const at = (m: string) => log.indexOf(m);
+      expect(at(how === 'load-fails' ? 'abort' : 'hold-timeout'), how).toBeGreaterThan(-1);
+      expect(at(how === 'load-fails' ? 'abort' : 'hold-timeout'), `${how}: control, the way back starts first`).toBeLessThan(at('back-done'));
+      expect(at('back-done'), `${how}: the door waited`).toBeGreaterThan(-1);
+      expect(at('back-done'), `${how}: and answered after it`).toBeLessThan(at('door-answered'));
+    }
   });
 
   it('the story is dropped during the hold: aborted / user, no scene started, the cover disposed (a drop ends the wait at once)', async () => {

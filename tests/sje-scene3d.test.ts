@@ -382,6 +382,20 @@ describe('Scene3D context grace: a lost context gets 1 second to come back', () 
     r.g.draw();
     expect(r.scene.closed).toBe(true);
   });
+
+  it('R4-5: contextGraceMs 0 and a game-only loss with NO draw: the event itself arms the end (control: with a grace of 2500 the scene is still alive after the same wait)', () => {
+    const r = rig({ contextGraceMs: 0 });
+    (r.g.renderer as { contextLost?: boolean }).contextLost = true;
+    r.g.events.emit('contextlost');
+    expect(r.scene.closed).toBe(false); // never ends inside the event itself
+    vi.advanceTimersByTime(0);
+    expect(r.scene.closed).toBe(true);
+    const slow = rig({ contextGraceMs: 2500 });
+    (slow.g.renderer as { contextLost?: boolean }).contextLost = true;
+    slow.g.events.emit('contextlost');
+    vi.advanceTimersByTime(100);
+    expect(slow.scene.closed).toBe(false);
+  });
 });
 
 // ---- 2c. hidden 3D scenes draw no frame, and a revealed one is not stale (pass line 11) --------------------------------------------------------------

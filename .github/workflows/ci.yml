@@ -138,7 +138,7 @@ jobs:
     # The job id is `e2e-shards` so that the gate job below can be called `e2e`.
     name: e2e (${{ matrix.shard }})
     runs-on: ubuntu-latest
-    # Each shard takes about 8.5 minutes of tests on a CI runner (about 30 seconds more for the setup). That is the total test time divided by eight; the longest single file (a part of sje-hack, 395 s) is below it.
+    # Each shard takes about 10 minutes of tests on a CI runner (about 30 seconds more for the setup): the table in docs/CI.md totals 4,777 s, which is about 597 s for each of eight shards. The longest single file (sje-hack-c, 774 s) is ABOVE that average, so the longest shards (777 s) cannot get much shorter without splitting a file.
     # The field parity spec (31 states) is four files, `sje-field-parity-a` to `-d`, which sit in different shards. 30 minutes is room for a runner several times as slow as the normal one
     # (a slow runner took 27 minutes for the old single field parity file, which takes about 10 on a normal one). Do not raise it to hide a hang: a spec that needs more should be split.
     timeout-minutes: 30

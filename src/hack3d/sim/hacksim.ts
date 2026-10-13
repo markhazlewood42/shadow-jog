@@ -151,6 +151,9 @@ export class HackSim {
   restore(s: HackSimSnapshot): void {
     // The Look builds one mesh for each ICE of the constructor: a snapshot with another count would leave ICE with no mesh (never drawn). Refuse it before anything changes.
     if (s.ice.length !== this.ice.length) throw new Error(`HackSim.restore: the snapshot has ${s.ice.length} ICE, this sim has ${this.ice.length} (restore into a sim made with the same definition)`);
+    // The other fields too: a status that the definition could not produce would end the scene at once with a result the definition never gives.
+    const bad = this.snapshotProblem(s);
+    if (bad) throw new Error(`HackSim.restore: ${bad} (restore into a sim made with the same definition)`);
     this.tick = s.tick;
     this.travel = s.travel;
     this.trace = s.trace;
@@ -160,6 +163,19 @@ export class HackSim {
     this.ice.length = 0;
     for (const i of s.ice) this.ice.push({ ...i });
     this.rng.state = s.rng;
+  }
+
+  /** Why a snapshot cannot belong to a sim of this definition, or null. The state must be one that `step` could have reached: a status that fits the tick and the TRACE limit. */
+  private snapshotProblem(s: HackSimSnapshot): string | null {
+    const { ticks, traceLimit } = this.def;
+    if (s.status !== 'running' && s.status !== 'success' && s.status !== 'fail') return `the status "${String(s.status)}" is not running, success or fail`;
+    if (!Number.isInteger(s.tick) || s.tick < 0 || s.tick > ticks) return `the tick ${s.tick} is outside 0 to ${ticks}`;
+    if (!Number.isFinite(s.trace) || s.trace < 0) return `the trace ${s.trace} is not a number from 0 up`;
+    if (s.status === 'fail' && s.trace < traceLimit) return `the status is fail but the trace ${s.trace} is under this sim's limit ${traceLimit}`;
+    if (s.status !== 'fail' && s.trace >= traceLimit) return `the trace ${s.trace} is at or over this sim's limit ${traceLimit}, so the status can only be fail`;
+    if (s.status === 'running' && s.tick >= ticks) return `the status is running but the tick ${s.tick} is the last one (${ticks})`;
+    if (s.status === 'success' && s.tick < ticks) return `the status is success but the tick ${s.tick} is under ${ticks}`;
+    return null;
   }
 
   /** Run `n` ticks (stops early when the hack ends). */

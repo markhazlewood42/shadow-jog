@@ -39,6 +39,8 @@ export interface Jack {
   run(r: JackRun): Promise<'done' | 'aborted'>;
   /** Take the cover away now. After an aborted run it waits for the way back to finish first. Safe to call twice. */
   dispose(): void;
+  /** Resolves when the cover is off the screen. After an aborted run that is the end of the way back, so the story does not start anything over a fading cover. */
+  whenGone(): Promise<void>;
 }
 
 /** What a style draws with. `jack.ts` owns the veil, the hold element and the clock; a style adds its own objects. */
@@ -73,6 +75,10 @@ class JackCover implements Jack {
   private disposed = false;
   private disposeWhenDone = false;
   private settled = false;
+  private resolveGone: () => void = () => undefined;
+  private readonly gone: Promise<void> = new Promise<void>((r) => {
+    this.resolveGone = r;
+  });
   /** The run that is on now, or null. */
   private active: Promise<'done' | 'aborted'> | null = null;
 
@@ -168,7 +174,12 @@ class JackCover implements Jack {
       this.root.destroy();
       if (import.meta.env.DEV && jackProbe.current === this) jackProbe.current = null;
       this.finish('done');
+      this.resolveGone();
     }
+  }
+
+  whenGone(): Promise<void> {
+    return this.gone;
   }
 
   private finish(how: 'done' | 'aborted'): void {
@@ -259,7 +270,11 @@ class GlitchDriver implements JackStyleDriver {
   private lastHoldFire = -1;
   /** The glitches that the cover's own moments made. Only these are removed at the swap and at dispose: a battle hit or a story effect that is live keeps its own. */
   private readonly mine = new Set<object>();
-  constructor(private readonly game: Game) {}
+  /** The effects level when the cover was built (`game.fx.level` can change later). */
+  private readonly builtLevel: JackLevel;
+  constructor(private readonly game: Game) {
+    this.builtLevel = game.fx.level;
+  }
   private moment(name: string, x: number, y: number): void {
     const fx = this.game.fx;
     const before = new Set<object>(fx.glitches);
@@ -301,7 +316,8 @@ class GlitchDriver implements JackStyleDriver {
     }
   }
   dispose(): void {
-    if (this.game.fx.level === 'full') this.clearMine();
+    // The level the cover was BUILT with decides, not the live one: the player may change the effects level while the cover is up, and the tear glitches added at `full` must still go.
+    if (this.builtLevel === 'full') this.clearMine();
   }
 }
 

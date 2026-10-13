@@ -184,12 +184,18 @@ async function withCover(game: Game, def: HackDef, options: HackOptions | undefi
     },
     swapDone: () => st.rendered || st.sceneSettled,
   });
-  await into;
+  const how = await into;
   const scene = st.scene;
-  if (st.startThrew) return { status: 'aborted', reason: 'error' };
+  // After an aborted run the cover is still fading back to the 2D picture. Wait for it to be gone before the answer goes to the story: a retry or the 2D alternative would
+  // otherwise start over the fading cover (and a retry would build a second one on top). The cover removes itself at the end of the way back, so this wait is bounded.
+  if (st.startThrew) {
+    if (how === 'aborted') await jack.whenGone();
+    return { status: 'aborted', reason: 'error' };
+  }
   // The run can end 'aborted' with a scene that DID start: the cover's tick threw after the swap and the cover came down. Then the scene is running and its result is read below (the gate settles at once on a cover that is gone).
   if (!scene) {
     // The way back to the 2D picture has begun (the hold timed out, the load failed, or the story was dropped): no scene was started.
+    if (how === 'aborted') await jack.whenGone();
     if (game.dropCount !== dropsBefore) return { status: 'aborted', reason: 'user' };
     if (st.loadError !== null) console.error('[sje] the 3D chunk would not load:', st.loadError);
     else if (!st.loadSettled) console.error('[sje] the 3D chunk took longer to load than the hold bound allows');
