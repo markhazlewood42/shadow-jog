@@ -172,7 +172,7 @@ sessions --files--> local reporter --write, keys expire--> Upstash Redis <--read
 
 The page reads from top to bottom, in order of importance:
 
-1. **Your move.** Every open action for Mark in one list. The open decision issues come first (section 5.5). Then the last "Your move" box of each active session, the "Next up for Mark" list in `status.md`, and the PRs that wait for his review or merge. Each item links to its source. In hosted mode the source of "Your move" is the `next_for_mark` of the workstream files (section 5.9). `status.md` stays the local-mode source.
+1. **Your move.** Every open action for Mark in one list. The open decision issues come first (section 5.5). Then the last "Your move" box of each active session, the "Next up for Mark" list in `status.md`, and the PRs that wait for his review or merge. Each item links to its source. In hosted mode the source of "Your move" is the `next_for_mark` of the workstream files (section 5.9). `status.md` stays the local-mode source. *(Proposed: `your-move-redesign.md` replaces this with facts plus live asks. Draft, waits for Mark.)*
 2. **Running.** (Revision 2.) One row for each active session, in order of start: its title, a state word, how long it has run, and a link to its session on the Agents page (`/agents#session-<id>`). Agents and workflows show only in the diagram. A label tells how many automated runs are hidden.
 3. **Pull requests.** The open PRs, with review state and checks, and one link to the merged PRs (as built in PR #22).
 4. **Status.** (Revision 2.) A summary of five rows with links, and a milestone strip (section 5.6).
