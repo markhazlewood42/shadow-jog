@@ -4,7 +4,7 @@ title: "Command Center — Your move redesign"
 project: shadow-jog
 created: 2026-10-13
 updated: 2026-10-13
-status: draft, waits for Mark. No code changed.
+status: draft, questions A and B answered 2026-10-13, waits for Mark's go to build. No code changed.
 tags: [tooling, command-center, design]
 ---
 
@@ -75,12 +75,13 @@ Live asks depend on a working reporter. Mark reports open problems in the local 
 - Change `publish-map.test.ts` (the wider allow-list, the caps, the redaction).
 - Change `sessions-parse.test.ts`.
 - Change the `workstream*.test.ts` files.
+- Add a check that flags an open engine-doc decision that has no decision issue (section 5).
 - Change `e2e/hosted/hosted.spec.ts` and `e2e/now.spec.ts`.
 
 ## 7. Open questions for Mark
 
 - **A. Answered 2026-10-13.** Mark: "It's OK to keep them IF they're actually actionable. For example, one of the decision items just links to a wall of text document segment. It doesn't link to an actual decision UI. If there's an open decision, it needs to use the GH issue decision framework + dedicated UI." Result: the action rule in section 2, and the two removals in section 5.
-- **B.** Approve the wider reporter allow-list in section 4? Recommended: yes, with the attacker verifier.
+- **B. Answered 2026-10-13.** Mark approved the wider reporter allow-list in section 4. The build gets an attacker verifier for that path.
 
 ## 8. Not built yet
 
