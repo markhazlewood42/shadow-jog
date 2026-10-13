@@ -442,6 +442,8 @@ export class SceneManager {
       this.refreshLayout();
       this.prerenderVisible();
     }
+    // Always last, as before the M7 task 5 change: a handler or a camera apply may have changed what the layout reads without closing a scene or changing the stack. A call that finds no change returns at once.
+    this.refreshLayout();
     this.prerendered.clear();
   }
 

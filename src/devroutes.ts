@@ -32,10 +32,16 @@ export function runDevScene(game: Game, scene: string, params: URLSearchParams):
       const frame = params.get('frame');
       // The frame choice is for this hack only: `runHack` reads the override when it is called, so the earlier override is put back at once and a later hack is not changed.
       const before = hackDevOverride();
-      if (frame === 'shared-context' || frame === 'canvas-copy') setHackDevOverride({ ...before, options: { ...before?.options, frame } });
+      // `hackDef` throws on an unknown id, so it is read BEFORE the override is set, and the override is put back in a `finally` (review of PR #80): a typo in the id must not leave the frame choice on for later hacks.
+      const def = hackDef(params.get('id') ?? 'test-hack', over);
       const sj = (window as unknown as { __SJ__?: Record<string, unknown> }).__SJ__;
-      const run = runHack(game, hackDef(params.get('id') ?? 'test-hack', over), { onUnsupported: 'win' });
-      setHackDevOverride(before);
+      let run: ReturnType<typeof runHack>;
+      try {
+        if (frame === 'shared-context' || frame === 'canvas-copy') setHackDevOverride({ ...before, options: { ...before?.options, frame } });
+        run = runHack(game, def, { onUnsupported: 'win' });
+      } finally {
+        setHackDevOverride(before);
+      }
       void run.then((o) => {
         if (sj) sj.lastHack = o;
       });

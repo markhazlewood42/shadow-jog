@@ -326,6 +326,23 @@ test.describe('leak (pass line 9)', () => {
     for (let i = 0; i < n; i++) await sj(page, `sj.hack('test-short', { frame: ${JSON.stringify(frame)}, over: { ticks: 2 } })`);
   }
 
+  /**
+   * The warm-up. The first entries make Three's renderer, its shaders, the bloom programs and (in the shared mode) the copy-blit program, and Three compiles a program on its FIRST DRAWN frame.
+   * A cycle of 2 ticks can end before any frame is drawn when the runner is slow, so a fixed count of short cycles can leave a compile for the measured cycles (a constant +1, not growth).
+   * So: one longer hack first (it cannot end without drawing), then single short cycles until the counts are equal on two cycles in a row (cap 12; a real leak never settles and is
+   * caught by the measured cycles with the counts in the message).
+   */
+  async function warmUp(page: Page, frame: string): Promise<void> {
+    await sj(page, `sj.hack('test-short', { frame: ${JSON.stringify(frame)}, over: { ticks: 40 } })`);
+    let last = JSON.stringify(await sj<Record<string, number>>(page, 'sj.glCounts()'));
+    for (let i = 0; i < 12; i++) {
+      await cycles(page, frame, 1);
+      const now = JSON.stringify(await sj<Record<string, number>>(page, 'sj.glCounts()'));
+      if (now === last) return;
+      last = now;
+    }
+  }
+
   async function heap(page: Page): Promise<number> {
     const cdp = await page.context().newCDPSession(page);
     try {
@@ -343,7 +360,7 @@ test.describe('leak (pass line 9)', () => {
       const g = await openTitle(browser);
       try {
         const { page } = g;
-        await cycles(page, frame, 4); // warm-up: the first entries make Three's renderer, its shaders and the bloom programs
+        await warmUp(page, frame);
         const before = await sj<Record<string, number>>(page, 'sj.glCounts()');
         const heapBefore = await heap(page);
         await cycles(page, frame, 10);

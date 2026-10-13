@@ -957,6 +957,21 @@ describe('hidden scenes and the draw phase (docs/engine/m7-brief.md pass line 11
     expect(under.prerenders).toBe(1);
   });
 
+  // Review of PR #80 (third review, finding 3): the layout is recomputed after the pass too, so a change that a handler makes to what the layout reads (no scene closed, no push) is parented this frame.
+  it('a prerender handler that makes its opaque scene see-through: the scene under it is visible after the same draw (the final refreshLayout)', () => {
+    const g = newGame();
+    const under = new Counting();
+    void g.run(under);
+    const top = new Cover();
+    void g.run(top);
+    top.events.on('prerender', () => {
+      top.opaque = false;
+    });
+    g.advanceTick();
+    g.draw();
+    expect(under.sys.visible).toBe(true);
+  });
+
   // CONTROL: the same case on a mutant prerender with no second pass (the code before M7 task 5) fails, so the case can tell the two apart.
   it('control: a prerender with no second pass leaves the revealed scene without its prerender', () => {
     const g = newGame();

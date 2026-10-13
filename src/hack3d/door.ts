@@ -184,11 +184,12 @@ async function withCover(game: Game, def: HackDef, options: HackOptions | undefi
     },
     swapDone: () => st.rendered || st.sceneSettled,
   });
-  const how = await into;
+  await into;
   const scene = st.scene;
   if (st.startThrew) return { status: 'aborted', reason: 'error' };
-  if (how === 'aborted' || !scene) {
-    // The way back to the 2D picture has begun (the hold timed out, the load failed, or the story was dropped).
+  // The run can end 'aborted' with a scene that DID start: the cover's tick threw after the swap and the cover came down. Then the scene is running and its result is read below (the gate settles at once on a cover that is gone).
+  if (!scene) {
+    // The way back to the 2D picture has begun (the hold timed out, the load failed, or the story was dropped): no scene was started.
     if (game.dropCount !== dropsBefore) return { status: 'aborted', reason: 'user' };
     if (st.loadError !== null) console.error('[sje] the 3D chunk would not load:', st.loadError);
     else if (!st.loadSettled) console.error('[sje] the 3D chunk took longer to load than the hold bound allows');

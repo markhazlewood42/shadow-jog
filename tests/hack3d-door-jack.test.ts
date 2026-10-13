@@ -26,7 +26,7 @@ class FakeJack implements Jack {
   runs = 0;
   constructor(
     log: string[],
-    private readonly o: { impatient?: boolean; holdBoundTicks?: number; noSwapOnRun?: number } = {},
+    private o: { impatient?: boolean; holdBoundTicks?: number; noSwapOnRun?: number; abortAfterSwapOnRun?: number } = {},
   ) {
     this.log = log;
     this.started = tick().then(() => void this.log.push('first-tick'));
@@ -51,6 +51,12 @@ class FakeJack implements Jack {
     this.log.push('swap');
     if (r.onSwap() === 'abort') {
       this.log.push('abort');
+      return 'aborted';
+    }
+    // MUTANT of a cover whose tick threw after the scene started: the run ends 'aborted' and the cover is gone (a later run on it ends 'done' at once, like a disposed cover).
+    if (this.o.abortAfterSwapOnRun === this.runs) {
+      this.log.push('tick-threw');
+      this.o = { ...this.o, noSwapOnRun: this.runs + 1 };
       return 'aborted';
     }
     if (!this.o.impatient) while (!r.swapDone()) await tick();
@@ -133,6 +139,16 @@ describe('hackDoor with a cover: the order of the jump', () => {
     const result = await hackDoor(game(), DEF, undefined, env(jack, chunk(log)));
     expect(result).toEqual(SUCCESS);
     expect(log).toContain('scene-closed');
+  });
+
+  // Review of PR #80, third review, finding 1: the cover's tick-throw handler also ends the run 'aborted', after the scene has started.
+  it('the cover ends aborted AFTER the scene started (a tick threw): the door still waits for the scene and gives its real result, not unsupported / chunk-failed', async () => {
+    const log: string[] = [];
+    const jack = new FakeJack(log, { abortAfterSwapOnRun: 1 });
+    const result = await hackDoor(game(), DEF, undefined, env(jack, chunk(log, { result: { status: 'fail' } as HackResult })));
+    expect(result).toEqual({ status: 'fail' });
+    expect(log).toContain('scene-closed');
+    expect(jack.disposed).toBe(1);
   });
 
   it('the chunk will not load: the cover goes back (aborted), the answer is unsupported / chunk-failed, the error is logged once, and the cover is disposed', async () => {
