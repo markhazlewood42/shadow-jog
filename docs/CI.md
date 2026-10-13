@@ -25,10 +25,10 @@ This is the full picture of CI for Shadow Jog. The workflow is `.github/workflow
 
 | Job | Check name | What it does | Time of tests |
 |---|---|---|---|
-| `check` | `check` | Lint, typecheck, unit tests (Vitest), the bundle budget | about 40 seconds |
+| `check` | `check` | Lint, typecheck, unit tests (Vitest), the bundle budget (since M7 it counts the lazy 3D chunk apart from the game total) | about 40 seconds |
 | `e2e-shards` | `e2e (1/8)` to `e2e (8/8)` | The Playwright specs on Chromium, one spec list per shard | about 6 minutes each (target; see below) |
 | `e2e` | `e2e` | The gate. It passes only when every shard passed | about 3 seconds |
-| `e2e-engines` | `e2e-engines` | `gameover` and `prod` on WebKit (the whole flow) and Firefox (the "no WebGL 2" message) | about 4 to 5 minutes |
+| `e2e-engines` | `e2e-engines` | `gameover` and `prod` on WebKit (the whole flow, and since M7 the case that loads the hashed 3D chunk from the shipped build) and Firefox (the "no WebGL 2" message; the chunk case is skipped there) | about 4 to 5 minutes |
 
 All jobs start together. The `e2e` gate is the only job that waits, and it waits only for the shards. A pull request waits for the slowest shard. Before this change that was about 12 minutes: the slowest of the four old shards in run `38150548004` took 691 seconds of tests plus the setup.
 
@@ -44,16 +44,18 @@ The seconds below are the larger of the two attempts of the run `38182602108` (o
 
 | Shard | Specs | Seconds |
 |---|---|---|
-| `e2e (1/8)` | `sje-field-parity-a` 364 | 364 |
-| `e2e (2/8)` | `sje-field-parity-c` 322, `gpufx` 40 | 362 |
-| `e2e (3/8)` | `default-path` 285, `sje-stage-parity` 82 | 367 |
-| `e2e (4/8)` | `sje-field-parity-d` 257, `sje-canaries` 82, `fxlab` 16 | 355 |
-| `e2e (5/8)` | `playthrough` 218, `prod` 118, `sje-scene3d` (not measured yet) | 336 and `sje-scene3d` (not measured yet) |
-| `e2e (6/8)` | `sje-field-parity-b` 165, `sje-battle` 128, `sje-shell` 56 | 349 |
-| `e2e (7/8)` | `sje-draws` 159, `economy` 131, `chaos` 61 | 351 |
-| `e2e (8/8)` | `sje-field` 149, `gameover` 143, `sje-fx` 62 | 354 |
+| `e2e (1/8)` | `sje-field-parity-a` 364, `sje-scene3d` 45 (estimate) | 409 |
+| `e2e (2/8)` | `sje-field-parity-c` 322, `chaos` 61, `fxlab` 16 | 399 |
+| `e2e (3/8)` | `default-path` 285, `prod` 123 | 408 |
+| `e2e (4/8)` | `sje-field-parity-d` 257, `sje-battle` 128 | 385 |
+| `e2e (5/8)` | `playthrough` 218, `economy` 131, `sje-fx` 62 | 411 |
+| `e2e (6/8)` | `sje-hack` 312 (M7), `sje-shell` 56, `gpufx` 40 | 408 |
+| `e2e (7/8)` | `sje-draws` 159, `sje-field` 149, `sje-canaries` 82 | 390 |
+| `e2e (8/8)` | `sje-field-parity-b` 165, `gameover` 143, `sje-stage-parity` 82 | 390 |
 
-`sje-field-parity-c` is 316 seconds for its 10 states plus an estimate of 6 seconds for its 6 GPU-only states, which skip themselves on CI. This estimate is not measured yet. No spec is split further: `sje-field-parity-a` is the longest and sits alone, and the `playthrough` (218 seconds) is one test. The total is 2,838 seconds.
+**M7 (2026-10-12) moved most specs.** The 3D mode added `sje-hack` (56 tests, 312 seconds on the bundled Chromium on SwiftShader, measured locally, not on CI): it runs the 3D hack scene on the real game page, and its cases of the jump between 2D and 3D capture every frame of three styles at three effects levels. Put in the old shard 6/8 it would have made that shard 661 seconds, so the eight lists were packed again (longest first, into the shortest shard) with the spec kept in 6/8, as pass line 18 of `m7-brief.md` says. The total is about 3,200 seconds, so eight shards average 400 seconds (355 before). `sje-scene3d` was never measured on CI; 45 seconds is an estimate from a local run. `prod.spec.ts` has a new case that loads the hashed 3D chunk from the preview server by its manifest name, and `default-path.spec.ts` asserts that a normal run makes no request for the 3D chunk. Measure the shards on the first CI run of the M7 pull request and rebalance if one is a minute off (the procedure is below).
+
+`sje-field-parity-c` is 316 seconds for its 10 states plus an estimate of 6 seconds for its 6 GPU-only states, which skip themselves on CI. This estimate is not measured yet. No spec is split further: `sje-field-parity-a` is the longest and `sje-hack` the next, and the `playthrough` (218 seconds) is one test. The seconds of the other specs are from the run `38182602108`; the total of that run was 2,838 seconds.
 
 Each shard needs 24 to 46 seconds of setup (checkout, `npm ci`, the Chromium download) before the test command starts, and 3 to 6 seconds more from the command to the first test (the server start). Both ranges are measured in the run `38182602108`. The cap is 30 minutes for each shard.
 
