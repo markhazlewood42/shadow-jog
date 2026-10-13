@@ -700,7 +700,7 @@ const COUNT_FX = `(() => {
 })()`;
 
 /** Capture every frame of a hack on a frozen page, from the first tick of the cover to its end. `pause` is the real time between ticks, so a chunk load can finish. */
-async function capture(page: Page, id: string, opts: Record<string, unknown>, o: { pause?: number; maxSteps?: number; afterDone?: number } = {}): Promise<Frame[]> {
+async function capture(page: Page, id: string, opts: Record<string, unknown>, o: { pause?: number; maxSteps?: number; afterDone?: number; onFrame?: (frames: readonly Frame[]) => void } = {}): Promise<Frame[]> {
   await freeze(page);
   await sj(page, COUNT_FX);
   await sj(page, `(window.__h = null, sj.hack(${JSON.stringify(id)}, ${JSON.stringify(opts)}).then((out) => { window.__h = { out, at: performance.now() }; }), true)`);
@@ -712,6 +712,7 @@ async function capture(page: Page, id: string, opts: Record<string, unknown>, o:
   for (let i = 0; i < (o.maxSteps ?? 900); i++) {
     const f = await sj<Frame>(page, FRAME);
     frames.push(f);
+    o.onFrame?.(frames);
     if (f.done && f.phase === null) tail++;
     if (tail > (o.afterDone ?? 3)) break;
     await page.waitForTimeout(o.pause ?? 6);
@@ -881,18 +882,39 @@ test.describe('the jump between 2D and 3D: no bad frame, a held chunk, an exact 
     }
   });
 
-  // Line 20, case 1: a slow chunk. The request is delayed 3 s: the hold keeps animating, never blank, and when the chunk arrives the in phase runs in full and the hack plays.
+  // Line 20, case 1: a slow chunk. The request is held back until the capture has seen HOLD_FRAMES hold frames, then it goes on: the hold keeps animating, never blank, and when the chunk
+  // arrives the in phase runs in full and the hack plays.
+  // The delay counts hold frames (ticks), not wall-clock time. The chunk request starts at the first tick of the cover, so it runs while the out phase is still ticking: a fixed 3 s delay
+  // passed during the out phase on a slow runner (CI: software GL, about 250 ms for each captured tick), the chunk was there when the out phase ended, and the hold had 1 to 5 frames.
+  // The wall-clock hold bound is raised so a slow runner cannot end the hold before the chunk is let go (the bound itself is tested below, with 1,500 ms).
+  const HOLD_FRAMES = 24;
+  const SLOW_RUNNER_BOUND = `(sj.hackDev.set({ options: { jack: { params: { holdBoundMs: 60000 } } } }), true)`;
+  /** Hold a route's request until `frames` hold frames are captured. Give `onFrame` of `capture` the returned `watch`. */
+  const holdChunkFor = (frames: number) => {
+    let release = () => {};
+    const released = new Promise<void>((r) => {
+      release = r;
+    });
+    return {
+      released,
+      watch: (seen: readonly Frame[]) => {
+        if (seen.filter((f) => f.phase === 'hold').length >= frames) release();
+      },
+    };
+  };
   for (const style of STYLES) {
     for (const level of LEVELS) {
-      test(`${style} at fx ${level}: a chunk delayed 3 s is held with a moving picture (never blank), then the reveal runs in full and the hack plays (line 20, case 1)`, async ({ browser }) => {
+      test(`${style} at fx ${level}: a slow chunk is held with a moving picture (never blank), then the reveal runs in full and the hack plays (line 20, case 1)`, async ({ browser }) => {
         const g = await openTitle(browser, { query: `&jack=${style}&fx=${level}&seed=5` });
         try {
           const { page } = g;
+          const gate = holdChunkFor(HOLD_FRAMES);
           await page.route(chunkUrl, async (route) => {
-            await new Promise((r) => setTimeout(r, 3000));
+            await gate.released;
             await route.continue();
           });
-          const frames = await capture(page, 'test-short', { over: { ticks: 30 } }, { pause: 14, maxSteps: 1500 });
+          await sj(page, SLOW_RUNNER_BOUND);
+          const frames = await capture(page, 'test-short', { over: { ticks: 30 } }, { pause: 14, maxSteps: 1500, onFrame: gate.watch });
           expect(holdProblems(frames)).toEqual([]);
           expect(frames.filter((f) => f.phase === 'in').length, 'the reveal ran in full (the jack-in round and the jack-out round)').toBe(2 * TRANSITION.inTicks);
           expect(await sj(page, 'window.__h.out')).toMatchObject({ outcome: 'success', via: 'played' });
@@ -908,18 +930,21 @@ test.describe('the jump between 2D and 3D: no bad frame, a held chunk, an exact 
     const g = await openTitle(browser, { query: '&jack=glitch&fx=none&seed=5' });
     try {
       const { page } = g;
+      const gate = holdChunkFor(HOLD_FRAMES);
       await page.route(chunkUrl, async (route) => {
-        await new Promise((r) => setTimeout(r, 2500));
+        await gate.released;
         await route.continue();
       });
+      await sj(page, SLOW_RUNNER_BOUND);
       await sj(page, '(sj.hackTest.skipHoldUi(true), true)');
-      const frames = await capture(page, 'test-short', { over: { ticks: 30 } }, { pause: 14, maxSteps: 1500 });
+      const frames = await capture(page, 'test-short', { over: { ticks: 30 } }, { pause: 14, maxSteps: 1500, onFrame: gate.watch });
+      // The hold was long enough to judge, so the failure is the picture itself (blank or frozen), not a short hold.
+      expect(frames.filter((f) => f.phase === 'hold').length).toBeGreaterThanOrEqual(20);
       expect(holdProblems(frames).length).toBeGreaterThan(0);
     } finally {
       await g.close();
     }
   });
-
 
   // Line 20, case 2: the chunk never arrives. The hold bound (1,500 ms here) ends it: unsupported / chunk-failed, the story goes on, the 2D scene is back clean (line 21).
   for (const level of ['full', 'none'] as const) {
