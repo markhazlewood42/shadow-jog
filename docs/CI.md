@@ -26,13 +26,13 @@ This is the full picture of CI for Shadow Jog. The workflow is `.github/workflow
 | Job | Check name | What it does | Time of tests |
 |---|---|---|---|
 | `check` | `check` | Lint, typecheck, unit tests (Vitest), the bundle budget (since M7 it counts the lazy 3D chunk apart from the game total) | about 40 seconds |
-| `e2e-shards` | `e2e (1/8)` to `e2e (8/8)` | The Playwright specs on Chromium, one spec list per shard | about 10 minutes each (measured: 4,777 s over 8 shards; the old target was 6 minutes) |
+| `e2e-shards` | `e2e (1/8)` to `e2e (8/8)` | The Playwright specs on Chromium, one spec list per shard | about 10 minutes each (measured: 4,777 s over 8 shards; the old target was about 6 minutes of tests) |
 | `e2e` | `e2e` | The gate. It passes only when every shard passed | about 3 seconds |
 | `e2e-engines` | `e2e-engines` | `gameover` and `prod` on WebKit (the whole flow, and since M7 the case that loads the hashed 3D chunk from the shipped build) and Firefox (the "no WebGL 2" message; the chunk case is skipped there) | about 4 to 5 minutes |
 
 All jobs start together. The `e2e` gate is the only job that waits, and it waits only for the shards. A pull request waits for the slowest shard. Before this change that was about 12 minutes: the slowest of the four old shards in run `38150548004` took 691 seconds of tests plus the setup.
 
-The old target was about 7 minutes on a normal runner (about 6 minutes of tests plus the setup). The measured figure is now about 10 minutes of tests for each shard (4,777 s over eight), because the 2 s jack and the 3D specs added test time. Measured on run `38188864991` (three attempts, all green): 9.9, 9.8 and 7.0 minutes of wall time. The slowest shard changed from run to run (`e2e (6/8)` took 9.8, 9.7 and then 4.4 minutes), so the spread comes from the runner, not from the shard lists. A slow runner can still push one run past 10 minutes: the attempts of one spec differ by up to 35%. The balance cannot do much better, because the longest spec (`sje-field-parity-a`, 364 seconds) is already more than the average of 355 seconds (2,838 seconds divided by eight). The first run with six shards (`38182602108`) took about 16 minutes, because one shard held six skipped tests that each took a minute (see below). Mark chose eight shards on 2026-10-11 and then to stop here (see "Parked ideas").
+The old target was about 7 minutes on a normal runner (about 6 minutes of tests plus the setup). The measured figure is now about 10 minutes of tests for each shard (4,777 s over eight), because the 2 s jack and the 3D specs added test time. Measured on run `38188864991` (three attempts, all green): 9.9, 9.8 and 7.0 minutes of wall time. The slowest shard changed from run to run (`e2e (6/8)` took 9.8, 9.7 and then 4.4 minutes), so the spread comes from the runner, not from the shard lists. A slow runner can still push one run past 10 minutes: the attempts of one spec differ by up to 35%. The balance cannot do much better, because the longest spec (`sje-hack-c`, 774 seconds) is already more than the average of about 597 seconds (4,777 seconds divided by eight). The first run with six shards (`38182602108`) took about 16 minutes, because one shard held six skipped tests that each took a minute (see below). Mark chose eight shards on 2026-10-11 and then to stop here (see "Parked ideas").
 
 The repo is public, so GitHub-hosted runner minutes cost nothing. More shards cost no money.
 
@@ -158,7 +158,7 @@ Every boot loads hundreds of unbundled modules from the Vite dev server, with so
 
 - Measure: set `workers: 2` on one shard, and run it 3 times. Count flakes and compare the times.
 - Adoption line: adopt only with 0 new flakes in 3 runs. Earlier slow-runner failures (Game Over, the battle golden, the playthrough) show that CPU load breaks timing-sensitive tests.
-- The balance alone puts the floor at about 6 minutes of tests per shard (about 2,840 seconds divided by eight, with the 364-second `sje-field-parity-a` as the longest). To go lower, L3 or L4 must cut the total.
+- The balance alone puts the floor at about 13 minutes of tests for the slowest shard, because `sje-hack-c` (774 seconds) is one file; the average is about 10 minutes (4,777 seconds divided by eight). To go lower, split `sje-hack-c` and `sje-hack-b`, or let L3 or L4 cut the total.
 
 ### L5. Fixed waits to condition waits
 
