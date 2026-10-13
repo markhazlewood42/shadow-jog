@@ -1,7 +1,7 @@
 /**
  * The door with a cover (M7 task 7; docs/engine/m7-brief.md pass lines 19 to 22). A FAKE cover (`env.jack`) that records the order of the calls, and a fake chunk, so the order
  * of the jump runs in Node: the chunk load starts at the first tick, the scene starts in the swap and draws its first frame BEFORE the reveal, the sim's end closes the cover before
- * the scene goes, and every way out of the door takes the cover away. The real cover and its pictures are e2e/sje-hack.spec.ts.
+ * the scene goes, and every way out of the door takes the cover away. The real cover and its pictures are e2e/sje-hack-a.spec.ts to -d (shared helpers in e2e/sjehackkit.ts).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type DoorEnv, hackDoor } from '../src/hack3d/door';

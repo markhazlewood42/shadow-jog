@@ -1,7 +1,7 @@
 /**
  * The jack transition's pure half (src/hack3d/transition.ts) and its data (the `transition` block of src/data/hacks.json): the phase machine, what the cover looks
  * like at each tick, the declared uniform ranges and the rules that judge them (M7 pass lines 19 to 23 of docs/engine/m7-brief.md). The drawing is `jack.ts`, and its pictures are
- * e2e/sje-hack.spec.ts. No browser here.
+ * e2e/sje-hack-a.spec.ts to -d (shared helpers in e2e/sjehackkit.ts). No browser here.
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';

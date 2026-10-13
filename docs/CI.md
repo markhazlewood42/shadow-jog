@@ -40,24 +40,28 @@ The repo is public, so GitHub-hosted runner minutes cost nothing. More shards co
 
 The specs are split by name, not with Playwright's `--shard`. `--shard` splits by test count, and the tests differ a lot in cost (a field parity state takes 24 to 52 seconds, an `fxlab` test about 5). The lists are balanced by measured time.
 
-The seconds below are the larger of the two attempts of the run `38182602108` (one worker, the `list` reporter). The attempts differ by up to 35% on the same spec, because the runners differ, so a shard can be a minute off.
+The seconds below are from the run `38341695742` (one worker, the `list` reporter; the sum of the per-test times for each spec). The attempts of one spec can differ by 35% between runners, so a shard can be a minute off.
 
 | Shard | Specs | Seconds |
 |---|---|---|
-| `e2e (1/8)` | `sje-field-parity-a` 364, `sje-scene3d` 45 (estimate) | 409 |
-| `e2e (2/8)` | `sje-field-parity-c` 322, `chaos` 61, `fxlab` 16 | 399 |
-| `e2e (3/8)` | `default-path` 285, `prod` 123 | 408 |
-| `e2e (4/8)` | `sje-field-parity-d` 142, `sje-battle` 119, `gameover` 144 | 405 |
-| `e2e (5/8)` | `playthrough` 218, `economy` 131, `sje-fx` 62 | 411 |
-| `e2e (6/8)` | `sje-hack` 312 (M7), `sje-shell` 56, `gpufx` 40 | 408 |
-| `e2e (7/8)` | `sje-draws` 159, `sje-field` 149, `sje-canaries` 82 | 390 |
-| `e2e (8/8)` | `sje-field-parity-b` 292, `sje-stage-parity` 77 | 369 |
+| `e2e (1/8)` | `sje-hack-c` 392, `economy` 77, `sje-fx` 31 | 500 |
+| `e2e (2/8)` | `sje-hack-a` 395, `playthrough` 108 | 503 |
+| `e2e (3/8)` | `sje-hack-d` 366, `gameover` 142 | 508 |
+| `e2e (4/8)` | `sje-hack-b` 362, `sje-field-parity-c` 128, `fxlab` 8 | 498 |
+| `e2e (5/8)` | `sje-field-parity-a` 368, `sje-canaries` 83, `sje-shell` 54 | 505 |
+| `e2e (6/8)` | `sje-field-parity-d` 255, `sje-field` 152, `sje-stage-parity` 53, `sje-scene3d` 50 | 510 |
+| `e2e (7/8)` | `default-path` 283, `sje-field-parity-b` 167, `gpufx` 55 | 505 |
+| `e2e (8/8)` | `sje-battle` 194, `sje-draws` 155, `prod` 122, `chaos` 38 | 509 |
+
+**Current layout (2026-10-13), measured on run `38341695742`.** The seconds above are the sums of the per-test times in the log of that run (one worker, `list` reporter, software GL). Before this layout, `e2e (6/8)` took 1,672 s (cap 30 minutes) because `sje-hack.spec.ts` took 1,514 s for its 59 tests, about 5 times the 312 s that an earlier local run had suggested, and `e2e (4/8)` took 632 s. The old per-shard test seconds were: 1/8 418, 2/8 174, 3/8 405, 4/8 591, 5/8 216, 6/8 1,624, 7/8 390, 8/8 219. The total is 4,037 s, so eight shards average 505 s, and the longest is now 510 s. `sje-hack.spec.ts` is four files, `sje-hack-a` to `-d` (A 395 s: the story, door, loss, leak, canary and determinism cases and the first jump controls; B 362 s: the nine-case frame judgment and the hold controls; C 392 s: the slow-chunk matrix and the `fx none` picture; D 366 s: the way back after each end, and the two-load determinism). They share `e2e/sjehackkit.ts` and keep every title and assertion (59 tests, pass line 18 of `docs/engine/m7-brief.md`). Only the test bodies in the kit are shared; the `test()` calls stay in the parts, as with field parity. Measure the new layout on the next green run and rebalance if a shard is a minute off.
+
+The paragraphs below are history and name the earlier layouts.
 
 **Rebalance after run `38337948613` (2026-10-13).** Shard 8/8 took 9m19s (513 seconds of tests: field parity B had grown to 292 seconds, from 165) and 4/8 took 5m05s (260 seconds). The median of the other shards was about 400 seconds. `gameover` (144 seconds) moved from 8/8 to 4/8, so 8/8 now holds about 369 seconds and 4/8 about 404. The other shards are as the table says (measured: 1/8 418, 2/8 388, 3/8 293, 5/8 409, 7/8 381); 6/8 (`sje-hack`) had not finished in that run, so it is not re-measured. Measure the new split on the next green run.
 
-**M7 (2026-10-12) moved most specs.** The 3D mode added `sje-hack` (56 tests, 312 seconds on the bundled Chromium on SwiftShader, measured locally, not on CI): it runs the 3D hack scene on the real game page, and its cases of the jump between 2D and 3D capture every frame of three styles at three effects levels. Put in the old shard 6/8 it would have made that shard 661 seconds, so the eight lists were packed again (longest first, into the shortest shard) with the spec kept in 6/8, as pass line 18 of `m7-brief.md` says. The total is about 3,200 seconds, so eight shards average 400 seconds (355 before). `sje-scene3d` was never measured on CI; 45 seconds is an estimate from a local run. `prod.spec.ts` has a new case that loads the hashed 3D chunk from the preview server by its manifest name, and `default-path.spec.ts` asserts that a normal run makes no request for the 3D chunk. Measure the shards on the first CI run of the M7 pull request and rebalance if one is a minute off (the procedure is below).
+**M7 (2026-10-12) moved most specs.** The 3D mode added `sje-hack` (56 tests, 312 seconds on the bundled Chromium on SwiftShader, measured locally, not on CI; on CI it took 1,514 s, see the current layout above): it runs the 3D hack scene on the real game page, and its cases of the jump between 2D and 3D capture every frame of three styles at three effects levels. Put in the old shard 6/8 it would have made that shard 661 seconds, so the eight lists were packed again (longest first, into the shortest shard) with the spec kept in 6/8, as pass line 18 of `m7-brief.md` says. The total is about 3,200 seconds, so eight shards average 400 seconds (355 before). `sje-scene3d` was never measured on CI; 45 seconds is an estimate from a local run. `prod.spec.ts` has a new case that loads the hashed 3D chunk from the preview server by its manifest name, and `default-path.spec.ts` asserts that a normal run makes no request for the 3D chunk. Measure the shards on the first CI run of the M7 pull request and rebalance if one is a minute off (the procedure is below).
 
-`sje-field-parity-c` is 316 seconds for its 10 states plus an estimate of 6 seconds for its 6 GPU-only states, which skip themselves on CI. This estimate is not measured yet. No spec is split further: `sje-field-parity-a` is the longest and `sje-hack` the next, and the `playthrough` (218 seconds) is one test. The seconds of the other specs are from the run `38182602108`; the total of that run was 2,838 seconds.
+`sje-field-parity-c` is 316 seconds for its 10 states plus an estimate of 6 seconds for its 6 GPU-only states, which skip themselves on CI. This estimate is not measured yet. `sje-hack` is split in four (see above); `sje-field-parity-a` is the longest file now, and the `playthrough` is one test. The seconds of the other specs are from the run `38182602108`; the total of that run was 2,838 seconds.
 
 Each shard needs 24 to 46 seconds of setup (checkout, `npm ci`, the Chromium download) before the test command starts, and 3 to 6 seconds more from the command to the first test (the server start). Both ranges are measured in the run `38182602108`. The cap is 30 minutes for each shard.
 

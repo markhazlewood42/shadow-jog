@@ -1,6 +1,6 @@
 /**
  * The door (src/hack3d/door.ts): one try at a hack, always an answer (decision E11, pass line 2 of docs/engine/m7-brief.md). Fakes for the 3D chunk and the
- * WebGL 2 probe, so every case runs in Node. The chunk and the real scene are e2e/sje-hack.spec.ts.
+ * WebGL 2 probe, so every case runs in Node. The chunk and the real scene are e2e/sje-hack-a.spec.ts to -d (shared helpers in e2e/sjehackkit.ts).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type DoorEnv, hackDoor, hackWithPolicy } from '../src/hack3d/door';
