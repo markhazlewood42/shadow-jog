@@ -174,7 +174,7 @@ describe('ET pass line 2: no old engine in tool code', () => {
 
   it('the FX lab is a Scene of the new engine, not a LegacyShape', () => {
     const lab = readFileSync(join(ROOT, 'src/dev/fxlab.ts'), 'utf8');
-    expect(code(lab)).toMatch(/class FxLabScene extends Scene\b/);
+    expect(code(lab)).toMatch(/class FxLabScene extends (CanvasViewScene|Scene)\b/);
     expect(code(lab)).not.toMatch(/\bLegacyShape\b/);
   });
 

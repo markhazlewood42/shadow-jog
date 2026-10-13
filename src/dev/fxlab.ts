@@ -16,6 +16,7 @@
 import { BG_IDS, battleBg, type BattleBg } from '../art/battlebg';
 import { FxLayer, type Pt } from '../battle/fx';
 import { gpuCast, gpuSpell } from '../scenes/battlekit/gpufx';
+import { CanvasViewScene } from './viewers/base';
 import { ENEMY_MID_AT, PARTY_BOTTOM, PARTY_MID, partyX, placeEnemies, WORLD_SCALE } from '../scenes/battlekit/geom';
 import { artTop } from '../scenes/battlekit/sprites';
 import { type EnemyArt, enemyArt } from '../art/enemies';
@@ -27,8 +28,6 @@ import { drawText } from '../engine/font';
 import { checkFx, type FxData, type FxPreset, formatFx, type Moment, type MomentLayer } from '../engine/fxdata';
 import { H, W } from '../sje/core/size';
 import type { ParticleShape } from '../engine/particles';
-import type { Game } from '../sje/runtime/game';
-import type { LegacyShape } from '../sje/runtime/gameapi';
 import { BHT, BW, PANEL_Y } from '../scenes/battlekit/geom';
 
 const PANEL_W = 400;
@@ -126,17 +125,11 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Record<string,
 }
 
 /**
- * The lab is a legacy-shaped scene (`LegacyShape`, src/sje/runtime/gameapi.ts): the new `Game` wraps it in a `LegacyScene` when it runs it.
- * It writes the base-class members by hand so it imports nothing from the old engine (src/engine/{game,display,postfx}, which M8 deletes).
+ * The lab is a Scene of the new engine (ET, docs/engine/et-brief.md decision 1). It draws its picture with Canvas 2D through the viewers' base (`viewers/base.ts`), plays on
+ * `game.fx`, the engine's own effects system, and hands every edit to it through `game.fx.loadData` (the editor contract, principle 11): `loadData` checks the data, and a
+ * bad edit leaves the last good data in place there. It imports nothing from the old engine (src/engine/{game,display,postfx,moments}, which M8 deletes).
  */
-export class FxLabScene implements LegacyShape<void> {
-  /** The new engine's `Game`; the `LegacyScene` adapter sets it again to the same object before `enter()`. */
-  game: Game;
-  opaque = true;
-  curtain = false;
-  passUpdate = false;
-  closed = false;
-  private resolver: (() => void) | null = null;
+export class FxLabScene extends CanvasViewScene {
   private panel: HTMLDivElement | null = null;
   private style: HTMLStyleElement | null = null;
   /** The game's canvas, where a click fires an effect. */
@@ -185,13 +178,17 @@ export class FxLabScene implements LegacyShape<void> {
     e.returnValue = '';
   };
 
-  constructor(game: Game) {
-    this.game = game;
+  constructor() {
+    super();
     this.setEnemy(this.enemyKey);
   }
 
-  enter(): void {
+  override create(): void {
+    super.create();
+    this.events.on('shutdown', () => this.exit());
     this.game.fx.clear();
+    // The engine's effects take a snapshot of the lab's data, now and after every edit.
+    this.sync();
     this.style = el('style', {}, CSS);
     document.head.appendChild(this.style);
     const panel = el('div', { id: 'fxlab' });
@@ -210,7 +207,7 @@ export class FxLabScene implements LegacyShape<void> {
     this.build();
   }
 
-  exit(): void {
+  private exit(): void {
     this.panel?.remove();
     this.style?.remove();
     const stage = document.getElementById('stage');
@@ -222,23 +219,8 @@ export class FxLabScene implements LegacyShape<void> {
     this.game.fx.clear();
   }
 
-  resume(): void {}
-
-  close(result: undefined): void {
-    if (this.closed) return;
-    this.closed = true;
-    this.game.remove(this);
-    this.resolver?.();
-    void result;
-  }
-
-  /** @internal */
-  _bind(resolve: (result: undefined) => void): void {
-    this.resolver = () => resolve(undefined);
-  }
-
   // ------------------------------------------------------------------ the picture
-  update(): void {
+  override fixedUpdate(): void {
     this.frame++;
     this.game.fx.rate = 1;
     this.game.fx.clip = this.clip ? { x: 0, y: 0, w: W, h: PANEL_Y } : null;
@@ -254,7 +236,7 @@ export class FxLabScene implements LegacyShape<void> {
       const { id, targets } = this.pendingSpell;
       this.pendingSpell = null;
       const t = this.fxl.play(id, CASTER, targets, id === 'lightning' ? '#9ae8ff' : undefined);
-      gpuSpell(id, targets, t.impact);
+      gpuSpell(this.game.fx, id, targets, t.impact);
     }
     if (this.auto && ++this.autoT >= this.every) {
       this.autoT = 0;
@@ -262,7 +244,7 @@ export class FxLabScene implements LegacyShape<void> {
     }
   }
 
-  render(ctx: Ctx): void {
+  protected render(ctx: Ctx): void {
     const g = this.world.ctx;
     g.drawImage(this.bg.canvas, 0, 0);
     if (this.bg.glow) g.drawImage(this.bg.glow, 0, 0);
@@ -357,17 +339,27 @@ export class FxLabScene implements LegacyShape<void> {
     const t = { x: this.target.x / WORLD_SCALE, y: this.target.y / WORLD_SCALE };
     const spread = SPELL_SPREAD / WORLD_SCALE;
     const targets = many ? [{ x: t.x - spread, y: t.y }, t, { x: t.x + spread, y: t.y }] : [t];
-    gpuCast(this.spellId, CASTER);
+    gpuCast(this.game.fx, this.spellId, CASTER);
     this.pendingSpell = { at: this.frame + WINDUP, id: this.spellId, targets };
   }
 
   /** After an edit: mark unsaved, and show it (a burst on each change, at most every 0.15 s). */
   private changed(): void {
-    this.status(this.dirty() ? 'Unsaved changes.' : '', 'dim');
-    if (this.fireOnChange && performance.now() - this.lastChangeFire > 150) {
+    const problems = this.sync();
+    if (problems.length) this.status(`Unsaved changes. Not playing them yet, the effects keep the last good data:\n${problems.join('\n')}`, 'err');
+    else this.status(this.dirty() ? 'Unsaved changes.' : '', 'dim');
+    if (!problems.length && this.fireOnChange && performance.now() - this.lastChangeFire > 150) {
       this.lastChangeFire = performance.now();
       this.fire();
     }
+  }
+
+  /**
+   * Hand the lab's data to the engine's effects (`game.fx.loadData`, the editor contract). It is a snapshot: the lab keeps editing its own copy, and `loadData` checks the
+   * snapshot and refuses a bad one, so the effects keep the last good data. Returns what is wrong (empty when the data was taken).
+   */
+  private sync(): string[] {
+    return this.game.fx.loadData(structuredClone(FX));
   }
 
   private dirty(): boolean {
@@ -826,6 +818,7 @@ export class FxLabScene implements LegacyShape<void> {
       const j = (await r.json()) as { ok: boolean; text?: string };
       if (!j.ok || !j.text) throw new Error(`HTTP ${r.status}`);
       replaceFx(JSON.parse(j.text) as FxData);
+      this.sync();
       this.saved = j.text;
       this.build();
       this.status('Reloaded src/data/fx.json.', 'ok');

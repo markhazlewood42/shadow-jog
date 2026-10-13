@@ -1,16 +1,15 @@
-import { enemyArt, ENEMY_ART_KEYS } from '../art/enemies';
-import type { Ctx } from '../engine/canvas';
-import { drawText } from '../engine/font';
-import { Scene } from '../engine/game';
-import { W, H } from '../sje/core/size';
+import { enemyArt, ENEMY_ART_KEYS } from '../../art/enemies';
+import type { Ctx } from '../../engine/canvas';
+import { drawText } from '../../engine/font';
+import { CanvasViewScene } from './base';
+import { W, H } from '../../sje/core/size';
 
 /** Dev scene: all enemy sprites at battle scale (2x). ?scene=bestiary[&page=1] */
-export class BestiaryTestScene extends Scene {
+export class BestiaryTestScene extends CanvasViewScene {
   constructor(private page = 0) {
     super();
   }
-  update(): void {}
-  render(ctx: Ctx): void {
+  protected render(ctx: Ctx): void {
     const g = ctx.createLinearGradient(0, 0, 0, H);
     g.addColorStop(0, '#1a1830');
     g.addColorStop(1, '#3a3050');

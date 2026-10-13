@@ -7,7 +7,7 @@ import { DEV_TOOLS } from './src/dev/tools';
 import { defineConfig } from 'vitest/config';
 
 const FX_FILE = resolve(import.meta.dirname, 'src/data/fx.json');
-type FxDataModule = typeof import('./src/engine/fxdata');
+type FxDataModule = typeof import('./src/sje/fx/fxdata');
 type RigCheckModule = typeof import('./src/art/rig2/check');
 
 /**
@@ -66,7 +66,7 @@ function fxLab(): Plugin {
         req.on('end', async () => {
           // The checks and the file format, through the dev server (the same code the game and the
           // lab run, current after any edit to it).
-          const { checkFx, formatFx } = (await server.ssrLoadModule('/src/engine/fxdata.ts')) as FxDataModule;
+          const { checkFx, formatFx } = (await server.ssrLoadModule('/src/sje/fx/fxdata.ts')) as FxDataModule;
           let data: unknown;
           try {
             data = JSON.parse(body);
@@ -99,6 +99,7 @@ const ART_PASS = resolve(import.meta.dirname, 'media/art-pass');
  * Mark picks). GET /__artpass/data gathers every generated asset's meta.json with the saved review
  * and the pass's spend; POST /__artpass/review saves the review (picks, verdicts, notes) to
  * media/art-pass/review.json. The review page is artreview.html; see scripts/pixellab/.
+ * `POST /review?dry=1` checks the body and writes nothing (the tests use it): `{ ok: true, dry: true }` or the same 400 as a real save.
  */
 function artPass(): Plugin {
   const readJson = (path: string): unknown => (existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : null);
@@ -150,6 +151,10 @@ function artPass(): Plugin {
                   reply(400, { ok: false, problem: 'expected { assets: {...} }' });
                   return;
                 }
+                if ((req.url ?? '').includes('dry=1')) {
+                  reply(200, { ok: true, dry: true });
+                  return;
+                }
                 writeFileSync(`${ART_PASS}/review.json`, `${JSON.stringify({ ...data, saved: new Date().toISOString() }, null, 1)}\n`);
                 reply(200, { ok: true });
               } catch (e) {
@@ -173,7 +178,7 @@ const SKELETON_FILE = resolve(import.meta.dirname, 'public/art/rig/skeleton.json
  * The animation editor's save endpoint (dev server only; the editor is /rigedit.html):
  * GET /__rig/skeleton returns public/art/rig/skeleton.json; POST, from the dev server's own pages
  * only, checks the posted skeletons' whole structure (src/art/rig2/check.ts) and writes them.
- * Answers `{ ok: true }` or `{ ok: false, problem }`.
+ * Answers `{ ok: true }` or `{ ok: false, problem }`. `?dry=1` runs every check and writes nothing (the tests use it): `{ ok: true, dry: true }`.
  */
 function rigEdit(): Plugin {
   return {
@@ -222,6 +227,10 @@ function rigEdit(): Plugin {
           }
           if (problems.length) {
             reply(400, { ok: false, problem: problems.slice(0, 5).join('; ') + (problems.length > 5 ? ` (and ${problems.length - 5} more)` : '') });
+            return;
+          }
+          if ((req.url ?? '').includes('dry=1')) {
+            reply(200, { ok: true, dry: true });
             return;
           }
           try {

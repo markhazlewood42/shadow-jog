@@ -284,9 +284,9 @@ describe('who may import the engine', () => {
     const dev = all.filter((e) => outsideEngine(e) && isDevTool(e.file));
     const allowed = ['src/sje/core/size', 'src/sje', 'src/sje/index'];
     expect(dev.filter((e) => !allowed.includes(e.target ?? '')).map((e) => `${e.file} -> ${e.target}`)).toEqual([]);
-    // The scan is alive: the FX lab and the viewers take their scene base from the facade, and a runtime file would be told apart.
-    expect(dev.some((e) => e.file === 'src/dev/fxlab.ts' && (e.target === 'src/sje' || e.target === 'src/sje/index'))).toBe(true);
-    expect(dev.some((e) => e.file.startsWith('src/dev/viewers/') && (e.target === 'src/sje' || e.target === 'src/sje/index'))).toBe(true);
+    // The scan is alive: the scene base of the viewers and the FX lab (src/dev/viewers/base.ts), and the dev routes, take the engine from the facade, and a runtime file would be told apart.
+    expect(dev.some((e) => e.file === 'src/dev/viewers/base.ts' && (e.target === 'src/sje' || e.target === 'src/sje/index'))).toBe(true);
+    expect(dev.some((e) => e.file === 'src/devroutes.ts' && (e.target === 'src/sje' || e.target === 'src/sje/index'))).toBe(true);
     const made: Edge[] = [{ file: 'src/dev/fxlab.ts', spec: '../sje/runtime/game', target: 'src/sje/runtime/game' }];
     expect(made.filter((e) => !allowed.includes(e.target ?? ''))).toHaveLength(1);
     // M6's allowance is gone: the file that held the type imports of Game and LegacyShape no longer names those runtime files.

@@ -166,9 +166,9 @@ for (const [k, v] of Object.entries(props)) {
 // Places: the game's own view of each area the terrain comes from (for the terrain review).
 mkdirSync(`${OUT}/place`, { recursive: true });
 // The viewport is the game's own size (one screen pixel per game pixel), read from the size source
-// (src/engine/game.ts) so a later change of resolution cannot leave this script cropping the wrong area.
+// (src/sje/core/size.ts) so a later change of resolution cannot leave this script cropping the wrong area.
 const { W, H } = await page.evaluate(async () => {
-  const m = await import('/src/engine/game.ts');
+  const m = await import('/src/sje/core/size.ts');
   return { W: m.W, H: m.H };
 });
 await page.setViewportSize({ width: W, height: H });

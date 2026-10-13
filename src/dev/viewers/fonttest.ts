@@ -1,13 +1,12 @@
-import type { Ctx } from '../engine/canvas';
-import { drawParagraph, drawText } from '../engine/font';
-import { Scene } from '../engine/game';
-import { W, H } from '../sje/core/size';
-import { drawBar, drawCursor, drawWindow, hpColor, UI } from '../ui/draw';
+import type { Ctx } from '../../engine/canvas';
+import { drawParagraph, drawText } from '../../engine/font';
+import { CanvasViewScene } from './base';
+import { W, H } from '../../sje/core/size';
+import { drawBar, drawCursor, drawWindow, hpColor, UI } from '../../ui/draw';
 
 /** Dev-only scene for checking the font and window chrome. */
-export class FontTestScene extends Scene {
-  update(): void {}
-  render(ctx: Ctx): void {
+export class FontTestScene extends CanvasViewScene {
+  protected render(ctx: Ctx): void {
     ctx.fillStyle = '#141325';
     ctx.fillRect(0, 0, W, H);
     drawWindow(ctx, 8, 12, 300, 120, { title: 'FONT' });

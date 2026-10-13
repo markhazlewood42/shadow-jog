@@ -440,6 +440,8 @@ Names from the engine migration (`docs/engine/`). They never show to the player.
 | **Bake** | Drawing a whole map once into a few full-map pictures (ground, emissive, overhead, overhead emissive) instead of every frame. The old `FieldMap` does it; the stage shows the result as images. | `src/field/fieldmap.ts` |
 | **Field parity (old against new)** | The check that the new field equals the old one: 31 fixed states (map, tile, flags, ambient, weather, seed, tick), references made from the old path in a `gpu` and a `soft` set, the new frame compared with the reference of its renderer kind. The strict gate does not hold for lit frames (the two blends round differently); measured bounds guard against drift. | `e2e/sje-field-parity-a.spec.ts` and `-b`, `e2e/sjefieldparity.ts` |
 | **Field state hooks (`fieldShow`, `fieldInfo`)** | DEV hooks on `window.__SJ__`: `fieldShow(case)` puts a fresh field in a fixed state; `fieldInfo()` reads the map, the leader, the flags, the camera, the light count and the tick. Both paths have them. | `src/dev/fieldshow.ts` |
+| **`CanvasViewScene`** | The base of the art viewers and the FX lab (ET): a `Scene` of the new engine that draws its whole picture with Canvas 2D into one `CanvasImage` each frame. It does what `LegacyScene` did for them. | `src/dev/viewers/base.ts` |
+| **`MomentFx`** | The three members that the battle's moment calls (`gpuHit`, `gpuCast`, `gpuSpell`...) need of an effects system: `active`, `later` and `playMoment`. The battle passes an adapter over its routed `postfx` (`playback.ts`); the FX lab passes `game.fx`. | `src/scenes/battlekit/gpufx.ts` |
 
 ## 15. Command Center names (the reporter is built in step 5; the rest of revision 3 is in the design)
 

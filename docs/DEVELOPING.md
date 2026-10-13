@@ -324,16 +324,6 @@ Objectives go in `OBJ`. New names go in the glossary.
 - In code: `playMoment(FX, 'crit', x, y, { angle, weight })` (`engine/moments.ts`); one preset:
   `postfx.emit(FX.presets.embers, x, y)`. Screen pixels (battle world coordinates ×2).
 
-### The trailer
-- `node scripts/trailer.mjs` (with `npm run dev` running) shoots about 95 s of real gameplay, directed: title,
-  Lantern Row, Dutch, the Sprawl, the Rustyard, a staged fight (the Clean Job combo, FIRE and SHOCK, victory, a
-  level-up), the Sinkline, the Lurker, the Warden's tell and phase change, and a title-only end card. It records
-  the game's own picture and audio mix in Edge at 1920x1080, 60 fps, to `media/shadow-jog-trailer-<date>.mp4`
-  (H.264 + AAC, about 200 MB; `media/` isn't committed). `--preview` takes one still per shot instead, to check
-  framing first (`media/trailer-preview/`).
-- The shots are the script's shot list; the in-page tools (caption cards in the game font, one held song per
-  section, the recorder) are `src/dev/trailer.ts`. Re-shoot it after changing the art for a before/after pair.
-
 ### The PixelLab art pass and the review page
 Drawn art made with [PixelLab](https://www.pixellab.ai) (a paid account; its REST API, `https://api.pixellab.ai/v2`),
 kept out of the game and out of git until Mark picks. Everything generated lives in `media/art-pass/`.

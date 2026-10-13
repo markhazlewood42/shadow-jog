@@ -1,19 +1,18 @@
-import type { Ctx } from '../engine/canvas';
-import { drawText } from '../engine/font';
-import { Scene } from '../engine/game';
-import { W, H } from '../sje/core/size';
-import { FieldMap } from '../field/fieldmap';
-import { getMap } from '../data/maps';
+import type { Ctx } from '../../engine/canvas';
+import { drawText } from '../../engine/font';
+import { CanvasViewScene } from './base';
+import { W, H } from '../../sje/core/size';
+import { FieldMap } from '../../field/fieldmap';
+import { getMap } from '../../data/maps';
 
 /** Dev scene: whole-map overview (ground + emissive, scaled to fit). ?scene=mapview&map=id */
-export class MapViewScene extends Scene {
+export class MapViewScene extends CanvasViewScene {
   private m: FieldMap;
   constructor(id: string) {
     super();
     this.m = new FieldMap(getMap(id));
   }
-  update(): void {}
-  render(ctx: Ctx): void {
+  protected render(ctx: Ctx): void {
     ctx.fillStyle = '#07060d';
     ctx.fillRect(0, 0, W, H);
     const k = Math.min((W - 8) / this.m.ground.width, (H - 18) / this.m.ground.height);
