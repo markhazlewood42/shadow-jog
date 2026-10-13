@@ -13,6 +13,7 @@ test.describe('the jump between 2D and 3D: no bad frame, a held chunk, an exact 
   for (const style of STYLES) {
     for (const level of LEVELS) {
       test(`${style} at fx ${level}: a slow chunk is held with a moving picture (never blank), then the reveal runs in full and the hack plays (line 20, case 1)`, async ({ browser }) => {
+        test.slow(); // The 2 s jack (60+60 ticks) makes every-frame capture slow on software GL.
         const g = await openTitle(browser, { query: `&jack=${style}&fx=${level}&seed=5` });
         try {
           const { page } = g;
@@ -36,6 +37,7 @@ test.describe('the jump between 2D and 3D: no bad frame, a held chunk, an exact 
 
 
   test('fx none: the settled picture after jack out equals the picture of a run that was never covered, at the same field frame', async ({ browser }) => {
+    test.slow(); // The 2 s jack (60+60 ticks) makes every-frame capture slow on software GL.
     const q = '&jack=glitch&fx=none&seed=5';
     const a = await openField(browser, { query: q, interior: true });
     let f1 = 0;

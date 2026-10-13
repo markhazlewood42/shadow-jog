@@ -13,6 +13,7 @@ test.describe('the jump between 2D and 3D: no bad frame, a held chunk, an exact 
   for (const style of STYLES) {
     for (const level of LEVELS) {
       test(`${style} at fx ${level}: every frame of jack in and jack out is judged (lines 19, 22, 23): no undeclared one-color frame, 0 GL errors, 0 console warnings`, async ({ browser }) => {
+        test.slow(); // The 2 s jack (60+60 ticks) makes every-frame capture slow on software GL.
         const g = await openTitle(browser, { query: `&jack=${style}&fx=${level}&seed=5` });
         try {
           const { page } = g;
@@ -46,6 +47,7 @@ test.describe('the jump between 2D and 3D: no bad frame, a held chunk, an exact 
 
 
   test('CONTROL: a style with its hold element turned off shows a blank, frozen hold in case 1 and fails the check', async ({ browser }) => {
+    test.slow(); // The 2 s jack (60+60 ticks) makes every-frame capture slow on software GL.
     const g = await openTitle(browser, { query: '&jack=glitch&fx=none&seed=5' });
     try {
       const { page } = g;
@@ -68,6 +70,7 @@ test.describe('the jump between 2D and 3D: no bad frame, a held chunk, an exact 
   // Line 20, case 2: the chunk never arrives. The hold bound (1,500 ms here) ends it: unsupported / chunk-failed, the story goes on, the 2D scene is back clean (line 21).
   for (const level of ['full', 'none'] as const) {
     test(`fx ${level}: the chunk never completes and holdBoundMs is 1500: unsupported / chunk-failed after about 1.5 s of hold, the story continues, and the 2D scene is back with no effect left`, async ({ browser }) => {
+      test.slow(); // The 2 s jack (60+60 ticks) makes every-frame capture slow on software GL.
       const g = await openGame(browser, { query: `&jack=glitch&fx=${level}&seed=5`, allow: [/\[sje\] the 3D chunk took longer/] });
       try {
         const { page } = g;

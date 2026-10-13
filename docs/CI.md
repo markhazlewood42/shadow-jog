@@ -40,18 +40,20 @@ The repo is public, so GitHub-hosted runner minutes cost nothing. More shards co
 
 The specs are split by name, not with Playwright's `--shard`. `--shard` splits by test count, and the tests differ a lot in cost (a field parity state takes 24 to 52 seconds, an `fxlab` test about 5). The lists are balanced by measured time.
 
-The seconds below are from the run `38341695742` (one worker, the `list` reporter; the sum of the per-test times for each spec). The attempts of one spec can differ by 35% between runners, so a shard can be a minute off.
+The seconds below are from the run `38442567319` (one worker, the `list` reporter; the sum of the per-test times for each spec). The attempts of one spec can differ by 35% between runners, so a shard can be a minute off. The hack specs grew with the 2 s jack (60+60 ticks, 2026-10-13): `sje-hack-c` 392 to 774 s, `sje-hack-b` 362 to 723 s. The `sje-hack-d` figure (505 s) includes 240 s of timeouts (two tests hit the 120 s limit while still capturing), so re-measure it on the next green run. The transition-capture tests in `sje-hack-b`, `-c` and `-d` call `test.slow()` (360 s limit).
 
 | Shard | Specs | Seconds |
 |---|---|---|
-| `e2e (1/8)` | `sje-hack-c` 392, `economy` 77, `sje-fx` 31 | 500 |
-| `e2e (2/8)` | `sje-hack-a` 395, `playthrough` 108 | 503 |
-| `e2e (3/8)` | `sje-hack-d` 366, `gameover` 142 | 508 |
-| `e2e (4/8)` | `sje-hack-b` 362, `sje-field-parity-c` 128, `fxlab` 8 | 498 |
-| `e2e (5/8)` | `sje-field-parity-a` 368, `sje-canaries` 83, `sje-shell` 54 | 505 |
-| `e2e (6/8)` | `sje-field-parity-d` 255, `sje-field` 152, `sje-stage-parity` 53, `sje-scene3d` 50 | 510 |
-| `e2e (7/8)` | `default-path` 283, `sje-field-parity-b` 167, `gpufx` 55 | 505 |
-| `e2e (8/8)` | `sje-battle` 194, `sje-draws` 155, `prod` 122, `chaos` 38 | 509 |
+| `e2e (1/8)` | `sje-hack-c` 774 | 774 |
+| `e2e (2/8)` | `sje-hack-b` 723, `sje-canaries` 54 | 777 |
+| `e2e (3/8)` | `sje-hack-d` 505, `gameover` 143, `sje-shell` 36, `gpufx` 37 | 721 |
+| `e2e (4/8)` | `sje-hack-a` 261, `sje-field-parity-a` 205, `sje-field-parity-b` 163, `chaos` 63, `sje-scene3d` 50 | 742 |
+| `e2e (5/8)` | `sje-field-parity-c` 320, `sje-field-parity-d` 259, `playthrough` 108, `sje-fx` 63 | 750 |
+| `e2e (6/8)` | `sje-battle` 190, `sje-draws` 157 | 347 |
+| `e2e (7/8)` | `default-path` 159, `sje-field` 152 | 311 |
+| `e2e (8/8)` | `prod` 121, `economy` 138, `sje-stage-parity` 77, `fxlab` 19 | 355 |
+
+The layout above (2026-10-13, after the 2 s jack) replaces the one measured on run `38341695742`, which the paragraph below describes.
 
 **Current layout (2026-10-13), measured on run `38341695742`.** The seconds above are the sums of the per-test times in the log of that run (one worker, `list` reporter, software GL). Before this layout, `e2e (6/8)` took 1,672 s (cap 30 minutes) because `sje-hack.spec.ts` took 1,514 s for its 59 tests, about 5 times the 312 s that an earlier local run had suggested, and `e2e (4/8)` took 632 s. The old per-shard test seconds were: 1/8 418, 2/8 174, 3/8 405, 4/8 591, 5/8 216, 6/8 1,624, 7/8 390, 8/8 219. The total is 4,037 s, so eight shards average 505 s, and the longest is now 510 s. `sje-hack.spec.ts` is four files, `sje-hack-a` to `-d` (A 395 s: the story, door, loss, leak, canary and determinism cases and the first jump controls; B 362 s: the nine-case frame judgment and the hold controls; C 392 s: the slow-chunk matrix and the `fx none` picture; D 366 s: the way back after each end, and the two-load determinism). They share `e2e/sjehackkit.ts` and keep every title and assertion (59 tests, pass line 18 of `docs/engine/m7-brief.md`). Only the test bodies in the kit are shared; the `test()` calls stay in the parts, as with field parity. Measure the new layout on the next green run and rebalance if a shard is a minute off.
 

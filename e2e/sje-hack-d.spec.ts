@@ -16,6 +16,7 @@ test.describe('the jump between 2D and 3D: no bad frame, a held chunk, an exact 
   for (const end of ['success', 'fail', 'abort', 'drop'] as const) {
     for (const level of ['full', 'lite'] as const) {
       test(`fx ${level}: after a ${end} the 2D scene state and settled picture are the ones before${end === 'drop' ? ' (a drop leaves no scene: a known field is put up again, and nothing of the cover or the effects is in it)' : ', no effect is left, and the cover is gone'} (line 21)`, async ({ browser }) => {
+        test.slow(); // The 2 s jack (60+60 ticks) makes every-frame capture slow on software GL.
         const query = `&jack=glitch&fx=${level}&seed=5`;
         const g = await openField(browser, { query, interior: true });
         let after: Settled;
@@ -86,6 +87,7 @@ test.describe('the jump between 2D and 3D: no bad frame, a held chunk, an exact 
 
   for (const style of STYLES) {
     test(`${style}: the same style, seed and tick give the same frame hash on two page loads (line 24)${style === 'collapse' ? '' : '; CONTROL: another seed gives another picture'}`, async ({ browser }) => {
+      test.slow(); // The 2 s jack (60+60 ticks) makes every-frame capture slow on software GL.
       const one = await sequence(browser, style, 5);
       const two = await sequence(browser, style, 5);
       expect(Object.keys(one).length, 'the frames of both rounds').toBe(2 * (TRANSITION.outTicks - 1) + 2 * TRANSITION.inTicks);
