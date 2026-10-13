@@ -153,7 +153,7 @@ jobs:
         #   1/8 774 (hack C)                                                  2/8 777 (hack B 723, canaries 54)
         #   3/8 721 (hack D 505, gameover 143, shell 36, gpufx 37)            4/8 579 (hack A 261, field parity A 205, chaos 63, scene3d 50)
         #   5/8 750 (field parity C 320, field parity D 259, playthrough 108, fx 63)   6/8 510 (battle 190, draws 157, field parity B 163)
-        #   7/8 311 (default-path 159, field 152)                             8/8 355 (prod 121, economy 138, stage parity 77, fxlab 19)
+        #   7/8 311+ (default-path 159, field 152, tools: new in ET, not yet timed)                             8/8 355 (prod 121, economy 138, stage parity 77, fxlab 19)
         # Run 38446058442 put 4/8 at about 1,230 s (hack A with a timeout, field parity A 364, B 291), so field parity B moved to 6/8. The total is about 4,777 seconds. sje-hack is four files, `sje-hack-a` to `-d`, that share `e2e/sjehackkit.ts` (pass line 18 of docs/engine/m7-brief.md: the 59 tests run in CI).
         # A new spec is added to the shard with the smallest total, or to the NOT_IN_CI list in tests/ci-shards.test.ts with a reason. That test fails on a spec that is in no list.
         include:
@@ -177,7 +177,7 @@ jobs:
               e2e/sje-battle.spec.ts e2e/sje-draws.spec.ts e2e/sje-field-parity-b.spec.ts
           - shard: '7/8'
             specs: >-
-              e2e/default-path.spec.ts e2e/sje-field.spec.ts
+              e2e/default-path.spec.ts e2e/sje-field.spec.ts e2e/tools.spec.ts
           - shard: '8/8'
             specs: >-
               e2e/prod.spec.ts e2e/economy.spec.ts e2e/sje-stage-parity.spec.ts e2e/fxlab.spec.ts

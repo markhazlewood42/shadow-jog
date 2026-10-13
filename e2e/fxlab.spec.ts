@@ -89,3 +89,48 @@ test('the save endpoint checks what it gets and writes fx.json in its own format
   expect(bad[0]).toBe(400);
   expect(bad[1]).toBeGreaterThan(0);
 });
+
+// Pass line 14 (ET): the effects contract is the real path. The lab hands every edit to the engine's own effects system through `game.fx.loadData` (the editor contract,
+// principle 11), and a bad edit leaves the last good data in place there. The lab edits its working copy of fx.json in place, so reading the shared object would pass even if the
+// lab never called `loadData`: the case counts the calls instead (the control), and reads the data the effects system holds, which must be a snapshot, not that object.
+test('every edit reaches game.fx through loadData, and a bad edit leaves the old data in place', async ({ page }) => {
+  await page.goto('/?scene=fxlab');
+  await expect(page.locator('#fxlab')).toBeVisible();
+  const first = (await sj<string[]>(page, 'Object.keys(sj.fx.presets)'))[0]!;
+  // Count the calls and keep what each one was given and answered.
+  await page.evaluate(() => {
+    const w = window as unknown as { __SJ__: { game: { fx: { loadData(d: unknown): string[] } } }; __loads: Array<{ count: number[] | null; problems: number }> };
+    const fx = w.__SJ__.game.fx;
+    const orig = fx.loadData.bind(fx);
+    w.__loads = [];
+    fx.loadData = (d: unknown) => {
+      const problems = orig(d);
+      w.__loads.push({ count: (d as { presets: Record<string, { count: number[] }> }).presets[Object.keys((d as { presets: object }).presets)[0]!]?.count ?? null, problems: problems.length });
+      return problems;
+    };
+  });
+  const loads = () => page.evaluate(() => (window as unknown as { __loads: Array<{ count: number[] | null; problems: number }> }).__loads);
+  const held = () => sj<number[]>(page, `sj.game.fx.data.presets['${first}'].count`);
+  const before = await sj<number[]>(page, `sj.fx.presets['${first}'].count`);
+  const maxBox = page.locator('#fxlab .row', { hasText: 'max' }).first().locator('input[type=number]');
+  // A good edit: loadData is called with the edited data, accepts it, and the effects system holds the new count.
+  const good = (before[1] ?? 10) + 5;
+  await maxBox.fill(String(good));
+  await maxBox.press('Enter');
+  await expect.poll(async () => (await loads()).length).toBeGreaterThan(0);
+  const last = (await loads()).at(-1);
+  expect(last).toEqual({ count: [before[0], good], problems: 0 });
+  expect(await held()).toEqual([before[0], good]);
+  // The effects system holds a snapshot: a later edit of the lab's working copy does not change it before loadData has accepted it.
+  expect(await sj<boolean>(page, 'sj.game.fx.data !== sj.fx')).toBe(true);
+  // A bad edit (max below min): loadData refuses it, the lab says so, and game.fx keeps the last good data.
+  const min = before[0] ?? 1;
+  const calls = (await loads()).length;
+  await maxBox.fill(String(min - 1));
+  await maxBox.press('Enter');
+  await expect.poll(async () => (await loads()).length).toBeGreaterThan(calls);
+  expect((await loads()).at(-1)?.problems).toBeGreaterThan(0);
+  expect(await held()).toEqual([before[0], good]);
+  await expect(page.locator('#fxlab .status')).toContainText('Unsaved');
+  await expect(page.locator('#fxlab .status')).toHaveClass(/err/);
+});

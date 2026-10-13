@@ -275,20 +275,22 @@ describe('who may import the engine', () => {
     expect(notFacade.map((e) => `${e.file} -> ${e.target}`)).toEqual([]);
   });
 
-  // The DEV tools (src/dev, loaded through src/devroutes.ts and never in a shipped build) are outside that list. The FX lab runs on the new `Game` (M6), so they may name it, as TYPES.
+  // The DEV tools (src/dev, loaded through src/devroutes.ts and never in a shipped build) are outside that list. Since ET they run on the new engine: the viewers and the FX lab
+  // are scenes of it. They reach it through the facade (src/sje/index.ts) and the size module, like game code on the engine (battlestage, fieldstage). The runtime files
+  // (Game, LegacyShape: the old allowance for TYPE imports of M6) are not on the list any more: the lab is a Scene and the tools take `Game` from the facade.
   const isDevTool = (f: string) => f.startsWith('src/dev/') || f === 'src/devroutes.ts';
 
-  it('M6: the DEV tools reach the engine through the size module, and through the new Game and the scene shape as types only', () => {
+  it('ET: the DEV tools reach the engine through the size module and the facade only, and never the runtime files (Game, LegacyShape, gameapi)', () => {
     const dev = all.filter((e) => outsideEngine(e) && isDevTool(e.file));
-    const allowed = ['src/sje/core/size', 'src/sje/runtime/game', 'src/sje/runtime/gameapi'];
+    const allowed = ['src/sje/core/size', 'src/sje', 'src/sje/index'];
     expect(dev.filter((e) => !allowed.includes(e.target ?? '')).map((e) => `${e.file} -> ${e.target}`)).toEqual([]);
-    for (const f of new Set(dev.filter((e) => e.target !== 'src/sje/core/size').map((e) => e.file))) {
-      const text = readFileSync(join(ROOT, f), 'utf8');
-      for (const spec of dev.filter((e) => e.file === f && e.target !== 'src/sje/core/size').map((e) => e.spec)) expect(onlyTypeImports(text, spec), `${f} imports ${spec} as a value`).toBe(true);
-    }
-    // The scan is alive: the FX lab is one of them, and a value import is told apart from a type import.
-    expect(dev.some((e) => e.file === 'src/dev/fxlab.ts' && e.target === 'src/sje/runtime/game')).toBe(true);
-    expect(onlyTypeImports("import { Game } from '../sje/runtime/game';", '../sje/runtime/game')).toBe(false);
+    // The scan is alive: the FX lab and the viewers take their scene base from the facade, and a runtime file would be told apart.
+    expect(dev.some((e) => e.file === 'src/dev/fxlab.ts' && (e.target === 'src/sje' || e.target === 'src/sje/index'))).toBe(true);
+    expect(dev.some((e) => e.file.startsWith('src/dev/viewers/') && (e.target === 'src/sje' || e.target === 'src/sje/index'))).toBe(true);
+    const made: Edge[] = [{ file: 'src/dev/fxlab.ts', spec: '../sje/runtime/game', target: 'src/sje/runtime/game' }];
+    expect(made.filter((e) => !allowed.includes(e.target ?? ''))).toHaveLength(1);
+    // M6's allowance is gone: the file that held the type imports of Game and LegacyShape no longer names those runtime files.
+    expect(dev.filter((e) => e.target === 'src/sje/runtime/game' || e.target === 'src/sje/runtime/gameapi')).toEqual([]);
   });
 
   // A static `import ... from './sje/boot'` (the door must be dynamic, or the engine and Pixi land in the entry chunk).
