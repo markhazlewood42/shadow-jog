@@ -63,6 +63,7 @@ export function createE2eRuntime(workDir: string = E2E_DIR): E2eRuntime {
       sessionsRoot: join(workDir, 'claude-sessions'),
       folders: ['fixture-shadow-jog'],
       cwdMatchFolders: ['fixture-home-base'],
+      folderPrefixes: [],
       includeSdk: false,
       recentSeconds: 604800,
       workingSeconds: 300,

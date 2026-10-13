@@ -18,6 +18,7 @@
     "sessionsRoot": "~/.claude/sessions",
     "folders": ["C--Users-markh-home-base-projects-shadow-jog", "C--Users-markh-home-base-projects-shadow-jog-phaser"],
     "cwdMatchFolders": ["C--Users-markh-home-base"],
+    "folderPrefixes": ["C--Users-markh-home-base-projects-shadow-jog--claude-worktrees-"],
     "includeSdk": false,
     "recentSeconds": 604800,
     "workingSeconds": 300,

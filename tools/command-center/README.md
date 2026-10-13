@@ -133,6 +133,7 @@ All settings are in `command-center.config.json`. A path in the file is relative
 | `claude.sessionsRoot` | Optional, default `~/.claude/sessions`. Where Claude Code lists its running processes: one `<pid>.json` file for each. The Agents page and the Running panel treat a session as active while its process runs. |
 | `claude.folders` | Session folders (by exact name) that belong to Shadow Jog: every session in them counts |
 | `claude.cwdMatchFolders` | Session folders (by exact name) that mix projects, such as the home-base folder. A session counts only when the working folder of its newest line is inside a root. |
+| `claude.folderPrefixes` | Optional, default none. Name prefixes of session folders that belong wholly to Shadow Jog. Claude Code keeps the sessions of each worktree in its own folder, `<project folder>--claude-worktrees-<branch>`, and a new one appears with each worktree. Every folder under `~/.claude/projects` whose name starts with a prefix counts like a folder in `claude.folders`. The shipped config has `C--Users-markh-home-base-projects-shadow-jog--claude-worktrees-`. |
 | `claude.includeSdk` | Optional, default `false`. A session whose entrypoint starts with `sdk` was started by a script (`claude -p`, the Agent SDK). Those are hidden. The Agents page and the Running panel show their count as the label "N script runs hidden" (`hiddenScripts` in `GET /api/agents`), and `GET /api/sessions` counts them in `hiddenSdk`. Set `true` to list them. |
 | `claude.recentSeconds` | A session file older than this is left out (604800 is 7 days) |
 | `claude.workingSeconds` | A session written to within this time, and not waiting for Mark, is "working" |
@@ -193,7 +194,7 @@ The two labels `decision` and `decided` must exist in the GitHub repo. Creating 
 | A panel says "gh is not installed" or "gh is not signed in to GitHub" | Install the GitHub CLI and run `gh auth login`, then press Retry on the panel. |
 | "gh cannot reach GitHub" | The network is down. The panel shows the last good data and its time. Press Retry. |
 | The answer form says the label "decided" does not exist | Your answer is already posted as a comment. Create the label in GitHub (Issues, Labels), then press Retry. |
-| The Agents page says "No active session" | No Claude Code process runs for Shadow Jog, or the folder of its session is not named in `claude.folders` or `claude.cwdMatchFolders` (by exact name, under `~/.claude/projects`). A session counts only while its process runs. A label such as "1 script run hidden" means `claude.includeSdk` is `false`. |
+| The Agents page says "No active session" | No Claude Code process runs for Shadow Jog, or the folder of its session is not named in `claude.folders` or `claude.cwdMatchFolders` (by exact name, under `~/.claude/projects`) and does not start with a `claude.folderPrefixes` entry (worktree folders). A session counts only while its process runs. A label such as "1 script run hidden" means `claude.includeSdk` is `false`. |
 | The Agents page shows the label "Session not active" | You followed a link from Your move to a session that is not in the diagram. Its process ended, or it is not active (rule R42). The page opens and does not scroll. Check Your move again. |
 | The label "Process list unavailable" | The agents module cannot read the folder `claude.sessionsRoot` (it is missing or unreadable), or none of its files has the keys the module needs. The page falls back to the file ages: a session that works (wrote within `claude.workingSeconds`) or waits for Mark (up to `claude.waitingSeconds`) counts as active. Check the folder and the config key. |
 | The Status strip says "Milestone key missing" or "Unknown milestone" | `status.md` has no `milestone:` key, or its value is not `none` or an id of the milestone table in `docs/engine/migration.md`. Case matters. See the `milestone:` key above. |
@@ -294,7 +295,7 @@ The reporter is the local server, run headless with `--reporter`. It reads the l
 | Write on change | At most once in 5 s |
 | Beat | At least once in 60 s |
 | Key expiry | 600 s |
-| Exit | After 30 minutes with no live shadow-jog session (code 0) |
+| Exit | After 30 minutes with no live shadow-jog session (code 0), only when the hook started it. A reporter that the tray app started (`--manual`) has no idle exit and runs until Quit. |
 | Protection check | Every 10 minutes: one request to `<hosted page>/api/live` with no cookie and no token. 401 or a redirect to the Vercel login is protected. A 200 with JSON means the page is public: it stops, deletes the key and exits with code 3. An error, a timeout or a 5xx is "no answer": one or two in a row change nothing. The third "no answer" in a row (30 minutes without a confirmation) fails closed: the reporter stops writing, deletes the key, and checks every minute until one check says protected. A protected answer resets the count. |
 | Start | No write happens until one check says protected. Until then the check repeats every minute. |
 | Port | 29417 (its own, far from the 3000s that dev servers and Playwright use; 3011 clashed with `PW_PORT=3011` runs). `npm run cc` stays on 3009. |
@@ -310,30 +311,40 @@ The reporter is the local server, run headless with `--reporter`. It reads the l
    ```
 
    `KV_REST_API_URL` is the same variable the Vercel project has. `KV_REST_API_TOKEN` is the read-write token (the one you deleted from the Vercel project). `CC_HOSTED_URL` is where the protection check looks. Without the file, or with a missing line, the reporter logs one line and does not write.
-2. After this branch is merged to `main`, start the reporter once by hand, from any shadow-jog folder: `npm run reporter` in `tools/command-center` (or `node tools/command-center/scripts/reporter-hook.mjs`). The first start makes the pinned copy and installs its packages. That takes a minute or two.
-3. Add the hook so that every session keeps it running. Add this to `~/.claude/settings.json` (merge it into an existing `hooks` object). The path is the pinned copy, so a branch switch in the shared checkout cannot break it:
+2. Start the tray app by hand: **double-click the shortcut** (step 3). It starts the reporter and the local Command Center and keeps them running until you choose Quit. The first start makes the pinned copy and installs its packages. That takes a minute or two, and the icon says "starting" meanwhile.
+3. Make the shortcut once. The tray script lives in the pinned copy, which exists after the first reporter start and follows `origin/main` (see "The pinned copy"). Right-click the desktop, choose New, then Shortcut, and paste this as the target:
 
-   ```json
-   {
-     "hooks": {
-       "SessionStart": [
-         {
-           "hooks": [
-             {
-               "type": "command",
-               "command": "node \"C:/Users/markh/home-base/projects/shadow-jog/.cc-reporter/pinned/tools/command-center/scripts/reporter-hook.mjs\"",
-               "timeout": 5
-             }
-           ]
-         }
-       ]
-     }
-   }
+   ```
+   powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "C:\Users\markh\home-base\projects\shadow-jog\.cc-reporter\pinned\tools\command-center\scripts\command-center-tray.ps1"
    ```
 
-   The hook acts only when the session folder is inside a shadow-jog checkout or worktree. It starts the launcher detached, prints nothing and always exits 0.
+   Name it "Shadow Jog Command Center". It opens no window: look for a round icon in the notification area (the `^` group at the right of the taskbar). Drag the icon out of the group to keep it visible. To start it with Windows, put the same shortcut in `shell:startup`.
+4. **The SessionStart hook is no longer needed.** It saw only the folder where a session started, so a session that began in `home-base` and moved into shadow-jog later never started the reporter, and the reporter then ended after 30 idle minutes (2026-10-13). Remove the `SessionStart` entry that runs `reporter-hook.mjs` from `~/.claude/settings.json` (the main session does it). `scripts/reporter-hook.mjs` stays in the repo; with the entry gone nothing runs it. If the hook still runs and starts a reporter first, the tray finds the lock, shows its icon, and says that another copy already runs. That reporter still has the idle exit.
 
-**The pinned copy.** `<main checkout>/.cc-reporter/pinned` is a sparse, shallow clone of `origin/main` (only `tools/command-center`). The folder is in `.gitignore`. The launcher runs `git fetch` in that clone every 2 minutes, never in your checkout. When `main` changed `tools/command-center/`, it updates the clone (and runs `npm ci` when the lock file changed) and starts the server again. Two launches at once: the second finds the lock (`.cc-reporter/reporter.lock`, touched every 30 s) or the open port and does nothing.
+**The tray app (`scripts/command-center-tray.ps1`).** Windows PowerShell 5.1 with `System.Windows.Forms`; no other dependency.
+
+| Part | Behavior |
+|---|---|
+| Start | Two hidden children, with their process ids in `.cc-reporter/tray.pids.json`. (1) `node reporter-launch.mjs --repo <main checkout> --manual`: the launcher with the lock, the port check and the pinned copy, and a reporter with no idle exit. (2) When the pinned copy is ready: `reporter-launch.mjs --prepare-local` (writes `.cc-reporter/local.config.json` and builds the page, like `npm run cc`), then `main.ts --config local.config.json`: the local Command Center on port 3009. It runs the code of the pinned copy with the docs and the status of your real checkout, so a branch switch cannot break it. |
+| Icon | Green: both ports answer (29417 and 3009). Amber: one answers. Gray: none. The tooltip says which one is up. The poll runs every 3 s. |
+| Menu | Open Command Center (http://localhost:3009). Open hosted page (`CC_HOSTED_URL` from `~/.shadow-jog-cc/upstash.env`; the script reads only that key and never logs the file). Show log (opens `reporter.log`, `tray.log` and the local server log in Notepad). Restart services. Quit. A double click opens the local page. |
+| Quit | Runs `reporter-launch.mjs --stop` (verified stop, deletes the `live` key), then `taskkill /PID <kept id> /T /F` for each kept child id, then removes the icon. Never by process name. |
+| One copy | A named mutex (`Local\ShadowJogCommandCenterTray`). A second start shows a balloon tip "It already runs" and exits. The launcher lock also stops a second reporter. |
+| A child ends | One balloon tip and the icon changes. It is not started again. "Restart services" starts both again. |
+| Logs | `.cc-reporter/tray.log` (the tray's own lines), `reporter.log` (launcher and server), `local-server.out.log` and `local-server.err.log`, `tray-launcher.*.log`, `tray-prepare.*.log`. |
+
+**Manual test list for the tray** (the tray is not run by the unit tests; `tests/reporter-manual.test.ts` only checks that the script parses and that it never kills by name):
+
+1. Double-click the shortcut. A gray, then amber, then green icon appears within a few minutes (first start) or seconds. The tooltip says "reporter up, local up". http://localhost:3009 opens from the menu.
+2. Start the shortcut a second time. A balloon tip says it already runs. There is still one icon.
+3. Leave it for over 30 minutes with no Claude Code session. The icon stays green (no idle exit).
+4. Menu, Open hosted page: the hosted page opens. Show log: up to four Notepad windows open (one for each log file that exists).
+5. Menu, Restart services: the icon goes gray, then green again. `.cc-reporter/tray.pids.json` has new ids.
+6. End the local server by its id from Task Manager (`local-server` is the `node` process with `--config ...local.config.json`). A balloon tip says it ended, the icon is amber, and nothing restarts by itself.
+7. Menu, Quit. The icon disappears. Ports 29417 and 3009 no longer answer, no `node` process of the reporter is left, and `.cc-reporter/reporter.lock` is gone.
+8. With the tray running, run `npm run reporter:stop`. The reporter stops, the tray shows amber and a balloon tip, and the local server keeps running.
+
+**The pinned copy.** `<main checkout>/.cc-reporter/pinned` is a sparse, shallow clone of `origin/main` (only `tools/command-center`). The folder is in `.gitignore`. The launcher runs `git fetch` in that clone every 2 minutes, never in your checkout. When `main` changed `tools/command-center/`, it updates the clone (and runs `npm ci` when the lock file changed) and starts the server again. So a change like the tray script reaches the pinned copy within about 2 minutes of its merge to `main`, while a launcher is running. A running tray keeps the old script and the old local server until you choose Restart services (the server restarts; to load a new tray script, Quit and start the shortcut again). Before the merge, `node scripts/reporter-launch.mjs --branch <branch>` makes the copy follow a branch, or run `powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "<worktree>\tools\command-center\scripts\command-center-tray.ps1"` from the worktree. Two launches at once: the second finds the lock (`.cc-reporter/reporter.lock`, touched every 30 s) or the open port and does nothing.
 
 **Failure rules of the launcher.** Git runs without blocking, so the lock heartbeat keeps going during a long clone. The copy counts as ready only with the marker file `pinned/.cc-ready`, which is written after the clone, the checkout and `npm ci` all worked. A `.git` folder without the marker is removed and made again. When the lock file changed, the marker `pinned/.cc-needs-install` is set before the code moves and removed after `npm ci` worked, so a failed install is tried again at the next round and the server never starts with new code and old packages. With no settings file the launcher logs one line and ends: it does not fetch the copy at every session start. A server that exits by itself is never started again by the update step. `npm ci` has a limit of 5 minutes: a hung install is ended, the log says `npm ci did not finish`, the launcher ends and the lock is released (before, the heartbeat kept the lock fresh for ever). The heartbeat writes only into a lock that still names this launcher (process id and start stamp). A launcher that slept with the laptop and finds its lock taken over by another launcher stops its own server, ends, logs why, and leaves the other lock alone.
 
@@ -341,7 +352,7 @@ The reporter is the local server, run headless with `--reporter`. It reads the l
 
 | Task | How |
 |---|---|
-| Start | `npm run reporter` (or just start a session in a shadow-jog folder, with the hook) |
+| Start | Double-click the shortcut of the tray app (setup step 3). `npm run reporter` still starts the reporter alone, with the idle exit, as the hook did. |
 | Stop | `npm run reporter:stop`. It reads the process ids in the lock and kills a process only when the process start time in the lock matches the system and the command line is the launcher or the server. If it cannot verify a process, it kills nothing for it, writes the reason to the log and leaves the lock. It never kills by name. After it ended the server, it runs `main.ts --clear-live` from the pinned copy (at most 20 s), which deletes the `live` key, because a hard kill gives the server no time to do it. |
 | See the log | `.cc-reporter/reporter.log` (launcher lines and server lines, each with a time; the reporter never writes a token to it) |
 | Is it running? | The hosted page shows "Reporter offline" or "not running" when it is not. Or check that `.cc-reporter/reporter.lock` changed in the last minute. |

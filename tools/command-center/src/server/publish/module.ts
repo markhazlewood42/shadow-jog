@@ -24,6 +24,8 @@ export type ReporterOptions = {
   now?: () => number;
   log?: (message: string) => void;
   git?: GitIn;
+  /** False: the reporter does not exit after 30 minutes with no session (a start by hand). The default is true. */
+  idleExit?: boolean;
   /** Makes a runner for a config. Tests count the calls; the real one is `createRunner`. */
   makeRunner?: (config: Config) => Runner;
 };
@@ -101,6 +103,7 @@ export function createReporterModule(
     log,
     collect,
     onExit: options.onExit,
+    ...(options.idleExit === undefined ? {} : { idleExit: options.idleExit }),
   });
 
   return {

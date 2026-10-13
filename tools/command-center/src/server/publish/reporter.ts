@@ -52,6 +52,12 @@ export type ReporterDeps = {
   collect: () => Promise<LiveBody | null>;
   /** Called once when the reporter must end the process. */
   onExit: (code: number) => void;
+  /**
+   * Whether the reporter exits after 30 minutes with no live session. True by default: a reporter that nobody started by hand ends by itself.
+   * False for a reporter that a person started on purpose (the start-command-center shortcut): it then runs until it is stopped.
+   * Only this rule changes. The protection check and the fail-closed rules stay.
+   */
+  idleExit?: boolean;
 };
 
 export type Reporter = {
@@ -81,6 +87,7 @@ function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
 
 export function createReporter(deps: ReporterDeps): Reporter {
   const { store, http, now, log, collect } = deps;
+  const idleExit = deps.idleExit ?? true;
   const startedAt = now();
 
   let timer: NodeJS.Timeout | null = null;
@@ -200,7 +207,7 @@ export function createReporter(deps: ReporterDeps): Reporter {
 
       // 2. Idle exit.
       if (body !== null && body.sessions.length > 0) lastLiveSessionAt = at;
-      if (at - lastLiveSessionAt >= TIMING.idleExitMs) {
+      if (idleExit && at - lastLiveSessionAt >= TIMING.idleExitMs) {
         log('no live shadow-jog session for 30 minutes. The reporter exits.');
         await end(EXIT.idle);
         return;

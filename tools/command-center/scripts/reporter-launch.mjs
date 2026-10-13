@@ -12,6 +12,8 @@
 //   5. Every 2 minutes it runs `git fetch` in the copy. When main changed anything under tools/command-center/, it updates the copy
 //      (and installs the packages again when the lock file changed) and starts the server again. A "needs install" marker makes a failed
 //      `npm ci` try again, and the server never starts with new code and old packages.
+//   (`--manual`, from the tray app: the server runs with `--no-idle-exit`, so rule 6 never applies to code 0. `--prepare-local` writes the config of the
+//   local Command Center on port 3009 and builds its page, then ends. `--stop` stops what the tray started.)
 //   6. When the server exits on its own (30 minutes with no session: code 0; a public page: code 3; no settings file: code 4), it stops too.
 //      Any other exit is a crash: it starts the server again, at most 3 times in 10 minutes. The 4th crash inside 10 minutes ends the launcher
 //      (code 1), so 3 restarts and 4 crashes is the most.
@@ -456,7 +458,8 @@ export function lockNamesUs(text, pid, startedIso, launcherStart = null) {
 /**
  * The whole launcher. Returns the exit code.
  * `options.settingsFile` and `options.deps` exist for the tests (a fake settings path, a fake git and installer).
- * @param {{ checkout: string, branch?: string, origin?: string, settingsFile?: string, deps?: { git?: Function, install?: Function, supervise?: Function } }} options
+ * `options.manual` is true when a person started it (the tray app): the reporter server then runs with `--no-idle-exit`.
+ * @param {{ checkout: string, branch?: string, origin?: string, settingsFile?: string, manual?: boolean, deps?: { git?: Function, install?: Function, supervise?: Function } }} options
  */
 export async function runLauncher(options) {
   const checkout = mainCheckout(options.checkout);
@@ -564,7 +567,7 @@ export async function runLauncher(options) {
           });
         }
       },
-      { update: () => updateCopy(paths, branch, { git, install, log }), install, signal: lostLock.signal },
+      { update: () => updateCopy(paths, branch, { git, install, log }), install, signal: lostLock.signal, manual: options.manual === true },
     );
   } finally {
     release();
@@ -572,11 +575,21 @@ export async function runLauncher(options) {
   }
 }
 
+/**
+ * The command line of the reporter server. A reporter that a person started on purpose (`manual`: the tray app) gets `--no-idle-exit`, so it does not
+ * end after 30 minutes with no session. A start by the hook keeps the idle exit. Nothing else differs.
+ * @param {{ config: string }} paths
+ * @param {boolean} [manual]
+ */
+export function serverArgs(paths, manual = false) {
+  return ['--import', 'tsx', 'src/server/main.ts', '--config', paths.config, '--reporter', ...(manual ? ['--no-idle-exit'] : [])];
+}
+
 /** The real server process: `--import tsx` runs the TypeScript source as `npm run cc` does. CC_NO_OPEN=1 keeps a browser tab from opening. */
-function spawnServer(paths) {
+function spawnServer(paths, manual = false) {
   const out = openSync(paths.log, 'a');
   try {
-    return spawn(process.execPath, ['--import', 'tsx', 'src/server/main.ts', '--config', paths.config, '--reporter'], {
+    return spawn(process.execPath, serverArgs(paths, manual), {
       cwd: paths.app,
       env: { ...process.env, CC_NO_OPEN: '1' },
       stdio: ['ignore', out, out],
@@ -594,7 +607,7 @@ function spawnServer(paths) {
  * @returns {Promise<number>}
  */
 export function supervise(paths, checkout, branch, log, onServerPid, deps = {}) {
-  const spawnChild = deps.spawnServer ?? spawnServer;
+  const spawnChild = deps.spawnServer ?? ((serverPaths) => spawnServer(serverPaths, deps.manual === true));
   const install = deps.install ?? npmCi;
   const update = deps.update ?? (() => updateCopy(paths, branch, { git: runGit, install, log }));
   const fetchEveryMs = deps.fetchEveryMs ?? FETCH_EVERY_MS;
@@ -818,6 +831,64 @@ export async function stopReporter(checkout, deps = {}) {
   return verified.length > 0 ? 'The reporter was stopped.' : 'The reporter is not running (its processes are gone). The lock file was removed.';
 }
 
+// ---- the local Command Center (port 3009), for the tray app ----
+
+/** The page build of the local server: `vite build`, run with the same `node`, so that no `npm` or shell is needed. */
+const VITE_BIN = join('node_modules', 'vite', 'bin', 'vite.js');
+export const LOCAL_CONFIG = 'local.config.json';
+/** The most time that the page build may take. */
+export const BUILD_TIMEOUT_MS = 5 * 60_000;
+
+/**
+ * The config for the local Command Center that the tray app runs from the pinned copy. The code comes from the pinned copy (origin/main, so a branch switch
+ * in the shared checkout cannot break it), and the repo root and the roots point at the REAL checkout, so the docs, the search and the status are
+ * those of the working tree. It keeps the port of the config (3009). It is not a reporter run: no `--reporter`, so it publishes nothing.
+ * @param {Record<string, any>} original the parsed command-center.config.json of the pinned copy
+ * @param {string} checkout the main checkout
+ */
+export function localConfig(original, checkout) {
+  return reporterConfig(original, checkout, original.port);
+}
+
+/**
+ * Makes the local server ready: writes `.cc-reporter/local.config.json` and builds the page in the pinned copy (what `npm run cc` does first).
+ * Gives 0 when ready, 2 when the pinned copy is not ready yet (the tray app waits and asks again), 1 when it failed.
+ * `deps.run(command, args, options)` and `deps.log(message)` exist for the tests.
+ * @param {string} checkout
+ * @param {{ run?: typeof runCommand, log?: (message: string) => void }} [deps]
+ * @returns {Promise<number>}
+ */
+export async function prepareLocal(checkout, deps = {}) {
+  const run = deps.run ?? runCommand;
+  const main = mainCheckout(checkout);
+  const paths = pathsFor(main);
+  const log = deps.log ?? ((message) => {
+    try {
+      appendFileSync(paths.log, `${new Date().toISOString()} local: ${message}\n`);
+    } catch {
+      // no log to write to
+    }
+  });
+  if (!existsSync(readyFile(paths))) {
+    log('the pinned copy is not ready yet');
+    return 2;
+  }
+  try {
+    const original = JSON.parse(readFileSync(join(paths.app, 'command-center.config.json'), 'utf8'));
+    writeFileSync(join(paths.state, LOCAL_CONFIG), JSON.stringify(localConfig(original, main), null, 2));
+  } catch (error) {
+    log(`the config could not be written (${error instanceof Error ? error.message : 'unknown error'})`);
+    return 1;
+  }
+  const built = await run(process.execPath, [VITE_BIN, 'build'], { cwd: paths.app, timeout: BUILD_TIMEOUT_MS });
+  if (built.status !== 0) {
+    log(`the page build failed (code ${built.status}): ${(built.stderr || built.stdout).slice(-500)}`);
+    return 1;
+  }
+  log('ready');
+  return 0;
+}
+
 function readOption(argv, name) {
   const index = argv.indexOf(name);
   return index === -1 ? undefined : argv[index + 1];
@@ -836,8 +907,13 @@ if (isMainModule(import.meta.url)) {
     console.log(await stopReporter(checkout));
     process.exit(0);
   }
+  // --prepare-local is for the tray app: it writes the config of the local server and builds its page, then ends.
+  if (argv.includes('--prepare-local')) {
+    process.exit(await prepareLocal(checkout));
+  }
   // --branch and --origin are for testing a branch before it is merged: the pinned copy then follows that branch.
-  runLauncher({ checkout, ...(readOption(argv, '--branch') ? { branch: readOption(argv, '--branch') } : {}), ...(readOption(argv, '--origin') ? { origin: readOption(argv, '--origin') } : {}) }).then(
+  // --manual: a person started it (the tray app), so the reporter server has no idle exit.
+  runLauncher({ checkout, ...(argv.includes('--manual') ? { manual: true } : {}),...(readOption(argv, '--branch') ? { branch: readOption(argv, '--branch') } : {}), ...(readOption(argv, '--origin') ? { origin: readOption(argv, '--origin') } : {}) }).then(
     (code) => process.exit(code),
     (error) => {
       console.error(`reporter-launch: ${error instanceof Error ? error.message : 'failed'}`);

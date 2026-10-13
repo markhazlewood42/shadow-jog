@@ -9,7 +9,7 @@ import { TOKEN, body, fakeHttp, fakeStore, response, row } from './publish-helpe
 const PROTECTED = response(401);
 const PUBLIC = response(200, JSON.stringify({ reporter: { state: 'online' }, live: null }));
 
-function rig(options: { answers?: Parameters<typeof fakeHttp>; collect?: () => Promise<LiveBody | null> } = {}) {
+function rig(options: { answers?: Parameters<typeof fakeHttp>; collect?: () => Promise<LiveBody | null>; idleExit?: boolean } = {}) {
   const clock = { t: Date.parse('2026-10-12T09:00:00.000Z') };
   const store = fakeStore();
   const net = fakeHttp(...(options.answers ?? [PROTECTED]));
@@ -24,6 +24,7 @@ function rig(options: { answers?: Parameters<typeof fakeHttp>; collect?: () => P
     log: (message) => logs.push(message),
     collect: options.collect ?? (async () => current),
     onExit: (code) => exits.push(code),
+    ...(options.idleExit === undefined ? {} : { idleExit: options.idleExit }),
   };
   const reporter = createReporter(deps);
   return {
@@ -264,6 +265,25 @@ describe('the protection check', () => {
 });
 
 describe('the idle exit', () => {
+  it('with idleExit false (a start by hand) there is no exit after hours with no live session, and the reporter still publishes and checks', async () => {
+    const r = rig({ idleExit: false });
+    r.set(body([]));
+    await r.reporter.tick();
+    for (let hour = 0; hour < 3; hour++) {
+      r.advance(TIMING.idleExitMs * 2);
+      await r.reporter.tick();
+    }
+    expect(r.exits).toEqual([]);
+    expect(r.store.sets.length).toBeGreaterThan(1); // the beat goes on
+    expect(r.net.calls.length).toBeGreaterThan(1); // the protection check goes on
+  });
+
+  it('with idleExit false the protection rule still stops the reporter when the page is public (code 3)', async () => {
+    const r = rig({ idleExit: false, answers: [PUBLIC] });
+    await r.reporter.tick();
+    expect(r.exits).toEqual([EXIT.public]);
+  });
+
   it('exits with code 0 after 30 minutes with no live session, and not before', async () => {
     const r = rig();
     r.set(body([]));

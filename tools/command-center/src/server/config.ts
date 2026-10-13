@@ -38,6 +38,12 @@ export type Config = {
     /** Session folders that mix projects: a session counts only when its working folder is inside a root. Matched by exact name. */
     cwdMatchFolders: string[];
     /**
+     * Name prefixes of session folders that are all this project's, like `folders`, but matched by the start of the name. Claude Code gives every worktree its
+     * own session folder, `<project folder>--claude-worktrees-<branch>`, and a new one appears with each worktree. Every folder in projectsRoot whose name starts
+     * with a prefix counts as a whole folder. The default is none (the setting may be left out of the file).
+     */
+    folderPrefixes: string[];
+    /**
      * Whether the sessions that a script started are listed. A session whose entrypoint starts with "sdk" (`sdk-py`, `sdk-ts`, `sdk-cli`: what
      * `claude -p` and the Agent SDK write) is an automated run, not a conversation of Mark's, and a machine can have hundreds of them. They are
      * left out of the sessions list unless this is true, and the count of the ones left out is `hiddenSdk`. A session with no entrypoint is always listed.
@@ -103,7 +109,7 @@ export function isInside(root: string, path: string): boolean {
 // ---- loadConfig ----
 
 const TOP_LEVEL_KEYS = ['port', 'repoRoot', 'roots', 'githubRepo', 'approvalRef', 'gameUrl', 'links', 'claude', 'agents'] as const;
-const CLAUDE_KEYS = ['projectsRoot', 'sessionsRoot', 'folders', 'cwdMatchFolders', 'includeSdk', 'recentSeconds', 'workingSeconds', 'waitingSeconds'] as const;
+const CLAUDE_KEYS = ['projectsRoot', 'sessionsRoot', 'folders', 'cwdMatchFolders', 'folderPrefixes', 'includeSdk', 'recentSeconds', 'workingSeconds', 'waitingSeconds'] as const;
 const AGENTS_KEYS = ['pollMs', 'lingerSeconds', 'staleSeconds'] as const;
 
 /** Where Claude Code lists its running processes, unless the config says another. */
@@ -234,6 +240,7 @@ export function loadConfig(file: string): Config {
       sessionsRoot: toAbsolute('sessionsRoot' in claude ? text(claude, 'sessionsRoot', 'claude') : DEFAULT_SESSIONS_ROOT),
       folders: folderNames(claude, 'folders'),
       cwdMatchFolders: folderNames(claude, 'cwdMatchFolders'),
+      folderPrefixes: 'folderPrefixes' in claude ? folderNames(claude, 'folderPrefixes') : [],
       includeSdk: flag(claude, 'includeSdk', 'claude', false),
       recentSeconds: whole(claude, 'recentSeconds', 'claude', 1, 31_536_000),
       workingSeconds: whole(claude, 'workingSeconds', 'claude', 1, 31_536_000),
