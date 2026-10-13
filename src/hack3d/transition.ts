@@ -54,9 +54,10 @@ export interface TransitionParams {
   lineHeight: number;
   /** The hold cursor toggles every this many ticks (pass line 20: at least every 8). */
   cursorPeriod: number;
-  /** Where the picture may be one color (pass line 19), per style and level. */
-  uniform: Record<JackStyle, Record<JackLevel, UniformRange[]>>;
 }
+
+/** Where the picture may be one color (pass line 19), per style and level: the `uniform` block of `hacks.json`. Read by the checks and the tests, not by the shipped game. */
+export type UniformData = Record<JackStyle, Record<JackLevel, UniformRange[]>>;
 
 /** What the cover looks like at one tick. Plain numbers: `jack.ts` and the styles draw from it. */
 export interface CoverFrame {
@@ -100,21 +101,28 @@ export function coverAt(style: JackStyle, level: JackLevel, phase: Phase, t: num
         return { ...idle, cover: from * (1 - smooth(inU)) };
     }
   }
-  switch (style) {
-    case 'glitch': {
-      const white = level === 'full' || level === 'lite' ? 'white' : 'void';
-      switch (phase) {
-        case 'out':
-          return { ...idle, cover: p.holdCover * smooth(outU), amount: outU };
-        case 'hold':
-          return { ...idle, cover: p.holdCover, amount: 0.35, holdUi: true };
-        case 'swap':
-          return { ...idle, cover: 1, tint: white, amount: 1 };
-        case 'in':
-          return { ...idle, cover: from * (1 - inU), tint: white, amount: 1 - inU };
-      }
-      break;
+  if (style === 'glitch') {
+    const white = level === 'full' || level === 'lite' ? 'white' : 'void';
+    switch (phase) {
+      case 'out':
+        return { ...idle, cover: p.holdCover * smooth(outU), amount: outU };
+      case 'hold':
+        return { ...idle, cover: p.holdCover, amount: 0.35, holdUi: true };
+      case 'swap':
+        return { ...idle, cover: 1, tint: white, amount: 1 };
+      case 'in':
+        return { ...idle, cover: from * (1 - inU), tint: white, amount: 1 - inU };
     }
+  }
+  // The dissolve and the collapse are DEV styles until Mark picks one (decision D5): a shipped build never asks for them, and drops their look.
+  return import.meta.env.DEV ? coverAtOther(style, phase, t, p, from, idle) : idle;
+}
+
+/** The look of the styles that load in DEV builds only: the pixel dissolve and the scanline collapse. */
+function coverAtOther(style: JackStyle, phase: Phase, t: number, p: TransitionParams, from: number, idle: CoverFrame): CoverFrame {
+  const outU = clamp01((t + 1) / p.outTicks);
+  const inU = clamp01((t + 1) / p.inTicks);
+  switch (style) {
     case 'dissolve':
       switch (phase) {
         case 'out':

@@ -72,6 +72,8 @@ class JackCover implements Jack {
   private disposed = false;
   private disposeWhenDone = false;
   private settled = false;
+  /** The run that is on now, or null. */
+  private active: Promise<'done' | 'aborted'> | null = null;
 
   constructor(
     private readonly game: Game,
@@ -113,15 +115,24 @@ class JackCover implements Jack {
 
   run(r: JackRun): Promise<'done' | 'aborted'> {
     if (this.disposed) return Promise.resolve('done');
+    // One run at a time. A hack shorter than its own reveal calls for jack out while jack in is still on screen: the second run waits for the first to be over (the cover
+    // is never replaced in the middle of a run, which would leave the first run's promise, and so the story, waiting for ever).
+    const before = this.active;
+    if (before) return before.then(() => this.run(r));
     const tl = new Timeline(this.params, { skipHold: !r.holdReleased });
     this.tl = tl;
     this.cfg = r;
     this.settled = false;
-    return new Promise((resolve) => {
+    const mine = new Promise<'done' | 'aborted'>((resolve) => {
       this.done = resolve;
       this.enter('out');
       this.paint();
     });
+    this.active = mine;
+    void mine.then(() => {
+      if (this.active === mine) this.active = null;
+    });
+    return mine;
   }
 
   dispose(): void {

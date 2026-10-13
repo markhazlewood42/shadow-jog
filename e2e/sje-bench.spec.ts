@@ -16,6 +16,8 @@
  * the GPU (a one-pixel read-back through GlHandoff, which cannot return before every earlier command ran), draw calls, framebuffer binds, canvas
  * uploads and their bytes per frame. The speed line is the one of e2e/sjelabkit.ts (`speedLineMisses`).
  *
+ * M7 adds the 3D hack scene (bloom and HUD, pass line 17) and the frames of the jump between 2D and 3D, one case per style (pass line 25).
+ *
  * Controls: the upload counter must see three canvases when there are three (so it can fail), the wrapper-cost reading must be above zero
  * only when objects move (a run with no objects reads about zero), and the speed line's rules have teeth (pure check).
  */
@@ -486,4 +488,153 @@ test.describe('M1 bench (local only, real GPU)', () => {
       await g.close();
     }
   });
+
+  // ---- M7 (docs/engine/m7-brief.md pass lines 17 and 25): the 3D hack scene and the jump, on the real game ------------------------------------
+  // `npm run perf` runs this file on a real GPU. The main session runs it once at the end of the milestone (never in CI, never per PR: migration.md principle 12) and writes the
+  // numbers into tooling-and-testing.md section 7. On software GL these cases still RUN (the page drives the frames), and only the stuck-loop rule of the speed line applies.
+
+  test('M7: the running HackScene with bloom and the HUD (fx full, 640): the speed line, draws, binds and uploads; and a negative control of extra 3D frames', async ({ browser }) => {
+    test.setTimeout(300_000);
+    const g = await openGame(browser, { init: installGlCounters, query: '&fx=full&jack=cut' });
+    try {
+      const { page } = g;
+      expect(await waitTop(page, 'TitleScene')).toBe(true);
+      const renderer = await sj<string>(page, 'sj.renderer.name');
+      const software = isSoftwareName(renderer);
+      expect(await sj<string>(page, 'sj.fxCounts().level'), 'the effects run at full').toBe('full');
+      // A long hack, so it runs for every measured frame. The first entry compiles the shaders (the cold time is recorded below, not gated).
+      const cold0 = await sj<number>(page, 'performance.now()');
+      await sj(page, "(window.__h = null, sj.hack('test-hack', { over: { ticks: 20000, traceLimit: 1000 } }).then((o) => { window.__h = o; }), true)");
+      expect(await waitUntil(page, 'sj.hackState().running && sj.hackState().tick > 3', 60_000)).toBe(true);
+      const cold = (await sj<number>(page, 'performance.now()')) - cold0;
+      await sj(page, '(sj.game.stop(), true)');
+      const out = await page.evaluate(
+        async ({ frames, warmup, kitSrc, soft }) => {
+          // biome-ignore lint/suspicious/noExplicitAny: the page's own hook object, typed by the game, not by this spec.
+          const sj = (window as unknown as { __SJ__: Record<string, any> }).__SJ__;
+          const game = sj.game;
+          const gl = (window as unknown as { __gl: { draws: number; binds: number; uploads: number; uploadBytes: number } }).__gl;
+          const { measure } = new Function(`return (${kitSrc})`)()(game, gl, frames, warmup);
+          // The control pass is short on software GL, where an extra 3D frame costs about 12 ms.
+          const { measure: measureHeavy } = new Function(`return (${kitSrc})`)()(game, gl, soft ? 30 : frames, soft ? 10 : warmup);
+          let live = 0;
+          let total = 0;
+          const watch = (): void => {
+            total++;
+            if (sj.hackState().running) live++;
+          };
+          const scene = await measure(watch);
+          // Negative control: 600 extra 3D frames per frame (the draw phase renders the 3D frame each time). Software GL (about 12 ms for one) is at the stuck-loop line at 20, so it gets 20.
+          const EXTRA = soft ? 20 : 600;
+          const heavy = await measureHeavy(() => {
+            watch();
+            for (let k = 0; k < EXTRA; k++) game.draw(0);
+          });
+          return { scene, heavy, live, total };
+        },
+        { frames: FRAMES, warmup: WARMUP, kitSrc: benchKit.toString(), soft: software },
+      );
+      const o = out as { scene: Scenario; heavy: Scenario; live: number; total: number };
+      const bare = await bareIntervals(browser, FRAMES);
+      const bareP95 = percentile(bare, 0.95);
+      const label = software ? `SOFTWARE GL (${renderer}): NOT GPU numbers` : `GPU (${renderer})`;
+      const s = o.scene;
+      console.log(
+        `SJE bench, the 3D hack scene with bloom and the HUD, fx full, 640 [${label}], bare rAF page p95 ${bareP95.toFixed(2)} ms
+` +
+          `  interval p95 ${s.intervalP95.toFixed(2)} ms, work p50/p95 ${s.workP50.toFixed(2)}/${s.workP95.toFixed(2)} ms, cost p50/p95 ${s.costP50.toFixed(2)}/${s.costP95.toFixed(2)} ms, ` +
+          `${s.drawsPerFrame.toFixed(1)} draws, ${s.bindsPerFrame.toFixed(1)} binds, ${s.uploadsPerFrame.toFixed(2)} uploads per frame; first entry (chunk, scene, first frame) ${cold.toFixed(0)} ms (cold, not gated); ` +
+          `hack running ${o.live}/${o.total} ticks
+` +
+          `  control (${software ? 20 : 600} extra 3D frames): interval p95 ${o.heavy.intervalP95.toFixed(2)} ms, cost p95 ${o.heavy.costP95.toFixed(2)} ms`,
+      );
+      writeFileSync(`${OUT}/bench-hack3d.json`, JSON.stringify({ label, renderer, software, bareP95, coldMs: cold, scene: s, heavy: o.heavy, live: o.live, total: o.total }, null, 2));
+      // Control: the hack scene ran for the measured frames, and the counter saw draws.
+      expect(o.live / o.total, 'the HackScene was running for the measured ticks').toBeGreaterThan(0.95);
+      expect(s.drawsPerFrame, 'a frame draws something (control: the counter sees the scene)').toBeGreaterThan(1);
+      const misses = speedLineMisses({ bareP95, sceneP95: s.intervalP95, costP95: s.costP95, software });
+      expect(misses, `the speed line (${label})`).toEqual([]);
+      // Negative control: extra 3D frames break the line, on a real GPU both rules (software GL: only the stuck-loop rule exists, so the control reads the cost gauge).
+      if (software) expect(o.heavy.costP95, 'control: the gauge sees the extra 3D frames').toBeGreaterThan(s.costP95 * 2);
+      else {
+        const broken = speedLineMisses({ bareP95, sceneP95: o.heavy.intervalP95, costP95: o.heavy.costP95, software });
+        expect(broken, 'control: extra 3D frames break the interval rule').toEqual(expect.arrayContaining([expect.stringContaining('interval')]));
+        expect(broken, 'control: extra 3D frames break the cost rule').toEqual(expect.arrayContaining([expect.stringContaining('cost')]));
+      }
+      expect(g.problems).toEqual([]);
+    } finally {
+      await g.close();
+    }
+  });
+
+  for (const style of ['glitch', 'dissolve', 'collapse'] as const) {
+    test(`M7: the frames of jack in and jack out, style ${style} (fx full, 640): the speed line holds during the transition (pass line 25)`, async ({ browser }) => {
+      test.setTimeout(300_000);
+      const g = await openGame(browser, { init: installGlCounters, query: `&fx=full&jack=${style}` });
+      try {
+        const { page } = g;
+        expect(await waitTop(page, 'TitleScene')).toBe(true);
+        const renderer = await sj<string>(page, 'sj.renderer.name');
+        const software = isSoftwareName(renderer);
+        expect(await sj<string>(page, 'sj.fxCounts().level'), 'the effects run at full').toBe('full');
+        // Warm the chunk first: one whole hack, so the measured frames are the cover and not the chunk load.
+        await sj(page, "sj.hack('test-short', { over: { ticks: 5 } })");
+        await sj(page, '(sj.game.stop(), true)');
+        const out = await page.evaluate(
+          async ({ frames, warmup, kitSrc, extra }) => {
+            // biome-ignore lint/suspicious/noExplicitAny: the page's own hook object, typed by the game, not by this spec.
+            const sj = (window as unknown as { __SJ__: Record<string, any> }).__SJ__;
+            const game = sj.game;
+            const gl = (window as unknown as { __gl: { draws: number; binds: number; uploads: number; uploadBytes: number } }).__gl;
+            const { measure } = new Function(`return (${kitSrc})`)()(game, gl, frames, warmup);
+            const { measure: measureHeavy } = new Function(`return (${kitSrc})`)()(game, gl, extra < 80 ? 30 : frames, extra < 80 ? 10 : warmup);
+            let covered = 0;
+            let total = 0;
+            let busy = false;
+            // Hacks of 40 ticks, one after the other: about two thirds of every run is the cover (out, swap, in, twice).
+            const loop = (): void => {
+              total++;
+              const st = sj.jackState();
+              if (st && st.phase !== 'done') covered++;
+              if (!busy) {
+                busy = true;
+                void sj.hack('test-short', { over: { ticks: 40 } }).then(() => {
+                  busy = false;
+                });
+              }
+            };
+            const run = await measure(loop);
+            const heavy = await measureHeavy(() => {
+              loop();
+              for (let k = 0; k < extra; k++) game.draw(0);
+            });
+            return { run, heavy, covered, total };
+          },
+          { frames: FRAMES, warmup: WARMUP, kitSrc: benchKit.toString(), extra: software ? 4 : 80 },
+        );
+        const o = out as { run: Scenario; heavy: Scenario; covered: number; total: number };
+        const bare = await bareIntervals(browser, FRAMES);
+        const bareP95 = percentile(bare, 0.95);
+        const label = software ? `SOFTWARE GL (${renderer}): NOT GPU numbers` : `GPU (${renderer})`;
+        const r = o.run;
+        console.log(
+          `SJE bench, the jump (style ${style}), fx full, 640 [${label}], bare rAF page p95 ${bareP95.toFixed(2)} ms
+` +
+            `  interval p95 ${r.intervalP95.toFixed(2)} ms, work p50/p95 ${r.workP50.toFixed(2)}/${r.workP95.toFixed(2)} ms, cost p50/p95 ${r.costP50.toFixed(2)}/${r.costP95.toFixed(2)} ms; ` +
+            `cover on ${o.covered}/${o.total} ticks
+` +
+            `  control (${software ? 4 : 80} extra draws): interval p95 ${o.heavy.intervalP95.toFixed(2)} ms, cost p95 ${o.heavy.costP95.toFixed(2)} ms`,
+        );
+        writeFileSync(`${OUT}/bench-jump-${style}.json`, JSON.stringify({ label, renderer, software, bareP95, run: r, heavy: o.heavy, covered: o.covered, total: o.total }, null, 2));
+        // Control: the cover was on for a good share of the measured frames (else this timed the bare scenes).
+        expect(o.covered / o.total, 'the cover was on screen for the measured ticks').toBeGreaterThan(0.4);
+        const misses = speedLineMisses({ bareP95, sceneP95: r.intervalP95, costP95: r.costP95, software });
+        expect(misses, `the speed line during the jump (${label})`).toEqual([]);
+        if (!software) expect(speedLineMisses({ bareP95, sceneP95: o.heavy.intervalP95, costP95: o.heavy.costP95, software }), 'control: 80 extra draws break the line').not.toEqual([]);
+        expect(g.problems).toEqual([]);
+      } finally {
+        await g.close();
+      }
+    });
+  }
 });

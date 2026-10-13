@@ -397,7 +397,7 @@ describe('the hack door (src/hack3d and the seam src/game/hackseam.ts, M7; docs/
   const read = (f: string) => readFileSync(join(ROOT, f), 'utf8');
   const hack = edges(['src/hack3d']);
   /** The hack3d files that sit in the START PATH: the shipped game loads them up front, so they must hold no Three. */
-  const START_FILES = ['src/hack3d/door.ts', 'src/hack3d/result.ts', 'src/hack3d/data.ts', 'src/hack3d/transition.ts', 'src/hack3d/jack.ts'];
+  const START_FILES = ['src/hack3d/door.ts', 'src/hack3d/result.ts', 'src/hack3d/data.ts', 'src/hack3d/checkdata.ts', 'src/hack3d/transition.ts', 'src/hack3d/jack.ts'];
 
   /** Every problem of the start-path files: a Three import, an import of the 3D chunk's files as a value, or an import of the old engine. Pure, so a control can run it on made-up edges. */
   function startPathProblems(edgeList: Edge[], text: (f: string) => string): string[] {

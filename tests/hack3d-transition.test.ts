@@ -6,7 +6,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { checkTransition, TRANSITION } from '../src/hack3d/data';
+import { checkTransition, checkUniform, TRANSITION } from '../src/hack3d/data';
 import {
   checkUniformRanges,
   coverAt,
@@ -21,11 +21,13 @@ import {
   Timeline,
   type TimelineInput,
   type TransitionParams,
+  type UniformData,
   type UniformRange,
 } from '../src/hack3d/transition';
 
 const P: TransitionParams = TRANSITION;
-const raw = JSON.parse(readFileSync(join(import.meta.dirname, '..', 'src/data/hacks.json'), 'utf8')) as { transition: TransitionParams };
+const raw = JSON.parse(readFileSync(join(import.meta.dirname, '..', 'src/data/hacks.json'), 'utf8')) as { transition: TransitionParams; uniform: UniformData };
+const UNIFORM = raw.uniform;
 const IDLE: TimelineInput = { holdReleased: false, holdTimedOut: false, swapDone: false, holdFrom: 0.5 };
 
 /** Run a timeline, giving it facts by tick. Returns the (phase, t) of every tick, starting with the one before the first step. */
@@ -50,17 +52,18 @@ describe('the transition numbers (data)', () => {
 
   it('checkTransition accepts the file and rejects each kind of mistake', () => {
     expect(checkTransition(raw.transition)).toEqual([]);
+    expect(checkUniform(raw.uniform, raw.transition)).toEqual([]);
     const bad = (over: Record<string, unknown>) => checkTransition({ ...raw.transition, ...over });
     expect(bad({ outTicks: 0 })).not.toEqual([]);
     expect(bad({ holdCover: 2 })).not.toEqual([]);
     expect(bad({ holdBoundMs: Number.NaN })).not.toEqual([]);
     expect(bad({ extra: 1 })).not.toEqual([]);
-    expect(bad({ uniform: {} })).not.toEqual([]);
+    expect(checkUniform({}, raw.transition)).not.toEqual([]);
+    expect(checkUniform(null, raw.transition)).not.toEqual([]);
     expect(checkTransition(null)).not.toEqual([]);
     // A range with no reason is named with where it is.
-    const glitch = raw.transition.uniform.glitch;
-    const noReason = { ...raw.transition.uniform, glitch: { ...glitch, full: [{ phase: 'swap', from: 0, to: null, reason: '' }] } };
-    expect(bad({ uniform: noReason }).join(' ')).toMatch(/glitch\.full.*reason/);
+    const noReason = { ...UNIFORM, glitch: { ...UNIFORM.glitch, full: [{ phase: 'swap', from: 0, to: null, reason: '' }] } };
+    expect(checkUniform(noReason, raw.transition).join(' ')).toMatch(/glitch\.full.*reason/);
   });
 });
 
@@ -178,7 +181,7 @@ describe('coverAt: what the cover looks like', () => {
 
 describe('the declared uniform ranges (pass line 19)', () => {
   it('every style and level in the file passes the rules', () => {
-    for (const style of JACK_STYLES) for (const level of JACK_LEVELS) expect(checkUniformRanges(P, P.uniform[style][level]), `${style} ${level}`).toEqual([]);
+    for (const style of JACK_STYLES) for (const level of JACK_LEVELS) expect(checkUniformRanges(P, UNIFORM[style][level]), `${style} ${level}`).toEqual([]);
   });
 
   const swap: UniformRange = { phase: 'swap', from: 0, to: null, reason: 'solid' };

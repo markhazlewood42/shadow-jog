@@ -148,40 +148,42 @@ jobs:
       matrix:
         # The specs are split by name, not with `--shard`: Playwright's `--shard` splits by test count, and it gave one shard 143 tests (the slow ones) and the other 78 (4 minutes).
         # The lists are balanced by measured time. The seconds of each spec are the larger of the two attempts of the run 38182602108 (one worker, the list reporter).
-        # The attempts differ by up to 35% on the same spec (the runners differ), so a shard can be a minute off. Shard totals in seconds of tests:
-        #   1/8 364 (field parity A 364)                                      2/8 362 (field parity C 322, gpufx 40)
-        #   3/8 367 (default-path 285, stage parity 82)                       4/8 355 (field parity D 257, canaries 82, fxlab 16)
-        #   5/8 336 + scene3d, not measured yet (playthrough 218, prod 118)                            6/8 349 (field parity B 165, battle 128, shell 56)
-        #   7/8 351 (draws 159, economy 131, chaos 61)                        8/8 354 (field 149, gameover 143, fx 62)
-        # Field parity C is 316 s for its 10 states plus an estimated 6 s for its 6 GPU-only states. Those 6 states skip themselves on CI. Before the fix in sjefieldparityparts.ts
-        # each one rendered first (about 60 s each) and then skipped, so the shard took 16 minutes (run 38182602108, shard 4/6). The total is 2,838 s, so eight shards average 355 s.
-        # No spec can be split further without changing it: field parity A (364 s) is the longest and sits alone, and the playthrough (218 s) is one test.
+        # The attempts differ by up to 35% on the same spec (the runners differ), so a shard can be a minute off. Two specs are not from that run: e2e/sje-hack.spec.ts (M7, 312 s, measured
+        # on the bundled Chromium on SwiftShader on 2026-10-12) and e2e/sje-scene3d.spec.ts (estimated 45 s). Shard totals in seconds of tests:
+        #   1/8 409 (field parity A 364, scene3d 45)                          2/8 399 (field parity C 322, chaos 61, fxlab 16)
+        #   3/8 408 (default-path 285, prod 123)                              4/8 385 (field parity D 257, battle 128)
+        #   5/8 411 (playthrough 218, economy 131, fx 62)                     6/8 408 (sje-hack 312, shell 56, gpufx 40)
+        #   7/8 390 (draws 159, field 149, canaries 82)                       8/8 390 (field parity B 165, gameover 143, stage parity 82)
+        # Field parity C is 316 s for its 10 states plus an estimated 6 s for its 6 GPU-only states. Those 6 states skip themselves on CI.
+        # Before the fix in sjefieldparityparts.ts each one rendered first (about 60 s each) and then skipped, so the shard took 16 minutes (run 38182602108, shard 4/6). The total is about
+        # 3,200 s, so eight shards average 400 s. M7 added sje-hack (312 s) and moved most specs: before it the shards averaged 355 s. The spec is in 6/8 (pass line 18 of docs/engine/m7-brief.md).
+        # No spec can be split further without changing it: field parity A (364 s) and sje-hack (312 s) are long, and the playthrough (218 s) is one test.
         # A new spec is added to the shard with the smallest total, or to the NOT_IN_CI list in tests/ci-shards.test.ts with a reason. That test fails on a spec that is in no list.
         include:
           - shard: '1/8'
             specs: >-
-              e2e/sje-field-parity-a.spec.ts
+              e2e/sje-field-parity-a.spec.ts e2e/sje-scene3d.spec.ts
           - shard: '2/8'
             specs: >-
-              e2e/sje-field-parity-c.spec.ts e2e/gpufx.spec.ts
+              e2e/sje-field-parity-c.spec.ts e2e/chaos.spec.ts e2e/fxlab.spec.ts
           - shard: '3/8'
             specs: >-
-              e2e/default-path.spec.ts e2e/sje-stage-parity.spec.ts
+              e2e/default-path.spec.ts e2e/prod.spec.ts
           - shard: '4/8'
             specs: >-
-              e2e/sje-field-parity-d.spec.ts e2e/sje-canaries.spec.ts e2e/fxlab.spec.ts
+              e2e/sje-field-parity-d.spec.ts e2e/sje-battle.spec.ts
           - shard: '5/8'
             specs: >-
-              e2e/playthrough.spec.ts e2e/prod.spec.ts e2e/sje-scene3d.spec.ts
+              e2e/playthrough.spec.ts e2e/economy.spec.ts e2e/sje-fx.spec.ts
           - shard: '6/8'
             specs: >-
-              e2e/sje-field-parity-b.spec.ts e2e/sje-battle.spec.ts e2e/sje-shell.spec.ts e2e/sje-hack.spec.ts
+              e2e/sje-hack.spec.ts e2e/sje-shell.spec.ts e2e/gpufx.spec.ts
           - shard: '7/8'
             specs: >-
-              e2e/sje-draws.spec.ts e2e/economy.spec.ts e2e/chaos.spec.ts
+              e2e/sje-draws.spec.ts e2e/sje-field.spec.ts e2e/sje-canaries.spec.ts
           - shard: '8/8'
             specs: >-
-              e2e/sje-field.spec.ts e2e/gameover.spec.ts e2e/sje-fx.spec.ts
+              e2e/sje-field-parity-b.spec.ts e2e/gameover.spec.ts e2e/sje-stage-parity.spec.ts
     steps:
       - uses: actions/checkout@v4
         with:

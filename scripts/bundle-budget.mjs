@@ -77,27 +77,30 @@ const CHUNK_MAX = 480 * 1000;
 // 2026-10-10 (M6, Mark's one-bigger-total rule, decision 4 of docs/engine/m6-brief.md): the flip made the old flag-only chunks (`liveopen`, `fieldopen`) part of every player's download,
 // so they joined this total and `lazy-2d` (the class and its 50 kB cap are gone). Measured 451.688 kB gzip after the flip (the flag-only 49.1 kB, less 6.3 kB that deleting the old presenter and the
 // GL half of `display.ts` saved); set to 452 kB, rounded up to the next 1 kB.
-// 2026-10-12 (M7, D2 B of docs/engine/m7-brief.md): the total EXCLUDES the lazy 3D chunk (it has its own caps below), so only the hack door joins it. Measured 453.130 kB gzip with the door (the M6 baseline was
-// 451.688 kB, so the door and the transition cost +1.4 kB); set to 454 kB, rounded up to the next 1 kB. The 3D chunk was the 145.9 kB that the first stub-door build added when it counted in the total.
-const GZIP_TOTAL_MAX = 454 * 1000;
+// 2026-10-12 (M7, D2 B of docs/engine/m7-brief.md): the total EXCLUDES the lazy 3D chunk (it has its own caps below), so what joins it is the hack door, the jump (the cover, its time line and
+// style A) and their data. Measured 455.193 kB gzip (the M6 baseline was 451.688 kB: +3.5 kB; the brief's estimate was +1.5 kB for the door alone, before the cover); set to 456 kB, rounded up
+// to the next 1 kB. The 3D chunk that the first stub-door build counted in the total was the +145.9 kB of that build.
+const GZIP_TOTAL_MAX = 456 * 1000;
 // 2026-10-10 (M6): `first play` (boot + lazy-2d) is what every player downloads, so it has its own cap:
 // measured 391.363 kB gzip (boot 1.5 + the game's boot chunk and what it imports 184.7 + the engine 156.1 + the two stages 49.1), cap = measured + 1 kB = 392.4 kB. Before the flip it was 345.7 kB, with no cap
 // and without the stages. The largest-chunk cap (480 kB) holds because `src/sje/boot.ts` loads the game's boot with its own dynamic import: with a static one, Rolldown merged the engine and the game into one 770.8 kB chunk.
-// 2026-10-12 (M7): measured 392.862 kB with the door (+1.5 kB; the first build with a 3D chunk measured 398.6 kB, because `src/hack3d/hud.ts` took `H` and `W` from the engine facade and Rolldown then
-// put `View3D`, `ExternalFrameTexture` and eight Pixi WebGPU upload modules in a shared chunk of the start path; `tests/sje-imports.test.ts` now forbids a value import of the facade in `src/hack3d`).
-// Cap = measured + 1 kB, rounded up to the next 0.1 kB.
-const FIRST_PLAY_MAX = 393_900;
+// 2026-10-12 (M7): measured 394.882 kB with the door and the cover (+3.3 kB over M6's 391.6). The first build with a 3D chunk measured 398.6 kB, because the engine facade `src/sje/index.ts`
+// re-exported the 3D-only `View3D` and `ExternalFrameTexture`, and Rolldown then put them and eight Pixi WebGPU upload modules in a shared chunk of the start path; they are exported from
+// `src/sje/three/index.ts` now, and `tests/sje-imports.test.ts` forbids the re-export. Three more cuts kept the start path small: the data checks (`src/hack3d/checkdata.ts`) run in a DEV build only,
+// the `uniform` block of `hacks.json` is a top-level key that the shipped game never imports, and the looks of the DEV styles B and C are behind `import.meta.env.DEV`.
+// Cap = measured + 1 kB, rounded up to the next 0.1 kB. PROVISIONAL: the numbers are set again from the build that ships once Mark has picked the style (task 10 of the brief).
+const FIRST_PLAY_MAX = 395_900;
 
 /**
  * The lazy 3D chunk (Three, the 3D facade, the UnrealBloomPass, the Phase 0 test scene), gzip. Set at 160 kB on 2026-10-05 (real choice C5, accepted by Mark): the spike
- * measured 145.1 kB for it. M7 builds it into the game: 141.6 kB measured, so the cap holds with 18 kB of room (D2 B: own check, not in the total).
+ * measured 145.1 kB for it. M7 builds it into the game: 146.3 kB measured (it holds the Pixi WebGPU upload modules and the 3D frame code that the facade fix moved out of the start path), so the cap holds with 13.7 kB of room (D2 B: own check, not in the total).
  */
 const LAZY_3D_GZIP_MAX = 160 * 1000;
 /**
  * The lazy 3D chunk is exempt from the 480 kB largest-chunk cap (Three is one module graph, and check 5 forbids the named groups that could cut it) and has its own raw cap:
- * measured 561.6 kB raw plus 5%, rounded up to the next 1 kB (2026-10-12, M7).
+ * measured 579.6 kB raw plus 5% (608.6 kB), rounded up to the next 1 kB (2026-10-12, M7).
  */
-const LAZY_3D_RAW_MAX = 590 * 1000;
+const LAZY_3D_RAW_MAX = 609 * 1000;
 
 /** The lazy chunks of the start path: the engine and the game's own boot are dynamic imports (src/main.ts, src/sje/boot.ts), so they are not in the entry's static closure. */
 const START_SRC = ['src/sje/boot.ts', 'src/boot.ts'];

@@ -16,7 +16,7 @@ const first = (): HackDef => {
   return h;
 };
 /** One definition as plain JSON, with `over` merged in, wrapped in the file shape. */
-const file = (over: Record<string, unknown>): unknown => ({ transition: (raw as { transition: unknown }).transition, hacks: [{ ...JSON.parse(JSON.stringify(first())), ...over }] });
+const file = (over: Record<string, unknown>): unknown => ({ transition: (raw as { transition: unknown }).transition, uniform: (raw as { uniform: unknown }).uniform, hacks: [{ ...JSON.parse(JSON.stringify(first())), ...over }] });
 
 describe('src/data/hacks.json', () => {
   it('passes checkHacks, and the loader returns exactly the file’s definitions', () => {

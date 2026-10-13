@@ -14,7 +14,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { expect, type Page, test } from '@playwright/test';
-import { checkUniformRanges, inRanges, type JackLevel, type JackStyle, type TransitionParams, type UniformRange } from '../src/hack3d/transition';
+import { checkUniformRanges, inRanges, type JackLevel, type JackStyle, type TransitionParams, type UniformData, type UniformRange } from '../src/hack3d/transition';
 import { advance, type GamePage, openGame, sj, unevenBlocks, waitTop, waitUntil } from './sjegamekit';
 
 const W = 640;
@@ -114,7 +114,8 @@ test.describe('the story bridge on the real loop (pass lines 4 and 5)', () => {
       const t = await top();
       if (t !== tops[tops.length - 1]) tops.push(t);
       // Once the 3D scene has run a while: the picture is not blank and a HUD panel is on it.
-      if (!hackSeen && (await sj<boolean>(page, 'sj.hackState().running && sj.hackState().tick > 20'))) {
+      // Once the 3D scene has run a while AND the cover has gone (the reveal is 24 ticks long; a veil over the HUD would change its colors).
+      if (!hackSeen && (await sj<boolean>(page, "sj.hackState().running && sj.hackState().tick > 20 && (!sj.jackState() || sj.jackState().phase === 'done')"))) {
         hackSeen = { colors: await colors(page), edge: await pixel(page, NODE.x, NODE.y), fill: await pixel(page, NODE.x + 2, NODE.y + 2) };
       }
       if (await sj<boolean>(page, 'window.__story.done')) break;
@@ -143,7 +144,7 @@ test.describe('the story bridge on the real loop (pass lines 4 and 5)', () => {
         expect(r.outcome).toMatchObject({ outcome: expected, via: 'played' });
         // The scene on top: the field, the 2D line, the field, the 3D scene, the field again, the 2D line, the field.
         expect(r.tops).toContain('HackScene');
-        expect(r.tops.slice(-1)).toEqual(['FieldScene']);
+        // (The last scene is read below, after the story has gone: the loop that samples the stack stops the moment the script ends, a tick before the last dialog is gone.)
         // The 3D picture was not blank and the HUD panel was on it (edge #1f5cff, fill #0a0918).
         expect(r.hackSeen, 'the hack ran long enough to look at').not.toBeNull();
         expect(r.hackSeen?.colors).toBeGreaterThan(20);
@@ -658,7 +659,9 @@ test.describe('determinism, pixels and colors at 640x360 (pass lines 12 and 13)'
 // back (jack out). The frames are captured one tick at a time on a frozen game (`sj.step(1)` and a read of the back buffer in one task). A frame may be one color (a single-color
 // share of 0.9 or more) only inside a uniform range that the transition DECLARES in `src/data/hacks.json`, with a reason; the hold is judged by its own rules (line 20).
 
-const TRANSITION = JSON.parse(readFileSync('src/data/hacks.json', 'utf8')).transition as TransitionParams;
+const HACKS_FILE = JSON.parse(readFileSync('src/data/hacks.json', 'utf8')) as { transition: TransitionParams; uniform: UniformData };
+const TRANSITION = HACKS_FILE.transition;
+const UNIFORM = HACKS_FILE.uniform;
 const STYLES: readonly JackStyle[] = ['glitch', 'dissolve', 'collapse'];
 const LEVELS: readonly JackLevel[] = ['full', 'lite', 'none'];
 
@@ -701,6 +704,9 @@ async function capture(page: Page, id: string, opts: Record<string, unknown>, o:
   await freeze(page);
   await sj(page, COUNT_FX);
   await sj(page, `(window.__h = null, sj.hack(${JSON.stringify(id)}, ${JSON.stringify(opts)}).then((out) => { window.__h = { out, at: performance.now() }; }), true)`);
+  // The first tick of the capture is the first tick of the cover. (The styles B and C load their module with a dynamic import in a DEV build, so the cover exists a moment after the call:
+  // stepping before that would run the 2D scene's own ticks first and make two loads differ.)
+  expect(await waitUntil(page, 'sj.jackState() !== null', 15_000), 'the cover started').toBe(true);
   const frames: Frame[] = [];
   let tail = 0;
   for (let i = 0; i < (o.maxSteps ?? 900); i++) {
@@ -765,7 +771,7 @@ test.describe('the jump between 2D and 3D: no bad frame, a held chunk, an exact 
           expect(frames.filter((f) => f.phase === 'out')).toHaveLength(2 * (TRANSITION.outTicks - 1));
           expect(frames.filter((f) => f.phase === 'in')).toHaveLength(2 * TRANSITION.inTicks);
           // Line 19.
-          expect(uniformProblems(frames, TRANSITION.uniform[style][level])).toEqual([]);
+          expect(uniformProblems(frames, UNIFORM[style][level])).toEqual([]);
           // Line 23: at none, no effects call and no world filter; at lite no world filter; at full the glitch style uses its effects.
           if (level === 'none') expect(frames.map((f) => f.fxCalls).at(-1)).toBe(0);
           if (level !== 'full') expect(Math.max(...frames.map((f) => f.filters)), 'a filter is on the world').toBe(0);
@@ -781,6 +787,24 @@ test.describe('the jump between 2D and 3D: no bad frame, a held chunk, an exact 
     }
   }
 
+  // A hack shorter than its own reveal: its sim ends while jack in is still on screen. Jack out must wait for jack in to be over (found by the perf case of M7: the second run used to
+  // replace the first one, and the story waited for ever). The result is the hack's own, and the cover is gone afterwards.
+  for (const level of ['full', 'none'] as const) {
+    test(`fx ${level}: a hack of 5 ticks (shorter than the reveal) ends, the story continues, and the cover is gone`, async ({ browser }) => {
+      const g = await openTitle(browser, { query: `&jack=glitch&fx=${level}&seed=5` });
+      try {
+        const { page } = g;
+        const out = await sj<{ outcome: string; via: string }>(page, `sj.hack('test-short', { over: { ticks: 5 } })`);
+        expect(out).toMatchObject({ outcome: 'success', via: 'played' });
+        expect(await sj(page, 'sj.jackState()')).toBeNull();
+        expect(await sj<boolean>(page, 'sj.hackState().running')).toBe(false);
+        expect(g.problems).toEqual([]);
+      } finally {
+        await g.close();
+      }
+    });
+  }
+
   // Controls of line 19, on the glitch style at full.
   test('CONTROL: a mutant that skips the first 3D renders reveals a blank target, a mutant that draws one black frame at the hand-over shows one: both give an undeclared one-color frame', async ({ browser }) => {
     for (const mutant of ['blank', 'black'] as const) {
@@ -790,14 +814,14 @@ test.describe('the jump between 2D and 3D: no bad frame, a held chunk, an exact 
         if (mutant === 'blank') await sj(page, 'sj.hackTest.skipFirstRenders(8)');
         else await sj(page, '(sj.hackTest.blackFrameAtHandover(true), true)');
         const frames = await capture(page, 'test-short', { over: { ticks: 40 } });
-        const problems = uniformProblems(frames, TRANSITION.uniform.glitch.full);
+        const problems = uniformProblems(frames, UNIFORM.glitch.full);
         expect(problems.length, `${mutant}: the check finds the bad frame`).toBeGreaterThan(0);
       } finally {
         await g.close();
       }
     }
     // And the rules reject a style that declares more than they allow (the unit test of the rules has the full list).
-    const wide: UniformRange[] = [...TRANSITION.uniform.glitch.full, { phase: 'in', from: 0, to: TRANSITION.inTicks - 1, reason: 'too wide' }];
+    const wide: UniformRange[] = [...UNIFORM.glitch.full, { phase: 'in', from: 0, to: TRANSITION.inTicks - 1, reason: 'too wide' }];
     expect(uniformProblems([], wide)).not.toEqual([]);
   });
 

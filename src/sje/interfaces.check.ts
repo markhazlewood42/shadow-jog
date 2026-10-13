@@ -458,8 +458,13 @@ export declare abstract class Scene3D<R> extends Scene<R> {      // lazy chunk
 // A subclass does not override fixedUpdate.
 //
 // ScriptApi (src/game/script.ts) gains one method:
-//   hack(def: HackDef): Promise<HackResult>;
+//   hack(def: HackDef, playAlternative?: () => Promise<'success' | 'fail'>): Promise<HackOutcome>;     // D4 of docs/engine/m7-brief.md
 // It uses the same door as shop() and battle(): a late-bound entry in fieldHooks.
+//
+// The sketch that Mark approved in Phase 0 was `hack(def: HackDef): Promise<HackResult>`: the raw result, with each story applying the policy of E19 by itself.
+// M7 changed it, with Mark's yes (decision D4, option A, 2026-10-12): `s.hack` returns the HackOutcome of the whole policy loop (see below), so one place applies
+// the policy and a story cannot forget the `dropped` case (a story that did would wait on a stack that is gone). The raw `HackResult` still exists: it is what
+// `hackDoor` resolves, and `HackOutcome.results` lists every one.
 
 // ---- interfaces.md block 14 ----
 export interface HackOutcome { outcome: 'success' | 'fail'; via: 'played' | 'policy' | 'alternative' | 'dropped'; results: HackResult[]; }   // ours

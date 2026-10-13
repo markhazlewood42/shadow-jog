@@ -28,7 +28,7 @@ import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { type Browser, expect, type Page, test } from '@playwright/test';
 import { encodePng } from '../scripts/lib/png.mjs';
-import { advance, decode, type GamePage, openGame, sj } from './sjegamekit';
+import { advance, chunk3dRequests, decode, type GamePage, openGame, sj } from './sjegamekit';
 import { CASES, rendererKind, shoot, VIEWPORT } from './sjefieldkit';
 import { describeMeasure, H, measure, type Measure, type Picture, type RendererKind, unevenBlocks, W, withStep } from './sjefieldparity';
 
@@ -223,6 +223,8 @@ test.describe('default path: pictures of the four screens', () => {
       try {
         const kind = await rendererKind(t.page.page);
         expect(t.page.problems).toEqual([]);
+        // A player who never hacks never downloads the 3D chunk (M7 pass line 14): the title, the field, a battle and Options make no request for it.
+        expect(chunk3dRequests(t.page.requests), 'requests for the 3D chunk').toEqual([]);
         expect(t.uneven, 'the picture is crisp: no 2x2 block is more than one color').toBe(0);
         if (REFS) {
           writeRef(kind, id, t.png);

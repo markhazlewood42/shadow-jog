@@ -8,53 +8,53 @@
     "dissolveHold": 0.34,
     "block": 4,
     "lineHeight": 2,
-    "cursorPeriod": 6,
-    "uniform": {
-      "glitch": {
-        "full": [
-          { "phase": "swap", "from": 0, "to": null, "reason": "the white flash peak of the tear" }
-        ],
-        "lite": [
-          { "phase": "swap", "from": 0, "to": null, "reason": "the white flash peak" }
-        ],
-        "none": [
-          { "phase": "out", "from": 19, "to": 23, "reason": "the fade through the void color is past nine tenths" },
-          { "phase": "swap", "from": 0, "to": null, "reason": "the fade is at the void color while the 3D scene starts" },
-          { "phase": "in", "from": 0, "to": 3, "reason": "the fade back is still past nine tenths" }
-        ]
-      },
-      "dissolve": {
-        "full": [
-          { "phase": "swap", "from": 0, "to": null, "reason": "every block is there: the solid void while the 3D scene starts" },
-          { "phase": "in", "from": 0, "to": 1, "reason": "nearly every block is still there as they begin to go" }
-        ],
-        "lite": [
-          { "phase": "swap", "from": 0, "to": null, "reason": "every block is there: the solid void while the 3D scene starts" },
-          { "phase": "in", "from": 0, "to": 1, "reason": "nearly every block is still there as they begin to go" }
-        ],
-        "none": [
-          { "phase": "out", "from": 19, "to": 23, "reason": "the fade through the void color is past nine tenths" },
-          { "phase": "swap", "from": 0, "to": null, "reason": "the fade is at the void color while the 3D scene starts" },
-          { "phase": "in", "from": 0, "to": 3, "reason": "the fade back is still past nine tenths" }
-        ]
-      },
-      "collapse": {
-        "full": [
-          { "phase": "out", "from": 19, "to": 23, "reason": "the bars have closed past nine tenths: a thin slit of the picture is left" },
-          { "phase": "swap", "from": 0, "to": null, "reason": "the bars are shut: the solid void while the 3D scene starts" },
-          { "phase": "in", "from": 0, "to": 3, "reason": "the bars open from a thin slit" }
-        ],
-        "lite": [
-          { "phase": "out", "from": 19, "to": 23, "reason": "the bars have closed past nine tenths: a thin slit of the picture is left" },
-          { "phase": "swap", "from": 0, "to": null, "reason": "the bars are shut: the solid void while the 3D scene starts" },
-          { "phase": "in", "from": 0, "to": 3, "reason": "the bars open from a thin slit" }
-        ],
-        "none": [
-          { "phase": "out", "from": 19, "to": 23, "reason": "the fade through the void color is past nine tenths" },
-          { "phase": "swap", "from": 0, "to": null, "reason": "the fade is at the void color while the 3D scene starts" },
-          { "phase": "in", "from": 0, "to": 3, "reason": "the fade back is still past nine tenths" }
-        ]
-      }
+    "cursorPeriod": 6
+  },
+  "uniform": {
+    "glitch": {
+      "full": [
+        { "phase": "swap", "from": 0, "to": null, "reason": "the white flash peak of the tear" }
+      ],
+      "lite": [
+        { "phase": "swap", "from": 0, "to": null, "reason": "the white flash peak" }
+      ],
+      "none": [
+        { "phase": "out", "from": 19, "to": 23, "reason": "the fade through the void color is past nine tenths" },
+        { "phase": "swap", "from": 0, "to": null, "reason": "the fade is at the void color while the 3D scene starts" },
+        { "phase": "in", "from": 0, "to": 3, "reason": "the fade back is still past nine tenths" }
+      ]
+    },
+    "dissolve": {
+      "full": [
+        { "phase": "swap", "from": 0, "to": null, "reason": "every block is there: the solid void while the 3D scene starts" },
+        { "phase": "in", "from": 0, "to": 1, "reason": "nearly every block is still there as they begin to go" }
+      ],
+      "lite": [
+        { "phase": "swap", "from": 0, "to": null, "reason": "every block is there: the solid void while the 3D scene starts" },
+        { "phase": "in", "from": 0, "to": 1, "reason": "nearly every block is still there as they begin to go" }
+      ],
+      "none": [
+        { "phase": "out", "from": 19, "to": 23, "reason": "the fade through the void color is past nine tenths" },
+        { "phase": "swap", "from": 0, "to": null, "reason": "the fade is at the void color while the 3D scene starts" },
+        { "phase": "in", "from": 0, "to": 3, "reason": "the fade back is still past nine tenths" }
+      ]
+    },
+    "collapse": {
+      "full": [
+        { "phase": "out", "from": 19, "to": 23, "reason": "the bars have closed past nine tenths: a thin slit of the picture is left" },
+        { "phase": "swap", "from": 0, "to": null, "reason": "the bars are shut: the solid void while the 3D scene starts" },
+        { "phase": "in", "from": 0, "to": 3, "reason": "the bars open from a thin slit" }
+      ],
+      "lite": [
+        { "phase": "out", "from": 19, "to": 23, "reason": "the bars have closed past nine tenths: a thin slit of the picture is left" },
+        { "phase": "swap", "from": 0, "to": null, "reason": "the bars are shut: the solid void while the 3D scene starts" },
+        { "phase": "in", "from": 0, "to": 3, "reason": "the bars open from a thin slit" }
+      ],
+      "none": [
+        { "phase": "out", "from": 19, "to": 23, "reason": "the fade through the void color is past nine tenths" },
+        { "phase": "swap", "from": 0, "to": null, "reason": "the fade is at the void color while the 3D scene starts" },
+        { "phase": "in", "from": 0, "to": 3, "reason": "the fade back is still past nine tenths" }
+      ]
     }
   },
   "hacks": [
