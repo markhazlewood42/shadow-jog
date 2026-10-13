@@ -207,37 +207,14 @@ async function withCover(game: Game, def: HackDef, options: HackOptions | undefi
   return result;
 }
 
-/** How long the one retry waits for a lost context (decision D3: the 1 s grace of `CONTEXT_GRACE_MS` in `scene3d.ts`, which this file may not import: it is not in the 3D chunk). */
-export const RETRY_WAIT_MS = 1000;
-
-const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
-
-/** Resolves when the game's context is back, or after `ms`, whichever comes first (at once if it is not lost). Never rejects. The seam passes this as `beforeRetry`. */
-export function waitForContext(game: Game, ms: number = RETRY_WAIT_MS): Promise<void> {
-  if (!game.contextLost) return Promise.resolve();
-  return new Promise((resolve) => {
-    const done = (): void => {
-      clearTimeout(timer);
-      game.events.off('contextrestored', done);
-      resolve();
-    };
-    const timer = setTimeout(done, ms);
-    game.events.on('contextrestored', done);
-  });
-}
-
 /**
  * Run a hack the way a story does: try, apply the author's policy, maybe retry once, maybe play the
  * authored 2D alternative. `tryHack` is one call to `hackDoor`; `playAlternative` is the author's 2D
  * stand-in (it returns whether the player won it). Resolves with the outcome. It never rejects because of a hack
  * (`tryHack` is a door); a `playAlternative` that throws is the author's own bug and its error comes out as it is.
  */
-export async function hackWithPolicy(
-  def: HackDef,
-  tryHack: (def: HackDef) => Promise<HackResult>,
-  playAlternative: () => Promise<'success' | 'fail'>,
-  beforeRetry: () => Promise<void> = () => sleep(RETRY_WAIT_MS),
-): Promise<HackOutcome> {
+export async function hackWithPolicy(def: HackDef, tryHack: (def: HackDef) => Promise<HackResult>, playAlternative: () => Promise<'success' | 'fail'>): Promise<HackOutcome> {
+  // m7-brief pass line 7: "the retry ends at once". The D3 grace lives inside the scene, so do not add a wait before the retry here.
   const policy = def.policy ?? DEFAULT_POLICY;
   const results: HackResult[] = [];
   let retries = 0;
@@ -246,8 +223,6 @@ export async function hackWithPolicy(
     results.push(result);
     const decision = decideHack(result, policy, retries);
     if (decision.next === 'retry') {
-      // D3: the lost context gets its grace to come back before the one retry. Without the wait, the retry sees the same lost flag and the hack is won with no play.
-      await beforeRetry();
       retries++;
       continue;
     }

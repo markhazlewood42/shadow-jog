@@ -2,13 +2,13 @@
  * Fix round 2 of PR #80 (the review findings 1, 2, 3, 6 and 7): each case fails on the code before the fix.
  *  1 a throw inside the cover's tick ends the run `aborted` (E11: a hack always resolves)
  *  2 a call with neither `playAlternative` nor `onUnsupported: 'win'` is loud in DEV and still resolves
- *  3 the one retry after a lost context waits for the context (D3 grace) before it tries again
+ *  3 (by design) the one retry after a lost context ends at once: the D3 grace lives inside the scene (m7-brief pass line 7)
  *  6 `parseTicks` has an upper bound
  *  7 one reading of `?seed=`
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { runHackUnsupported } from '../src/game/hackseam';
-import { hackWithPolicy, RETRY_WAIT_MS, waitForContext } from '../src/hack3d/door';
+import { hackWithPolicy } from '../src/hack3d/door';
 import { MAX_ROUTE_TICKS, parseTicks } from '../src/hack3d/data';
 import { makeHackDef } from '../src/hack3d/data';
 import type { HackResult } from '../src/hack3d/result';
@@ -98,51 +98,15 @@ describe('finding 2: no silent default for the author', () => {
   });
 });
 
-describe('finding 3: the retry waits for the context', () => {
-  it('by default the retry does not run before the grace has passed', async () => {
+describe('finding 3 (not a fix, by design): the retry ends at once', () => {
+  it('m7-brief pass line 7: on aborted / context-lost the default policy retries once with no timer, and the story gets success', async () => {
     vi.useFakeTimers();
-    const results = [LOST, { status: 'success' } as HackResult];
+    const results = [LOST, LOST];
     const tryHack = vi.fn(async () => results.shift() ?? LOST);
-    const p = hackWithPolicy(DEF, tryHack, async () => 'fail');
-    await vi.advanceTimersByTimeAsync(RETRY_WAIT_MS - 10);
-    expect(tryHack).toHaveBeenCalledTimes(1);
-    await vi.advanceTimersByTimeAsync(20);
+    const out = await hackWithPolicy(DEF, tryHack, async () => 'fail'); // no timer advance: a wait before the retry would hang here
+    expect(vi.getTimerCount()).toBe(0);
     expect(tryHack).toHaveBeenCalledTimes(2);
-    expect(await p).toMatchObject({ outcome: 'success', via: 'played' });
-  });
-
-  it('waitForContext ends when the context is restored, before the timeout', async () => {
-    vi.useFakeTimers();
-    let restore: () => void = () => undefined;
-    const game = {
-      contextLost: true,
-      events: { on: (_n: string, h: () => void) => {
-          restore = h;
-        }, off: () => undefined },
-    };
-    let done = false;
-    void waitForContext(game as never, 1000).then(() => {
-      done = true;
-    });
-    await vi.advanceTimersByTimeAsync(100);
-    expect(done).toBe(false);
-    restore();
-    await vi.advanceTimersByTimeAsync(0);
-    expect(done).toBe(true);
-  });
-
-  it('waitForContext gives up after the grace if the context never returns, and is at once when nothing is lost', async () => {
-    vi.useFakeTimers();
-    const lost = { contextLost: true, events: { on: () => undefined, off: () => undefined } };
-    let done = false;
-    void waitForContext(lost as never, 1000).then(() => {
-      done = true;
-    });
-    await vi.advanceTimersByTimeAsync(999);
-    expect(done).toBe(false);
-    await vi.advanceTimersByTimeAsync(2);
-    expect(done).toBe(true);
-    await expect(waitForContext({ contextLost: false } as never)).resolves.toBeUndefined();
+    expect(out).toMatchObject({ outcome: 'success', via: 'policy' });
   });
 });
 

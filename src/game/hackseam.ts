@@ -8,7 +8,7 @@
  * The game's own `Game` type is the old engine class in `src/game`, and the runtime object is the new engine's `Game` (`src/sje/boot.ts` joins them), so the cast
  * from one to the other happens once, here (the same cast `src/devroutes.ts` makes for the FX lab).
  */
-import { type DoorEnv, type HackGame, type HackOptions, hackDoor, hackWithPolicy, realDoorEnv, waitForContext } from '../hack3d/door';
+import { type DoorEnv, type HackGame, type HackOptions, hackDoor, hackWithPolicy, realDoorEnv } from '../hack3d/door';
 import type { HackDef, HackOutcome } from '../hack3d/result';
 
 export { hackDef, parseTicks } from '../hack3d/data';
@@ -62,7 +62,7 @@ export function runHack(game: object, def: HackDef, how: HackHandling): Promise<
   const g = game as unknown as HackGame;
   const dev = hackDevOverride();
   const env: DoorEnv | undefined = dev?.env ? { ...realDoorEnv, ...dev.env } : undefined;
-  return hackWithPolicy(def, (d) => hackDoor(g, d, dev?.options, env), alternativeOf(how, 'runHack'), () => waitForContext(g));
+  return hackWithPolicy(def, (d) => hackDoor(g, d, dev?.options, env), alternativeOf(how, 'runHack'));
 }
 
 /**
