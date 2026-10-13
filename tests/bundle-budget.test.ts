@@ -13,14 +13,14 @@ afterEach(() => {
   for (const d of made.splice(0)) rmSync(d, { recursive: true, force: true });
 });
 
-type Chunk = { file: string; modules: string[] | null; src?: string; bytes?: number; isEntry?: boolean; imports?: string[]; dynamicImports?: string[] };
+type Chunk = { file: string; modules: string[] | null; src?: string; bytes?: number; /** Raw bytes of one repeated character: big raw, tiny gzip. */ flat?: number; isEntry?: boolean; imports?: string[]; dynamicImports?: string[] };
 
 function writeBuild(dir: string, chunks: Chunk[]): void {
   mkdirSync(join(dir, '.vite'), { recursive: true });
   mkdirSync(join(dir, 'assets'), { recursive: true });
   const manifest: Record<string, unknown> = {};
   for (const c of chunks) {
-    writeFileSync(join(dir, c.file), c.bytes ? randomBytes(c.bytes) : `// ${c.file}
+    writeFileSync(join(dir, c.file), c.bytes ? randomBytes(c.bytes) : c.flat ? 'a'.repeat(c.flat) : `// ${c.file}
 `);
     if (c.modules) writeFileSync(join(dir, `${c.file}.map`), JSON.stringify({ sources: c.modules }));
     manifest[c.file] = { file: c.file, src: c.src, isEntry: c.isEntry, imports: c.imports, dynamicImports: c.dynamicImports };
@@ -29,12 +29,15 @@ function writeBuild(dir: string, chunks: Chunk[]): void {
 }
 
 const ENGINE_CHUNK: Chunk = { file: 'assets/sje.js', modules: ['../../node_modules/pixi.js/lib/index.mjs', '../../src/sje/boot.ts'] };
+/** The lazy 3D chunk of the shipped game (M7): Three and the hack scene, behind the door's one dynamic import. */
+const THREE_CHUNK: Chunk = { file: 'assets/hack3d.js', src: 'src/hack3d/index.ts', modules: ['../../node_modules/three/build/three.module.js', '../../src/hack3d/index.ts'] };
 
 /**
  * A game with a boot chunk, the `?engine=sje` chunk (M1) and one lazy chunk; a lab with a boot chunk, a lazy 2D chunk and a lazy 3D chunk.
- * `gameChunks` replaces the game's lazy chunks (a control leaves the engine chunk out, or adds a Three chunk).
+ * `gameChunks` replaces the game's lazy chunks (a control leaves the engine chunk out). The shipped game's lazy 3D chunk is added unless a control says `no3d` (M7: the game must have one).
  */
-function run(bootModules: string[] | null, gameChunks: Chunk[] = [ENGINE_CHUNK, { file: 'assets/battle.js', modules: ['../../src/battle/index.ts'] }]): { code: number | null; out: string } {
+function run(bootModules: string[] | null, chunks: Chunk[] = [ENGINE_CHUNK, { file: 'assets/battle.js', modules: ['../../src/battle/index.ts'] }], o: { no3d?: boolean } = {}): { code: number | null; out: string } {
+  const gameChunks = o.no3d ? chunks : [...chunks, THREE_CHUNK];
   const root = mkdtempSync(join(tmpdir(), 'sj-budget-'));
   made.push(root);
   writeFileSync(join(root, 'vite.config.ts'), 'export default {};\n');
@@ -81,10 +84,36 @@ describe('bundle-budget.mjs controls', () => {
     expect(r.out).toMatch(/no lazy-2d chunk holds both the engine/);
   });
 
-  it('M1: Three stays out of the shipped game until M7', () => {
-    const r = run(['../../src/main.ts'], [ENGINE_CHUNK, { file: 'assets/three.js', modules: ['../../node_modules/three/build/three.module.js'] }]);
+  it('M7: the shipped game has exactly one lazy 3D chunk (the import in the door), and it must be there', () => {
+    const r = run(['../../src/main.ts'], [ENGINE_CHUNK, { file: 'assets/battle.js', modules: ['../../src/battle/index.ts'] }], { no3d: true });
     expect(r.code).toBe(1);
-    expect(r.out).toMatch(/game: chunk assets\/three\.js holds Three/);
+    expect(r.out).toMatch(/game: no lazy-3d chunk holds Three/);
+  });
+
+  it('M7: a chunk with Three that is not the lazy 3D class (here the game boot chunk, on the start path) fails: the 3D code must stay out of first play', () => {
+    const r = run(['../../src/main.ts'], [ENGINE_CHUNK, { file: 'assets/gameboot.js', src: 'src/boot.ts', modules: ['../../src/boot.ts', '../../node_modules/three/build/three.module.js'] }]);
+    expect(r.code).toBe(1);
+    expect(r.out).toMatch(/game: chunk assets\/gameboot\.js holds Three but is classed lazy-2d/);
+  });
+
+  it('M7: the lazy 3D chunk is NOT in the game total and not in first play (decision D2 B), has its own gzip cap, and its own raw cap instead of the 480 kB chunk cap', () => {
+    // 140 kB of incompressible bytes in the 3D chunk: under its 160 kB cap, and the total and first play stay under theirs.
+    const ok = run(['../../src/main.ts'], [ENGINE_CHUNK, { ...THREE_CHUNK, bytes: 140_000 }], { no3d: true });
+    expect(ok.code).toBe(0);
+    expect(ok.out).toMatch(/lazy-3d\s+assets\/hack3d\.js/);
+    expect(ok.out).toMatch(/game lazy-3d gzip 140\.\d kB/);
+    // Control: 170 kB gzip is over the 3D cap.
+    const over = run(['../../src/main.ts'], [ENGINE_CHUNK, { ...THREE_CHUNK, bytes: 170_000 }], { no3d: true });
+    expect(over.code).toBe(1);
+    expect(over.out).toMatch(/game: lazy-3d gzip \d+ is over 160000/);
+    expect(over.out).not.toMatch(/game: total gzip/);
+    // Control: a flat 620 kB raw chunk (tiny gzip) is over the 3D chunk's raw cap, and a plain chunk of that size is over the 480 kB cap.
+    const raw = run(['../../src/main.ts'], [ENGINE_CHUNK, { ...THREE_CHUNK, flat: 620_000 }], { no3d: true });
+    expect(raw.code).toBe(1);
+    expect(raw.out).toMatch(/hack3d\.js \(lazy-3d\) is 620000 bytes, over its 609000 byte raw cap/);
+    const plain = run(['../../src/main.ts'], [ENGINE_CHUNK, { file: 'assets/other.js', src: 'src/other/x.ts', modules: ['../../src/other/x.ts'], flat: 620_000 }]);
+    expect(plain.code).toBe(1);
+    expect(plain.out).toMatch(/other\.js is 620000 bytes, over the 480000 byte largest-chunk cap/);
   });
 
   it('M6: the stage chunks are lazy-2d (there is no flag-only class), count toward the game total, and count toward first play', () => {
@@ -105,7 +134,7 @@ describe('bundle-budget.mjs controls', () => {
   });
 
   it('M6: the game boot chunk (src/boot.ts, a dynamic import of the engine boot) is on the start path, so it counts toward first play', () => {
-    const gameBoot: Chunk = { file: 'assets/gameboot.js', src: 'src/boot.ts', modules: ['../../src/boot.ts'], bytes: 395_000 };
+    const gameBoot: Chunk = { file: 'assets/gameboot.js', src: 'src/boot.ts', modules: ['../../src/boot.ts'], bytes: 400_000 };
     const on = run(['../../src/main.ts'], [ENGINE_CHUNK, gameBoot]);
     expect(on.code).toBe(1);
     expect(on.out).toMatch(/game: first play gzip \d+ is over/);

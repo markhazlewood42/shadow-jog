@@ -3,7 +3,9 @@
  * debug API in production. Boots clean, starts a new game, saves from the menu, survives a reload,
  * and continues from that save; and closing the tab with unsaved progress asks first.
  */
+import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
+import { chunk3dRequests } from './sjegamekit';
 import { E5_TEXT, expectE5Contract, skipGameFlowOnFirefox } from './webgl2kit';
 
 const PROD = 'http://localhost:3008';
@@ -102,6 +104,36 @@ test('production build: closing the tab with unsaved progress asks first', async
   const d = await dialog;
   expect(d.type()).toBe('beforeunload');
   await d.accept();
+});
+
+test('the 3D chunk: a normal run never requests it, and the hashed chunk loads from the shipped build by its manifest name (M7 pass line 14; a wrong name rejects)', async ({ page }) => {
+  // The name comes from the manifest of the build that the preview server serves (`playwright.config.ts` builds it fresh), so a renamed or missing chunk fails here.
+  const manifest = JSON.parse(readFileSync('dist/.vite/manifest.json', 'utf8')) as Record<string, { file: string; src?: string }>;
+  const entry = Object.values(manifest).find((c) => c.src === 'src/hack3d/index.ts');
+  expect(entry?.file, 'the manifest has the 3D chunk').toMatch(/^assets\/hack3d-[\w-]+\.js$/);
+  const requests: string[] = [];
+  page.on('request', (r) => requests.push(r.url()));
+  await openFresh(page);
+  await page.waitForTimeout(1500);
+  expect(chunk3dRequests(requests), 'a player who never hacks does not request the 3D chunk').toEqual([]);
+  const url = new URL(entry?.file ?? '', `${PROD}/`).href;
+  // The chunk is a module: load it as the door does (a dynamic import). It exports the door's entry and the scene.
+  const exports = await page.evaluate(async (u) => {
+    const m = (await import(/* @vite-ignore */ u)) as Record<string, unknown>;
+    return { startHack: typeof m.startHack, HackScene: typeof m.HackScene, HackSim: typeof m.HackSim };
+  }, url);
+  expect(exports).toEqual({ startHack: 'function', HackScene: 'function', HackSim: 'function' });
+  expect(chunk3dRequests(requests).some((u) => u === url), 'the chunk was requested by its hashed name').toBe(true);
+  // Control: a wrong name makes the import reject (so the check above can fail).
+  const wrong = await page.evaluate(async (u) => {
+    try {
+      await import(/* @vite-ignore */ u);
+      return 'loaded';
+    } catch {
+      return 'rejected';
+    }
+  }, url.replace('assets/hack3d-', 'assets/hack3d-nope-'));
+  expect(wrong).toBe('rejected');
 });
 
 test('E5: the shipped build shows the message in a browser without WebGL 2 (and only there)', async ({ page }) => {

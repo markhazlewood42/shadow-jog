@@ -907,3 +907,90 @@ describe('the action map wraps the old Input (it does not copy it)', () => {
     expect(s.input.actions).toBe(g.actions);
   });
 });
+
+// ---- M7 pass line 11: hidden scenes draw nothing, and a revealed scene is never stale --------------------------------------------------------------
+
+/** A cover (opaque by default) that closes itself when `closeNow` runs. `inPrerender` makes it close inside its own prerender handler. */
+class Cover extends Scene<void> {
+  constructor(private readonly inPrerender = false) {
+    super();
+  }
+  override create(): void {
+    if (this.inPrerender) this.events.on('prerender', () => this.close());
+  }
+  fixedUpdate(): void {}
+}
+
+describe('hidden scenes and the draw phase (docs/engine/m7-brief.md pass line 11, survey section 5)', () => {
+  it('a scene under an opaque scene gets no prerender at all, over 30 draws', () => {
+    const g = newGame();
+    const under = new Counting();
+    void g.run(under);
+    void g.run(new Cover());
+    g.advanceTick();
+    for (let i = 0; i < 30; i++) g.draw();
+    expect(under.prerenders).toBe(0);
+  });
+
+  it('a cover that closes in a tick: the first draw after it runs the revealed scene’s prerender (the first refreshLayout catches it)', () => {
+    const g = newGame();
+    const under = new Counting();
+    void g.run(under);
+    const cover = new Cover();
+    void g.run(cover);
+    g.advanceTick();
+    g.draw();
+    expect(under.prerenders).toBe(0);
+    cover.close();
+    g.draw();
+    expect(under.prerenders).toBe(1);
+  });
+
+  // M7 task 5: SceneManager.prerender() runs the prerender of a scene that its own second refreshLayout() revealed. Run red on 2026-10-12: prerenders was 0.
+  it('a cover that closes INSIDE its own prerender: the scene under it runs its prerender in that same frame (the second pass)', () => {
+    const g = newGame();
+    const under = new Counting();
+    void g.run(under);
+    void g.run(new Cover(true));
+    g.advanceTick();
+    g.draw();
+    expect(under.prerenders).toBe(1);
+  });
+
+  // Review of PR #80 (third review, finding 3): the layout is recomputed after the pass too, so a change that a handler makes to what the layout reads (no scene closed, no push) is parented this frame.
+  it('a prerender handler that makes its opaque scene see-through: the scene under it is visible after the same draw (the final refreshLayout)', () => {
+    const g = newGame();
+    const under = new Counting();
+    void g.run(under);
+    const top = new Cover();
+    void g.run(top);
+    top.events.on('prerender', () => {
+      top.opaque = false;
+    });
+    g.advanceTick();
+    g.draw();
+    expect(under.sys.visible).toBe(true);
+  });
+
+  // CONTROL: the same case on a mutant prerender with no second pass (the code before M7 task 5) fails, so the case can tell the two apart.
+  it('control: a prerender with no second pass leaves the revealed scene without its prerender', () => {
+    const g = newGame();
+    const mgr = g.scene;
+    mgr.prerender = () => {
+      mgr.refreshLayout();
+      for (const s of mgr.scenes) {
+        if (s.closed || !s.sys.visible) continue;
+        s.events.emit('prerender');
+        if (s.closed) continue;
+        s.cameras.apply();
+      }
+      mgr.refreshLayout();
+    };
+    const under = new Counting();
+    void g.run(under);
+    void g.run(new Cover(true));
+    g.advanceTick();
+    g.draw();
+    expect(under.prerenders).toBe(0);
+  });
+});

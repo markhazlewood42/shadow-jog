@@ -22,6 +22,7 @@ import { PanelScene } from '../scenes/panels';
 import { EndingScene } from '../scenes/ending';
 import { SaveScene } from '../scenes/saveload';
 import { ShopScene } from '../scenes/shop';
+import { runHack } from './hackseam';
 import { fieldHooks } from './hooks';
 import { addMember, crewLevel, fullRestore, innPrice, knownAbilities, maxUses, memberStats, partyMembers, rest, restoreUses } from './party';
 import { applySave, latestSlot, loadSave, slotStatus, unsavedFrames, writeSave } from './save';
@@ -170,6 +171,9 @@ export function installSystems(game: Game, h: SystemHandlers): void {
   };
 
   fieldHooks.battle = async (f, enc, opts) => runBattle(game, f, enc, { ...opts, bg: opts.bg ?? f.def.battleBg ?? 'street' });
+
+  // The 3D hack (M7): the seam holds the door and the policy loop; the 3D chunk loads behind the door at the first hack.
+  fieldHooks.hack = async (_f, def, how) => runHack(game, def, how);
 
   // ---------------------------------------------------------------- services
   fieldHooks.shop = async (_f, id) => {

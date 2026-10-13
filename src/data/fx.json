@@ -535,6 +535,37 @@
         { "emit": "heal_motes" },
         { "flare": 0.2 }
       ]
+    },
+    "jack.out": {
+      "note": "Jack-in, style A (datamosh tear), the out phase: the picture tears harder and the colors split. The 3D hack's transition (src/hack3d/jack.ts) plays it at the start of jack-in and of jack-out; full effects only.",
+      "layers": [
+        { "glitch": { "w": 640, "h": 360, "strength": 3, "life": 12 } },
+        { "aberrate": 1, "delay": 4 },
+        { "glitch": { "w": 640, "h": 360, "strength": 6, "life": 14 }, "delay": 8 },
+        { "aberrate": 2.5, "delay": 14 },
+        { "glitch": { "w": 640, "h": 240, "strength": 9, "life": 10 }, "delay": 16 }
+      ]
+    },
+    "jack.hold": {
+      "note": "Jack-in, style A, the hold phase: a sustained low tear while the 3D chunk loads. The transition plays it again every 20 ticks of the hold.",
+      "layers": [
+        { "glitch": { "w": 640, "h": 120, "strength": 2.5, "life": 22 } },
+        { "aberrate": 0.8 }
+      ]
+    },
+    "jack.in": {
+      "note": "Jack-in, style A, the in phase: the same tear decays over the 3D grid.",
+      "layers": [
+        { "glitch": { "w": 640, "h": 360, "strength": 8, "life": 10 } },
+        { "aberrate": 2 },
+        { "glitch": { "w": 640, "h": 200, "strength": 4, "life": 10 }, "delay": 8 }
+      ]
+    },
+    "jack.lite": {
+      "note": "Jack-in, style A, at the lite level (no screen effects): the stage dims. The transition adds a shake and a white flash of its own.",
+      "layers": [
+        { "dim": { "amount": 0.5, "life": 34 } }
+      ]
     }
   }
 }

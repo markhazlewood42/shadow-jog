@@ -4,7 +4,7 @@ title: Shadow Jog — Project Status
 project: shadow-jog
 created: 2026-09-27
 updated: 2026-10-12
-milestone: none
+milestone: M7
 tags: [status]
 ---
 
@@ -17,6 +17,10 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 **GitHub:** [markhazlewood42/shadow-jog](https://github.com/markhazlewood42/shadow-jog) (public).
 - **CI:** GitHub Actions, on pushes to `main` and on pull requests: three jobs at the same time (`check`, `e2e`, `e2e-engines`), all three required on `main` by the ruleset "Main branch protection" (2026-10-06). A docs-only change skips their steps. The real-speed playtest runs in `playtest.yml` after a merge and from the Actions button.
 - **Since 2026-10-01** work goes on a branch per major feature, with a PR for the Claude Code Review Action, and Mark merges.
+
+## M7 "3D mode" started (2026-10-12)
+
+Branch `engine-m7-3d-mode`. Brief `docs/engine/m7-brief.md` and survey `docs/engine/m7-survey.md` are approved (lean loop: two fix rounds). Mark answered all recommendations (2026-10-12): D1 A, a DEV entry only (`?scene=hack`, `__SJ__.hack`), Chapter 1 unchanged for now, though he will likely want a Chapter 1 hack later ([#77](https://github.com/markhazlewood42/shadow-jog/issues/77)); D2 B, the total excludes `lazy-3d`, which gets its own 160 kB check in the game build ([#78](https://github.com/markhazlewood42/shadow-jog/issues/78)); D3 A, the 1 s context grace (C4); D4 A, `s.hack` returns a `HackOutcome` with the E19 policy applied ([#79](https://github.com/markhazlewood42/shadow-jog/issues/79)). Mark's new requirement: "a seamless, styled transition between the two game modes". The brief makes it D5: three styles (A datamosh tear, recommended; B pixel dissolve; C scanline collapse), and Mark picks one from GIFs at a look checkpoint. Its pass lines are 19 to 25. **Built and verified (2026-10-12):** Builder A (69fba4a, bb6bd1e), Builder B (1e216c1 to 90492b4), fix round 1 (6d2bba4), Minor fixes (6525669). Lean loop passes: the runner holds pass lines 1-16 and 18-24 (sje-hack 59 passed, line 21 repeat 40/40, budget first play 395.0 kB, total 455.3 kB, lazy-3d 146.3 kB gzip); reader round 2 PASS. **D5 decided: glitch** (Mark, from the GIFs in `media/m7-3d/transition/`); dissolve and collapse stay DEV only. GPU run 1 (`npm run perf`, log `media/m7-3d/perf-2026-10-12-run1.txt`): the M7 cases pass (hack scene cost p95 2.7 ms, glitch jump 3.0 ms); 2 old 2D cases failed (field world map cost p95 9.6 ms, line 8 ms; live battle up 0.857 of ticks, line 0.95). Re-runs and an A/B against `main` (3 runs each, alternating): field cost p95 `main` 6.1 to 6.3 ms, M7 5.9 to 6.2 ms, battle coverage fails on both sides: not an M7 regression, cause of the field spikes not established. Warm first entry measured: 123 ms (cold 223 to 345 ms). Pass lines 17 and 25 hold; record in `tooling-and-testing.md` section 7 (426d33b). [PR #80](https://github.com/markhazlewood42/shadow-jog/pull/80) is open, linked from #77 #78 #79. Review triaged in 4 rounds (round 4 approved by Mark; ea41209, 883fa37, 5577f34, c7b0809, all verifier PASS); `sje-hack` split into `sje-hack-a` to `-d` (longest CI shard 739 s, was 1672 s); CI green at 864c1e8. The fourth review's 8 findings are untriaged in [#81](https://github.com/markhazlewood42/shadow-jog/issues/81). Line 26 (2026-10-13): Mark found the glitch transition too quick and wants it to last 2 s each way. **Next:** slow the glitch to 2 s each way, new GIF for Mark, then Mark merges.
 
 ## CI speed, PR #64 (2026-10-11)
 

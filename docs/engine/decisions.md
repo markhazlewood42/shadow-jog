@@ -114,7 +114,7 @@ This table checks each approved decision against the rule. "Holds" means the dec
 | E16 | Holds | The folder has no effect on content. |
 | E17 | Holds | Editor code lives in dev and editor builds. It stays out of the `boot` class. |
 | E18 | Holds | Version pins have no effect on content. |
-| E19 | Holds, with a condition | `HackResult` and `HackOutcome` are plain data. The 2D alternative is story code today. It moves with the story scripts to data when a conversation editor starts. |
+| E19 | Holds, with a condition | `HackResult` and `HackOutcome` are plain data. The 2D alternative is story code today. It moves with the story scripts to data when a conversation editor starts. M7: the author must pass `playAlternative` or `onUnsupported: 'win'`. |
 | E20 | Holds, with a condition | Condition: the lights of a map are map data, so a level editor can place them. |
 | E21 | Holds | Events have no effect on content. |
 | E22 | Holds | Deviations from Phaser have no effect on content. |

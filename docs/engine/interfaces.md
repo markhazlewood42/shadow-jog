@@ -558,11 +558,28 @@ export declare abstract class Scene3D<R> extends Scene<R> {      // lazy chunk
 // A subclass does not override fixedUpdate.
 //
 // ScriptApi (src/game/script.ts) gains one method:
-//   hack(def: HackDef): Promise<HackResult>;
+//   hack(def: HackDef, how: { playAlternative: () => Promise<'success' | 'fail'> } | { onUnsupported: 'win' }): Promise<HackOutcome>;     // D4 of docs/engine/m7-brief.md; the author must choose (E19)
 // It uses the same door as shop() and battle(): a late-bound entry in fieldHooks.
+//
+// The sketch that Mark approved in Phase 0 was `hack(def: HackDef): Promise<HackResult>`: the raw result, with each story applying the policy of E19 by itself.
+// M7 changed it, with Mark's yes (decision D4, option A, 2026-10-12): `s.hack` returns the HackOutcome of the whole policy loop (see below), so one place applies
+// the policy and a story cannot forget the `dropped` case (a story that did would wait on a stack that is gone). The raw `HackResult` still exists: it is what
+// `hackDoor` resolves, and `HackOutcome.results` lists every one.
+//
+// The second argument is required (E19, per hack, authored; the fix of round 1): `{ playAlternative }` plays the 2D stand-in for a browser without WebGL 2, and `{ onUnsupported: 'win' }` counts the hack as won there.
+// It is a union type (`HackHandling` in `src/game/hackseam.ts`), so a call with neither does not compile (`@ts-expect-error` cases in `tests/hack3d-seam.test.ts`). No default decides for the author.
+// The door itself stays total at run time: it never rejects.
 ```
 
-**Built shape (M1b).** `Scene3D` is in `src/sje/three/scene3d.ts`, with `HackResult` and `Scene3DAbort`. It owns `world3D` (the Three scene) and has `camera3D` and `bloom` for `create3D` to set; `frame` is a protected getter (it exists once `create` ends); the constructor takes `{ frame?, makeFrame? }` (`makeFrame` is a test seam). `create` is the base's: write `create3D`. A lost context ends the scene in the next draw, not inside the event.
+**Built shape (M1b).** `Scene3D` is in `src/sje/three/scene3d.ts`, with `HackResult` and `Scene3DAbort`. It owns `world3D` (the Three scene) and has `camera3D` and `bloom` for `create3D` to set; `frame` is a protected getter (it exists once `create` ends); the constructor takes `{ frame?, makeFrame?, contextGraceMs?, onFirstRender? }` (`makeFrame` is a test seam). `create` is the base's: write `create3D`. A lost context ended the scene in the next draw, not inside the event (M1b); M7 puts a grace timer in front of that end (below).
+
+**Built shape (M7).** The additions of the 3D mode on the real game:
+
+- `Scene3DOptions` gains `contextGraceMs` (default `CONTEXT_GRACE_MS`, 1000; 0 is no grace) and `onFirstRender` (called once, in the draw phase, right after the first 3D frame is drawn). `Scene3D` gains the optional hooks `createHud()` (the 2D parts, built at the end of `create`, once the frame exists) and `dispose3D()` (freed at shutdown after the frame and the Three objects, and run even if one of those threw), and a `started` getter (true once `create` has finished). A lost context starts a grace timer and a restore inside it carries on (`lost` and `gpuReleased` clear, Three uploads again in the next `render()`, and the frame rewraps); at the end of the grace the scene ends with `aborted / context-lost`. `HackResult` lives in `src/sje/core/hackresult.ts` (the engine core); `scene3d.ts` and `src/hack3d/result.ts` re-export it.
+- `SceneManager.prerender()` gives a scene that its own second `refreshLayout()` revealed its `prerender` in the same frame (a cover that closes inside its own `prerender`, a `Scene3D` that lost its context, would otherwise show the revealed scene a frame of stale texture). Hidden scenes draw no 3D frame.
+- `src/hack3d` is the test hacking scene: `HackScene` (a `Scene3D<HackResult>`, `HackOptions`: the `Scene3DOptions`, `hud`, `bloom`, `gate`, `jack`), `HackSim` (pure, with `snapshot()` and `restore()`), `look.ts`, `hud.ts` (its layout derives from `H`). `src/data/hacks.json` holds the definitions and the transition numbers; `checkHacks` checks it.
+- The door is `hackDoor(game, def, options?, env?)`. `DoorEnv` is `{ probe, load, jack? }`: the WebGL 2 probe, the one loader of the 3D chunk, and the maker of the transition cover. The only game file that reaches the door is the seam `src/game/hackseam.ts` (`runHack`, with a DEV-only override of the environment and the scene options that a shipped build ignores).
+- **The jump** (decision D5, `src/hack3d/transition.ts` and `jack.ts`). `HackOptions.jack` is `{ style?: 'glitch' | 'dissolve' | 'collapse' | 'cut', params?: Partial<TransitionParams> }`. The door plays a cover on `screen.overlayRoot` around the scene: out, hold (while the chunk loads, bounded by `holdBoundMs`, 10 s), swap (the scene starts and draws its first frame under the solid cover), in; and for jack out the scene's `gate` closes the cover over the last 3D frame before the scene goes. The chunk load starts at the first tick of the cover. After the bound the answer is `unsupported / chunk-failed` and the cover goes back to the 2D picture. A scene that ends any other way (an abort, a drop) gets no cover.
 
 The hack simulation of the Phase 0 test scene (a node maze, ICE movement, a camera rig) is pure and DOM-free in `src/hack3d/sim`. It runs in Vitest like `src/battle`. The real hacking scene is a later iteration and is not designed here (`docs/IDEAS.md` entry 2).
 

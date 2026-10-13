@@ -160,6 +160,7 @@ tool, page or route goes there. The menu isn't mounted under Playwright (`naviga
 - `?scene=chars[&zoom=4][&npcs][&battlers]`, `?scene=bestiary[&page=1]`, `?scene=portraits`, `?scene=font`:
   asset sheets.
 - `?scene=fxlab`: the FX lab (particle presets and battle moments; see §8).
+- `?scene=hack[&id=test-hack][&frame=canvas-copy][&ticks=N]`: the 3D test hacking scene on its own (M7; the outcome lands on `__SJ__.lastHack`). With it, `?jack=glitch|dissolve|collapse|cut` picks the jump between 2D and 3D (`cut` is no transition; the style that ships is `glitch`, and `dissolve` and `collapse` exist in DEV only) and `?seed=N` seeds the effects' random stream so a capture can be made again. The hooks (`__SJ__.hack`, `hackState`, `hackDev`, `jackState`, `hackTest`) are listed in the header of `src/sje-lab/hackhook.ts`; the cases are `e2e/sje-hack-a.spec.ts to -d (was one file; shared helpers in e2e/sjehackkit.ts)`.
 - **Comic sequences on their own:** `?scene=panels&id=intro` or `id=ending` opens a comic sequence by itself (dev only). The review switches that once forced a decision's other option from the page address are gone: Mark answered each decision, and the winning value is a named constant.
 - `/artreview.html`: the art-pass review page; `?art=review[&try=asset/option,...]` on any route swaps art-pass
   options into the game (see §8, "The PixelLab art pass").

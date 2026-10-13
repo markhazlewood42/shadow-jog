@@ -9,6 +9,8 @@ export interface GamePage {
   page: Page;
   /** Console errors and warnings, and uncaught page errors. A test asserts this is empty (after its own `allow`). */
   problems: string[];
+  /** The URL of every request the page made (for example, to prove a normal run never asks for the 3D chunk: `chunk3dRequests`). */
+  requests: string[];
   close(): Promise<void>;
 }
 
@@ -46,6 +48,8 @@ export async function openGame(browser: Browser, opts: OpenGameOptions = {}): Pr
   const context = await browser.newContext({ viewport: opts.viewport ?? { width: 1280, height: 720 }, deviceScaleFactor: opts.dpr ?? 1 });
   const page = await context.newPage();
   const problems: string[] = [];
+  const requests: string[] = [];
+  page.on('request', (r) => requests.push(r.url()));
   const allowed = [...ALWAYS_ALLOWED, ...(opts.allow ?? [])];
   page.on('console', (m) => {
     if (m.type() !== 'error' && m.type() !== 'warning') return;
@@ -72,7 +76,15 @@ export async function openGame(browser: Browser, opts: OpenGameOptions = {}): Pr
   }
   if (opts.init) await page.addInitScript(opts.init);
   await page.goto(`/?debug${opts.query ?? ''}`);
-  return { page, problems, close: () => context.close() };
+  return { page, problems, requests, close: () => context.close() };
+}
+
+/**
+ * The requests for the lazy 3D chunk (M7 pass line 14), on the dev server and on the shipped build: the chunk entry and its files (`src/hack3d/index|hackscene|look|devprobe`, a hashed
+ * `assets/hack3d-*.js`), the 3D facade (`src/sje/three/`) and Three itself. The door, the cover and the data of `src/hack3d` are in the start path and are not in this list.
+ */
+export function chunk3dRequests(requests: readonly string[]): string[] {
+  return requests.filter((u) => /hack3d\/(index|hackscene|look|devprobe)\b|assets\/hack3d-|sje\/three\/|\/deps\/three|node_modules\/three/.test(u));
 }
 
 /** Run `fn` in the page with `sj` = `window.__SJ__`. */

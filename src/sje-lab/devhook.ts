@@ -21,6 +21,7 @@
  *   forceContextLoss() / forceContextRestore()
  *   battleStage / battleTrace(seed, o)     the battle stage as plain data, and a seeded fight as a status trace (battlehook.ts, M3)
  *   fieldStage / fieldStageSnapshot() ...  the field stage as plain data, its snapshot and restore (fieldhook.ts, M5)
+ *   hack / hackState / hackDev / hackChunk / hackTest   the 3D test scene through the real door (hackhook.ts, M7)
  *
  * Reads happen inside the page, so a test does not ship pixels through Playwright for every check. Dev and tests only.
  */
@@ -29,6 +30,7 @@ import { type FxCounts, type FxRequest, type Game, GlRenderer, H, type Pixels, W
 import { type GlCounts, installGlCounter, readGlCounts } from './glcounter';
 import { attachBattleHook } from './battlehook';
 import { attachFieldHook } from './fieldhook';
+import { attachHackHook } from './hackhook';
 import { mountFxPanel } from './fxpanel';
 import { fingerprint, words } from './pixeltools';
 
@@ -182,6 +184,7 @@ export function attach(game: Game): void {
   Object.defineProperties(sj, Object.getOwnPropertyDescriptors(hook));
   attachBattleHook(sj);
   attachFieldHook(sj);
+  attachHackHook(sj, game);
   // The DEV tab gets a list of effects buttons (not under Playwright: the tab is not mounted there).
   if (!navigator.webdriver) mountFxPanel(sj as unknown as SjEngineHook);
 }

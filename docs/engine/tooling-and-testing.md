@@ -180,6 +180,7 @@ The JS timer cannot see GPU cost. In the lab, `renderer.render()` took 0.1 to 0.
 | Frame interval | rAF interval p50 and p95. | New. Lab (480x270 game): 16.7 ms at 960x540, p95 33.4 ms at 1920x1080 with the full stack. |
 | Draw calls | Count draws and framebuffer binds with a patch of `WebGL2RenderingContext.prototype`. | New. Hardware independent. Lab: 301 sprites cost 1 draw. Blur, color matrix, and shockwave cost 12 draws and 13 binds. |
 | 3D hand-off | One frame of the shared-context path stays inside its budget. | New. |
+| 3D mode on the game (M7) | The running `HackScene` with bloom and the HUD, and the frames of jack in and jack out: the speed line (two rules) with a negative control. | `e2e/sje-bench.spec.ts`, local, a real GPU. |
 
 SwiftShader cost follows canvas pixels. In the lab (a 480x270 game, one machine, medium confidence) the full effect stack cost about 12 to 13 ms at 960x540. The CI viewport is now 1280x720, which has 1.78 times more pixels. M2 measured the fx levels there (the table after the M1 measurements below). Budget each fx level per pass. The first real CI run is the actual measurement.
 
@@ -191,6 +192,32 @@ SwiftShader cost follows canvas pixels. In the lab (a 480x270 game, one machine,
 The interval rule alone cannot catch a load whose GPU work still fits in one display frame. A negative control proves that each rule can fail. With 200 extra 3D draws, the interval p95 stays at 18.2 ms and only the cost rule fails. With 600 extra 3D draws, both rules fail (the interval p95 is 54.1 ms against a limit of 19.0 ms). On software GL the CI gate only catches a stuck loop (p95 under 250 ms; it was 80 ms until 2026-10-09, when CI measured 83 ms for 2D and 133 ms for 3D bloom). A shared software renderer cannot meet strict timing and says nothing about the engine. Timing thresholds belong on a real GPU.
 
 **Performance budget.** Every number below is proposed. It is an estimate with low confidence. M1 measures each one and then sets the real gate.
+
+**M7 (3D mode on the real game; pass lines 17 and 25 of `m7-brief.md`).** The perf cases are in `e2e/sje-bench.spec.ts` (`npm run perf` runs it with `perf.spec.ts`; local, a real GPU, never in CI, and run once at the end of the milestone: `migration.md` principle 12). They sit there and not in `perf.spec.ts` because the game-page measuring loop (`benchKit`: tick and draw frame by frame, the GPU wait, the draw, bind and upload counters) lives in that file. Four cases:
+
+1. The running `HackScene` at `?fx=full&jack=cut`, 640x360, with bloom and the HUD: interval p95 within 5% of the bare page, cost p95 at most 8 ms, draws, binds and uploads per frame. Negative control: 600 extra 3D frames per frame fail both rules (on software GL only the cost gauge is compared, because only the stuck-loop rule exists there). The cold time of the first entry (chunk, scene and first frame) is recorded in the output and is not gated.
+2. The frames of jack in and jack out, one case for each style (`glitch`, `dissolve`, `collapse`) at `full`: a loop of short hacks keeps the cover on screen for most of the measured frames (the case checks that it was on for more than 40% of them), and the same two rules hold. Negative control: 80 extra draws per frame.
+
+On software GL (SwiftShader) the four cases ran to prove the mechanics: they ran, the controls saw the load, and only the stuck-loop rule applied. The numbers of a real GPU are in the next paragraph.
+
+**M7 GPU run (2026-10-12, `npm run perf`, Chromium on an RTX 4070 via ANGLE/D3D11, bare page p95 16.8 ms).** Pass lines 17 and 25 hold. Run 1: 14 of 16 cases pass, every M7 case passes. The warm first entry (a second hack after the first one ends) was added to the `HackScene` case after run 1 and measured in one more run of that case (bare page p95 18.1 ms there: interval p95 18.3 ms, cost p95 2.9 ms, control 107.0 / 114.7 ms, fails).
+
+| Case (fx full, 640) | Interval p95 | Cost p50 / p95 (line 8 ms) | Draws / binds | Negative control (interval / cost p95) |
+|---|---|---|---|---|
+| Running `HackScene`, bloom and HUD (line 17) | 16.8 ms | 1.9 / 2.7 ms | 52 / 25 | 600 extra 3D frames: 166.7 / 176.2 ms, fails |
+| First entry (chunk, scene, first frame), not gated | — | cold 345 ms (run 1), 223 ms (second run); warm 123 ms | — | — |
+| Jump, `glitch`, cover on 1200 of 1380 ticks (line 25) | 16.9 ms | 1.9 / 3.0 ms | — | 80 extra draws: 49.9 / 37.0 ms, fails |
+| Jump, `dissolve`, cover on 1176 of 1380 ticks | 16.8 ms | 1.9 / 3.7 ms | — | 80 extra draws: 50.0 / 40.8 ms, fails |
+| Jump, `collapse`, cover on 1179 of 1380 ticks | 16.9 ms | 2.0 / 3.0 ms | — | 80 extra draws: 33.4 / 38.4 ms, fails |
+
+**M7, the two 2D cases that failed in run 1: not an M7 regression, cause not established.** Run 1 failed the field on the stage (world map, cost p95 9.6 ms) and the live battle (on the stage for 1183 of 1380 ticks, line over 0.95). Three re-runs on M7: field cost p95 11.5, 21.7 and 6.0 ms (the first two break the 8 ms line, so the field broke it in 3 of 4 runs on M7; p50 5.3 to 5.7 ms, interval p95 16.8 to 16.9 ms, the bare page); battle up for 1368, 1138 (fails) and 1380 ticks. Then an A/B on the same machine, alternating, 3 runs on each side (the A/B log kept no bare-page line; interval p95 was 18.1 to 18.3 ms on both sides, and the last re-run in `perf-2026-10-12-rerun.txt` had a bare page of 18.1 ms, so the display rate changed between the runs):
+
+| Side | Field cost p95 | Battle cost p95 | Battle up (of 1380 ticks) |
+|---|---|---|---|
+| `origin/main` (86ec305) | 6.3, 6.1, 6.1 ms | 3.4, 3.8, 4.1 ms | 1079 (fails), 1380, 1380 |
+| M7 (15f94c4) | 6.2, 5.9, 6.1 ms | 3.8, 3.7, 3.7 ms | 1334, 1380, 1283 (fails) |
+
+The A/B shows no difference between the sides (field: `main` 6.1 to 6.3 ms, M7 5.9 to 6.2 ms). The field spikes did not recur in the A/B on either side, and the field p50 stays within 5.2 to 5.9 ms in every run, so the spikes are not an M7 regression; their cause is not established. The short battle is the same failure that M5 recorded (below, 3 of 7 runs on both sides): it fails on `main` too. Logs: `media/m7-3d/perf-2026-10-12-run1.txt`, `-rerun.txt`, `-ab.txt`, `-warm.txt` (git-ignored).
 
 | Quantity | Proposed budget | Basis |
 |---|---|---|
@@ -320,12 +347,12 @@ Inherited rules: strict TypeScript (`noUncheckedIndexedAccess`, `exactOptionalPr
 
 `scripts/bundle-budget.mjs` (run by `npm run budget`, which builds the game and the lab page) is the M0 gate. It reads the Vite manifest and each chunk's source map. It has these checks:
 
-- **Total gzip alarm: 452 kB** for the shipped game (`GZIP_TOTAL_MAX`). It was 240.8 kB at M0, 380 kB after M1, 394 kB after M2, 400 and then 401 kB at M3, 409 kB after M5. At M6 (2026-10-10, decision 4 of `m6-brief.md`, Mark's one-bigger-total rule) the old flag-only chunks joined it, because the flip made them part of every player's download: it measured 451.688 kB, so the cap is 452 kB (rounded up to the next 1 kB). That is 6.3 kB less than the 458 kB sum before the flip, because deleting the old presenter and the GL half of `display.ts` saved it. Each raise is by the measured delta only, and the cause is written in the script.
+- **Total gzip alarm: 456 kB** for the shipped game (`GZIP_TOTAL_MAX`), **without the lazy 3D chunk** (M7, decision D2 B: a player downloads that chunk at the first hack, so the everyday alarm does not count it). It was 240.8 kB at M0, 380 kB after M1, 394 kB after M2, 400 and then 401 kB at M3, 409 kB after M5. At M6 (2026-10-10, decision 4 of `m6-brief.md`, Mark's one-bigger-total rule) the old flag-only chunks joined it, because the flip made them part of every player's download: it measured 451.688 kB, so the cap is 452 kB (rounded up to the next 1 kB). That is 6.3 kB less than the 458 kB sum before the flip, because deleting the old presenter and the GL half of `display.ts` saved it. At M7 the door, the jump and their data joined it: 455.193 kB, so the cap is 456 kB (+3.5 kB over M6; the brief estimated +1.5 kB for the door alone, before the cover). Each raise is by the measured delta only, and the cause is written in the script.
 - **Largest chunk: 480 kB raw** (`CHUNK_MAX`), on the shipped game. After the flip the biggest is 363 kB (the game's boot chunk). It holds because `src/sje/boot.ts` loads `src/boot.ts` with a dynamic `import()`: with a static import Rolldown merged the engine and the game into one 770.8 kB chunk, over the cap (and a change to the game would have changed the hash of Pixi's code too).
 - **Boot has no engine:** the `boot` class holds no `pixi.js` and no `three` module, in the game and in the lab.
-- **First play: 392.4 kB gzip** (`FIRST_PLAY_MAX`), boot plus `lazy-2d`: what every player downloads before the first battle and field. It measured 391.363 kB at M6 (boot 1.5, the game's boot chunk and what it imports 184.7, the engine 156.1, the two stages 49.1), and the cap is the measured value plus 1 kB (decision 4c). Before the flip it measured 345.7 kB, with no cap and without the stages. The `flag-only` class (M3) is gone: `liveopen` and `fieldopen` are `lazy-2d` (`STAGE_SRC` in the script).
-- **The game holds Pixi only in a lazy chunk:** no game chunk holds Three until M7.
-- **Lab `lazy-3d`:** at most 160 kB gzip, and it must not be empty. The lab `lazy-2d` class must not be empty.
+- **First play: 395.9 kB gzip** (`FIRST_PLAY_MAX`; 392.4 kB at M6), boot plus `lazy-2d`: what every player downloads before the first battle and field. It measured 391.363 kB at M6 (boot 1.5, the game's boot chunk and what it imports 184.7, the engine 156.1, the two stages 49.1), and the cap is the measured value plus 1 kB (decision 4c). **M7:** 394.882 kB (+3.3 kB: the door, the cover, style A and their data), cap 395.9 kB, set provisionally until Mark picks a jump style. The first build with a 3D chunk measured 398.6 kB, a leak found and fixed in M7: the engine facade `src/sje/index.ts` re-exported the 3D-only `View3D` and `ExternalFrameTexture`, and Rolldown, which keeps a module for its side effects when a facade names it, put them and eight Pixi WebGPU upload modules (`GpuTextureSystem`, `ExternalSource`, ...) in a shared chunk of the start path. They are exported from the 3D facade `src/sje/three/index.ts` now (the `sje-*` shared chunk is back to `Lights` alone), and `tests/sje-imports.test.ts` fails on a value re-export of either file from the facade. A static import chain into the 3D code is the thing to look for when first play grows: the shared chunk's source map names the modules. Before the flip it measured 345.7 kB, with no cap and without the stages. The `flag-only` class (M3) is gone: `liveopen` and `fieldopen` are `lazy-2d` (`STAGE_SRC` in the script).
+- **The game holds Pixi only in a lazy chunk, and Three only in the lazy 3D class (M7):** a chunk with a `three` module that is not the `lazy-3d` class fails (so the 3D code cannot join the start path), and the game must have such a chunk (else the door's dynamic import is gone, or the check is blind).
+- **`lazy-3d`** (the game since M7, and the lab): at most 160 kB gzip, and it must not be empty. The game's chunk measures 146.3 kB gzip and 579.6 kB raw; it is exempt from the 480 kB largest-chunk cap (Three is one module graph, and check 5 forbids the named groups that could cut it) and has its own raw cap, 609 kB (measured plus 5%). The lab `lazy-2d` class must not be empty.
 - **No blind chunk:** a chunk with no source map (or a boot chunk with an empty one) fails the gate. Without this, the checks above would pass on no data. `tests/bundle-budget.test.ts` holds the controls (a boot chunk with no map fails; a boot chunk with a Pixi module fails).
 - **The two Vite traps** below.
 
@@ -349,11 +376,11 @@ The report prints the four classes (`flag-only` existed from M3 to M6). Measured
 |---|---|---|
 | `boot` | The entry's static closure | Must contain **no** `pixi.js` and **no** `three` module. A hard check. |
 | `lazy-2d` | Pixi and the engine, and (M6) every chunk of the start path: the engine boot (`src/sje/boot.ts`), the game boot (`src/boot.ts`) and what they import statically, and the two stages (`liveopen`, `fieldopen`) | Counted. |
-| `lazy-3d` | Three and the hack scene | Own cap. |
+| `lazy-3d` | Three and the hack scene (behind the one dynamic `import()` of `src/hack3d/door.ts`) | Own caps (gzip 160 kB, raw 609 kB). Not in the game total (D2 B). |
 | `lazy-other` | Battle, deck, tables, dev | Counted. |
-| `first play` | `boot` plus `lazy-2d` | Own cap, 392.4 kB. |
+| `first play` | `boot` plus `lazy-2d` | Own cap, 395.9 kB. |
 
-Caps in force: `lazy-3d` 160 kB (you accepted it on 2026-10-05, real choice C5; the spike measured 145.1 kB and M0 measured 135.3 kB in the lab), the game total 452 kB, `first play` 392.4 kB, the largest chunk 480 kB raw.
+Caps in force (2026-10-12, M7, provisional until the look checkpoint): `lazy-3d` 160 kB gzip and 609 kB raw (you accepted 160 kB on 2026-10-05, real choice C5; the spike measured 145.1 kB, M0 135.3 kB in the lab, M7 146.3 kB in the game), the game total 456 kB without `lazy-3d`, `first play` 395.9 kB, the largest chunk 480 kB raw. Also at M7: `e2e/default-path.spec.ts` asserts that a normal run (title, field, battle, Options) makes no request for the 3D chunk, and `e2e/prod.spec.ts` loads the hashed chunk from the preview server by its manifest name (a wrong name rejects).
 
 **Phase 0 spike numbers (gzip, not M0 numbers).** Pixi plus the engine kernel is 124.7 kB. The page of the stage lab boots with 170.7 kB, and the page of the 3D lab boots with 165.5 kB. The lazy 3D chunk (Three with named imports, a `UnrealBloomPass`, and the hack scene) is 145.1 kB (576.8 kB raw). The shipped game then measured 233.9 kB (before the 640x360 move). The spike's script had four classes: the shipped game, the lazy 3D chunk, the lab boot, and the stage lab page.
 
