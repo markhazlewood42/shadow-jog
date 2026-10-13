@@ -213,6 +213,13 @@ describe('docs, read through /api/docs/<repo path>', () => {
     expect(requested).toEqual(['/api/docs/docs/engine/decisions.md']);
   });
 
+  it('shows the roadmap chart (an svg) as a picture, not as a link', async () => {
+    const { resolve } = setup();
+    const doc = dataOf(await resolve<DocPageData>('/api/docs/roadmap/README'));
+    expect(doc.html).toMatch(/<img [^>]*src="\/api\/docs\/docs\/roadmap\/roadmap\.svg"[^>]*data-zoom="\/api\/docs\/docs\/roadmap\/roadmap\.svg"/);
+    expect(doc.html).not.toMatch(/<a [^>]*>The roadmap as a Gantt-style chart/);
+  });
+
   it('tries the root file when a slug has no folder and no file in docs/', async () => {
     const { resolve } = setup();
     // `status` is named by nav.json as status.md, so it is the first and only try.

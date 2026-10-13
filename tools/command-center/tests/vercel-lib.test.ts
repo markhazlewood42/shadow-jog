@@ -100,6 +100,7 @@ describe('the allow-list for doc paths', () => {
     ['/api/docs/docs/engine/decisions.md', 'docs/engine/decisions.md', 'markdown'],
     ['/api/docs/docs/engine/diagrams/engine-frame.png', 'docs/engine/diagrams/engine-frame.png', 'png'],
     ['/api/docs/docs/diagrams/battle-round.png', 'docs/diagrams/battle-round.png', 'png'],
+    ['/api/docs/docs/roadmap/roadmap.svg', 'docs/roadmap/roadmap.svg', 'svg'],
     ['/api/docs/status.md', 'status.md', 'markdown'],
     ['/api/docs/CHANGELOG.md', 'CHANGELOG.md', 'markdown'],
     ['/api/docs/README.md', 'README.md', 'markdown'],
@@ -151,7 +152,7 @@ describe('the allow-list for doc paths', () => {
     ['/api/docs/knowledge/index.md', 404, 'markdown outside docs/ (folder)'],
     ['/api/docs/node_modules/x/README.md', 404, 'markdown outside docs/ (node_modules)'],
     ['/api/docs/docs/GDD.txt', 404, 'wrong extension'],
-    ['/api/docs/docs/art.svg', 404, 'svg is not in the list'],
+    ['/api/docs/docs/art.gif', 404, 'gif is not in the list'],
     ['/api/docs/docs/page.html', 404, 'html is not in the list'],
     ['/api/docs/docs/photo.jpg', 404, 'jpg is not in the list'],
     ['/api/docs/docs/GDD.MD', 404, 'upper-case extension'],
@@ -165,6 +166,14 @@ describe('the allow-list for doc paths', () => {
     const result = parseDocPath(pathname);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.status).toBe(status);
+  });
+
+  it('serves svg only under docs/, and no other picture or script type', () => {
+    for (const pathname of ['/api/docs/logo.svg', '/api/docs/public/art/a.svg', '/api/docs/docs/a.svgz', '/api/docs/docs/a.gif', '/api/docs/docs/a.jpg', '/api/docs/docs/a.html', '/api/docs/docs/a.js']) {
+      expect(parseDocPath(pathname), pathname).toMatchObject({ ok: false, status: 404 });
+    }
+    expect(parseDocPath('/api/docs/docs/../a.svg')).toMatchObject({ ok: false, status: 400 });
+    expect(parseDocPath('/api/docs/docs/%2e%2e/a.svg')).toMatchObject({ ok: false, status: 400 });
   });
 
   it('reaches only a path that is a plain relative path under the repo (every accepted path has no dot, no empty part)', () => {

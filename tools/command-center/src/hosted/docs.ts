@@ -1,7 +1,7 @@
 import { OWNER, REPO } from '../github-api/queries';
 import { type Env, readGithubToken } from './env';
 import { type ErrorMap, mapAdapterError, responseOf } from './errors';
-import { bytesResponse, CACHE, errorResponse, notConfigured } from './http';
+import { bytesResponse, CACHE, errorResponse, notConfigured, SVG_HEADERS } from './http';
 import { type DocPath, docPathnameOf, parseDocPath } from './doc-path';
 
 // `GET /api/docs/<repo path>` (design.md section 6): one doc from `main`, read through the GitHub contents API with the server token.
@@ -21,7 +21,8 @@ export type DocsDeps = { env: Env; fetchImpl?: DocFetch; now?: () => Date };
 /** The media type of a Content-Type header: the part before `;`, trimmed, lower case. Empty when the header is missing. */
 export const mediaTypeOf = (contentType: string | null): string => (contentType ?? '').split(';')[0]?.trim().toLowerCase() ?? '';
 
-const CONTENT_TYPE = { markdown: 'text/markdown; charset=utf-8', png: 'image/png' } as const;
+const CONTENT_TYPE = { markdown: 'text/markdown; charset=utf-8', png: 'image/png', svg: 'image/svg+xml' } as const;
+
 
 /** The GitHub URL of an allowed path. Every segment is plain (letters, digits, `.`, `-`, `_`), so nothing needs encoding. */
 export const contentsUrl = (path: string): string => `https://api.github.com/repos/${OWNER}/${REPO}/contents/${path}?ref=${DOCS_REF}`;
@@ -89,7 +90,7 @@ export async function handleDocs(request: Request, deps: DocsDeps): Promise<Resp
     const reply = await send(contentsUrl(parsed.path), {
       headers: {
         Authorization: `Bearer ${token}`,
-        // The raw media type: GitHub sends the file bytes (text or PNG) and not a JSON wrapper with base64.
+        // The raw media type: GitHub sends the file bytes (text, PNG or SVG) and not a JSON wrapper with base64.
         Accept: 'application/vnd.github.raw+json',
         'X-GitHub-Api-Version': '2022-11-28',
         'User-Agent': 'shadow-jog-command-center',
@@ -105,7 +106,7 @@ export async function handleDocs(request: Request, deps: DocsDeps): Promise<Resp
     if (Number.isFinite(announced) && announced > MAX_BYTES) return errorResponse(502, 'file is too large', 'too-large');
     const bytes = await readCapped(reply, MAX_BYTES);
     if (bytes === null) return errorResponse(502, 'file is too large', 'too-large');
-    return bytesResponse(bytes, CONTENT_TYPE[parsed.type], CACHE.docs);
+    return bytesResponse(bytes, CONTENT_TYPE[parsed.type], CACHE.docs, parsed.type === 'svg' ? SVG_HEADERS : {});
   } catch (error) {
     console.error(`docs failed: ${error instanceof Error ? error.name : 'unknown error'}`);
     return responseOf(mapAdapterError({ code: 'network' }));
