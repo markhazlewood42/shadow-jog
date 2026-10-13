@@ -16,7 +16,7 @@ On 2026-10-13 the hosted Now page showed 16 items in "Your move". None was real.
 
 ## 2. The model
 
-"Your move" shows only items that clear themselves. The hosted page and the local page use the same three sources and one shared rule in `tools/command-center/src/shared/`.
+"Your move" shows only items that clear themselves. Today the local page also shows the `status.md` "Next up for Mark" list and the open decisions of the engine docs. Section 5 removes both. After the change, the hosted page and the local page use the same three sources and one shared rule in `tools/command-center/src/shared/`.
 
 | Source | Shows when | Clears when |
 |---|---|---|
@@ -25,6 +25,8 @@ On 2026-10-13 the hosted Now page showed 16 items in "Your move". None was real.
 | Live asks | The newest "Your move" box of a live session. One item per box line | Any one of the four rules below |
 
 The text of a PR item comes from GitHub (number and title). It never comes from session text.
+
+**Action rule (Mark, 2026-10-13).** Every item links to a place where Mark can act: a decision page, a PR, or a live session. An item that links only to document text is not allowed.
 
 A live ask hides when any one of these holds:
 
@@ -62,7 +64,9 @@ Live asks depend on a working reporter. Mark reports open problems in the local 
 - `next_for_mark` leaves the workstream files, the validator (`src/shared/workstream.ts`), `tools/command-center/tests/workstream-files.test.ts`, the Workstreams cards, and "Your move". Existing files lose the field.
 - `docs/workstreams/README.md` changes to match.
 - The "Workstream file" bullet in the repo `CLAUDE.md` no longer says a session makes `next_for_mark` true.
-- On the local page, the `status.md` "Next up for Mark" list and the open decisions of the engine docs leave "Your move". They stay on their own pages (open question A).
+- On the local page, the `status.md` "Next up for Mark" list leaves "Your move". It links only to text and does not clear itself. A line that needs Mark becomes a decision issue, a PR, or a live ask.
+- The open decisions of the engine docs leave "Your move". A decision that needs Mark is raised as a GitHub decision issue. It then shows through source 1 with the decision page.
+- Add a check that flags an open engine-doc decision that has no decision issue. Proposal: a test in `tools/command-center/tests/` that fails on such a decision, plus a warning on the docs page.
 
 ## 6. Tests to add or change
 
@@ -75,7 +79,7 @@ Live asks depend on a working reporter. Mark reports open problems in the local 
 
 ## 7. Open questions for Mark
 
-- **A.** Remove "Next up for Mark" and the engine-doc open decisions from the local "Your move"? Recommended: yes. They do not clear themselves.
+- **A. Answered 2026-10-13.** Mark: "It's OK to keep them IF they're actually actionable. For example, one of the decision items just links to a wall of text document segment. It doesn't link to an actual decision UI. If there's an open decision, it needs to use the GH issue decision framework + dedicated UI." Result: the action rule in section 2, and the two removals in section 5.
 - **B.** Approve the wider reporter allow-list in section 4? Recommended: yes, with the attacker verifier.
 
 ## 8. Not built yet
