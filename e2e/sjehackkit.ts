@@ -218,8 +218,9 @@ export const chunkUrl = /\/src\/hack3d\/index\.ts/;
 
 // Line 20, case 1: a slow chunk. The request is held back until the capture has seen HOLD_FRAMES hold frames, then it goes on: the hold keeps animating, never blank, and when the chunk
 // arrives the in phase runs in full and the hack plays.
-// The delay counts hold frames (ticks), not wall-clock time. The chunk request starts at the first tick of the cover, so it runs while the out phase is still ticking: a fixed 3 s delay
-// passed during the out phase on a slow runner (CI: software GL, about 250 ms for each captured tick), the chunk was there when the out phase ended, and the hold had 1 to 5 frames.
+// The delay counts hold frames (ticks), not wall-clock time. 24 is the number of HOLD frames to see: it does not depend on the length of the out phase (60 ticks since the 2 s jack).
+// The chunk request starts at the first tick of the cover, so it runs while the out phase is still ticking: a fixed 3 s delay passed during the out phase on a slow runner (CI: software
+// GL, about 250 ms for each captured tick), the chunk was there when the out phase ended, and the hold had 1 to 5 frames. Counting hold frames holds the chunk until the hold has them.
 // The wall-clock hold bound is raised so a slow runner cannot end the hold before the chunk is let go (the bound itself is tested below, with 1,500 ms).
 export const HOLD_FRAMES = 24;
 export const SLOW_RUNNER_BOUND = `(sj.hackDev.set({ options: { jack: { params: { holdBoundMs: 60000 } } } }), true)`;

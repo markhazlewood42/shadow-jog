@@ -279,6 +279,40 @@ describe('snapshot and restore', () => {
     expect(state(b)).not.toBe(state(straight));
   });
 
+  it('R4-8: a snapshot whose status, tick or trace does not fit the definition is refused and the sim keeps its state (control: a real snapshot of each status restores)', () => {
+    const run = new HackSim(long);
+    run.run(100);
+    const good = run.snapshot();
+    const over = new HackSim({ ...DEF, ticks: 50, traceLimit: 1000 });
+    over.run(50);
+    const failing = new HackSim({ ...DEF, traceLimit: 1 });
+    failing.run(900);
+    expect(failing.status).toBe('fail');
+    // CONTROL: a running, a success and a fail snapshot of the same definitions are accepted.
+    expect(() => new HackSim(long).restore(good)).not.toThrow();
+    expect(() => new HackSim({ ...DEF, ticks: 50, traceLimit: 1000 }).restore(over.snapshot())).not.toThrow();
+    expect(() => new HackSim({ ...DEF, traceLimit: 1 }).restore(failing.snapshot())).not.toThrow();
+    const sim = new HackSim(long);
+    const before = state(sim);
+    const refused = (s: Partial<ReturnType<HackSim['snapshot']>>, why: RegExp) => {
+      expect(() => sim.restore({ ...good, ...s }), String(why)).toThrow(why);
+      expect(state(sim)).toBe(before);
+    };
+    refused({ status: 'success' }, /success but the tick/);
+    refused({ status: 'bogus' as never }, /not running, success or fail/);
+    refused({ status: 'fail' }, /fail but the trace/);
+    refused({ tick: long.ticks + 1 }, /outside 0 to/);
+    refused({ tick: -1 }, /outside 0 to/);
+    refused({ trace: long.traceLimit }, /limit/);
+    refused({ trace: Number.NaN }, /not a number/);
+    refused({ travel: Number.NaN }, /travel .* not a number/);
+    refused({ rng: Number.NaN }, /rng state .* not a number/);
+    // A snapshot of a sim with a lower TRACE limit (the limit is part of the definition).
+    const strict = new HackSim({ ...long, traceLimit: 5 });
+    strict.run(5000);
+    expect(() => new HackSim(long).restore(strict.snapshot())).toThrow(/limit/);
+  });
+
   it('the status survives: a sim snapshotted after it succeeded stays over', () => {
     const a = new HackSim({ ...DEF, ticks: 50 });
     a.run(50);

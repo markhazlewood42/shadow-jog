@@ -12,6 +12,10 @@ const ABORTED: readonly HackPolicy['aborted'][] = ['retry-then-succeed', 'succee
 const UNSUPPORTED: readonly HackPolicy['unsupported'][] = ['alternative', 'succeed', 'fail'];
 
 const TRANSITION_NUMBERS = ['outTicks', 'inTicks', 'swapMinTicks', 'holdBoundMs', 'holdCover', 'dissolveHold', 'block', 'lineHeight', 'cursorPeriod'] as const;
+/** Upper bounds of the `transition` numbers: phase ticks 600 (10 times the shipped 60), swap ticks 120 (60 times the shipped 2), hold bound 60 s (6 times the shipped 10 s). A bound catches a typo, it is not a design limit. */
+const MAX_PHASE_TICKS = 600;
+const MAX_SWAP_TICKS = 120;
+const MAX_HOLD_BOUND_MS = 60000;
 const RANGE_PHASES = ['out', 'swap', 'in'];
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -69,6 +73,14 @@ export function checkTransition(t: unknown): string[] {
   for (const key of ['outTicks', 'inTicks', 'swapMinTicks', 'cursorPeriod', 'block', 'lineHeight'] as const) if (!isInt(t[key]) || (t[key] as number) < 1) out.push(`transition: ${key} must be a whole number, 1 or more`);
   for (const key of ['holdCover', 'dissolveHold'] as const) if (isNum(t[key]) && (t[key] as number) > 1) out.push(`transition: ${key} must be at most 1`);
   if (isNum(t.holdBoundMs) && t.holdBoundMs < 1) out.push('transition: holdBoundMs must be at least 1');
+  // Upper bounds: a typo must not make a transition that never ends. The wall-clock bound of the hold is what stops a player waiting for ever on a chunk that never loads.
+  const caps = { outTicks: MAX_PHASE_TICKS, inTicks: MAX_PHASE_TICKS, swapMinTicks: MAX_SWAP_TICKS, holdBoundMs: MAX_HOLD_BOUND_MS } as const;
+  for (const key of Object.keys(caps) as Array<keyof typeof caps>) {
+    const v = t[key];
+    if (isNum(v) && v > caps[key]) out.push(`transition: ${key} must be at most ${caps[key]}`);
+  }
+  // A cover of 0 at the hold shows an unchanged picture, which pass line 20 forbids.
+  if (isNum(t.holdCover) && t.holdCover <= 0) out.push('transition: holdCover must be above 0 (pass line 20: the hold must show a moving cover)');
   return out;
 }
 

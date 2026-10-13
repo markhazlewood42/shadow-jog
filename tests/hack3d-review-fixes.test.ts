@@ -129,3 +129,76 @@ describe('finding 7: one reading of ?seed=', () => {
     expect(parseSeed('-7')).toBe(-7);
   });
 });
+
+// ---- fifth/fourth review follow-ups (issue #81): the real cover on the stand-in display classes ----------------------------------------------------
+
+/** A game double for the cover: its events can be fired by hand, and the effects level can be changed. */
+function coverGame(level: 'full' | 'lite' | 'none') {
+  const handlers: Array<() => void> = [];
+  const glitches: object[] = [];
+  const game = {
+    fx: {
+      level,
+      glitches,
+      // A moment that adds one tear glitch (what `jack.out` does at full).
+      playMoment: (name: string) => void (name !== 'jack.lite' && glitches.push({})),
+    },
+    events: { on: (_n: string, h: () => void) => handlers.push(h), off: (_n: string, h: () => void) => void handlers.splice(handlers.indexOf(h), 1) },
+    screen: { overlayRoot: { add: () => undefined } },
+    shake: () => undefined,
+  };
+  const tick = (n = 1): void => {
+    for (let i = 0; i < n; i++) for (const h of [...handlers]) h();
+  };
+  return { game, handlers, glitches, tick };
+}
+const SHORT = { outTicks: 3, inTicks: 3, swapMinTicks: 1, holdBoundMs: 1e9 };
+
+describe('R4-2: GlitchDriver.dispose uses the level the cover was built with', () => {
+  it.each([
+    ['full', 'lite', 0],
+    ['full', 'none', 0],
+    ['full', 'full', 0],
+  ] as const)('built at %s, level changed to %s before dispose: the tear glitches are cleared (control: a cover built at lite keeps what is not its own)', async (built, later, left) => {
+    vi.stubGlobal('location', { search: '' });
+    const { game, glitches, tick } = coverGame(built);
+    const jack = await makeJack(game as never, 1, { style: 'glitch', params: SHORT });
+    if (!jack) throw new Error('no cover');
+    void jack.run({ onSwap: () => 'go', swapDone: () => true });
+    tick(); // the first tick of out is already entered by run(); this one steps it
+    expect(glitches.length).toBeGreaterThan(0);
+    game.fx.level = later;
+    jack.dispose();
+    expect(glitches.length).toBe(left);
+  });
+  it('control: a story glitch that was live before the cover keeps living, and a cover built at lite adds and clears nothing', async () => {
+    vi.stubGlobal('location', { search: '' });
+    const { game, glitches } = coverGame('lite');
+    const story = {};
+    glitches.push(story);
+    const jack = await makeJack(game as never, 1, { style: 'glitch', params: SHORT });
+    if (!jack) throw new Error('no cover');
+    void jack.run({ onSwap: () => 'go', swapDone: () => true });
+    jack.dispose();
+    expect(glitches).toEqual([story]);
+  });
+});
+
+describe('R4-6: a queued second run when the first run aborts', () => {
+  it('the queued second run (jack out) is not dropped or left hanging: after the aborted first run is over, a disposed cover ends it as done without a swap (control)', async () => {
+    vi.stubGlobal('location', { search: '' });
+    const { game, tick, handlers } = coverGame('none');
+    const jack = await makeJack(game as never, 1, { style: 'glitch', params: SHORT });
+    if (!jack) throw new Error('no cover');
+    const swaps: string[] = [];
+    // The first run: the hold is released at once, but onSwap aborts (a failed load).
+    const first = jack.run({ holdReleased: () => true, onSwap: () => (swaps.push('first'), 'abort'), swapDone: () => true });
+    const second = jack.run({ onSwap: () => (swaps.push('second'), 'go'), swapDone: () => true });
+    tick(8);
+    expect(await first).toBe('aborted');
+    // The first run aborted and its cover tore down (an aborted run removes the cover): the queued run must still settle, not hang.
+    expect(await Promise.race([second, new Promise((r) => setTimeout(() => r('pending'), 50))])).toBe('done');
+    expect(swaps).toEqual(['first']); // CONTROL half: the disposed cover runs no swap for the second run, and does not hang
+    expect(handlers.length).toBe(0);
+  });
+});

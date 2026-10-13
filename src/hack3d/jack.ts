@@ -39,6 +39,8 @@ export interface Jack {
   run(r: JackRun): Promise<'done' | 'aborted'>;
   /** Take the cover away now. After an aborted run it waits for the way back to finish first. Safe to call twice. */
   dispose(): void;
+  /** Resolves when the cover is off the screen. After an aborted run that is the end of the way back, so the story does not start anything over a fading cover. */
+  whenGone(): Promise<void>;
 }
 
 /** What a style draws with. `jack.ts` owns the veil, the hold element and the clock; a style adds its own objects. */
@@ -49,14 +51,23 @@ export interface JackStyleDriver {
   enter(phase: Phase, level: JackLevel): void;
   /** Draw one tick. `t` is the tick within the phase. */
   paint(frame: CoverFrame, phase: Phase, t: number, level: JackLevel): void;
-  /** Free what `setup` made and take back any effect left in the effects system. */
-  dispose(): void;
+  /** Free what `setup` made and take back any effect left in the effects system. `level` is the cover's own level (the one it was built with; `game.fx.level` can change later). */
+  dispose(level: JackLevel): void;
+}
+
+/** A promise with its resolver (`Promise.withResolvers` is ES2024; the build lib is ES2023). */
+function deferred(): { promise: Promise<void>; resolve: () => void } {
+  let resolve: () => void = () => undefined;
+  const promise = new Promise<void>((r) => {
+    resolve = r;
+  });
+  return { promise, resolve };
 }
 
 /** The cover, with its clock. One per hack. */
 class JackCover implements Jack {
   readonly started: Promise<void>;
-  private resolveStarted: () => void = () => undefined;
+  private readonly resolveStarted: () => void;
   private readonly root: Container;
   private readonly veilVoid: Graphics;
   private readonly veilWhite: Graphics;
@@ -73,6 +84,8 @@ class JackCover implements Jack {
   private disposed = false;
   private disposeWhenDone = false;
   private settled = false;
+  private readonly resolveGone: () => void;
+  private readonly gone: Promise<void>;
   /** The run that is on now, or null. */
   private active: Promise<'done' | 'aborted'> | null = null;
 
@@ -82,9 +95,12 @@ class JackCover implements Jack {
     private readonly params: TransitionParams,
     private readonly driver: JackStyleDriver,
   ) {
-    this.started = new Promise<void>((r) => {
-      this.resolveStarted = r;
-    });
+    const started = deferred();
+    this.started = started.promise;
+    this.resolveStarted = started.resolve;
+    const gone = deferred();
+    this.gone = gone.promise;
+    this.resolveGone = gone.resolve;
     this.level = game.fx.level;
     // A throw partway (a canvas that cannot be made) must not leave a half-built cover on screen or a listener behind: the door treats it as a cut, and nothing else would free it.
     try {
@@ -111,7 +127,7 @@ class JackCover implements Jack {
     } catch (e) {
       game.events.off('poststep', this.onTick);
       try {
-        driver.dispose();
+        driver.dispose(this.level);
       } catch {
         // The first error is the one to report.
       }
@@ -163,12 +179,17 @@ class JackCover implements Jack {
     this.disposed = true;
     this.game.events.off('poststep', this.onTick);
     try {
-      this.driver.dispose();
+      this.driver.dispose(this.level);
     } finally {
       this.root.destroy();
       if (import.meta.env.DEV && jackProbe.current === this) jackProbe.current = null;
       this.finish('done');
+      this.resolveGone();
     }
+  }
+
+  whenGone(): Promise<void> {
+    return this.gone;
   }
 
   private finish(how: 'done' | 'aborted'): void {
@@ -300,8 +321,9 @@ class GlitchDriver implements JackStyleDriver {
       this.moment('jack.hold', W / 2, H / 2);
     }
   }
-  dispose(): void {
-    if (this.game.fx.level === 'full') this.clearMine();
+  dispose(level: JackLevel): void {
+    // `level` is the one the cover was BUILT with, not the live one: the player may change the effects level while the cover is up, and the tear glitches added at `full` must still go.
+    if (level === 'full') this.clearMine();
   }
 }
 

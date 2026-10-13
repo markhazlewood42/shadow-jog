@@ -61,6 +61,13 @@ describe('the transition numbers (data)', () => {
     expect(checkUniform({}, raw.transition)).not.toEqual([]);
     expect(checkUniform(null, raw.transition)).not.toEqual([]);
     expect(checkTransition(null)).not.toEqual([]);
+    // R4-7: upper bounds and a cover above 0. CONTROL: each bad value fails while the shipped data (above) passes.
+    expect(bad({ outTicks: 601 })).not.toEqual([]);
+    expect(bad({ inTicks: 601 })).not.toEqual([]);
+    expect(bad({ swapMinTicks: 121 })).not.toEqual([]);
+    expect(bad({ holdBoundMs: 60001 })).not.toEqual([]);
+    expect(bad({ holdBoundMs: 1e12 }).join(' ')).toMatch(/holdBoundMs must be at most/);
+    expect(bad({ holdCover: 0 }).join(' ')).toMatch(/holdCover must be above 0/);
     // A range with no reason is named with where it is.
     const noReason = { ...UNIFORM, glitch: { ...UNIFORM.glitch, full: [{ phase: 'swap', from: 0, to: null, reason: '' }] } };
     expect(checkUniform(noReason, raw.transition).join(' ')).toMatch(/glitch\.full.*reason/);
@@ -166,6 +173,20 @@ describe('coverAt: what the cover looks like', () => {
     expect(coverAt('glitch', 'none', 'hold', 0, P).cover).toBe(1);
   });
 
+  it('R4-1: the way back from a failed hold keeps the void veil of the hold (white only after a real swap); control: a normal in is white', () => {
+    for (const level of ['full', 'lite'] as const) {
+      const tl = new Timeline(P);
+      tl.phase = 'hold';
+      tl.abort(holdLook('glitch', level, P));
+      for (const t of [0, 10, P.inTicks - 1]) {
+        tl.t = t;
+        expect(tl.frame('glitch', level).tint, `${level} abort t${t}`).toBe('void');
+      }
+      expect(tl.frame('glitch', level).cover).toBeLessThanOrEqual(P.holdCover);
+      expect(coverAt('glitch', level, 'in', 0, P).tint, `${level} control`).toBe('white');
+    }
+  });
+
   it('the glitch flash is white at full and lite, and the void at none', () => {
     expect(coverAt('glitch', 'full', 'swap', 0, P).tint).toBe('white');
     expect(coverAt('glitch', 'lite', 'swap', 0, P).tint).toBe('white');
@@ -228,5 +249,20 @@ describe('the style choice', () => {
     expect(styleFromQuery('cut')).toBe('cut');
     expect(styleFromQuery('nope')).toBeNull();
     expect(styleFromQuery(null)).toBeNull();
+  });
+});
+
+describe('R5-1: the jack effect moments span the phase they play over', () => {
+  const fxMoments = (JSON.parse(readFileSync(join(import.meta.dirname, '..', 'src/data/fx.json'), 'utf8')) as { moments: Record<string, { layers: Array<{ delay?: number; glitch?: { life: number }; dim?: { life: number } }> }> }).moments;
+  /** The tick on which the last timed layer of a moment ends: its delay plus its life. */
+  const span = (m: string): number => Math.max(...(fxMoments[m]?.layers ?? []).map((l) => (l.delay ?? 0) + (l.glitch?.life ?? l.dim?.life ?? 0)));
+
+  it.each([
+    ['jack.out', P.outTicks],
+    ['jack.in', P.inTicks],
+    ['jack.lite', P.outTicks],
+  ])('%s ends within its %i-tick phase and fills at least nine tenths of it (the old spans were 26, 18 and 34 ticks)', (name, phase) => {
+    expect(span(name)).toBeLessThanOrEqual(phase);
+    expect(span(name)).toBeGreaterThanOrEqual(phase * 0.9);
   });
 });

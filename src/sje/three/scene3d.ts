@@ -25,7 +25,7 @@
  *     carries on: the frame rewraps its texture in its next `render()` (Frame3D marks itself stale on `restored`), and Three uploads its objects again.
  *   - When the timer runs out the scene ends with `abortResult('context-lost')`. The end runs from the timer, outside the draw phase, so no scene closes
  *     inside its own `prerender` because of a loss.
- *   - `contextGraceMs: 0` means no grace: the scene ends in the first draw after the loss, as M1b built it (D3 option C).
+ *   - `contextGraceMs: 0` means no grace: a loss that only the game sees ends the scene through a 0 ms timer armed in `markLost`, so it ends right after the loss event and not in a draw (D3 option C).
  *   The timer is wall-clock time (`setTimeout`): a lost context is a wall-clock fact, and the grace must hold when ticks stall. A context that comes
  *   back after the scene ended finds nothing to draw.
  *
@@ -153,8 +153,9 @@ export abstract class Scene3D<R> extends Scene<R> {
     this.lost = true;
     this.releaseOnce();
     const grace = this.options.contextGraceMs ?? CONTEXT_GRACE_MS;
-    // No grace: the first draw after the loss ends the scene (see `draw3D`).
-    if (grace > 0) this.graceTimer = setTimeout(this.graceExpired, grace);
+    // With a grace, the timer ends the scene when it runs out. With no grace (0) the timer still runs, at 0 ms: a loss that only the game event reports would else wait for
+    // the next draw, and a scene whose draw is skipped (hidden) would freeze. A loss that the draw sees ends the scene in that draw first, and `free` clears this timer.
+    this.graceTimer = setTimeout(this.graceExpired, grace > 0 ? grace : 0);
   }
 
   /** The context is back before the grace ran out: draw again. Three's objects upload again in the next `render()`, and the frame rewraps its texture. */

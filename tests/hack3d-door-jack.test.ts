@@ -4,7 +4,7 @@
  * the scene goes, and every way out of the door takes the cover away. The real cover and its pictures are e2e/sje-hack-a.spec.ts to -d (shared helpers in e2e/sjehackkit.ts).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { type DoorEnv, hackDoor } from '../src/hack3d/door';
+import { type DoorEnv, hackDoor, wayBackBoundMs } from '../src/hack3d/door';
 import type { HackOptions } from '../src/hack3d/hackscene';
 import type { Jack, JackRun } from '../src/hack3d/jack';
 import type { HackDef, HackResult } from '../src/hack3d/result';
@@ -26,7 +26,7 @@ class FakeJack implements Jack {
   runs = 0;
   constructor(
     log: string[],
-    private o: { impatient?: boolean; holdBoundTicks?: number; noSwapOnRun?: number; abortAfterSwapOnRun?: number } = {},
+    private o: { impatient?: boolean; holdBoundTicks?: number; noSwapOnRun?: number; abortAfterSwapOnRun?: number; backNeverEnds?: boolean } = {},
   ) {
     this.log = log;
     this.started = tick().then(() => void this.log.push('first-tick'));
@@ -43,6 +43,7 @@ class FakeJack implements Jack {
         this.holdTicks++;
         if (this.o.holdBoundTicks !== undefined && this.holdTicks > this.o.holdBoundTicks) {
           this.log.push('hold-timeout');
+          this.startBack();
           return 'aborted';
         }
         await tick();
@@ -51,6 +52,7 @@ class FakeJack implements Jack {
     this.log.push('swap');
     if (r.onSwap() === 'abort') {
       this.log.push('abort');
+      this.startBack();
       return 'aborted';
     }
     // MUTANT of a cover whose tick threw after the scene started: the run ends 'aborted' and the cover is gone (a later run on it ends 'done' at once, like a disposed cover).
@@ -64,6 +66,22 @@ class FakeJack implements Jack {
     await tick();
     this.log.push('revealed');
     return 'done';
+  }
+  /** The way back of an aborted run takes a few ticks (the real cover fades back to the 2D picture); `backDone` is when it is over. */
+  private back: Promise<void> = Promise.resolve();
+  private startBack(): void {
+    // MUTANT of a cover whose ticks stopped (the game was torn down): the way back never ends, so `whenGone()` never settles.
+    if (this.o.backNeverEnds) {
+      this.back = new Promise<void>(() => undefined);
+      return;
+    }
+    this.back = (async () => {
+      for (let i = 0; i < 5; i++) await tick();
+      this.log.push('back-done');
+    })();
+  }
+  whenGone(): Promise<void> {
+    return this.back;
   }
   dispose(): void {
     this.disposed++;
@@ -173,6 +191,44 @@ describe('hackDoor with a cover: the order of the jump', () => {
     expect(console.error).toHaveBeenCalledTimes(1);
     expect(jack.disposed).toBe(1);
   });
+
+  it('R4-3: after an aborted run the door answers only when the way back is over (control: the abort is logged BEFORE the way back ends, so the wait is real)', async () => {
+    for (const how of ['load-fails', 'hold-times-out'] as const) {
+      const log: string[] = [];
+      const jack = new FakeJack(log, how === 'hold-times-out' ? { holdBoundTicks: 5 } : {});
+      const load = how === 'load-fails' ? async () => Promise.reject(new Error('offline')) : () => new Promise<never>(() => undefined);
+      const answer = hackDoor(game(), DEF, undefined, env(jack, load as DoorEnv['load'])).then((r) => {
+        log.push('door-answered');
+        return r;
+      });
+      expect(await answer).toEqual({ status: 'unsupported', reason: 'chunk-failed' });
+      const at = (m: string) => log.indexOf(m);
+      expect(at(how === 'load-fails' ? 'abort' : 'hold-timeout'), how).toBeGreaterThan(-1);
+      expect(at(how === 'load-fails' ? 'abort' : 'hold-timeout'), `${how}: control, the way back starts first`).toBeLessThan(at('back-done'));
+      expect(at('back-done'), `${how}: the door waited`).toBeGreaterThan(-1);
+      expect(at('back-done'), `${how}: and answered after it`).toBeLessThan(at('door-answered'));
+    }
+  });
+
+  it('E11: a way back whose ticks stop (whenGone never settles) still lets the door answer within the bound, for a failed load and a hold timeout (control: a normal way back is still waited for, see R4-3)', async () => {
+    // inTicks 1 keeps the bound short: wayBackBoundMs(1) is 2,051 ms.
+    const options: HackOptions = { jack: { params: { inTicks: 1 } } };
+    const bound = wayBackBoundMs(1);
+    expect(bound).toBe(2051);
+    for (const how of ['load-fails', 'hold-times-out'] as const) {
+      const log: string[] = [];
+      const jack = new FakeJack(log, { backNeverEnds: true, ...(how === 'hold-times-out' ? { holdBoundTicks: 5 } : {}) });
+      const load = how === 'load-fails' ? async () => Promise.reject(new Error('offline')) : () => new Promise<never>(() => undefined);
+      const started = Date.now();
+      const result = await hackDoor(game(), DEF, options, env(jack, load as DoorEnv['load']));
+      const took = Date.now() - started;
+      expect(result, how).toEqual({ status: 'unsupported', reason: 'chunk-failed' });
+      expect(took, `${how}: the door waited for the bound, not less`).toBeGreaterThanOrEqual(bound - 50);
+      expect(took, `${how}: and not for ever`).toBeLessThan(bound + 1500);
+      expect(log, how).not.toContain('back-done');
+      expect(jack.disposed, how).toBe(1);
+    }
+  }, 15_000); // two bounded waits of about 2 s each: more room than the 5 s default timeout
 
   it('the story is dropped during the hold: aborted / user, no scene started, the cover disposed (a drop ends the wait at once)', async () => {
     const log: string[] = [];

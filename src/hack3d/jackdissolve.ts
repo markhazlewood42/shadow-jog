@@ -76,7 +76,7 @@ export class DissolveDriver implements JackStyleDriver {
     effect.set('uAmount', frame.amount).set('uPattern', frame.pattern);
   }
 
-  dispose(): void {
+  dispose(_level: JackLevel): void {
     this.veil?.destroy();
     this.effect?.destroy();
     this.veil = null;

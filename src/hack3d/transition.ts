@@ -81,9 +81,10 @@ const smooth = (u: number): number => u * u * (3 - 2 * u);
 
 /**
  * What the cover looks like in this phase at tick `t` of it (`t` starts at 0). `from` is how covered the picture was when the `in` phase began (1 after a swap, less when
- * the hold ended in a failure and the 2D picture comes back from where it was).
+ * the hold ended in a failure and the 2D picture comes back from where it was). `aborted` says the `in` phase is that way back: it keeps the hold's void veil instead of
+ * the white flash of the swap (no swap happened, so a white pop would come from nowhere).
  */
-export function coverAt(style: JackStyle, level: JackLevel, phase: Phase, t: number, p: TransitionParams, from = 1): CoverFrame {
+export function coverAt(style: JackStyle, level: JackLevel, phase: Phase, t: number, p: TransitionParams, from = 1, aborted = false): CoverFrame {
   const idle: CoverFrame = { cover: 0, tint: 'void', amount: 0, pattern: 0, line: 0, holdUi: false };
   if (phase === 'done') return idle;
   const outU = clamp01((t + 1) / p.outTicks);
@@ -113,7 +114,7 @@ export function coverAt(style: JackStyle, level: JackLevel, phase: Phase, t: num
       case 'swap':
         return { ...idle, cover: 1, tint: 'white', amount: 1 };
       case 'in':
-        return { ...idle, cover: from * (1 - inU), tint: 'white', amount: 1 - inU };
+        return { ...idle, cover: from * (1 - inU), tint: aborted ? 'void' : 'white', amount: 1 - inU };
     }
   }
   // The dissolve and the collapse are DEV styles until Mark picks one (decision D5): a shipped build never asks for them, and drops their look.
@@ -204,7 +205,7 @@ export class Timeline {
 
   /** The cover to draw now (for the phase and tick the machine is in). */
   frame(style: JackStyle, level: JackLevel): CoverFrame {
-    return coverAt(style, level, this.phase, this.t, this.p, this.inFrom);
+    return coverAt(style, level, this.phase, this.t, this.p, this.inFrom, this.aborted);
   }
 
   /** Go back to the picture the run left: straight to `in`, from `from` (the hold look). Used when the swap cannot go on (the chunk did not load). */
