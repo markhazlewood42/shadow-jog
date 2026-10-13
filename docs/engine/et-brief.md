@@ -119,3 +119,4 @@ Source: [migration.md](migration.md) "Editors and tools" track 1, principle 11 (
 | Decisions | Mark answered the 5 decisions; trailer moved from port to delete (#84) | 5 decided | n/a | none |
 | Decisions verify r1 | Checked the recorded answers and the trailer delete | 2 Important, 2 Minor | FAIL → fixed | Delete confirmation grep scoped to `src`, `scripts`, `DEVELOPING.md`; research doc left alone as history; `music.ts` check narrowed to the `:381` comment; FX lab note on the 8 files |
 | Decisions verify r2 | Fix round checked the 4 named findings | 1 Important (the FX lab sentence), 0 Minor | FAIL → fixed | FX lab sentence: its `Game` and `LegacyShape` types come from `src/sje/runtime`; the count of 8 stands |
+| Decisions verify r3 | Fix round checked the FX lab sentence | 0 Important, 0 Minor | PASS | none; the main session re-counted the 8 tool files by grep (all 8 import the old engine) |
