@@ -5,6 +5,7 @@ project: shadow-jog
 created: 2026-10-13
 updated: 2026-10-13
 tags: [engine, et, plan, editors, tools]
+status: approved 2026-10-13 (Mark; decisions answered)
 ---
 
 # ET Editor port: build brief
