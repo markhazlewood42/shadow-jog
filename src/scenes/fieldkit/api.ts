@@ -59,8 +59,12 @@ export function scriptApi(f: FieldScene): ScriptApi {
     },
     refreshFocus: () => fieldHooks.refreshFocus?.(),
     battle: async (enc, opts) => (fieldHooks.battle ? fieldHooks.battle(f, enc, opts ?? {}) : 'win'),
-    // No hack hook installed (a test field): the hack counts as won, as a missing battle hook counts as a win.
-    hack: async (def, alt) => (fieldHooks.hack ? fieldHooks.hack(f, def, alt) : { outcome: 'success', via: 'policy', results: [] }),
+    // No hack hook installed (a test field): follow the same authored rule as the door (E19). The authored 2D alternative plays; with `onUnsupported: 'win'` the hack counts as won.
+    hack: async (def, how) => {
+      if (fieldHooks.hack) return fieldHooks.hack(f, def, how);
+      if (how.playAlternative) return { outcome: await how.playAlternative(), via: 'alternative', results: [] };
+      return { outcome: 'success', via: 'policy', results: [] };
+    },
     warp: async (mapId, x, y, dir, opts) => {
       await f.warp(mapId, x, y, dir ?? f.leader.dir, opts?.fade !== false);
     },

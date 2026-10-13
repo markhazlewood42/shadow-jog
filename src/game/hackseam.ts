@@ -19,10 +19,14 @@ export type { HackOptions };
 export type PlayAlternative = () => Promise<'success' | 'fail'>;
 
 /**
- * The alternative when a story gives none: count the hack as won. Nobody wrote a 2D version, and the default policy never traps the player
- * (`DEFAULT_POLICY`: be kind). A story that wants a loss writes `policy.unsupported: 'fail'` or its own alternative.
+ * How a story handles a browser that cannot run the hack (decision E19: per hack, authored; D4 shape). The author MUST choose: pass the 2D `playAlternative`, or say
+ * `onUnsupported: 'win'` (the hack counts as won where 3D is unsupported). A call with neither does not compile, so no default decides for the author and a player without
+ * WebGL 2 never gets a silent win. `tests/hack3d-seam.test.ts` pins this with `@ts-expect-error`. (`policy.unsupported: 'fail'` or `'succeed'` on the definition skips the choice at run time.)
  */
-const wonByDefault: PlayAlternative = async () => 'success';
+export type HackHandling = { playAlternative: PlayAlternative; onUnsupported?: undefined } | { onUnsupported: 'win'; playAlternative?: undefined };
+
+/** The explicit win: what `onUnsupported: 'win'` plays. */
+const wonByAuthor: PlayAlternative = async () => 'success';
 
 /**
  * DEV and tests only (decision D1 A of docs/engine/m7-brief.md: the 3D test scene has a DEV entry and no story caller). What the next hacks use in place of the real thing:
@@ -52,10 +56,12 @@ export function hackDevOverride(): HackDevOverride | null {
  * 3D is unsupported. Resolves a `HackOutcome`; never rejects because of the hack. `via: 'dropped'` means the player dropped the story (a loaded save, the title screen):
  * the story must stop.
  * @param game the running game (typed as the old `Game` in `src/game`; it is the engine's `Game` at run time).
+ * @param how the author's choice for a browser without 3D: `{ playAlternative }` or `{ onUnsupported: 'win' }` (required, see `HackHandling`).
  */
-export function runHack(game: object, def: HackDef, playAlternative: PlayAlternative = wonByDefault): Promise<HackOutcome> {
+export function runHack(game: object, def: HackDef, how: HackHandling): Promise<HackOutcome> {
   const g = game as unknown as HackGame;
   const dev = hackDevOverride();
   const env: DoorEnv | undefined = dev?.env ? { ...realDoorEnv, ...dev.env } : undefined;
-  return hackWithPolicy(def, (d) => hackDoor(g, d, dev?.options, env), playAlternative);
+  // Total at run time: a caller that dodged the types with neither field gets the explicit win, and the door never rejects.
+  return hackWithPolicy(def, (d) => hackDoor(g, d, dev?.options, env), how.playAlternative ?? wonByAuthor);
 }

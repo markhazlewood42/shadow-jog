@@ -117,10 +117,12 @@ interface CoverState {
   rendered: boolean;
   sceneSettled: boolean;
   outRun: Promise<'done' | 'aborted'> | null;
+  /** `startHack` threw inside the swap (it should not): the swap answers 'abort' and the story gets `aborted / error`. */
+  startThrew: boolean;
 }
 
 async function withCover(game: Game, def: HackDef, options: HackOptions | undefined, env: DoorEnv, jack: Jack, dropsBefore: number): Promise<HackResult> {
-  const st: CoverState = { chunk: null, loadError: null, loadSettled: false, scene: null, rendered: false, sceneSettled: false, outRun: null };
+  const st: CoverState = { chunk: null, loadError: null, loadSettled: false, scene: null, rendered: false, sceneSettled: false, outRun: null, startThrew: false };
   // The chunk load starts at the first tick of the cover (the loader is memoized, so a second hack does not fetch again).
   void jack.started
     .then(() => env.load())
@@ -160,9 +162,16 @@ async function withCover(game: Game, def: HackDef, options: HackOptions | undefi
             });
           }),
       };
-      st.scene = chunk.startHack(game, def, own).finally(() => {
-        st.sceneSettled = true;
-      });
+      try {
+        st.scene = chunk.startHack(game, def, own).finally(() => {
+          st.sceneSettled = true;
+        });
+      } catch (e) {
+        // `startHack` should not throw. If it does, no scene runs: the cover must come down (the swap answers 'abort') and the story gets `aborted / error`, as with no cover.
+        console.error('[sje] the hack threw:', e);
+        st.startThrew = true;
+        return 'abort';
+      }
       // `startHack` always resolves; if it ever rejected, it is read (and answered) below, after the reveal, so it must not count as unhandled meanwhile.
       st.scene.catch(() => undefined);
       return 'go';
@@ -171,6 +180,7 @@ async function withCover(game: Game, def: HackDef, options: HackOptions | undefi
   });
   const how = await into;
   const scene = st.scene;
+  if (st.startThrew) return { status: 'aborted', reason: 'error' };
   if (how === 'aborted' || !scene) {
     // The way back to the 2D picture has begun (the hold timed out, the load failed, or the story was dropped).
     if (game.dropCount !== dropsBefore) return { status: 'aborted', reason: 'user' };

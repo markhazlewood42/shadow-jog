@@ -28,7 +28,7 @@ import { colorMatrixEffect, Container, drawText, type Effect, type Game, Graphic
 import { type DoorEnv, loadChunk } from '../hack3d/door';
 import { HUD_FIXED } from '../hack3d/hud';
 import { type JackOptions, jackProbe } from '../hack3d/jack';
-import { type HackDef, type HackOptions, type HackOutcome, hackDef, hackDevOverride, runHack, setHackDevOverride } from '../game/hackseam';
+import { type HackDef, type HackHandling, type HackOptions, type HackOutcome, hackDef, hackDevOverride, runHack, setHackDevOverride } from '../game/hackseam';
 
 /** What a test may set for one `hack()` call. */
 export interface HackCallOptions {
@@ -56,7 +56,7 @@ interface HackSceneLike extends Scene<unknown> {
 }
 
 interface FieldLike {
-  runScript(fn: (s: { hack(def: HackDef, alt?: () => Promise<'success' | 'fail'>): Promise<HackOutcome> }) => Promise<void>): Promise<boolean>;
+  runScript(fn: (s: { hack(def: HackDef, how: HackHandling): Promise<HackOutcome> }) => Promise<void>): Promise<boolean>;
 }
 
 /** An opaque scene that lets the scenes under it keep updating, and closes itself in its own `prerender` once armed. */
@@ -86,17 +86,17 @@ export function attachHackHook(sj: Record<string, unknown>, game: Game): void {
     async hack(idOrDef: string | HackDef, opts: HackCallOptions = {}): Promise<HackOutcome> {
       const def = typeof idOrDef === 'string' ? hackDef(idOrDef, opts.over) : { ...idOrDef, ...opts.over };
       const alt = opts.alternative;
-      const playAlt = alt ? async () => alt : undefined;
+      const how: HackHandling = alt ? { playAlternative: async () => alt } : { onUnsupported: 'win' };
       const before = hackDevOverride();
       const options: HackOptions = { ...before?.options, ...(opts.frame ? { frame: opts.frame } : {}), ...(opts.contextGraceMs !== undefined ? { contextGraceMs: opts.contextGraceMs } : {}), ...(opts.hud !== undefined ? { hud: opts.hud } : {}), ...(opts.bloom !== undefined ? { bloom: opts.bloom } : {}), ...(opts.jack ? { jack: opts.jack } : {}) };
       setHackDevOverride({ ...before, options });
       try {
         const field = (sj.field as (() => FieldLike | null) | undefined)?.() ?? null;
-        if (!field) return await runHack(game, def, playAlt);
+        if (!field) return await runHack(game, def, how);
         let outcome: HackOutcome | null = null;
         // The real field script runner: `s.hack` goes through `fieldHooks.hack`, the seam, the door and the policy loop.
         const ok = await field.runScript(async (s) => {
-          outcome = await s.hack(def, playAlt);
+          outcome = await s.hack(def, how);
         });
         if (!ok || !outcome) throw new Error('the field script that ran the hack failed (see the console)');
         return outcome;

@@ -126,7 +126,7 @@ test.describe('the story bridge on the real loop (pass lines 4 and 5)', () => {
     return { log: st.log, tops, outcome: st.outcome, hackSeen };
   }
 
-  const STORY = (id: string) => `log('line-1'); await s.say(null, 'Line one.', { auto: 12 }); log('hack'); st.outcome = await s.hack(sj.hackDef(${JSON.stringify(id)})); log('hack-result'); await s.say(null, 'Line two.', { auto: 12 }); log('line-2');`;
+  const STORY = (id: string) => `log('line-1'); await s.say(null, 'Line one.', { auto: 12 }); log('hack'); st.outcome = await s.hack(sj.hackDef(${JSON.stringify(id)}), { onUnsupported: 'win' }); log('hack-result'); await s.say(null, 'Line two.', { auto: 12 }); log('line-2');`;
 
   for (const [id, expected] of [
     ['test-short', 'success'],
@@ -167,7 +167,7 @@ test.describe('the story bridge on the real loop (pass lines 4 and 5)', () => {
       const { page } = g;
       const r = await runStory(
         g.page,
-        `log('line-1'); await s.say(null, 'Line one.', { auto: 12 }); log('hack'); const p = s.hack(sj.hackDef('test-short')).then((o) => { st.outcome = o; log('hack-result'); }); await s.wait(1); log('line-2'); await p;`,
+        `log('line-1'); await s.say(null, 'Line one.', { auto: 12 }); log('hack'); const p = s.hack(sj.hackDef('test-short'), { onUnsupported: 'win' }).then((o) => { st.outcome = o; log('hack-result'); }); await s.wait(1); log('line-2'); await p;`,
       );
       // (A real second line would be hidden under the hack that starts on top of it, so the control logs the moment the story goes on.)
       expect(r.log.indexOf('line-2'), 'the story went on before the hack ended').toBeLessThan(r.log.indexOf('hack-result'));
@@ -235,7 +235,7 @@ test.describe('no WebGL 2, and a chunk that fails (pass line 6)', () => {
       await sj(
         page,
         `(() => { const st = (window.__story = { log: [], done: false, outcome: null });
-          sj.field().runScript(async (s) => { st.log.push('line-1'); st.outcome = await s.hack(sj.hackDef('test-fallback'), async () => { st.log.push('alternative'); return 'fail'; }); st.log.push('line-2'); }).then(() => { st.done = true; });
+          sj.field().runScript(async (s) => { st.log.push('line-1'); st.outcome = await s.hack(sj.hackDef('test-fallback'), { playAlternative: async () => { st.log.push('alternative'); return 'fail'; } }); st.log.push('line-2'); }).then(() => { st.done = true; });
           return true; })()`,
       );
       expect(await waitUntil(page, 'window.__story.done', 5000)).toBe(true);
@@ -719,9 +719,32 @@ async function capture(page: Page, id: string, opts: Record<string, unknown>, o:
   return frames;
 }
 
-/** The problems of a capture under pass line 19: uniform frames outside the declared ranges, and the three more rules. The hold is outside this rule (line 20 judges it). */
+/**
+ * Pass line 19, rule 2, as amended in fix round 1: the swap is part of the cover. The first frame after the cover (the swap frames, plus the declared `in` range that follows them) must not be
+ * uniform: the 3D grid (jack in) or the 2D field (jack out) is already on screen. This is judged on its own, so a swap frame that is allowed to be one color cannot hide a bad first reveal frame.
+ */
+function coverEndProblems(frames: readonly Frame[], ranges: readonly UniformRange[]): string[] {
+  const out: string[] = [];
+  let i = 0;
+  while (i < frames.length) {
+    if (frames[i]?.phase !== 'swap') {
+      i++;
+      continue;
+    }
+    while (frames[i]?.phase === 'swap') i++;
+    let j = i;
+    for (let f = frames[j]; f?.phase === 'in' && inRanges(ranges, 'in', f.t); f = frames[++j]);
+    const first = frames[j];
+    if (!first || first.phase !== 'in') out.push(`no reveal frame after the cover (the swap ended at frame ${i})`);
+    else if (first.share >= 0.9) out.push(`the first frame after the cover (frame ${j}, in:${first.t}) is one color (share ${first.share.toFixed(3)}): the picture is not on screen yet`);
+    i = Math.max(j, i) + 1;
+  }
+  return out;
+}
+
+/** The problems of a capture under pass line 19: uniform frames outside the declared ranges, the first frame after the cover, and the three more rules. The hold is outside this rule (line 20 judges it). */
 function uniformProblems(frames: readonly Frame[], ranges: readonly UniformRange[]): string[] {
-  const out: string[] = [...checkUniformRanges(TRANSITION, ranges)];
+  const out: string[] = [...checkUniformRanges(TRANSITION, ranges), ...coverEndProblems(frames, ranges)];
   let declared = 0;
   let judged = 0;
   frames.forEach((f, i) => {
@@ -815,7 +838,12 @@ test.describe('the jump between 2D and 3D: no bad frame, a held chunk, an exact 
         else await sj(page, '(sj.hackTest.blackFrameAtHandover(true), true)');
         const frames = await capture(page, 'test-short', { over: { ticks: 40 } });
         const problems = uniformProblems(frames, UNIFORM.glitch.full);
-        expect(problems.length, `${mutant}: the check finds the bad frame`).toBeGreaterThan(0);
+        expect(
+          problems.some((m) => /is one color \(share [\d.]+\) and is in no declared range/.test(m)),
+          `${mutant}: the check names the undeclared one-color frame (got: ${problems.join(' | ') || 'nothing'})`,
+        ).toBe(true);
+        // The blank target is revealed, so the FIRST frame after the cover is one color: the cover-end rule (round 1) finds it on its own as well.
+        if (mutant === 'blank') expect(coverEndProblems(frames, UNIFORM.glitch.full).length, 'blank: the first frame after the cover is judged').toBeGreaterThan(0);
       } finally {
         await g.close();
       }
@@ -823,6 +851,34 @@ test.describe('the jump between 2D and 3D: no bad frame, a held chunk, an exact 
     // And the rules reject a style that declares more than they allow (the unit test of the rules has the full list).
     const wide: UniformRange[] = [...UNIFORM.glitch.full, { phase: 'in', from: 0, to: TRANSITION.inTicks - 1, reason: 'too wide' }];
     expect(uniformProblems([], wide)).not.toEqual([]);
+  });
+
+  // Line 19, rule 2 (round 1): the swap is part of the cover, so the first frame after it is judged. The real capture passes; a capture whose first `in` frame (after the swap, or after the
+  // declared `in` range) is made uniform fails. fx none is used because it declares an `in` range and has a long fade, so both cases of the rule are in one capture.
+  test('CONTROL: the first frame after the cover (swap plus its declared in range) is judged: a mutant whose first in frame is uniform fails', async ({ browser }) => {
+    const g = await openTitle(browser, { query: '&jack=glitch&fx=none&seed=5' });
+    try {
+      const frames = await capture(g.page, 'test-short', { over: { ticks: 40 } });
+      const real = UNIFORM.glitch.none;
+      expect(coverEndProblems(frames, real), 'the real capture: the first frame after each cover is a picture').toEqual([]);
+      // Mutant 1: the frame after the declared in range (in:4 here) is uniform.
+      const afterRange = frames.findIndex((f) => f.phase === 'in' && !inRanges(real, 'in', f.t));
+      expect(afterRange).toBeGreaterThan(0);
+      const m1 = frames.map((f, i) => (i === afterRange ? { ...f, share: 1 } : f));
+      expect(coverEndProblems(m1, real).length, 'mutant: a uniform frame right after the declared in range').toBe(1);
+      // Mutant 2: with no declared in range, the first in frame after the swap is the one that is judged.
+      const swapOnly = real.filter((r) => r.phase !== 'in');
+      const afterSwap = frames.findIndex((f) => f.phase === 'in');
+      expect(afterSwap).toBeGreaterThan(0);
+      const withFirstIn = (share: number) => frames.map((f, i) => (f.phase === 'in' && frames[i - 1]?.phase === 'swap' ? { ...f, share } : f));
+      expect(coverEndProblems(withFirstIn(0.5), swapOnly), 'a picture right after the swap passes').toEqual([]);
+      expect(coverEndProblems(withFirstIn(1), swapOnly).length, 'mutant: a uniform first in frame after the swap (both covers)').toBe(2);
+      // Mutant 3: a capture with no reveal at all after the swap.
+      expect(coverEndProblems(frames.slice(0, frames.findIndex((f) => f.phase === 'swap') + 1), real).length, 'mutant: the swap is never followed by a reveal').toBeGreaterThan(0);
+      expect(g.problems).toEqual([]);
+    } finally {
+      await g.close();
+    }
   });
 
   // Line 20, case 1: a slow chunk. The request is delayed 3 s: the hold keeps animating, never blank, and when the chunk arrives the in phase runs in full and the hack plays.
@@ -884,7 +940,7 @@ test.describe('the jump between 2D and 3D: no bad frame, a held chunk, an exact 
           page,
           `(() => { const st = (window.__story = { log: [], done: false, outcome: null, holdAt: 0, at: 0 });
             const poll = setInterval(() => { const j = sj.jackState(); if (j && j.phase === 'hold' && !st.holdAt) { st.holdAt = performance.now(); clearInterval(poll); } }, 5);
-            sj.field().runScript(async (s) => { st.log.push('line-1'); st.outcome = await s.hack(sj.hackDef('test-short'), async () => { st.log.push('alternative'); return 'success'; }); st.at = performance.now(); st.log.push('line-2'); }).then(() => { st.done = true; });
+            sj.field().runScript(async (s) => { st.log.push('line-1'); st.outcome = await s.hack(sj.hackDef('test-short'), { playAlternative: async () => { st.log.push('alternative'); return 'success'; } }); st.at = performance.now(); st.log.push('line-2'); }).then(() => { st.done = true; });
             return true; })()`,
         );
         expect(await waitUntil(page, 'window.__story.done', 20_000)).toBe(true);
@@ -908,10 +964,68 @@ test.describe('the jump between 2D and 3D: no bad frame, a held chunk, an exact 
 
   // ---- line 21: the way back is exact ----------------------------------------------------------------------------------------------
 
+  /** Step a frozen game one tick at a time (with a little real time, for a module that loads) until `cond` holds. */
+  async function stepUntil(page: Page, cond: string): Promise<void> {
+    for (let i = 0; i < 600; i++) {
+      await frozenStep(page, 1);
+      if (await sj<boolean>(page, cond)) return;
+      await page.waitForTimeout(10);
+    }
+    throw new Error(`the frozen game never reached: ${cond}`);
+  }
+
+  /** Put a known field on screen on a frozen game: the town, then the armory interior (no rain, so its picture depends on the field's tick count only). Every step is a tick, so two pages that do this have the same frame count. */
+  async function restageFrozen(page: Page): Promise<void> {
+    await freeze(page);
+    await sj(page, "(sj.stage('town'), true)");
+    await stepUntil(page, 'sj.top() === "FieldScene" && sj.idle()');
+    await sj(page, "(sj.tp('armory', 6, 8, 'down'), true)");
+    await stepUntil(page, 'sj.field().def.id === "armory" && sj.idle()');
+    // A new field has a start-up of its own; measured at fx lite, its first frames differ between two pages in a few hundred pixels. 60 more ticks and the picture is the settled one.
+    await frozenStep(page, 60);
+  }
+
+  /** The back buffer as base64 (the raw pixels, for a compare with a tolerance). */
+  const SHOT = `(() => { sj.step(0); const d = sj.pixels({ x: 0, y: 0, w: ${W}, h: ${H} }).data; let s = ''; for (let i = 0; i < d.length; i += 8192) s += String.fromCharCode.apply(null, d.subarray(i, i + 8192)); return btoa(s); })()`;
+  interface Settled {
+    state: string;
+    frame: number;
+    hash: string;
+    shot: Buffer;
+  }
+
+  /** Freeze, then read the field's state, its tick count and the settled picture (the hash of the back buffer, and the pixels). */
+  async function settledPicture(page: Page): Promise<Settled> {
+    await freeze(page);
+    const state = await sj<string>(page, FIELD_STATE);
+    const frame = await sj<number>(page, 'sj.field().frame');
+    const hash = await sj<string>(page, '(sj.step(0), sj.frameHash())');
+    return { state, frame, hash, shot: Buffer.from(await sj<string>(page, SHOT), 'base64') };
+  }
+
+  /** How many pixels differ by more than `tol` in any channel (a picture of another size counts every pixel). */
+  function diffPixels(a: Buffer, b: Buffer, tol: number): number {
+    if (a.length !== b.length) return Math.max(a.length, b.length) / 4;
+    let n = 0;
+    for (let i = 0; i < a.length; i += 4) if (Math.abs((a[i] ?? 0) - (b[i] ?? 0)) > tol || Math.abs((a[i + 1] ?? 0) - (b[i + 1] ?? 0)) > tol || Math.abs((a[i + 2] ?? 0) - (b[i + 2] ?? 0)) > tol) n++;
+    return n;
+  }
+
+  // The settled picture is compared with a rule that holds at full and at lite (the exact compare is the `fx none` case below). Two pages that were NEVER covered are not frame-exact (measured in
+  // round 1): one in real time and one stepped differ by up to 2 in a channel across the picture at lite, two pages that each put up a fresh field differ in a few hundred scattered pixels
+  // (about 0.1%), by run, and one run in seven showed a differing hash at full. So: 2 per channel, and at most 1% of the pixels beyond that. A leftover is far over this: a half-faded world differs in nearly every pixel, a left glitch layer in thousands, a filter in the whole picture.
+  // The control below pins that. (The structural state of the leftover is judged exactly: the field-state hash and the effect counts.)
+  const PICTURE = { tol: 2, limit: Math.floor(W * H * 0.01) } as const;
+
+  // All four ends compare the same three things with the state before the jump: the field-state hash (map, leader, party, flags, camera), the settled picture (the frame hash, against a page that
+  // was never covered and is stepped to the same field tick), and 0 shocks, hazes, glitches and particles. A drop leaves no scene, so a known field is put up again on both pages first
+  // (the same frozen steps on each); what a drop leaves behind (a filter, an effect, a stuck cover) would show in that picture or in the counts. Each case ends with a control that the compare can fail.
   for (const end of ['success', 'fail', 'abort', 'drop'] as const) {
     for (const level of ['full', 'lite'] as const) {
-      test(`fx ${level}: after a ${end} the 2D scene state is the state before${end === 'drop' ? ' (a drop leaves no scene: the cover and the effects are gone)' : ', no effect is left, and the cover is gone'} (line 21)`, async ({ browser }) => {
-        const g = await openField(browser, { query: `&jack=glitch&fx=${level}&seed=5` });
+      test(`fx ${level}: after a ${end} the 2D scene state and settled picture are the ones before${end === 'drop' ? ' (a drop leaves no scene: a known field is put up again, and nothing of the cover or the effects is in it)' : ', no effect is left, and the cover is gone'} (line 21)`, async ({ browser }) => {
+        const query = `&jack=glitch&fx=${level}&seed=5`;
+        const g = await openField(browser, { query, interior: true });
+        let after: Settled;
         try {
           const { page } = g;
           const before = await sj<string>(page, FIELD_STATE);
@@ -929,14 +1043,18 @@ test.describe('the jump between 2D and 3D: no bad frame, a held chunk, an exact 
             { success: { outcome: 'success', via: 'played' }, fail: { outcome: 'fail', via: 'played' }, abort: { outcome: 'success', via: 'policy' }, drop: { outcome: 'fail', via: 'dropped' } }[end],
           );
           expect(await waitUntil(page, 'sj.jackState() === null', 10_000)).toBe(true);
-          if (end !== 'drop') {
+          if (end === 'drop') {
+            await restageFrozen(page);
+          } else {
             expect(await waitUntil(page, 'sj.top() === "FieldScene" && sj.idle()', 10_000)).toBe(true);
-            expect(await sj<string>(page, FIELD_STATE), 'the field state is the state before').toBe(before);
           }
+          after = await settledPicture(page);
+          expect(after.state, 'the field state is the state before').toBe(before);
           const counts = await sj<Record<string, number>>(page, 'sj.fxCounts()');
-          expect([counts.shocks, counts.hazes, counts.glitches], 'no effect is left').toEqual([0, 0, 0]);
+          expect([counts.shocks, counts.hazes, counts.glitches, counts.particles ?? 0], 'no effect is left').toEqual([0, 0, 0, 0]);
           expect(await jackCovers(), 'the cover is gone').toBe(0);
           expect(await sj<boolean>(page, 'sj.hackState().running')).toBe(false);
+          expect(g.problems).toEqual([]);
           if (end === 'success' && level === 'full') {
             // CONTROL: a layer left behind shows in the counts, and a field that moved shows in the state hash.
             await sj(page, '(sj.game.fx.glitch(320, 180, { w: 100, h: 60, strength: 5, life: 300 }), true)');
@@ -944,9 +1062,30 @@ test.describe('the jump between 2D and 3D: no bad frame, a held chunk, an exact 
             await sj(page, '(sj.field().leader.x += 1, true)');
             expect(await sj<string>(page, FIELD_STATE), 'the control: a moved field is seen').not.toBe(before);
           }
-          expect(g.problems).toEqual([]);
+          // CONTROL (the picture compare below can fail): a world left half faded, as a cover left behind would leave it, is far over the tolerance. (A field tick alone moves a channel by about 5 here.)
+          await sj(page, '(sj.game.screen.worldRoot.node.alpha = 0.5, true)');
+          const faded = await settledPicture(page);
+          expect(faded.hash, 'the control: the hash sees a faded world').not.toBe(after.hash);
+          expect(diffPixels(faded.shot, after.shot, PICTURE.tol), 'the control: a faded world is far over the limit').toBeGreaterThan(PICTURE.limit);
         } finally {
           await g.close();
+        }
+        // The reference: the same field on a page that never ran a hack, stepped to the same field tick.
+        const ref = end === 'drop' ? await openTitle(browser, { query }) : await openField(browser, { query, interior: true });
+        try {
+          const { page } = ref;
+          if (end === 'drop') await restageFrozen(page);
+          else await freeze(page);
+          const here = await settledPicture(page);
+          expect(here.frame, 'the reference page is not past the frame').toBeLessThanOrEqual(after.frame);
+          await frozenStep(page, after.frame - here.frame);
+          const refPic = await settledPicture(page);
+          expect(refPic.frame).toBe(after.frame);
+          expect(refPic.state, 'the state is the state of a page that never jumped').toBe(after.state);
+          expect(diffPixels(refPic.shot, after.shot, PICTURE.tol), 'pixels that differ from the never-covered page').toBeLessThanOrEqual(PICTURE.limit);
+          expect(ref.problems).toEqual([]);
+        } finally {
+          await ref.close();
         }
       });
     }

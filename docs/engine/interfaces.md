@@ -558,13 +558,17 @@ export declare abstract class Scene3D<R> extends Scene<R> {      // lazy chunk
 // A subclass does not override fixedUpdate.
 //
 // ScriptApi (src/game/script.ts) gains one method:
-//   hack(def: HackDef, playAlternative?: () => Promise<'success' | 'fail'>): Promise<HackOutcome>;     // D4 of docs/engine/m7-brief.md
+//   hack(def: HackDef, how: { playAlternative: () => Promise<'success' | 'fail'> } | { onUnsupported: 'win' }): Promise<HackOutcome>;     // D4 of docs/engine/m7-brief.md; the author must choose (E19)
 // It uses the same door as shop() and battle(): a late-bound entry in fieldHooks.
 //
 // The sketch that Mark approved in Phase 0 was `hack(def: HackDef): Promise<HackResult>`: the raw result, with each story applying the policy of E19 by itself.
 // M7 changed it, with Mark's yes (decision D4, option A, 2026-10-12): `s.hack` returns the HackOutcome of the whole policy loop (see below), so one place applies
 // the policy and a story cannot forget the `dropped` case (a story that did would wait on a stack that is gone). The raw `HackResult` still exists: it is what
 // `hackDoor` resolves, and `HackOutcome.results` lists every one.
+//
+// The second argument is required (E19, per hack, authored; the fix of round 1): `{ playAlternative }` plays the 2D stand-in for a browser without WebGL 2, and `{ onUnsupported: 'win' }` counts the hack as won there.
+// It is a union type (`HackHandling` in `src/game/hackseam.ts`), so a call with neither does not compile (`@ts-expect-error` cases in `tests/hack3d-seam.test.ts`). No default decides for the author.
+// The door itself stays total at run time: it never rejects.
 ```
 
 **Built shape (M1b).** `Scene3D` is in `src/sje/three/scene3d.ts`, with `HackResult` and `Scene3DAbort`. It owns `world3D` (the Three scene) and has `camera3D` and `bloom` for `create3D` to set; `frame` is a protected getter (it exists once `create` ends); the constructor takes `{ frame?, makeFrame?, contextGraceMs?, onFirstRender? }` (`makeFrame` is a test seam). `create` is the base's: write `create3D`. A lost context ended the scene in the next draw, not inside the event (M1b); M7 puts a grace timer in front of that end (below).

@@ -173,7 +173,7 @@ export function installSystems(game: Game, h: SystemHandlers): void {
   fieldHooks.battle = async (f, enc, opts) => runBattle(game, f, enc, { ...opts, bg: opts.bg ?? f.def.battleBg ?? 'street' });
 
   // The 3D hack (M7): the seam holds the door and the policy loop; the 3D chunk loads behind the door at the first hack.
-  fieldHooks.hack = async (_f, def, alt) => runHack(game, def, alt);
+  fieldHooks.hack = async (_f, def, how) => runHack(game, def, how);
 
   // ---------------------------------------------------------------- services
   fieldHooks.shop = async (_f, id) => {

@@ -184,6 +184,26 @@ describe('hackDoor with a cover: the order of the jump', () => {
     expect(jack.disposed).toBe(1);
   });
 
+  it('startHack throws synchronously inside the swap: the swap answers abort, the cover comes down, the story gets aborted / error, and the cover is disposed', async () => {
+    const log: string[] = [];
+    const jack = new FakeJack(log);
+    const result = await hackDoor(
+      game(),
+      DEF,
+      undefined,
+      env(jack, async () => ({
+        startHack: () => {
+          throw new Error('sync boom');
+        },
+      })),
+    );
+    expect(result).toEqual({ status: 'aborted', reason: 'error' });
+    expect(log).toContain('abort');
+    expect(log).not.toContain('in');
+    expect(jack.disposed).toBe(1);
+    expect(console.error).toHaveBeenCalledTimes(1);
+  });
+
   it('a cover that cannot be made does not stop the hack: it is a cut, and the error is logged', async () => {
     const log: string[] = [];
     const result = await hackDoor(game(), DEF, undefined, {

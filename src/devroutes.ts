@@ -31,7 +31,7 @@ export function runDevScene(game: Game, scene: string, params: URLSearchParams):
       const frame = params.get('frame');
       if (frame === 'shared-context' || frame === 'canvas-copy') setHackDevOverride({ options: { frame } });
       const sj = (window as unknown as { __SJ__?: Record<string, unknown> }).__SJ__;
-      void runHack(game, hackDef(params.get('id') ?? 'test-hack', over)).then((o) => {
+      void runHack(game, hackDef(params.get('id') ?? 'test-hack', over), { onUnsupported: 'win' }).then((o) => {
         if (sj) sj.lastHack = o;
       });
       break;

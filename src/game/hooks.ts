@@ -4,7 +4,7 @@
  */
 import type { Ctx } from '../engine/canvas';
 import type { FieldScene } from '../scenes/field';
-import type { HackDef, HackOutcome, PlayAlternative } from './hackseam';
+import type { HackDef, HackHandling, HackOutcome } from './hackseam';
 import type { BattleResult } from './script';
 import type { MemberId } from './state';
 
@@ -31,7 +31,7 @@ export const fieldHooks: {
   unlock?: (flag: string) => string[];
   deck?: (f: FieldScene, mode: 'dead' | 'seat' | 'view') => Promise<void>;
   battle?: (f: FieldScene, encounter: string, opts: BattleOpts) => Promise<BattleResult>;
-  hack?: (f: FieldScene, def: HackDef, playAlternative?: PlayAlternative) => Promise<HackOutcome>;
+  hack?: (f: FieldScene, def: HackDef, how: HackHandling) => Promise<HackOutcome>;
   shop?: (f: FieldScene, id: string) => Promise<void>;
   inn?: (f: FieldScene, price: number, name?: string) => Promise<void>;
   clinic?: (f: FieldScene) => Promise<void>;
