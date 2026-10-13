@@ -33,7 +33,7 @@ Method for the import columns: the closure of the tool's entry file. "Direct" me
 | T4 | Art review (`/artreview.html`) | `src/dev/artreview.ts` 723, `artreview.html` | none | none (the file has no import) | Uses no engine. Same as T3. |
 | T5 | Art swap (`?art=review`, the in-game try of the review picks) | `src/dev/artswap.ts` 305. Loaded at `src/boot.ts:241` | none | none | Yes. It runs inside the game boot. |
 | T6 | Art viewers: `?scene=mapview`, `chars` (3 links), `portraits`, `bestiary`, `font` | `src/scenes/{mapview,chartest,portraittest,bestiarytest,fonttest}.ts` 31, 85, 26, 37, 36. Routes: `src/devroutes.ts:76-90` | 5 files, each `import { Scene } from '../engine/game'` (a value) and `extends Scene` (`mapview.ts:9`, `chartest.ts:10`, `portraittest.ts:8`, `bestiarytest.ts:8`, `fonttest.ts:8`) | `input` (type) | Yes, through `LegacyScene`. |
-| T7 | Trailer tooling (`window.__SJ__.trailer()`, `scripts/trailer.mjs`) | `src/dev/trailer.ts` 202. Loaded at `src/boot.ts:99` | `Scene` and `Game` (`trailer.ts:16`), `postfx` (`:18`, used at `:61`). `CardScene extends Scene` (`:41`). | `input`, `shake`, `moments` | It records `#stage canvas` since M6. The card scene runs through `LegacyScene`. No spec. |
+| T7 | Trailer tooling (`window.__SJ__.trailer()`, `scripts/trailer.mjs`) | `src/dev/trailer.ts` 202. Loaded at `src/boot.ts:99` | `Scene` and `Game` (`trailer.ts:16`), `postfx` (`:18`, used at `:61`). `CardScene extends Scene` (`:41`). Also `autosavePolicy` from `../game/systems` (`:21`, a value import, used at `:114-115`). | `input`, `shake`, `moments`, and through `game/systems` the whole game: `scenes/battle.ts` and `engine/moments` | It records `#stage canvas` since M6. The card scene runs through `LegacyScene`. No spec. |
 | T8 | Field show hooks (`__SJ__.fieldShow`, `fieldInfo`): the parity harness's way to fix a field state | `src/dev/fieldshow.ts` 87. Loaded at `src/boot.ts:65-66` | `import type { Game }` (`fieldshow.ts:12`) | `FieldScene` (a game scene; value `Scene`) | Yes. |
 | T9 | Dev routes file: 11 `?scene=` cases (`fxlab`, `hack`, `stage`, `field`, `battle`, `mapview`, `portraits`, `bestiary`, `chars`, `font`, `panels`) | `src/devroutes.ts` 99. Loaded at `src/boot.ts:204` | `import type { Game }` (`devroutes.ts:6`); it casts to the new `Game` for the FX lab (`:24`) | the game scenes it starts (`FieldScene`, `BattleScene`, `PanelScene`) | Yes. |
 | T10 | Stage lab (`/sjestage.html`): the battle stage slice, the parity harness's page | `src/sje-lab/stagelab.ts` 133, `stagemain.ts` 27, `stagehook.ts` 353, `sjestage.html` | none | none by value. Types only: `font`, `fxdata`, `game`, `moments`, `postfx`, `shake`. | New engine only. |
@@ -66,7 +66,7 @@ Not tools: `src/sje-lab/devhook.ts`, `battlehook.ts` and `fieldhook.ts` are the 
 | T10 Stage lab | yes | n/a | n/a | yes | `e2e/sje-stage-parity.spec.ts` (CI). |
 | T11 Engine lab | yes | n/a | n/a | yes | `e2e/sje-canaries.spec.ts`, `sje-draws`, `sje-scene3d`, `perf`, `sje-bench` (CI except the last two). |
 | T12 3D entry | yes | n/a | n/a | yes | `e2e/sje-hack-a` to `-d` (CI). |
-| T13 Editor | no | no | no | no | The archive has 89 e2e cases (`stageedit` 31, `polish2` 23, `polish3` 16, `round4` 9, `stagelab-edit` 10) and 102 unit cases (35, 19, 21, 27). None run here. |
+| T13 Editor | no | no | no | no | The archive has about 81 e2e cases and about 112 unit cases. Static count of `test(` and `it(` calls on the tag: e2e 28, 22, 13, 7, 10 (`stageedit`, `polish2`, `polish3`, `round4`, `stagelab-edit`) = 80, plus 1 for the `for (const dpr of [1.25, 1.5])` loop in `polish3`; unit 35, 19, 20, 26 = 100, plus 12 for the `it.each` rows (6 in `stageeditpolish3`, 8 in `stageeditround4`, each less the one call counted). An earlier count of 89 and 102 could not be reproduced. Task 2 recounts with `npx playwright test --list` and `npx vitest list` on the ported files. None run here. |
 | T14 Battle Test | no | no | no | no | The headless driver has `tests/battlestage-drive.test.ts`. The tool has nothing. |
 
 Of the 12 tools that exist, 6 have a spec or a unit test that opens them and judges something (T2, T8, T9, T10, T11, T12). T6 has only a local picture script, which judges nothing. 5 have no browser test: T1, T3, T4, T5, T7 (T3 has a validator unit test). The ET exit check ("opens, edits, saves and previews") has no proof today for those 5 or for T6.
@@ -83,7 +83,7 @@ The exit check (`migration.md` line 203): every existing tool opens, edits, save
 | T4 Art review | Same as T3. |
 | T5 Art swap | Nothing. A test is missing. |
 | T6 Art viewers | All 5 `extends Scene` from `engine/game`. Each needs a new-engine base (their `render(ctx)` code is small: 215 lines in all). |
-| T7 Trailer | `CardScene extends Scene`; `postfx.glowLayer()` at `trailer.ts:61` (the new route is `game.fx.glowLayer`). |
+| T7 Trailer | `CardScene extends Scene`; `postfx.glowLayer()` at `trailer.ts:61` (the new route is `game.fx.glowLayer`). Also the value import of `autosavePolicy` from `../game/systems` (`trailer.ts:21`): that file imports the game scenes, so the trailer's closure holds `scenes/battle.ts` and `engine/moments`. The fix: move `autosavePolicy` into a small module with no engine import, or pass it in. |
 | T8 Field show | The `Game` type import. The reach into `FieldScene` stays: it is a game scene (M8). |
 | T9 Dev routes | The `Game` type import, and the cast at `:24`. The starts of `FieldScene`, `BattleScene` and `PanelScene` stay (game scenes). |
 | T10 to T12 | Nothing. |
@@ -141,8 +141,8 @@ Two facts about the stage data. First, two sets exist: `src/data/stages.json` an
 ## 8. Smaller facts
 
 - **Dry runs.** Only the FX lab's endpoint has `?dry=1` (`vite.config.ts:38-100`). The animation editor's and the art review's endpoints write at once (`TOOLING-UI.md` checklist 13 asks for one each).
-- **Write endpoints.** Three exist (`fxLab`, `artPass`, `rigEdit`), each guarded by `sameOrigin` (`vite.config.ts:20`). The editor adds a fourth, `/__stage/stages` and `/__stage/hud` in the archive (`vite.config.ts` of the tag, lines 105 to 202). It writes up to five files in one Save.
-- **The 89 e2e and 102 unit archive cases** are about 4,200 lines (specs 2,480; kit 169; unit 1,552). They test a Phaser page at 480x270.
+- **Write endpoints.** Three exist (`fxLab`, `artPass`, `rigEdit`), each guarded by `sameOrigin` (`vite.config.ts:20`). The editor adds a fourth, in the archive (`vite.config.ts` of the tag, lines 105 to 202). Only `/__stage/stages` writes: GET reads, POST saves up to five files in one Save (the HUD among them). `/__stage/hud` is GET only; a POST gets 405 and points to `/__stage/stages`.
+- **The archive cases (about 81 e2e and about 112 unit)** are about 4,200 lines (specs 2,480; kit 169; unit 1,552). They test a Phaser page at 480x270.
 - **M6 recorded two Pixi warnings** for any canvas smaller than 640x360 (`m6-brief.md` Record, fix round 1, "console"). An editor with side panels can show a canvas that small.
 - **Tool code is in four places:** `src/dev`, `src/sje-lab`, `src/scenes` (the five viewers), and the root pages. ET moves the viewers into `src/dev` so one folder holds tools.
 - **Not measured:** whether the shipped `boot` chunk size moves if `gpufx.ts` changes (section 6); whether the spike's `edit/hit.ts` and `overlay.ts` need engine hit testing; whether the editor page can run the game's `BattleScene` over its own stage (decision 2); the real behavior of T3 to T5 and T7 (no test runs them).
