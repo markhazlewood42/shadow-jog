@@ -145,4 +145,41 @@ Two facts about the stage data. First, two sets exist: `src/data/stages.json` an
 - **The archive cases (about 81 e2e and about 112 unit)** are about 4,200 lines (specs 2,480; kit 169; unit 1,552). They test a Phaser page at 480x270.
 - **M6 recorded two Pixi warnings** for any canvas smaller than 640x360 (`m6-brief.md` Record, fix round 1, "console"). An editor with side panels can show a canvas that small.
 - **Tool code is in four places:** `src/dev`, `src/sje-lab`, `src/scenes` (the five viewers), and the root pages. ET moves the viewers into `src/dev` so one folder holds tools.
-- **Not measured:** whether the shipped `boot` chunk size moves if `gpufx.ts` changes (section 6); whether the spike's `edit/hit.ts` and `overlay.ts` need engine hit testing; whether the editor page can run the game's `BattleScene` over its own stage (decision 2); the real behavior of T3 to T5 and T7 (no test runs them).
+- **Not measured:** whether the shipped `boot` chunk size moves if `gpufx.ts` changes (section 6); the real behavior of T3 to T5 and T7 (no test runs them). The editor's need for engine hit testing and whether its page can run `BattleScene` are answered in section 9.
+
+
+## 9. ET task 1 re-check (Builder A, 2026-10-13)
+
+Method: the counts of sections 2, 4 and 5 re-run with a small import script (on the branch at `edcffb2`); the archive's `edit/overlay.ts` (200 lines), `edit/hit.ts` (77) and `edit/stageedit.ts` (1,065) read; one throwaway headless probe (a page, an entry and a Playwright spec, deleted after the run, not committed).
+
+**Recount: every number in sections 2, 4 and 5 holds.** 35 files outside `src/engine` import `engine/game`, `display` or `postfx` (32 `game`, 3 `postfx` only, 2 also `display`); 8 are tool files (5 viewers, `trailer`, `fieldshow`, `devroutes`) and 27 are game files (15 scenes, 5 kit files, 7 boot and glue files). The 15 files of `src/engine`, the importer counts (`canvas` 53, `font` 32, `rng` 19, `color` 14, `errors` 12, `input` 9, `assert` 4, `fxdata` 2, `moments` 2, `shake` 2, `particles` 1), the M8 scan figures (8 files in `src/art`, 2 in `src/battlestage`, 4 in `src/sje`) and the line counts of the tool files match. The two build-file references are at `vite.config.ts:10` and `:69`; the import in `render-current.mjs` is at `:171` (its comment at `:169`).
+
+| Survey or brief says | Check says | Effect |
+|---|---|---|
+| Section 4, T2: the FX lab reaches `postfx` through `gpufx.ts`, and an effects argument fixes it | `gpufx.ts` reaches the old engine twice: `postfx` (direct) and `playMoment` of `engine/moments.ts`, which calls the `postfx` singleton. An effects argument alone does not cut the second edge, and `postfx` has no `playMoment` method. | Task 3 moves the moment-playing loop of `moments.ts` into a new plain file, `src/engine/momentplay.ts`. It takes the effects object as an argument and imports `postfx` as a type only. `moments.ts` keeps its API and passes `postfx`. Every function of `gpufx.ts` takes the object as its first argument, and the 6 calls in `playback.ts` pass `postfx`. |
+| Section 7, T13: whether the editor needs engine hit testing depends on `overlay.ts` and `hit.ts` | `hit.ts` and `overlay.ts` have **no** engine call (0 matches of `Phaser.` or `scene.`). `hit.ts` is pure geometry on game pixels. `overlay.ts` draws SVG over the canvas. The one engine hit test is `StageScene.pick(x, y)` (archive `stagescene.ts:599`): the fighter whose drawn pixels (alpha above 8, mirror aware) are under the point, the nearest first. `interact.ts:124` calls it. | **The editor needs a pixel pick and needs no engine change.** The new engine has no `pick`. But `BattleStageScene.figures`, `Figure.describe()` (group and body position, origin, `flipX`, frame, texture key, draw depth) and `TextureManager.readPixels(key, frame)` give all the inputs. The pick goes in the editor (`src/dev/stageedit/`), with an alpha cache per frame. Nothing in `src/sje/display/` changes, so pass line 11 is not triggered. Do not add `getPixelAlpha` to `TextureManager` (its header names it as "built later"): that would trigger line 11. |
+| Section 7, T13 contract: the editor calls `loadStage`, `snapshot`, `restore` | The 24 `Phaser.` or `scene.` matches of `stageedit.ts` (on 21 lines) are `scene.applyStage` x2, `boxOf` x2, `fighters` x4, `setEditMode` x3, `setEnemies` x2, `setAxes`, `setFacing`, `setHeroes`, `setPhase`, `figureBoxesFor`, `enemySet`, `enemies`, `currentPhase` and `Phaser.Scale.Events.RESIZE`. | Maps to the new scene: `applyStage` becomes `loadStage` (it rebuilds the whole stage and has no `floorFrom`, so the floor's puddles may jump while a fighter is dragged); `fighters` becomes `figures`; `boxOf` becomes `geoOf`; `setEnemies(keys)` exists (the scene works out the set key). They go: `setEditMode` (the pick is the editor's) and `RESIZE` (the engine's `game.scale`). **No counterpart:** `setAxes`, `setFacing`, `setHeroes` (they are `BattleStageInit` fields: the editor makes a new scene when they change), `setPhase` and `currentPhase` (the HUD is a `Hud` built from `buildHudView(demo, setKey, phase)`), `figureBoxesFor` (the editor computes the boxes from `FigureArt`), `enemySet`. These are notes for task 5. No new engine API is needed. |
+
+### 9.1 Can the editor page run the game's `BattleScene` over its own stage? (decision 2, option B)
+
+**Yes. Evidence: a real probe, run twice, both green.** The probe was an HTML page with its own entry and **no** `src/boot.ts` game boot, as the editor page will be. The entry did what the stage editor's page must do:
+
+1. `Game.create({ parent, input: new Input(window), dev: true, fxLevel: 'none', compat })`, then `game.fx.loadData(fx.json)` and `routePostfx(postfx, () => game.fx)` (the same lines as `src/sje/boot.ts:122-129`).
+2. The party set as `devroutes.ts` does for `?scene=battle` (`state.party`, `createMember`).
+3. `new BattleScene({ encounter: 'street', bg: 'street' })` (a dynamic `import()`), then `liveProvider.open(game, scene)` (the game's own stage provider, `battlestage/liveopen.ts`), then `scene.attachStage(stage)` and `game.run(scene)`, then 200 ticks.
+4. The unsaved stage: a deep copy of `stage.config` with `party[0].x` moved by 40, then `stage.loadStage(edited)`, then 3 ticks.
+5. A bad stage (`rows: []`) through `loadStage`.
+6. The end: `scene.close('flee')`, `stage.close()`, 3 ticks.
+
+Result: the top scene was `BattleScene` on the stage `street`. The hero figure's `x` went from 126 to 166 (the edited slot) after `loadStage`, and the HUD was built once. The bad stage threw and the figure stayed at 166. After the end the scene stack was empty and `liveStage()` was `null`. The page logged one "404" (the probe page had no favicon) and no warning, error or page error.
+
+**How sure: high for the stop rule.** A running page, the real `BattleScene`, the real `liveProvider` and the real swap. The probe did not press keys, play to a win, or run seed 7 against `battleTrace(7)` (pass line 9, task 6).
+
+**What the page needs (notes for tasks 5 and 6):**
+
+- `BattleScene` extends the old `Scene` and imports `engine/postfx` and `engine/moments`. A tool file that imports `scenes/battle.ts` **by value** puts `engine/game`, `postfx` and `moments` in its closure, so **pass line 2 as written fails for Battle Test**. The line already excepts `fieldshow.ts` and `devroutes.ts` ("direct imports only: they start game scenes"). The same must hold for Battle Test. `tests/et-tools.test.ts` (task 2) treats `scenes/battle.ts` as a **game boundary** (M8's): a tool may reach it only through a dynamic `import()`, and fails if it imports it statically.
+- The page must call `routePostfx(postfx, () => game.fx)`. That is a value import of `engine/postfx`, which a tool file may not hold. It goes in one small glue module that Battle Test loads with a dynamic `import()`, as `src/sje/boot.ts` does for the game. Task 6 writes it, and the test names the dynamic targets it allows.
+- The swap leaves the save files alone: `liveProvider.open` loads the saved 640 set and the unsaved stage goes in through `loadStage` after it.
+- To go back to the editor, `scene.close(...)` then `stage.close()` leaves an empty stack, so the editor can run its own `BattleStageScene` again.
+
+**Corrections to the brief:** pass line 2 must name the game boundary for Battle Test (above). Pass line 11 stays clean: the pick and Battle Test need no engine change.
