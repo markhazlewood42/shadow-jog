@@ -58,7 +58,7 @@ export class CollapseDriver implements JackStyleDriver {
     line.clear().fillStyle(LINE, Math.min(1, frame.line)).fillRect(Math.round((W - w) / 2), Math.round((H - L) / 2), w, L);
   }
 
-  dispose(): void {
+  dispose(_level: JackLevel): void {
     this.top?.destroy();
     this.bottom?.destroy();
     this.line?.destroy();

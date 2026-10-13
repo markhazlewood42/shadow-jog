@@ -96,7 +96,7 @@ export function wayBackBoundMs(inTicks: number): number {
 /**
  * Wait for the cover to be gone after an aborted run, but not for ever (decision E11: a hack always resolves). The cover removes itself at the end of its way back, on the
  * game's ticks. If those ticks stop (the game is torn down, or the tab is hidden), `whenGone()` would never settle and the story would hang, so the wait has a wall-clock bound.
- * When the bound runs out, the answer goes on; the door's `finally` still asks the cover to go (`dispose`).
+ * When the bound runs out, the answer goes on; the door's `finally` still asks the cover to go (`dispose`); with its ticks stopped, it goes when they resume.
  */
 async function waitWayBack(jack: Jack, options: HackOptions | undefined): Promise<void> {
   const bound = wayBackBoundMs(options?.jack?.params?.inTicks ?? TRANSITION.inTicks);

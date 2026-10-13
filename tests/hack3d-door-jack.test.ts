@@ -228,7 +228,7 @@ describe('hackDoor with a cover: the order of the jump', () => {
       expect(log, how).not.toContain('back-done');
       expect(jack.disposed, how).toBe(1);
     }
-  });
+  }, 15_000); // two bounded waits of about 2 s each: more room than the 5 s default timeout
 
   it('the story is dropped during the hold: aborted / user, no scene started, the cover disposed (a drop ends the wait at once)', async () => {
     const log: string[] = [];
