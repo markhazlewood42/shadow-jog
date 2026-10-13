@@ -22,7 +22,7 @@ export function errorResponse(status: number, error: string, kind: string, extra
 /**
  * An SVG file can hold a script. In an <img> the browser never runs it, but a person can open the file in its own tab. These headers stop any script, any load from
  * outside and any form there: nothing is allowed except inline styles and `data:` pictures, and `sandbox` gives the file an opaque origin. (The roadmap chart uses only
- * shapes, text and presentation attributes, so it needs nothing more.) The shared copy for the local server is `SVG_CSP` in `src/server/docs/svg-headers.ts`.
+ * shapes, text and presentation attributes, so it needs nothing more.) The local server sets its own, separate policy for `/files` in `src/server/app.ts` (the `fileHeaders` block). The two are copies, so change both together.
  */
 export const SVG_HEADERS = { 'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; img-src data:; sandbox" } as const;
 

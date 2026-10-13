@@ -23,7 +23,6 @@ export const mediaTypeOf = (contentType: string | null): string => (contentType 
 
 const CONTENT_TYPE = { markdown: 'text/markdown; charset=utf-8', png: 'image/png', svg: 'image/svg+xml' } as const;
 
-
 /** The GitHub URL of an allowed path. Every segment is plain (letters, digits, `.`, `-`, `_`), so nothing needs encoding. */
 export const contentsUrl = (path: string): string => `https://api.github.com/repos/${OWNER}/${REPO}/contents/${path}?ref=${DOCS_REF}`;
 
