@@ -4,8 +4,6 @@ title: ET Editor port (brief)
 branch: engine-et-editor-port
 roadmap: ET
 state: active
-next_for_mark:
-  - Nothing now: you approved the brief on 2026-10-13; the ET build starts in the next session
 updated: 2026-10-13
 ---
 
