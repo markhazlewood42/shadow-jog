@@ -633,7 +633,7 @@ test.describe('the jump between 2D and 3D: no bad frame, a held chunk, an exact 
       const frames = await capture(g.page, 'test-short', { over: { ticks: 40 } });
       const real = UNIFORM.glitch.none;
       expect(coverEndProblems(frames, real), 'the real capture: the first frame after each cover is a picture').toEqual([]);
-      // Mutant 1: the frame after the declared in range (in:4 here) is uniform.
+      // Mutant 1: the frame after the declared in range (in:11 here) is uniform.
       const afterRange = frames.findIndex((f) => f.phase === 'in' && !inRanges(real, 'in', f.t));
       expect(afterRange).toBeGreaterThan(0);
       const m1 = frames.map((f, i) => (i === afterRange ? { ...f, share: 1 } : f));
