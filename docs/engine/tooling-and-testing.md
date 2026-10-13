@@ -198,7 +198,26 @@ The interval rule alone cannot catch a load whose GPU work still fits in one dis
 1. The running `HackScene` at `?fx=full&jack=cut`, 640x360, with bloom and the HUD: interval p95 within 5% of the bare page, cost p95 at most 8 ms, draws, binds and uploads per frame. Negative control: 600 extra 3D frames per frame fail both rules (on software GL only the cost gauge is compared, because only the stuck-loop rule exists there). The cold time of the first entry (chunk, scene and first frame) is recorded in the output and is not gated.
 2. The frames of jack in and jack out, one case for each style (`glitch`, `dissolve`, `collapse`) at `full`: a loop of short hacks keeps the cover on screen for most of the measured frames (the case checks that it was on for more than 40% of them), and the same two rules hold. Negative control: 80 extra draws per frame.
 
-On software GL (SwiftShader) the four cases ran to prove the mechanics: they ran, the controls saw the load, and only the stuck-loop rule applied. The numbers of a real GPU (the speed line during the jump, the cold and warm first entry) are written in the record of `m7-brief.md` section 9 after the run of the main session. They are not in this file yet.
+On software GL (SwiftShader) the four cases ran to prove the mechanics: they ran, the controls saw the load, and only the stuck-loop rule applied. The numbers of a real GPU are in the next paragraph.
+
+**M7 GPU run (2026-10-12, `npm run perf`, Chromium on an RTX 4070 via ANGLE/D3D11, bare page p95 16.8 ms).** Pass lines 17 and 25 hold. Run 1: 14 of 16 cases pass, every M7 case passes. The warm first entry (a second hack after the first one ends) was added to the `HackScene` case after run 1 and measured in one more run of that case (bare page p95 18.1 ms there: interval p95 18.3 ms, cost p95 2.9 ms, control 107.0 / 114.7 ms, fails).
+
+| Case (fx full, 640) | Interval p95 | Cost p50 / p95 (line 8 ms) | Draws / binds | Negative control (interval / cost p95) |
+|---|---|---|---|---|
+| Running `HackScene`, bloom and HUD (line 17) | 16.8 ms | 1.9 / 2.7 ms | 52 / 25 | 600 extra 3D frames: 166.7 / 176.2 ms, fails |
+| First entry (chunk, scene, first frame), not gated | — | cold 345 ms (run 1), 223 ms (second run); warm 123 ms | — | — |
+| Jump, `glitch`, cover on 1200 of 1380 ticks (line 25) | 16.9 ms | 1.9 / 3.0 ms | — | 80 extra draws: 49.9 / 37.0 ms, fails |
+| Jump, `dissolve`, cover on 1176 of 1380 ticks | 16.8 ms | 1.9 / 3.7 ms | — | 80 extra draws: 50.0 / 40.8 ms, fails |
+| Jump, `collapse`, cover on 1179 of 1380 ticks | 16.9 ms | 2.0 / 3.0 ms | — | 80 extra draws: 33.4 / 38.4 ms, fails |
+
+**M7, the two 2D cases that failed in run 1: not an M7 regression, cause not established.** Run 1 failed the field on the stage (world map, cost p95 9.6 ms) and the live battle (on the stage for 1183 of 1380 ticks, line over 0.95). Three re-runs on M7: field cost p95 11.5, 21.7 and 6.0 ms (the first two break the 8 ms line, so the field broke it in 3 of 4 runs on M7; p50 5.3 to 5.7 ms, interval p95 16.8 to 16.9 ms, the bare page); battle up for 1368, 1138 (fails) and 1380 ticks. Then an A/B on the same machine, alternating, 3 runs on each side (the A/B log kept no bare-page line; interval p95 was 18.1 to 18.3 ms on both sides, and the last re-run in `perf-2026-10-12-rerun.txt` had a bare page of 18.1 ms, so the display rate changed between the runs):
+
+| Side | Field cost p95 | Battle cost p95 | Battle up (of 1380 ticks) |
+|---|---|---|---|
+| `origin/main` (86ec305) | 6.3, 6.1, 6.1 ms | 3.4, 3.8, 4.1 ms | 1079 (fails), 1380, 1380 |
+| M7 (15f94c4) | 6.2, 5.9, 6.1 ms | 3.8, 3.7, 3.7 ms | 1334, 1380, 1283 (fails) |
+
+The A/B shows no difference between the sides (field: `main` 6.1 to 6.3 ms, M7 5.9 to 6.2 ms). The field spikes did not recur in the A/B on either side, and the field p50 stays within 5.2 to 5.9 ms in every run, so the spikes are not an M7 regression; their cause is not established. The short battle is the same failure that M5 recorded (below, 3 of 7 runs on both sides): it fails on `main` too. Logs: `media/m7-3d/perf-2026-10-12-run1.txt`, `-rerun.txt`, `-ab.txt`, `-warm.txt` (git-ignored).
 
 | Quantity | Proposed budget | Basis |
 |---|---|---|

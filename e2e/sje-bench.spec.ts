@@ -535,6 +535,13 @@ test.describe('M1 bench (local only, real GPU)', () => {
         { frames: FRAMES, warmup: WARMUP, kitSrc: benchKit.toString(), soft: software },
       );
       const o = out as { scene: Scenario; heavy: Scenario; live: number; total: number };
+      // The warm first entry (recorded, not gated): end the running hack the normal way on the real loop, wait for the 2D scene, then enter a second hack the same way.
+      await sj(page, '(sj.game.start(), sj.hackTest.endHack("user"), true)');
+      expect(await waitTop(page, 'TitleScene')).toBe(true);
+      const warm0 = await sj<number>(page, 'performance.now()');
+      await sj(page, "(window.__h = null, sj.hack('test-hack', { over: { ticks: 20000, traceLimit: 1000 } }).then((o) => { window.__h = o; }), true)");
+      expect(await waitUntil(page, 'sj.hackState().running && sj.hackState().tick > 3', 60_000), 'the second hack started').toBe(true);
+      const warm = (await sj<number>(page, 'performance.now()')) - warm0;
       const bare = await bareIntervals(browser, FRAMES);
       const bareP95 = percentile(bare, 0.95);
       const label = software ? `SOFTWARE GL (${renderer}): NOT GPU numbers` : `GPU (${renderer})`;
@@ -543,12 +550,12 @@ test.describe('M1 bench (local only, real GPU)', () => {
         `SJE bench, the 3D hack scene with bloom and the HUD, fx full, 640 [${label}], bare rAF page p95 ${bareP95.toFixed(2)} ms
 ` +
           `  interval p95 ${s.intervalP95.toFixed(2)} ms, work p50/p95 ${s.workP50.toFixed(2)}/${s.workP95.toFixed(2)} ms, cost p50/p95 ${s.costP50.toFixed(2)}/${s.costP95.toFixed(2)} ms, ` +
-          `${s.drawsPerFrame.toFixed(1)} draws, ${s.bindsPerFrame.toFixed(1)} binds, ${s.uploadsPerFrame.toFixed(2)} uploads per frame; first entry (chunk, scene, first frame) ${cold.toFixed(0)} ms (cold, not gated); ` +
+          `${s.drawsPerFrame.toFixed(1)} draws, ${s.bindsPerFrame.toFixed(1)} binds, ${s.uploadsPerFrame.toFixed(2)} uploads per frame; first entry (chunk, scene, first frame) ${cold.toFixed(0)} ms (cold, not gated), warm ${warm.toFixed(0)} ms (not gated); ` +
           `hack running ${o.live}/${o.total} ticks
 ` +
           `  control (${software ? 20 : 600} extra 3D frames): interval p95 ${o.heavy.intervalP95.toFixed(2)} ms, cost p95 ${o.heavy.costP95.toFixed(2)} ms`,
       );
-      writeFileSync(`${OUT}/bench-hack3d.json`, JSON.stringify({ label, renderer, software, bareP95, coldMs: cold, scene: s, heavy: o.heavy, live: o.live, total: o.total }, null, 2));
+      writeFileSync(`${OUT}/bench-hack3d.json`, JSON.stringify({ label, renderer, software, bareP95, coldMs: cold, warmMs: warm, scene: s, heavy: o.heavy, live: o.live, total: o.total }, null, 2));
       // Control: the hack scene ran for the measured frames, and the counter saw draws.
       expect(o.live / o.total, 'the HackScene was running for the measured ticks').toBeGreaterThan(0.95);
       expect(s.drawsPerFrame, 'a frame draws something (control: the counter sees the scene)').toBeGreaterThan(1);
