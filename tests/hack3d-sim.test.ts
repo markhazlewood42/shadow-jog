@@ -218,6 +218,15 @@ describe('determinism over frame rates (T0: the same hash at 60, 144 and 30 Hz a
 
 describe('snapshot and restore', () => {
   // TRACE limit 1000: the hack never fails, so every tick of the run is live state (with the default limit the sim fails near tick 650 and stands still).
+  it('a snapshot with another number of ICE is refused, and the sim keeps its state', () => {
+    const a = new HackSim(DEF);
+    a.run(50);
+    const other = new HackSim({ ...DEF, iceCount: 2 });
+    const before = state(a);
+    expect(() => a.restore(other.snapshot())).toThrow(/2 ICE, this sim has 4/);
+    expect(state(a)).toBe(before);
+  });
+
   const long = { ...DEF, ticks: 5000, traceLimit: 1000 };
 
   it('snapshot at tick 300, restore into a new sim, then 600 ticks, equals 900 straight ticks', () => {

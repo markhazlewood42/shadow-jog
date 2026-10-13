@@ -420,42 +420,53 @@ export class SceneManager {
     }
   }
 
-  /** Scenes that ran `prerender` in this draw phase, so the second pass does not run one twice. Reused, never reallocated. */
+  /** Scenes that ran `prerender` in this draw phase, so the second pass does not run one twice. Reused, never reallocated. Empty again when the phase ends (it must not keep closed scenes alive). */
   private readonly prerendered = new Set<AnyScene>();
+  /** A copy of the stack for one pass, because a handler can close a scene and so change the stack under the loop. Reused, never reallocated. */
+  private readonly pass: AnyScene[] = [];
+  /** True when a `prerender` handler closed its own scene in this phase. */
+  private closedInPass = false;
 
   /**
    * The draw phase for the scenes, bottom first: their `prerender` handlers, then the camera transforms. Hidden scenes are skipped.
    * A handler may close its own scene (a 3D scene that lost its context does), and that can reveal a scene under it that was skipped a moment
-   * ago. The second `refreshLayout()` finds those, and the second pass gives them their `prerender` in the same frame (M7 task 5): without it
-   * the revealed scene would show the texture of its last visible frame for one frame.
+   * ago. When that happened (or the stack changed), a second `refreshLayout()` finds those scenes, and a second pass gives them their `prerender` in the same frame (M7 task 5): without it
+   * the revealed scene would show the texture of its last visible frame for one frame. A frame where no scene closed does one pass.
    */
   prerender(): void {
     this.refreshLayout();
     this.prerendered.clear();
-    this.prerenderVisible();
-    this.refreshLayout();
-    for (let i = 0; i < this.stack.length; i++) {
-      const s = this.stack[i];
-      if (!s || s.closed || !s.sys.visible || this.prerendered.has(s)) continue;
-      this.prerendered.add(s);
-      this.prerenderOne(s);
+    this.closedInPass = false;
+    const seen = this.prerenderVisible();
+    if (this.closedInPass || this.stack.length !== seen) {
+      this.refreshLayout();
+      this.prerenderVisible();
     }
+    this.prerendered.clear();
   }
 
-  /** The first pass: every scene that is visible now, bottom first. */
-  private prerenderVisible(): void {
-    for (let i = 0; i < this.stack.length; i++) {
-      const s = this.stack[i];
-      if (!s || s.closed || !s.sys.visible) continue;
+  /** One pass: every scene that is visible now and has not run yet, bottom first. Returns how many scenes the stack held when it began. */
+  private prerenderVisible(): number {
+    const list = this.pass;
+    list.length = 0;
+    for (const s of this.stack) list.push(s);
+    for (const s of list) {
+      if (s.closed || !s.sys.visible || this.prerendered.has(s)) continue;
       this.prerendered.add(s);
       this.prerenderOne(s);
     }
+    const n = list.length;
+    list.length = 0;
+    return n;
   }
 
   private prerenderOne(s: AnyScene): void {
     this.guard(s, () => s.events.emit('prerender'), 'render');
     // A prerender handler may have closed its own scene. Its display list is destroyed by now, so there is no camera to apply.
-    if (s.closed) return;
+    if (s.closed) {
+      this.closedInPass = true;
+      return;
+    }
     this.guard(s, () => s.cameras.apply(), 'render');
   }
 

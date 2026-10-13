@@ -79,6 +79,7 @@ export function attachHackHook(sj: Record<string, unknown>, game: Game): void {
   let gap: { root: Container; effect: Effect } | null = null;
   let removeQuad: (() => void) | null = null;
   let black: Graphics | null = null;
+  let blackListener: (() => void) | null = null;
 
   const hook = {
     hackDef: (id: string, over?: Partial<HackDef>): HackDef => hackDef(id, over),
@@ -179,6 +180,9 @@ export function attachHackHook(sj: Record<string, unknown>, game: Game): void {
       /** MUTANT (pass line 19): one black frame, the first frame of the reveal. */
       blackFrameAtHandover(on: boolean): void {
         if (!on) {
+          // The listener goes with the rectangle: one left behind would touch a destroyed object in the next draw.
+          if (blackListener) game.events.off('prerender', blackListener);
+          blackListener = null;
           black?.destroy();
           black = null;
           return;
@@ -187,10 +191,11 @@ export function attachHackHook(sj: Record<string, unknown>, game: Game): void {
         const g = new Graphics(game).fillStyle(0x000000, 1).fillRect(0, 0, W, H).setVisible(false);
         game.screen.overlayRoot.add(g);
         black = g;
-        game.events.on('prerender', () => {
+        blackListener = () => {
           const st = jackProbe.current?.state;
           g.setVisible(!!st && st.phase === 'in' && st.t === 0);
-        });
+        };
+        game.events.on('prerender', blackListener);
       },
       /** MUTANT (pass line 20): the hold draws no moving element. */
       skipHoldUi(on: boolean): void {

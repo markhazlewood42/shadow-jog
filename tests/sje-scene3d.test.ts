@@ -373,6 +373,15 @@ describe('Scene3D context grace: a lost context gets 1 second to come back', () 
     expect(r.scene.closed).toBe(true);
     expect(vi.getTimerCount()).toBe(0);
   });
+
+  it('contextGraceMs 0 and a loss that only the game reports (the frame flag stays false): the scene still ends, it does not freeze (decision E11)', () => {
+    const r = rig({ contextGraceMs: 0 });
+    // The game's renderer says the context is gone; the frame (the canvas-copy path) does not.
+    (r.g.renderer as { contextLost?: boolean }).contextLost = true;
+    r.g.events.emit('contextlost');
+    r.g.draw();
+    expect(r.scene.closed).toBe(true);
+  });
 });
 
 // ---- 2c. hidden 3D scenes draw no frame, and a revealed one is not stale (pass line 11) --------------------------------------------------------------
@@ -431,6 +440,19 @@ describe('a Scene3D under an opaque scene', () => {
     g.draw();
     expect(probe.frame?.renders).toBe(1);
     expect(order).toEqual(['sync3D', 'render', 'pixi']);
+  });
+
+  it('a draw phase keeps no scene alive: a scene that closed inside its own prerender is not held by the manager afterwards', () => {
+    const g = newGame();
+    const held = (): number => (g.scene as unknown as { prerendered: Set<unknown> }).prerendered.size;
+    void g.run(new ProbeScene(newProbe()));
+    void g.run(new Cover(true));
+    g.advanceTick();
+    g.draw();
+    expect(held()).toBe(0);
+    // One scene left, nothing closes: still empty, and the frame drew it once.
+    g.draw();
+    expect(held()).toBe(0);
   });
 
   // CONTROL: a prerender with no second pass (the code before M7 task 5) leaves the revealed scene unrendered.

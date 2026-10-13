@@ -48,6 +48,8 @@ export class HackScene extends Scene3D<HackResult> {
   private readonly gate: HackOptions['gate'];
   /** True while the gate is open: the sim has ended and the scene waits to be let go. */
   private ending = false;
+  /** The sim's result, kept while the gate is open: a context loss in that time must not replace a finished hack with an abort. */
+  private endResult: HackResult | null = null;
   private readonly bloomOn: boolean;
 
   constructor(
@@ -84,10 +86,12 @@ export class HackScene extends Scene3D<HackResult> {
       }
       // The jack-out: the transition covers the picture first, then lets the scene go. A gate that fails must not trap the story.
       this.ending = true;
+      this.endResult = result;
       const done = (): void => {
         if (!this.closed) this.close(result);
       };
-      this.gate(result).then(done, done);
+      // `new Promise` turns a gate that throws at once into a rejection, so `done` still runs.
+      new Promise<void>((resolve) => resolve(this.gate?.(result))).then(done, done);
     }
   }
 
@@ -115,6 +119,8 @@ export class HackScene extends Scene3D<HackResult> {
   }
 
   abortResult(reason: Scene3DAbort): HackResult {
+    // The sim already ended and only the jack-out is left: the player finished the hack, so a lost context gives the real result (a retry would replay a hack that was done).
+    if (this.endResult && reason === 'context-lost') return this.endResult;
     return { status: 'aborted', reason };
   }
 

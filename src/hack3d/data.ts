@@ -46,3 +46,10 @@ export function hackDef(id: string, over: Partial<HackDef> = {}): HackDef {
   if (!found) throw new Error(`no hack "${id}" in src/data/hacks.json (it has: ${HACKS.map((h) => h.id).join(', ')})`);
   return { ...JSON.parse(JSON.stringify(found)), ...over };
 }
+
+/** `&ticks=` of the hack route: a whole number of 1 or more, else null (the definition's own ticks stay). NaN would make the hack run for ever; 0 or less would end it at once. */
+export function parseTicks(raw: string | null): number | null {
+  if (raw === null || raw.trim() === '') return null;
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 1 ? n : null;
+}

@@ -107,6 +107,13 @@ describe('Timeline: out, hold, swap, in', () => {
     expect(seen.filter((s) => s.startsWith('in:')).length).toBe(P.inTicks);
   });
 
+  it('a chunk that arrives on the tick of the bound is used: released wins over timed out, so the run goes to the swap and is not aborted', () => {
+    const tl = new Timeline(P);
+    const seen = run(tl, (tick) => ({ holdReleased: tick >= 40, holdTimedOut: tick >= 40, swapDone: true }));
+    expect(seen.some((s) => s.startsWith('swap:'))).toBe(true);
+    expect(tl.aborted).toBe(false);
+  });
+
   it('jack out has no hold: out, swap, in', () => {
     const seen = run(new Timeline(P, { skipHold: true }), () => ({ swapDone: true }));
     expect(seen.some((s) => s.startsWith('hold:'))).toBe(false);

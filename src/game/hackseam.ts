@@ -11,7 +11,7 @@
 import { type DoorEnv, type HackGame, type HackOptions, hackDoor, hackWithPolicy, realDoorEnv } from '../hack3d/door';
 import type { HackDef, HackOutcome } from '../hack3d/result';
 
-export { hackDef } from '../hack3d/data';
+export { hackDef, parseTicks } from '../hack3d/data';
 export type { HackDef, HackOutcome, HackPolicy, HackResult } from '../hack3d/result';
 export type { HackOptions };
 
@@ -64,4 +64,12 @@ export function runHack(game: object, def: HackDef, how: HackHandling): Promise<
   const env: DoorEnv | undefined = dev?.env ? { ...realDoorEnv, ...dev.env } : undefined;
   // Total at run time: a caller that dodged the types with neither field gets the explicit win, and the door never rejects.
   return hackWithPolicy(def, (d) => hackDoor(g, d, dev?.options, env), how?.playAlternative ?? wonByAuthor);
+}
+
+/**
+ * A field with no hack hook (a test field) cannot run the 3D hack, so the door's answer is `unsupported`. This applies the definition's policy to that answer, as `runHack` does for
+ * a story: `unsupported: 'fail'` fails, and the default plays the author's 2D alternative (or counts the win).
+ */
+export function runHackUnsupported(def: HackDef, how: HackHandling): Promise<HackOutcome> {
+  return hackWithPolicy(def, async () => ({ status: 'unsupported', reason: 'no-webgl2' }), how?.playAlternative ?? wonByAuthor);
 }

@@ -196,7 +196,11 @@ export abstract class Scene3D<R> extends Scene<R> {
     // The frame says the context is fine, but the scene thinks it is lost: it came back and only the frame saw it (the canvas-copy path).
     // A loss the game reports (`Game.contextLost`) is the shared path's own flag: stay lost until the game says it is back.
     if (this.lost && !this.game.contextLost) this.recover();
-    if (this.lost) return;
+    if (this.lost) {
+      // No grace: a loss that only the game event reported (the frame flag is still false) ends the scene here too. Else the scene would freeze for ever (decision E11).
+      if ((this.options.contextGraceMs ?? CONTEXT_GRACE_MS) <= 0) this.endEarly('context-lost');
+      return;
+    }
     this.sync3D();
     frame.render();
     if (!this.rendered) {

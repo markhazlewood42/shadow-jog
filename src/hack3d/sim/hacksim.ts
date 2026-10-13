@@ -149,6 +149,8 @@ export class HackSim {
 
   /** Replace the whole state with a snapshot of a sim of the same definition. The snapshot is copied: later steps do not change it. */
   restore(s: HackSimSnapshot): void {
+    // The Look builds one mesh for each ICE of the constructor: a snapshot with another count would leave ICE with no mesh (never drawn). Refuse it before anything changes.
+    if (s.ice.length !== this.ice.length) throw new Error(`HackSim.restore: the snapshot has ${s.ice.length} ICE, this sim has ${this.ice.length} (restore into a sim made with the same definition)`);
     this.tick = s.tick;
     this.travel = s.travel;
     this.trace = s.trace;

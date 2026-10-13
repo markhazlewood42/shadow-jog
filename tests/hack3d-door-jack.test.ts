@@ -23,14 +23,18 @@ class FakeJack implements Jack {
   disposed = 0;
   started: Promise<void>;
   holdTicks = 0;
+  runs = 0;
   constructor(
     log: string[],
-    private readonly o: { impatient?: boolean; holdBoundTicks?: number } = {},
+    private readonly o: { impatient?: boolean; holdBoundTicks?: number; noSwapOnRun?: number } = {},
   ) {
     this.log = log;
     this.started = tick().then(() => void this.log.push('first-tick'));
   }
   async run(r: JackRun): Promise<'done' | 'aborted'> {
+    this.runs++;
+    // MUTANT of a cover that was disposed or cut: this run ends with no swap, so `onSwap` is never called.
+    if (this.o.noSwapOnRun === this.runs) return 'done';
     this.log.push('out');
     await this.started;
     if (r.holdReleased) {
@@ -121,6 +125,14 @@ describe('hackDoor with a cover: the order of the jump', () => {
     const at = (m: string) => log.indexOf(m);
     // The order check of the case above, run on the mutant: it does NOT hold.
     expect(at('first-render') < at('in')).toBe(false);
+  });
+
+  it('the jack-out run ends with no swap (a cover that was disposed or cut): the gate still settles, so the scene closes and the story gets its result (decision E11)', async () => {
+    const log: string[] = [];
+    const jack = new FakeJack(log, { noSwapOnRun: 2 });
+    const result = await hackDoor(game(), DEF, undefined, env(jack, chunk(log)));
+    expect(result).toEqual(SUCCESS);
+    expect(log).toContain('scene-closed');
   });
 
   it('the chunk will not load: the cover goes back (aborted), the answer is unsupported / chunk-failed, the error is logged once, and the cover is disposed', async () => {

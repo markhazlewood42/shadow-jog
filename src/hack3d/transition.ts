@@ -99,19 +99,21 @@ export function coverAt(style: JackStyle, level: JackLevel, phase: Phase, t: num
         return { ...idle, cover: 1 };
       case 'in':
         return { ...idle, cover: from * (1 - smooth(inU)) };
+      default:
+        return idle;
     }
   }
+  // Here the level is 'full' or 'lite': 'none' returned above, so the swap flash is always white.
   if (style === 'glitch') {
-    const white = level === 'full' || level === 'lite' ? 'white' : 'void';
     switch (phase) {
       case 'out':
         return { ...idle, cover: p.holdCover * smooth(outU), amount: outU };
       case 'hold':
         return { ...idle, cover: p.holdCover, amount: 0.35, holdUi: true };
       case 'swap':
-        return { ...idle, cover: 1, tint: white, amount: 1 };
+        return { ...idle, cover: 1, tint: 'white', amount: 1 };
       case 'in':
-        return { ...idle, cover: from * (1 - inU), tint: white, amount: 1 - inU };
+        return { ...idle, cover: from * (1 - inU), tint: 'white', amount: 1 - inU };
     }
   }
   // The dissolve and the collapse are DEV styles until Mark picks one (decision D5): a shipped build never asks for them, and drops their look.
@@ -222,12 +224,13 @@ export class Timeline {
         if (this.t >= this.p.outTicks) this.go(this.opts.skipHold ? 'swap' : 'hold');
         break;
       case 'hold':
-        if (i.holdTimedOut) {
+        // A chunk that arrived on the tick of the bound still counts: released wins over timed out.
+        if (i.holdReleased) this.go('swap');
+        else if (i.holdTimedOut) {
           this.aborted = true;
           this.inFrom = i.holdFrom;
           this.go('in');
-        } else if (i.holdReleased) this.go('swap');
-        else this.t++;
+        } else this.t++;
         break;
       case 'swap':
         this.t++;

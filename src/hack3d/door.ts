@@ -151,15 +151,21 @@ async function withCover(game: Game, def: HackDef, options: HackOptions | undefi
           options?.onFirstRender?.();
         },
         // Jack out: when the sim ends, close the cover over the last frame first.
+        // The gate must ALWAYS settle (decision E11), or the scene never closes. It settles at the swap, and also when the run ends with no swap (a cover that was disposed, or a run that was cut).
         gate: () =>
           new Promise<void>((resolve) => {
-            st.outRun = jack.run({
+            const out = jack.run({
               onSwap: () => {
                 resolve();
                 return 'go';
               },
               swapDone: () => st.sceneSettled,
             });
+            st.outRun = out;
+            out.then(
+              () => resolve(),
+              () => resolve(),
+            );
           }),
       };
       try {
@@ -185,7 +191,8 @@ async function withCover(game: Game, def: HackDef, options: HackOptions | undefi
     // The way back to the 2D picture has begun (the hold timed out, the load failed, or the story was dropped).
     if (game.dropCount !== dropsBefore) return { status: 'aborted', reason: 'user' };
     if (st.loadError !== null) console.error('[sje] the 3D chunk would not load:', st.loadError);
-    else console.error('[sje] the 3D chunk took longer to load than the hold bound allows');
+    else if (!st.loadSettled) console.error('[sje] the 3D chunk took longer to load than the hold bound allows');
+    else console.error('[sje] the cover went back before the 3D scene started (the chunk had loaded)');
     return { status: 'unsupported', reason: 'chunk-failed' };
   }
   let result: HackResult;

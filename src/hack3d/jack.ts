@@ -85,26 +85,38 @@ class JackCover implements Jack {
       this.resolveStarted = r;
     });
     this.level = game.fx.level;
-    this.root = new Container(game, 0, 0, 'jack');
-    this.root.setDepth(1000);
-    this.veilVoid = new Graphics(game).fillStyle(VOID, 1).fillRect(0, 0, W, H).setDepth(0).setVisible(false);
-    this.veilWhite = new Graphics(game).fillStyle(WHITE, 1).fillRect(0, 0, W, H).setDepth(0).setVisible(false);
-    this.root.add([this.veilVoid, this.veilWhite]);
-    driver.setup(this.root);
-    // The hold element: a blinking cursor, the line "JACKING IN", and a bar that runs along the bottom. It moves every tick.
-    this.holdUi = new Container(game, 0, 0, 'jack-hold').setDepth(10).setVisible(false);
-    const text = 'JACKING IN';
-    const tw = measure(text) + 2;
-    this.label = new CanvasImage(game, Math.floor((W - tw - 8) / 2), Math.floor(H / 2) - 6, tw, 11);
-    drawText(this.label.ctx, text, 0, 0, { color: '#3fe0f0' });
-    this.label.refresh();
-    this.cursor = new Graphics(game, this.label.x + tw + 2, this.label.y + 1).fillStyle(CYAN, 1).fillRect(0, 0, 5, 9);
-    this.sweep = new Graphics(game, 0, H - 28).fillStyle(CYAN, 0.85).fillRect(0, 0, 72, 2);
-    this.holdUi.add([this.label, this.cursor, this.sweep]);
-    this.root.add(this.holdUi);
-    game.screen.overlayRoot.add(this.root);
-    game.events.on('poststep', this.onTick);
-    if (import.meta.env.DEV) jackProbe.current = this;
+    // A throw partway (a canvas that cannot be made) must not leave a half-built cover on screen or a listener behind: the door treats it as a cut, and nothing else would free it.
+    try {
+      this.root = new Container(game, 0, 0, 'jack');
+      this.root.setDepth(1000);
+      this.veilVoid = new Graphics(game).fillStyle(VOID, 1).fillRect(0, 0, W, H).setDepth(0).setVisible(false);
+      this.veilWhite = new Graphics(game).fillStyle(WHITE, 1).fillRect(0, 0, W, H).setDepth(0).setVisible(false);
+      this.root.add([this.veilVoid, this.veilWhite]);
+      driver.setup(this.root);
+      // The hold element: a blinking cursor, the line "JACKING IN", and a bar that runs along the bottom. It moves every tick.
+      this.holdUi = new Container(game, 0, 0, 'jack-hold').setDepth(10).setVisible(false);
+      const text = 'JACKING IN';
+      const tw = measure(text) + 2;
+      this.label = new CanvasImage(game, Math.floor((W - tw - 8) / 2), Math.floor(H / 2) - 6, tw, 11);
+      drawText(this.label.ctx, text, 0, 0, { color: '#3fe0f0' });
+      this.label.refresh();
+      this.cursor = new Graphics(game, this.label.x + tw + 2, this.label.y + 1).fillStyle(CYAN, 1).fillRect(0, 0, 5, 9);
+      this.sweep = new Graphics(game, 0, H - 28).fillStyle(CYAN, 0.85).fillRect(0, 0, 72, 2);
+      this.holdUi.add([this.label, this.cursor, this.sweep]);
+      this.root.add(this.holdUi);
+      game.screen.overlayRoot.add(this.root);
+      game.events.on('poststep', this.onTick);
+      if (import.meta.env.DEV) jackProbe.current = this;
+    } catch (e) {
+      game.events.off('poststep', this.onTick);
+      try {
+        driver.dispose();
+      } catch {
+        // The first error is the one to report.
+      }
+      (this as unknown as { root?: Container }).root?.destroy();
+      throw e;
+    }
   }
 
   /** The phase and tick now, for tests (DEV hook) and for the unit tests of the door's order. */
@@ -229,21 +241,34 @@ class JackCover implements Jack {
 /** Style A has no objects of its own: the veil is the flash, and the tear is the effects system's (`full`). */
 class GlitchDriver implements JackStyleDriver {
   private lastHoldFire = -1;
+  /** The glitches that the cover's own moments made. Only these are removed at the swap and at dispose: a battle hit or a story effect that is live keeps its own. */
+  private readonly mine = new Set<object>();
   constructor(private readonly game: Game) {}
+  private moment(name: string, x: number, y: number): void {
+    const fx = this.game.fx;
+    const before = new Set<object>(fx.glitches);
+    fx.playMoment(name, x, y);
+    for (const g of fx.glitches) if (!before.has(g)) this.mine.add(g);
+  }
+  private clearMine(): void {
+    const list = this.game.fx.glitches;
+    for (let i = list.length - 1; i >= 0; i--) if (this.mine.has(list[i] as object)) list.splice(i, 1);
+    this.mine.clear();
+  }
   setup(): void {}
   enter(phase: Phase, level: JackLevel): void {
     const fx = this.game.fx;
     if (level === 'none') return; // no effects call at all (pass line 23)
     const mid = { x: W / 2, y: H / 2 };
     if (level === 'full') {
-      if (phase === 'out') fx.playMoment('jack.out', mid.x, mid.y);
+      if (phase === 'out') this.moment('jack.out', mid.x, mid.y);
       else if (phase === 'hold') {
         this.lastHoldFire = 0;
-        fx.playMoment('jack.hold', mid.x, mid.y);
+        this.moment('jack.hold', mid.x, mid.y);
       } else if (phase === 'swap') {
         // The white flash covers the cut: nothing of the tear may stay behind it.
-        fx.glitches.length = 0;
-      } else if (phase === 'in') fx.playMoment('jack.in', mid.x, mid.y);
+        this.clearMine();
+      } else if (phase === 'in') this.moment('jack.in', mid.x, mid.y);
     } else {
       // lite: the dim, a shake, and the white veil as the flash.
       if (phase === 'out') {
@@ -256,11 +281,11 @@ class GlitchDriver implements JackStyleDriver {
     // The sustained tear of the hold: the moment plays again every 20 ticks.
     if (phase === 'hold' && level === 'full' && t - this.lastHoldFire >= 20) {
       this.lastHoldFire = t;
-      this.game.fx.playMoment('jack.hold', W / 2, H / 2);
+      this.moment('jack.hold', W / 2, H / 2);
     }
   }
   dispose(): void {
-    if (this.game.fx.level === 'full') this.game.fx.glitches.length = 0;
+    if (this.game.fx.level === 'full') this.clearMine();
   }
 }
 
