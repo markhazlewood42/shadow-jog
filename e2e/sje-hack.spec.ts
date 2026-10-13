@@ -1051,7 +1051,7 @@ test.describe('the jump between 2D and 3D: no bad frame, a held chunk, an exact 
           after = await settledPicture(page);
           expect(after.state, 'the field state is the state before').toBe(before);
           const counts = await sj<Record<string, number>>(page, 'sj.fxCounts()');
-          expect([counts.shocks, counts.hazes, counts.glitches, counts.particles ?? 0], 'no effect is left').toEqual([0, 0, 0, 0]);
+          expect([counts.shocks, counts.hazes, counts.glitches, counts.particles], 'no effect is left').toEqual([0, 0, 0, 0]);
           expect(await jackCovers(), 'the cover is gone').toBe(0);
           expect(await sj<boolean>(page, 'sj.hackState().running')).toBe(false);
           expect(g.problems).toEqual([]);

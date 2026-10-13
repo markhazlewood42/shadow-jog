@@ -63,5 +63,5 @@ export function runHack(game: object, def: HackDef, how: HackHandling): Promise<
   const dev = hackDevOverride();
   const env: DoorEnv | undefined = dev?.env ? { ...realDoorEnv, ...dev.env } : undefined;
   // Total at run time: a caller that dodged the types with neither field gets the explicit win, and the door never rejects.
-  return hackWithPolicy(def, (d) => hackDoor(g, d, dev?.options, env), how.playAlternative ?? wonByAuthor);
+  return hackWithPolicy(def, (d) => hackDoor(g, d, dev?.options, env), how?.playAlternative ?? wonByAuthor);
 }
