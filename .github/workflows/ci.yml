@@ -147,15 +147,14 @@ jobs:
       fail-fast: false
       matrix:
         # The specs are split by name, not with `--shard`: Playwright's `--shard` splits by test count, and it gave one shard 143 tests (the slow ones) and the other 78 (4 minutes).
-        # The lists are balanced by measured time. The seconds of each spec are from the green run 38341695742 (one worker, the list reporter, per-test times from the log; see docs/CI.md).
-        # Two numbers are not from that run: e2e/sje-field-parity-c.spec.ts carries 6 GPU-only states that skip themselves on CI (their time is about 0), and the split of sje-hack
-        # into four parts is the sum of the per-test times of that run for the tests of each part. Shard totals in seconds of tests (the old layout, before the split of sje-hack, had 6/8 at 1,624):
-        #   1/8 500 (hack C 392, economy 77, fx 31)                           2/8 503 (hack A 395, playthrough 108)
-        #   3/8 508 (hack D 366, gameover 142)                                4/8 498 (hack B 362, field parity C 128, fxlab 8)
-        #   5/8 505 (field parity A 368, canaries 83, shell 54)               6/8 510 (field parity D 255, field 152, stage parity 53, scene3d 50)
-        #   7/8 505 (default-path 283, field parity B 167, gpufx 55)          8/8 509 (battle 194, draws 155, prod 122, chaos 38)
-        # The total is about 4,037 seconds (the software GL of CI is slower than the 3,200 of the earlier layout), so eight shards average 505. sje-hack is four files, `sje-hack-a` to `-d`,
-        # that share `e2e/sjehackkit.ts` (pass line 18 of docs/engine/m7-brief.md: the 59 tests run in CI). Field parity A (368 s) is now the longest single file after the hack parts (all under 400 s).
+        # The lists are balanced by measured time. The seconds of each spec are from run 38442567319 (2026-10-13, after the jack transition became 60+60 ticks; one worker, the list reporter,
+        # per-test times from the log; see docs/CI.md). The every-frame hack cases grew about 2x with the 2 s jack, so each hack part that is slow gets a shard of its own or nearly.
+        # sje-hack-d's 505 s includes two 120 s timeouts (fixed with test.slow()): re-measure on the next green run. Shard totals in seconds of tests:
+        #   1/8 774 (hack C)                                                  2/8 777 (hack B 723, canaries 54)
+        #   3/8 721 (hack D 505, gameover 143, shell 36, gpufx 37)            4/8 742 (hack A 261, field parity A 205, field parity B 163, chaos 63, scene3d 50)
+        #   5/8 750 (field parity C 320, field parity D 259, playthrough 108, fx 63)   6/8 347 (battle 190, draws 157)
+        #   7/8 311 (default-path 159, field 152)                             8/8 355 (prod 121, economy 138, stage parity 77, fxlab 19)
+        # The total is about 4,777 seconds. sje-hack is four files, `sje-hack-a` to `-d`, that share `e2e/sjehackkit.ts` (pass line 18 of docs/engine/m7-brief.md: the 59 tests run in CI).
         # A new spec is added to the shard with the smallest total, or to the NOT_IN_CI list in tests/ci-shards.test.ts with a reason. That test fails on a spec that is in no list.
         include:
           - shard: '1/8'
