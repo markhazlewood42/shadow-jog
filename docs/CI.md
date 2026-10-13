@@ -47,11 +47,13 @@ The seconds below are the larger of the two attempts of the run `38182602108` (o
 | `e2e (1/8)` | `sje-field-parity-a` 364, `sje-scene3d` 45 (estimate) | 409 |
 | `e2e (2/8)` | `sje-field-parity-c` 322, `chaos` 61, `fxlab` 16 | 399 |
 | `e2e (3/8)` | `default-path` 285, `prod` 123 | 408 |
-| `e2e (4/8)` | `sje-field-parity-d` 257, `sje-battle` 128 | 385 |
+| `e2e (4/8)` | `sje-field-parity-d` 142, `sje-battle` 119, `gameover` 144 | 405 |
 | `e2e (5/8)` | `playthrough` 218, `economy` 131, `sje-fx` 62 | 411 |
 | `e2e (6/8)` | `sje-hack` 312 (M7), `sje-shell` 56, `gpufx` 40 | 408 |
 | `e2e (7/8)` | `sje-draws` 159, `sje-field` 149, `sje-canaries` 82 | 390 |
-| `e2e (8/8)` | `sje-field-parity-b` 165, `gameover` 143, `sje-stage-parity` 82 | 390 |
+| `e2e (8/8)` | `sje-field-parity-b` 292, `sje-stage-parity` 77 | 369 |
+
+**Rebalance after run `38337948613` (2026-10-13).** Shard 8/8 took 9m19s (513 seconds of tests: field parity B had grown to 292 seconds, from 165) and 4/8 took 5m05s (260 seconds). The median of the other shards was about 400 seconds. `gameover` (144 seconds) moved from 8/8 to 4/8, so 8/8 now holds about 369 seconds and 4/8 about 404. The other shards are as the table says (measured: 1/8 418, 2/8 388, 3/8 293, 5/8 409, 7/8 381); 6/8 (`sje-hack`) had not finished in that run, so it is not re-measured. Measure the new split on the next green run.
 
 **M7 (2026-10-12) moved most specs.** The 3D mode added `sje-hack` (56 tests, 312 seconds on the bundled Chromium on SwiftShader, measured locally, not on CI): it runs the 3D hack scene on the real game page, and its cases of the jump between 2D and 3D capture every frame of three styles at three effects levels. Put in the old shard 6/8 it would have made that shard 661 seconds, so the eight lists were packed again (longest first, into the shortest shard) with the spec kept in 6/8, as pass line 18 of `m7-brief.md` says. The total is about 3,200 seconds, so eight shards average 400 seconds (355 before). `sje-scene3d` was never measured on CI; 45 seconds is an estimate from a local run. `prod.spec.ts` has a new case that loads the hashed 3D chunk from the preview server by its manifest name, and `default-path.spec.ts` asserts that a normal run makes no request for the 3D chunk. Measure the shards on the first CI run of the M7 pull request and rebalance if one is a minute off (the procedure is below).
 
