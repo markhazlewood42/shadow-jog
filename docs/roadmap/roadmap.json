@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-10",
+  "updated": "2026-10-13",
   "lanes": [
     {
       "id": "foundations",
@@ -126,12 +126,14 @@
       "kind": "milestone",
       "label": "3D mode",
       "lane": "engine",
-      "status": "active",
+      "status": "done",
       "after": [
         "M6",
         "M1b"
       ],
-      "notes": "Needs both the 3D proof (M1b) and the default flip (M6). GPU timing check (npm run perf) once at the end, not in CI."
+      "notes": "Needs both the 3D proof (M1b) and the default flip (M6). GPU timing check (npm run perf) once at the end, not in CI.",
+      "branch": "engine-m7-3d-mode",
+      "pr": "#80 (merged 2026-10-13), review fixes #82 (merged 2026-10-13)"
     },
     {
       "id": "M8",
@@ -253,7 +255,7 @@
       "kind": "milestone",
       "label": "Editor port",
       "lane": "side",
-      "status": "later",
+      "status": "active",
       "after": [
         "M6"
       ],
