@@ -8,7 +8,7 @@
  * The game's own `Game` type is the old engine class in `src/game`, and the runtime object is the new engine's `Game` (`src/sje/boot.ts` joins them), so the cast
  * from one to the other happens once, here (the same cast `src/devroutes.ts` makes for the FX lab).
  */
-import { type DoorEnv, type HackGame, type HackOptions, hackDoor, hackWithPolicy, realDoorEnv } from '../hack3d/door';
+import { type DoorEnv, type HackGame, type HackOptions, hackDoor, hackWithPolicy, realDoorEnv, waitForContext } from '../hack3d/door';
 import type { HackDef, HackOutcome } from '../hack3d/result';
 
 export { hackDef, parseTicks } from '../hack3d/data';
@@ -62,8 +62,7 @@ export function runHack(game: object, def: HackDef, how: HackHandling): Promise<
   const g = game as unknown as HackGame;
   const dev = hackDevOverride();
   const env: DoorEnv | undefined = dev?.env ? { ...realDoorEnv, ...dev.env } : undefined;
-  // Total at run time: a caller that dodged the types with neither field gets the explicit win, and the door never rejects.
-  return hackWithPolicy(def, (d) => hackDoor(g, d, dev?.options, env), how?.playAlternative ?? wonByAuthor);
+  return hackWithPolicy(def, (d) => hackDoor(g, d, dev?.options, env), alternativeOf(how, 'runHack'), () => waitForContext(g));
 }
 
 /**
@@ -71,5 +70,18 @@ export function runHack(game: object, def: HackDef, how: HackHandling): Promise<
  * a story: `unsupported: 'fail'` fails, and the default plays the author's 2D alternative (or counts the win).
  */
 export function runHackUnsupported(def: HackDef, how: HackHandling): Promise<HackOutcome> {
-  return hackWithPolicy(def, async () => ({ status: 'unsupported', reason: 'no-webgl2' }), how?.playAlternative ?? wonByAuthor);
+  return hackWithPolicy(def, async () => ({ status: 'unsupported', reason: 'no-webgl2' }), alternativeOf(how, 'runHackUnsupported'));
+}
+
+/**
+ * The 2D alternative to play. The types make the author choose (E19), so a call with neither field got past them (plain JS, JSON, a cast). The shipped game still resolves
+ * (the door never rejects, decision E11) with the explicit win, but a DEV build says so loudly: no default may decide for the author without being noticed.
+ */
+function alternativeOf(how: HackHandling | undefined, where: string): PlayAlternative {
+  const alt = how?.playAlternative;
+  if (alt) return alt;
+  if (how?.onUnsupported !== 'win' && import.meta.env.DEV) {
+    console.error(`[sje] ${where} got neither playAlternative nor onUnsupported: 'win'. The author must choose (E19). Counting it as a win.`);
+  }
+  return wonByAuthor;
 }

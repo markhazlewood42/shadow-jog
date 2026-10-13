@@ -12,6 +12,7 @@
  * picks one at the look checkpoint; a shipped build holds neither.
  */
 import { CanvasImage, Container, drawText, type Game, Graphics, H, measure, W } from '../sje';
+import { pageSeed } from '../sje/runtime/devseed';
 import { TRANSITION } from './data';
 import { type CoverFrame, DEFAULT_STYLE, holdLook, type JackLevel, type JackStyle, type Phase, styleFromQuery, Timeline, type TransitionParams, VOID } from './transition';
 
@@ -183,7 +184,22 @@ class JackCover implements Jack {
     this.driver.enter(phase, this.level);
   }
 
+  /** One tick of the cover. A throw inside it must not leave the run pending (decision E11: a hack always resolves): the run ends `aborted` and the cover comes down. */
   private readonly onTick = (): void => {
+    try {
+      this.tick();
+    } catch (e) {
+      console.error('[sje] the transition threw; the run ends aborted:', e);
+      this.finish('aborted');
+      try {
+        this.teardown();
+      } catch (e2) {
+        console.error('[sje] the transition could not be removed cleanly:', e2);
+      }
+    }
+  };
+
+  private tick(): void {
     if (this.firstTick) {
       this.firstTick = false;
       this.resolveStarted();
@@ -212,7 +228,7 @@ class JackCover implements Jack {
       // A run that went back to the picture (aborted) has nothing more to show: the cover goes, whether or not the door has asked yet.
       if (this.disposeWhenDone || tl.aborted) this.teardown();
     }
-  };
+  }
 
   /** How covered the picture is at the hold look, in the unit the style's `in` phase starts from. */
   private holdFrom(): number {
@@ -301,7 +317,7 @@ export interface JackOptions {
 
 /** The seed of the cover's noise: the page's `?seed` (DEV) and the hack's own seed. A plain mix, so one number comes out for a pair. */
 function jackSeed(hackSeed: number): number {
-  const page = import.meta.env.DEV ? Number(new URLSearchParams(location.search).get('seed') ?? 0) || 0 : 0;
+  const page = pageSeed() ?? 0;
   return (Math.imul(page ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(hackSeed + 1, 0xc2b2ae35)) >>> 8;
 }
 

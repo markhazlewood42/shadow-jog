@@ -313,9 +313,10 @@ test.describe('context lost for good, and back in time (pass lines 7 and 8)', ()
       const g = await openTitle(browser, { allow: LOSS_NOISE });
       try {
         const r = await lossRun(g.page, { frame });
-        // The first try: aborted / context-lost, after the grace (1000 ms) and before 2000 ms. The retry ends at once (the context is still lost).
-        expect(r.ms, 'ms from the loss to the answer').toBeGreaterThanOrEqual(950);
-        expect(r.ms).toBeLessThan(2000);
+        // The first try: aborted / context-lost, after the grace (1000 ms), so the whole answer is not before 950 ms. The one retry waits for the context for the same grace (D3,
+        // fix round 2 of PR #80: the retry used to run at once and won the hack with no play), sees it still lost, and ends at once: the answer is at about 2000 ms, never past 3000.
+        expect(r.ms, 'ms from the loss to the answer').toBeGreaterThanOrEqual(1950);
+        expect(r.ms).toBeLessThan(3000);
         expect(r.o.results).toEqual([
           { status: 'aborted', reason: 'context-lost' },
           { status: 'aborted', reason: 'context-lost' },

@@ -36,6 +36,7 @@ import { fieldStages, lazyFieldStageProvider, setFieldStageProvider } from '../s
 import type { FxRequest } from './fx/fxsystem';
 import { routePostfx } from './fx/route';
 import { SOFTWARE_GL } from './render/glcontext';
+import { pageSeed } from './runtime/devseed';
 import { Game } from './runtime/game';
 
 /**
@@ -53,10 +54,7 @@ function forcedFx(): FxRequest | null {
  * (pass line 24 of docs/engine/m7-brief.md). DEV builds only: a shipped game keeps the engine's own seed.
  */
 function forcedSeed(): number | undefined {
-  if (!import.meta.env.DEV) return undefined;
-  const v = new URLSearchParams(location.search).get('seed');
-  const n = v === null ? Number.NaN : Number(v);
-  return Number.isFinite(n) ? n : undefined;
+  return pageSeed();
 }
 
 /** The `seed` field of the game config, or nothing. */

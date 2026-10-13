@@ -257,8 +257,8 @@ export function attachHackHook(sj: Record<string, unknown>, game: Game): void {
         const scene = hackScene();
         if (!scene) throw new Error('no HackScene is running');
         removeQuad?.();
-        const chunk = await loadChunk();
-        removeQuad = chunk.devColorQuad(scene as unknown as Parameters<typeof chunk.devColorQuad>[0], hex);
+        const { devColorQuad } = await import('../hack3d/devprobe');
+        removeQuad = devColorQuad(scene as unknown as Parameters<typeof devColorQuad>[0], hex);
       },
       removeColorQuad(): void {
         removeQuad?.();

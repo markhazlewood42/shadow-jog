@@ -47,9 +47,12 @@ export function hackDef(id: string, over: Partial<HackDef> = {}): HackDef {
   return { ...JSON.parse(JSON.stringify(found)), ...over };
 }
 
-/** `&ticks=` of the hack route: a whole number of 1 or more, else null (the definition's own ticks stay). NaN would make the hack run for ever; 0 or less would end it at once. */
+/** The largest `&ticks=` the hack route accepts: 9000 ticks, 2.5 minutes at 60 Hz. The longest hack in `hacks.json` is 900, so this is 10 times that. */
+export const MAX_ROUTE_TICKS = 9000;
+
+/** `&ticks=` of the hack route: a whole number from 1 to `MAX_ROUTE_TICKS`, else null (the ticks of the definition stay). NaN or a huge value (`1e15`) would make the hack run for ever; 0 or less would end it at once. */
 export function parseTicks(raw: string | null): number | null {
   if (raw === null || raw.trim() === '') return null;
   const n = Number(raw);
-  return Number.isInteger(n) && n >= 1 ? n : null;
+  return Number.isInteger(n) && n >= 1 && n <= MAX_ROUTE_TICKS ? n : null;
 }

@@ -1,5 +1,5 @@
 /** DEV-only scene routes (?scene=...): loaded by boot.ts through a dynamic import in DEV builds. */
-import { hackDef, parseTicks, runHack, setHackDevOverride } from './game/hackseam';
+import { hackDef, hackDevOverride, parseTicks, runHack, setHackDevOverride } from './game/hackseam';
 import { createMember } from './game/party';
 import { applyStage } from './game/stages';
 import { state, type MemberId } from './game/state';
@@ -30,9 +30,13 @@ export function runDevScene(game: Game, scene: string, params: URLSearchParams):
       const ticks = parseTicks(params.get('ticks'));
       const over = ticks === null ? {} : { ticks };
       const frame = params.get('frame');
-      if (frame === 'shared-context' || frame === 'canvas-copy') setHackDevOverride({ options: { frame } });
+      // The frame choice is for this hack only: `runHack` reads the override when it is called, so the earlier override is put back at once and a later hack is not changed.
+      const before = hackDevOverride();
+      if (frame === 'shared-context' || frame === 'canvas-copy') setHackDevOverride({ ...before, options: { ...before?.options, frame } });
       const sj = (window as unknown as { __SJ__?: Record<string, unknown> }).__SJ__;
-      void runHack(game, hackDef(params.get('id') ?? 'test-hack', over), { onUnsupported: 'win' }).then((o) => {
+      const run = runHack(game, hackDef(params.get('id') ?? 'test-hack', over), { onUnsupported: 'win' });
+      setHackDevOverride(before);
+      void run.then((o) => {
         if (sj) sj.lastHack = o;
       });
       break;
