@@ -5,7 +5,7 @@ branch: engine-m7-3d-mode
 roadmap: M7
 state: review
 next_for_mark:
-  - Check the build (line 26): DEV URL, hack-scene picture, transition GIFs, perf numbers
+  - Check the build (line 26) with the DEV URL, hack-scene picture, transition GIFs and perf numbers
   - Merge PR #80 when CI is green
 updated: 2026-10-12
 ---
