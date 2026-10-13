@@ -27,7 +27,7 @@ test.describe('the story bridge on the real loop (pass lines 4 and 5)', () => {
       const t = await top();
       if (t !== tops[tops.length - 1]) tops.push(t);
       // Once the 3D scene has run a while: the picture is not blank and a HUD panel is on it.
-      // Once the 3D scene has run a while AND the cover has gone (the reveal is 24 ticks long; a veil over the HUD would change its colors).
+      // Once the 3D scene has run a while AND the cover has gone (the reveal is 60 ticks long; a veil over the HUD would change its colors).
       if (!hackSeen && (await sj<boolean>(page, "sj.hackState().running && sj.hackState().tick > 20 && (!sj.jackState() || sj.jackState().phase === 'done')"))) {
         hackSeen = { colors: await colors(page), edge: await pixel(page, NODE.x, NODE.y), fill: await pixel(page, NODE.x + 2, NODE.y + 2) };
       }

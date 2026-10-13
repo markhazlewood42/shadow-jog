@@ -41,10 +41,10 @@ function run(tl: Timeline, facts: (tick: number, phase: string) => Partial<Timel
 }
 
 describe('the transition numbers (data)', () => {
-  it('the defaults come from src/data/hacks.json and pin the brief: 24 ticks out and in, a 10 s hold bound (pass line 20)', () => {
+  it('the defaults come from src/data/hacks.json and pin the brief: 60 ticks out and in (2 s each way), a 10 s hold bound (pass line 20)', () => {
     expect(TRANSITION).toEqual(raw.transition);
-    expect(P.outTicks).toBe(24);
-    expect(P.inTicks).toBe(24);
+    expect(P.outTicks).toBe(60);
+    expect(P.inTicks).toBe(60);
     expect(P.holdBoundMs).toBe(10_000);
     // The hold cursor toggles at least every 8 ticks (pass line 20).
     expect(P.cursorPeriod).toBeLessThanOrEqual(8);
@@ -71,7 +71,7 @@ describe('Timeline: out, hold, swap, in', () => {
   it('with the chunk already there: out for outTicks, almost no hold, a swap of at least swapMinTicks, then in for inTicks', () => {
     const seen = run(new Timeline(P), () => ({ holdReleased: true, swapDone: true }));
     const phases = (name: string) => seen.filter((s) => s.startsWith(`${name}:`)).length;
-    expect(phases('out')).toBe(P.outTicks); // out:0 .. out:23
+    expect(phases('out')).toBe(P.outTicks); // out:0 .. out:59
     // The hold lasts one tick at the most (the tick that finds the chunk there), the swap its minimum, the in phase its ticks.
     expect(phases('hold')).toBeLessThanOrEqual(1);
     expect(phases('swap')).toBeGreaterThanOrEqual(P.swapMinTicks);
@@ -80,7 +80,7 @@ describe('Timeline: out, hold, swap, in', () => {
   });
 
   it('the hold waits for the chunk and keeps counting ticks (the cover moves while it waits)', () => {
-    const seen = run(new Timeline(P), (tick) => ({ holdReleased: tick >= 200, swapDone: true }));
+    const seen = run(new Timeline(P), (tick) => ({ holdReleased: tick >= 260, swapDone: true }));
     const ts = seen.filter((s) => s.startsWith('hold:')).map((s) => Number(s.split(':')[1]));
     expect(ts.length).toBeGreaterThan(150);
     expect(ts).toEqual([...ts].sort((a, b) => a - b));
@@ -89,7 +89,7 @@ describe('Timeline: out, hold, swap, in', () => {
 
   it('the swap lasts until the 3D scene has drawn (swapDone), and never less than swapMinTicks', () => {
     const early = run(new Timeline(P), () => ({ holdReleased: true, swapDone: true }));
-    const late = run(new Timeline(P), (tick, phase) => ({ holdReleased: true, swapDone: phase === 'swap' && tick > 60 }));
+    const late = run(new Timeline(P), (tick, phase) => ({ holdReleased: true, swapDone: phase === 'swap' && tick > 130 }));
     expect(late.filter((s) => s.startsWith('swap:')).length).toBeGreaterThan(early.filter((s) => s.startsWith('swap:')).length);
     expect(early.filter((s) => s.startsWith('swap:')).length).toBeGreaterThanOrEqual(P.swapMinTicks);
     // The cover never reveals before the scene has drawn: while swapDone is false the phase stays `swap`.
@@ -198,13 +198,13 @@ describe('the declared uniform ranges (pass line 19)', () => {
     expect(bad([{ phase: 'out', from: 20, to: 21, reason: 'dark' }])).not.toEqual([]); // ends before the peak
     expect(bad([{ phase: 'in', from: 1, to: 2, reason: 'dark' }])).not.toEqual([]); // begins after the peak
     expect(bad([{ phase: 'in', from: 0, to: P.inTicks - 1, reason: 'dark' }])).not.toEqual([]); // reaches the reveal
-    expect(bad([{ phase: 'out', from: 3, to: P.outTicks - 1, reason: 'dark' }])).not.toEqual([]); // 21 ticks of 50: over 40%
+    expect(bad([{ phase: 'out', from: 3, to: P.outTicks - 1, reason: 'dark' }])).not.toEqual([]); // 57 ticks of 122: over 40%
     expect(bad([{ ...swap, reason: ' ' }])).not.toEqual([]);
     expect(bad([{ phase: 'hold' as never, from: 0, to: 4, reason: 'still' }])).not.toEqual([]);
     expect(bad([{ phase: 'swap', from: 1, to: 3, reason: 'partial' }])).not.toEqual([]);
     // And the good ones pass, so the checker is not just rejecting everything.
     expect(bad([swap])).toEqual([]);
-    expect(bad([{ phase: 'out', from: 22, to: 23, reason: 'dark' }, swap, { phase: 'in', from: 0, to: 1, reason: 'dark' }])).toEqual([]);
+    expect(bad([{ phase: 'out', from: 58, to: 59, reason: 'dark' }, swap, { phase: 'in', from: 0, to: 1, reason: 'dark' }])).toEqual([]);
   });
 
   it('inRanges reads the ranges by phase and tick', () => {

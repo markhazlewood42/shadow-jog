@@ -94,7 +94,7 @@ test.describe('the jump between 2D and 3D: no bad frame, a held chunk, an exact 
         expect(st.holdAt, 'the hold began').toBeGreaterThan(0);
         expect(st.at - st.holdAt, 'ms from the start of the hold to the answer').toBeGreaterThan(1000);
         expect(st.at - st.holdAt).toBeLessThan(2000);
-        // The way back runs for 24 more ticks, then the cover is gone and nothing is left of it (line 21).
+        // The way back runs for 60 more ticks, then the cover is gone and nothing is left of it (line 21).
         expect(await waitUntil(page, 'sj.jackState() === null', 10_000)).toBe(true);
         expect(await waitUntil(page, 'sj.top() === "FieldScene" && sj.idle()', 10_000)).toBe(true);
         expect(await sj<string>(page, FIELD_STATE)).toBe(before);

@@ -6,11 +6,11 @@
  * the start path holds it and a unit test checks it in Node. `jack.ts` draws it.
  *
  * THE PHASES. A convention from film and games: a "wipe" hides a cut. The 3D scene cannot be on screen before it exists, so the cut happens under a solid cover.
- *   out   the 2D picture gives way to the cover (about 24 ticks). The door starts to load the 3D chunk at the first tick.
+ *   out   the 2D picture gives way to the cover (about 60 ticks, 1 s). The door starts to load the 3D chunk at the first tick.
  *   hold  the chunk is still on its way. The cover stays at its hold look and MOVES (never a frozen frame). A wall-clock bound (`holdBoundMs`, 10 s) ends it.
  *   swap  the cover is solid. The 3D scene is started and draws its first frame here, under the cover (the first draw pays the shader compile). It lasts until the scene
  *         has drawn, and at least `swapMinTicks`.
- *   in    the cover leaves and the 3D grid shows (about 24 ticks).
+ *   in    the cover leaves and the 3D grid shows (about 60 ticks, 1 s).
  * Jack out is `out` (3D to cover), `swap` (the scene closes) and `in` (the 2D picture shows): no hold.
  *
  * THE LEVELS. The picture is the same animation at every effects level, with fewer ingredients: `full` uses the screen effects (glitch, color split, flare), `lite` only the
