@@ -602,6 +602,7 @@ test.describe('the jump between 2D and 3D: no bad frame, a held chunk, an exact 
 
   // Controls of line 19, on the glitch style at full.
   test('CONTROL: a mutant that skips the first 3D renders reveals a blank target, a mutant that draws one black frame at the hand-over shows one: both give an undeclared one-color frame', async ({ browser }) => {
+    test.slow(); // The 2 s jack (60+60 ticks) makes every-frame capture slow on software GL.
     for (const mutant of ['blank', 'black'] as const) {
       const g = await openTitle(browser, { query: '&jack=glitch&fx=full&seed=5' });
       try {
@@ -628,6 +629,7 @@ test.describe('the jump between 2D and 3D: no bad frame, a held chunk, an exact 
   // Line 19, rule 2 (round 1): the swap is part of the cover, so the first frame after it is judged. The real capture passes; a capture whose first `in` frame (after the swap, or after the
   // declared `in` range) is made uniform fails. fx none is used because it declares an `in` range and has a long fade, so both cases of the rule are in one capture.
   test('CONTROL: the first frame after the cover (swap plus its declared in range) is judged: a mutant whose first in frame is uniform fails', async ({ browser }) => {
+    test.slow(); // The 2 s jack (60+60 ticks) makes every-frame capture slow on software GL.
     const g = await openTitle(browser, { query: '&jack=glitch&fx=none&seed=5' });
     try {
       const frames = await capture(g.page, 'test-short', { over: { ticks: 40 } });

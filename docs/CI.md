@@ -47,9 +47,9 @@ The seconds below are from the run `38442567319` (one worker, the `list` reporte
 | `e2e (1/8)` | `sje-hack-c` 774 | 774 |
 | `e2e (2/8)` | `sje-hack-b` 723, `sje-canaries` 54 | 777 |
 | `e2e (3/8)` | `sje-hack-d` 505, `gameover` 143, `sje-shell` 36, `gpufx` 37 | 721 |
-| `e2e (4/8)` | `sje-hack-a` 261, `sje-field-parity-a` 205, `sje-field-parity-b` 163, `chaos` 63, `sje-scene3d` 50 | 742 |
+| `e2e (4/8)` | `sje-hack-a` 261, `sje-field-parity-a` 205, `chaos` 63, `sje-scene3d` 50 (run 38446058442: about 1,230 s with B, so B moved to 6/8) | 579 |
 | `e2e (5/8)` | `sje-field-parity-c` 320, `sje-field-parity-d` 259, `playthrough` 108, `sje-fx` 63 | 750 |
-| `e2e (6/8)` | `sje-battle` 190, `sje-draws` 157 | 347 |
+| `e2e (6/8)` | `sje-battle` 190, `sje-draws` 157, `sje-field-parity-b` 163 | 510 |
 | `e2e (7/8)` | `default-path` 159, `sje-field` 152 | 311 |
 | `e2e (8/8)` | `prod` 121, `economy` 138, `sje-stage-parity` 77, `fxlab` 19 | 355 |
 
