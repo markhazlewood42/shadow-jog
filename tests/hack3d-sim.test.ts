@@ -305,6 +305,8 @@ describe('snapshot and restore', () => {
     refused({ tick: -1 }, /outside 0 to/);
     refused({ trace: long.traceLimit }, /limit/);
     refused({ trace: Number.NaN }, /not a number/);
+    refused({ travel: Number.NaN }, /travel .* not a number/);
+    refused({ rng: Number.NaN }, /rng state .* not a number/);
     // A snapshot of a sim with a lower TRACE limit (the limit is part of the definition).
     const strict = new HackSim({ ...long, traceLimit: 5 });
     strict.run(5000);

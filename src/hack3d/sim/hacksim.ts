@@ -170,6 +170,8 @@ export class HackSim {
     const { ticks, traceLimit } = this.def;
     if (s.status !== 'running' && s.status !== 'success' && s.status !== 'fail') return `the status "${String(s.status)}" is not running, success or fail`;
     if (!Number.isInteger(s.tick) || s.tick < 0 || s.tick > ticks) return `the tick ${s.tick} is outside 0 to ${ticks}`;
+    if (!Number.isFinite(s.travel)) return `the travel ${s.travel} is not a number`;
+    if (!Number.isFinite(s.rng)) return `the rng state ${s.rng} is not a number`;
     if (!Number.isFinite(s.trace) || s.trace < 0) return `the trace ${s.trace} is not a number from 0 up`;
     if (s.status === 'fail' && s.trace < traceLimit) return `the status is fail but the trace ${s.trace} is under this sim's limit ${traceLimit}`;
     if (s.status !== 'fail' && s.trace >= traceLimit) return `the trace ${s.trace} is at or over this sim's limit ${traceLimit}, so the status can only be fail`;

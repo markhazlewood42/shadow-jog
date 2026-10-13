@@ -15,6 +15,7 @@
  */
 import type { Game } from '../sje';
 import { probeWebGL2 } from '../sje/render/glcontext';
+import { TRANSITION } from './data';
 import { type Jack, makeJack } from './jack';
 import type { HackOptions } from './hackscene';
 import { DEFAULT_POLICY, decideHack, type HackDef, type HackOutcome, type HackResult } from './result';
@@ -84,6 +85,32 @@ export async function hackDoor(game: Game, def: HackDef, options?: HackOptions, 
     return jack ? await withCover(game, def, options, env, jack, dropsBefore) : await withoutCover(game, def, options, env, dropsBefore);
   } finally {
     jack?.dispose();
+  }
+}
+
+/** The room that the way back gets, over its own length: 3 times (a slow frame rate), plus 2 s. At 60 Hz the 60 ticks of the way back take 1 s, so the bound is 5 s. */
+export function wayBackBoundMs(inTicks: number): number {
+  return Math.ceil((inTicks * 1000) / 60) * 3 + 2000;
+}
+
+/**
+ * Wait for the cover to be gone after an aborted run, but not for ever (decision E11: a hack always resolves). The cover removes itself at the end of its way back, on the
+ * game's ticks. If those ticks stop (the game is torn down, or the tab is hidden), `whenGone()` would never settle and the story would hang, so the wait has a wall-clock bound.
+ * When the bound runs out, the answer goes on; the door's `finally` still asks the cover to go (`dispose`).
+ */
+async function waitWayBack(jack: Jack, options: HackOptions | undefined): Promise<void> {
+  const bound = wayBackBoundMs(options?.jack?.params?.inTicks ?? TRANSITION.inTicks);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<void>((resolve) => {
+    timer = setTimeout(() => {
+      console.error(`[sje] the cover did not finish its way back in ${bound} ms; the answer goes on`);
+      resolve();
+    }, bound);
+  });
+  try {
+    await Promise.race([jack.whenGone(), late]);
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -187,15 +214,15 @@ async function withCover(game: Game, def: HackDef, options: HackOptions | undefi
   const how = await into;
   const scene = st.scene;
   // After an aborted run the cover is still fading back to the 2D picture. Wait for it to be gone before the answer goes to the story: a retry or the 2D alternative would
-  // otherwise start over the fading cover (and a retry would build a second one on top). The cover removes itself at the end of the way back, so this wait is bounded.
+  // otherwise start over the fading cover (and a retry would build a second one on top). The cover removes itself at the end of the way back; the wait is bounded (`wayBackBoundMs`) in case its ticks stop.
   if (st.startThrew) {
-    if (how === 'aborted') await jack.whenGone();
+    if (how === 'aborted') await waitWayBack(jack, options);
     return { status: 'aborted', reason: 'error' };
   }
   // The run can end 'aborted' with a scene that DID start: the cover's tick threw after the swap and the cover came down. Then the scene is running and its result is read below (the gate settles at once on a cover that is gone).
   if (!scene) {
     // The way back to the 2D picture has begun (the hold timed out, the load failed, or the story was dropped): no scene was started.
-    if (how === 'aborted') await jack.whenGone();
+    if (how === 'aborted') await waitWayBack(jack, options);
     if (game.dropCount !== dropsBefore) return { status: 'aborted', reason: 'user' };
     if (st.loadError !== null) console.error('[sje] the 3D chunk would not load:', st.loadError);
     else if (!st.loadSettled) console.error('[sje] the 3D chunk took longer to load than the hold bound allows');
