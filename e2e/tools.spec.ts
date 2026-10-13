@@ -123,6 +123,7 @@ test('art review (/artreview.html) lists the code-drawn assets that the dev endp
   expect(body.ok).toBe(true);
   // The page shows the code-drawn ("Rig v2") assets; the PixelLab archive is hidden unless asked for. The count in the nav is the count in the data.
   const expected = body.assets.filter((a) => a.category.startsWith('Rig v2')).length;
+  expect(expected, 'the dev endpoint reports at least one Rig v2 asset').toBeGreaterThan(0);
   await expect(page.locator('#nav a')).toHaveCount(expected);
   await expect(page.locator('#main .intro')).toBeVisible();
   await expect(page.locator('#trypicks')).toHaveAttribute('href', '/?debug&art=review');

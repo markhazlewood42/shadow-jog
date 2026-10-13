@@ -24,6 +24,8 @@ import { playMoment } from '../../engine/moments';
 import { postfx } from '../../engine/postfx';
 import { FX } from '../../data/fx';
 
+import type { TimingProfile } from '../../battle/engine';
+
 /** The effects the battle plays on: the routed `postfx` singleton and the moments of fx.json (M8: `game.fx` takes this place). The FX lab passes `game.fx` to the same functions. */
 const battleFx: MomentFx = {
   get active() {
@@ -32,7 +34,6 @@ const battleFx: MomentFx = {
   later: (frames, fn) => postfx.later(frames, fn),
   playMoment: (name, x, y, o) => playMoment(FX, name, x, y, o),
 };
-import type { TimingProfile } from '../../battle/engine';
 
 /** What playback may do to the scene. */
 /** A face sliding in over a big moment; `line` is what they say, `row` stacks a third above. */

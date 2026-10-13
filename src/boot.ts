@@ -65,10 +65,12 @@ export function boot(game: Game, display: Display): void {
     // The tools take the new engine's `Game` (the facade type); the glue hands the same object over typed as the old one (src/sje/boot.ts), so it is cast back here.
     fieldShow: async (c: import('./dev/fieldshow').FieldShowCase) => {
       const m = await import('./dev/fieldshow');
+      // Cast kept: a typed handoff needs an import of src/sje/boot.ts here, and tests/sje-imports.test.ts allows that door to src/main.ts only (the eight-files rule).
       return m.fieldShow(game as unknown as Parameters<typeof m.fieldShow>[0], c);
     },
     fieldInfo: async () => {
       const m = await import('./dev/fieldshow');
+      // Cast kept: same reason as fieldShow above (the old Game type is cast to the facade type).
       return m.fieldInfo(game as unknown as Parameters<typeof m.fieldInfo>[0]);
     },
     /** Jump to a preset point in the chapter on a fresh field. */
@@ -203,6 +205,7 @@ export function boot(game: Game, display: Display): void {
   const start = () => {
     if (import.meta.env.DEV && scene) {
       void import('./devroutes').then((m) => {
+        // Cast kept: same reason as fieldShow (old Game type to the facade type, no import of src/sje/boot.ts allowed here).
         if (!m.runDevScene(game as unknown as Parameters<typeof m.runDevScene>[0], scene, params)) void startTitle(game);
       });
     } else void startTitle(game);

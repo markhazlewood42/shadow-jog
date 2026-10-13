@@ -3,14 +3,13 @@
  *
  * The old engine is `src/engine/{game,display,postfx,moments}.ts` (M8 deletes them), and `LegacyScene` and `LegacyShape` (the adapter that runs an old-style scene). This test
  * builds the closure of VALUE imports of every tool file and fails when the closure holds one of those files, or names one of those two classes. A type-only import
- * (`import type`, or `import { type X }`) is erased by the compiler, so it adds nothing to a bundle and is not followed. A dynamic `import()` is not followed either, but its
- * target is checked against a short list (see `dynamicProblems`).
+ * (`import type`, or `import { type X }`) is erased by the compiler, so it adds nothing to a bundle and is not followed. A dynamic `import()` of a tool file is not followed, and its
+ * target is checked against a short list (see `dynamicProblems`). A dynamic target under `src/sje` is followed.
  *
  * Tool files: every file under `src/dev` (the DEV menu, the FX lab, the animation editor, art review, art swap, the viewers, the stage editor, Battle Test),
  * and `src/sje-lab/stagelab.ts` and `lab.ts`. `src/dev/fieldshow.ts` and `src/devroutes.ts` start game scenes (`FieldScene`, `BattleScene`, `PanelScene`), so only their
- * DIRECT imports are checked: a game scene is M8's. The same goes for a Battle Test that runs the game's own `BattleScene` (brief decision 2, option B): it reaches
- * `scenes/battle.ts` only through a dynamic `import()`, and through a small glue module under `src/sje` that routes `postfx` to `game.fx` (the probe of
- * docs/engine/et-survey.md section 9.1 needed both).
+ * DIRECT imports are checked: a game scene is M8's. A dynamic `import()` of a file under `src/sje` is followed like a static import. Battle Test's boundary waits for Mark's decision (see GAME_BOUNDARY): until he approves an exemption,
+ * the test holds it to the brief and a Battle Test that reaches `scenes/battle.ts` fails.
  *
  * The trailer is deleted, not ported (decision 3, issue #84): its files must not exist and no reference may stay in `src`, `scripts` or `docs/DEVELOPING.md`.
  *
@@ -24,12 +23,16 @@ const ROOT = resolve(import.meta.dirname, '..');
 
 /** The files of the old engine that no tool may reach. */
 const FORBIDDEN = ['src/engine/game.ts', 'src/engine/display.ts', 'src/engine/postfx.ts', 'src/engine/moments.ts'];
-/** Game code that starts game scenes or boots the game: M8's. A tool may reach it only through a dynamic `import()` (or, for the two DIRECT_ONLY files, directly). */
-const GAME_BOUNDARY = ['src/scenes/battle.ts', 'src/scenes/field.ts', 'src/scenes/panels.ts', 'src/boot.ts', 'src/sje/boot.ts'];
+/**
+ * Game code that boots the game: M8's. A tool may not import it by value or by a dynamic `import()`.
+ * Battle Test's boundary (`src/scenes/battle.ts`, `field.ts`, `panels.ts`) waits for Mark's decision: the brief (pass line 2) forbids Battle Test from reaching the old engine,
+ * and Mark has not approved an exemption. No current tool entry needs those files, so they are not listed: a tool that reaches them is followed into the old engine and fails.
+ */
+const GAME_BOUNDARY = ['src/boot.ts', 'src/sje/boot.ts'];
 /** Tool files that start game scenes: only their own imports are checked. */
 const DIRECT_ONLY = ['src/dev/fieldshow.ts', 'src/devroutes.ts'];
-/** Game files a tool may load with a dynamic `import()` (they are loaded at run time, and are not part of a tool's bundle). Anything under `src/dev` and `src/sje/` is also allowed. */
-const DYNAMIC_GAME = ['src/scenes/battle.ts', 'src/battlestage/liveopen.ts', 'src/battlestage/live.ts'];
+/** Game files a tool may load with a dynamic `import()`. None: no current tool entry needs one. Anything under `src/dev`, `src/sje-lab` and (followed) `src/sje` is also allowed. */
+const DYNAMIC_GAME: string[] = [];
 
 interface Source {
   read(file: string): string | null;
@@ -80,6 +83,8 @@ function closureOf(src: Source, entry: string, directOnly = false): { files: Set
   const boundary = new Set<string>();
   const dynamics: Array<{ file: string; target: string }> = [];
   const queue = [entry];
+  // Engine files (src/sje) a tool loads with a dynamic import(): these are followed, statics included, so a glue module that reaches the old engine is caught.
+  const deep = new Set<string>();
   while (queue.length > 0) {
     const file = queue.pop() as string;
     if (files.has(file)) continue;
@@ -91,10 +96,16 @@ function closureOf(src: Source, entry: string, directOnly = false): { files: Set
     if (isToolFile(file)) {
       for (const d of dyn) {
         const t = resolveSpec(src, file, d);
-        if (t) dynamics.push({ file, target: t });
+        if (!t) continue;
+        dynamics.push({ file, target: t });
+        if (t.startsWith('src/sje/') && !GAME_BOUNDARY.includes(t) && !directOnly) {
+          deep.add(t);
+          queue.push(t);
+        }
       }
     }
     if (directOnly && file !== entry) continue;
+    const followSje = deep.has(file);
     for (const s of statics) {
       if (s.typeOnly) continue;
       const t = resolveSpec(src, file, s.spec);
@@ -104,7 +115,10 @@ function closureOf(src: Source, entry: string, directOnly = false): { files: Set
         continue; // M8's: not followed
       }
       // The engine itself (src/sje) is checked by tests/sje-imports.test.ts; a tool reaches it through the facade.
-      if (t.startsWith('src/sje/')) continue;
+      if (t.startsWith('src/sje/')) {
+        if (!followSje) continue;
+        deep.add(t);
+      }
       queue.push(t);
     }
   }
@@ -128,7 +142,7 @@ function problemsOf(src: Source, entry: string): string[] {
 
 /** A dynamic import from a tool must load another tool file, the engine glue under `src/sje`, or one of the named game files. */
 function dynamicProblems(entry: string, dynamics: Array<{ file: string; target: string }>): string[] {
-  const ok = (t: string): boolean => t.startsWith('src/dev/') || t.startsWith('src/sje/') || t.startsWith('src/sje-lab/') || DYNAMIC_GAME.includes(t);
+  const ok = (t: string): boolean => !GAME_BOUNDARY.includes(t) && (t.startsWith('src/dev/') || t.startsWith('src/sje/') || t.startsWith('src/sje-lab/') || DYNAMIC_GAME.includes(t));
   return dynamics.filter((d) => !ok(d.target)).map((d) => `${entry}: ${d.file} loads ${d.target} with a dynamic import() (not a tool file, the engine glue or a named game file)`);
 }
 
@@ -217,11 +231,23 @@ describe('ET pass line 2: no old engine in tool code', () => {
     expect(problemsOf(made({ 'src/dev/a.ts': '// was a LegacyScene\n/* LegacyShape */\nexport const x = 1;' }), 'src/dev/a.ts')).toEqual([]);
   });
 
-  it('control: a tool that imports the game scene by value fails, one that loads it dynamically passes, one that loads another file dynamically fails', () => {
-    const base = { 'src/scenes/battle.ts': "import { Scene } from '../engine/game';\nexport class BattleScene extends Scene {}", 'src/engine/game.ts': 'export class Scene {}', 'src/scenes/other.ts': 'export const o = 1;' };
-    expect(problemsOf(made({ ...base, 'src/dev/a.ts': "import { BattleScene } from '../scenes/battle';" }), 'src/dev/a.ts')).toEqual(['src/dev/a.ts imports the game file src/scenes/battle.ts by value (load it with a dynamic import())']);
-    expect(problemsOf(made({ ...base, 'src/dev/a.ts': "export const load = () => import('../scenes/battle');" }), 'src/dev/a.ts')).toEqual([]);
-    expect(problemsOf(made({ ...base, 'src/dev/a.ts': "export const load = () => import('../scenes/other');" }), 'src/dev/a.ts')).toEqual(["src/dev/a.ts: src/dev/a.ts loads src/scenes/other.ts with a dynamic import() (not a tool file, the engine glue or a named game file)"]);
+  it('control: a tool that imports a game scene by value fails (it is followed into the old engine), a dynamic import of a game file fails too', () => {
+    const base = { 'src/scenes/battle.ts': "import { Scene } from '../engine/game';\nexport class BattleScene extends Scene {}", 'src/engine/game.ts': 'export class Scene {}' };
+    expect(problemsOf(made({ ...base, 'src/dev/a.ts': "import { BattleScene } from '../scenes/battle';" }), 'src/dev/a.ts')).toEqual(['src/dev/a.ts reaches src/engine/game.ts']);
+    expect(problemsOf(made({ ...base, 'src/dev/a.ts': "export const load = () => import('../scenes/battle');" }), 'src/dev/a.ts')).toEqual(["src/dev/a.ts: src/dev/a.ts loads src/scenes/battle.ts with a dynamic import() (not a tool file, the engine glue or a named game file)"]);
+  });
+
+  it('control: a tool that dynamically imports a src/sje file that reaches the old engine fails; a clean src/sje file passes; src/sje/boot.ts fails', () => {
+    const g = {
+      'src/sje/glue.ts': "import { Game } from '../engine/game';\nexport const g = Game;",
+      'src/sje/clean.ts': "import { x } from './other';\nexport const c = x;",
+      'src/sje/other.ts': 'export const x = 1;',
+      'src/sje/boot.ts': "import { Game } from '../engine/game';\nexport const b = Game;",
+      'src/engine/game.ts': 'export class Game {}',
+    };
+    expect(problemsOf(made({ ...g, 'src/dev/a.ts': "export const l = () => import('../sje/glue');" }), 'src/dev/a.ts')).toEqual(['src/dev/a.ts reaches src/engine/game.ts']);
+    expect(problemsOf(made({ ...g, 'src/dev/a.ts': "export const l = () => import('../sje/clean');" }), 'src/dev/a.ts')).toEqual([]);
+    expect(problemsOf(made({ ...g, 'src/dev/a.ts': "export const l = () => import('../sje/boot');" }), 'src/dev/a.ts')).toHaveLength(1);
   });
 
   it('control: a DIRECT_ONLY file may start a game scene, but its own old-engine import fails', () => {
