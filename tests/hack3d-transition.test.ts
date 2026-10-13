@@ -261,10 +261,8 @@ describe('R5-1: the jack effect moments span the phase they play over', () => {
     ['jack.out', P.outTicks],
     ['jack.in', P.inTicks],
     ['jack.lite', P.outTicks],
-  ])('%s ends within its %i-tick phase and fills at least nine tenths of it (control: the old 24-tick timing fails)', (name, phase) => {
+  ])('%s ends within its %i-tick phase and fills at least nine tenths of it (the old spans were 26, 18 and 34 ticks)', (name, phase) => {
     expect(span(name)).toBeLessThanOrEqual(phase);
     expect(span(name)).toBeGreaterThanOrEqual(phase * 0.9);
-    // CONTROL: the old span (26 for out, 18 for in, 34 for lite) is far under the 60-tick phase, so the same check would have failed.
-    for (const old of [26, 18, 34]) expect(old).toBeLessThan(phase * 0.9);
   });
 });

@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [Unreleased]
 
 ### Fixed
+- Issue #81, round 1 fixes: a glitch abort keeps the void veil; the door answers only after the way back; the jack tear spans the full 60-tick phase; `contextGraceMs: 0` ends the scene on the loss event; transition data and restore checks are stricter; `docs/CI.md` shard times match the measured figure (about 10 minutes for each shard).
 - Command Center step 5 (review of PR 72, 10 findings): the worktree `path` in `live` is only the folder name and the branch is redacted (the page joins by branch); a failing agents source publishes nothing instead of stale sessions; redaction covers `password: x`, "my token is x", URL credentials and 32 or more character runs; the live key is deleted on the idle exit, SIGINT, SIGTERM and `--stop` (new `main.ts --clear-live`); the lock heartbeat checks that the lock still names the launcher; `npm ci` has a 5 minute limit; the crash cap and its log line say 3 restarts in 10 minutes; a redirect counts as protected only on https `vercel.com` with a login or SSO path or a `next`/`redirect` parameter; one git runner for each folder; the hook, launcher and server entry work on Node 22 (`scripts/is-main.mjs` replaces `import.meta.main`).
 
 ### Changed

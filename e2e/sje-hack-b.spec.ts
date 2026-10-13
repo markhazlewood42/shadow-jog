@@ -95,7 +95,7 @@ test.describe('the jump between 2D and 3D: no bad frame, a held chunk, an exact 
         expect(st.outcome.results).toEqual([{ status: 'unsupported', reason: 'chunk-failed' }]);
         expect(st.log, 'the story continues: the 2D alternative, then the next line').toEqual(['line-1', 'alternative', 'line-2']);
         expect(st.holdAt, 'the hold began').toBeGreaterThan(0);
-        // The door answers only after the way back (60 ticks, 1 s) is over (R4-3): the 1.5 s hold bound plus about 1 s. Control: an answer at the bound alone would be under 2 s.
+        // The door answers only after the way back (60 ticks, 1 s) is over (R4-3): the 1.5 s hold bound plus about 1 s. Control: an answer at the bound alone would be under 2 s. The lower bound 2.3 s is the 1.5 s hold bound plus the 60-tick way back at 60 Hz (1 s), minus slack. The 4500 ms upper bound is slack for slow CI runners.
         expect(st.at - st.holdAt, 'ms from the start of the hold to the answer').toBeGreaterThan(2300);
         expect(st.at - st.holdAt).toBeLessThan(4500);
         // The cover is already gone when the story gets its answer (line 21).

@@ -12,7 +12,7 @@ const ABORTED: readonly HackPolicy['aborted'][] = ['retry-then-succeed', 'succee
 const UNSUPPORTED: readonly HackPolicy['unsupported'][] = ['alternative', 'succeed', 'fail'];
 
 const TRANSITION_NUMBERS = ['outTicks', 'inTicks', 'swapMinTicks', 'holdBoundMs', 'holdCover', 'dissolveHold', 'block', 'lineHeight', 'cursorPeriod'] as const;
-/** Upper bounds of the `transition` numbers: about 10 times the shipped values (out and in 60 ticks, swap 2, hold bound 10 s). A bound catches a typo, it is not a design limit. */
+/** Upper bounds of the `transition` numbers: phase ticks 600 (10 times the shipped 60), swap ticks 120 (60 times the shipped 2), hold bound 60 s (6 times the shipped 10 s). A bound catches a typo, it is not a design limit. */
 const MAX_PHASE_TICKS = 600;
 const MAX_SWAP_TICKS = 120;
 const MAX_HOLD_BOUND_MS = 60000;

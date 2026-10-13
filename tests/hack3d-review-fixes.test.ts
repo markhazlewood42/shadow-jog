@@ -185,7 +185,7 @@ describe('R4-2: GlitchDriver.dispose uses the level the cover was built with', (
 });
 
 describe('R4-6: a queued second run when the first run aborts', () => {
-  it('the second run (jack out) is not dropped: after the aborted first run is over it plays and calls its own onSwap; a disposed cover ends it as done without a swap (control)', async () => {
+  it('the queued second run (jack out) is not dropped or left hanging: after the aborted first run is over, a disposed cover ends it as done without a swap (control)', async () => {
     vi.stubGlobal('location', { search: '' });
     const { game, tick, handlers } = coverGame('none');
     const jack = await makeJack(game as never, 1, { style: 'glitch', params: SHORT });
