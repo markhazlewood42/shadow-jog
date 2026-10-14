@@ -17,6 +17,8 @@ const LOCAL_HOSTS: ReadonlySet<string> = new Set(['localhost', '127.0.0.1', '[::
 /** Whether a Host header (or an Origin's host) names this machine, on any port. */
 function isLocalHost(hostHeader: string | undefined): boolean {
   if (!hostHeader) return false;
+  // A Host is `name[:port]` and nothing else. `new URL` would read `localhost/x` or `localhost@evil.com` as a host plus a path or user, so refuse those characters first.
+  if (/[/\\?#@\s]/.test(hostHeader)) return false;
   try {
     return LOCAL_HOSTS.has(new URL(`http://${hostHeader}`).hostname);
   } catch {

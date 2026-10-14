@@ -41,6 +41,7 @@ beforeAll(async () => {
   scratchDir = join(work, 'scratch');
   const handlers = stageHandlers({ dataDir, scratchRoot: scratchDir, prepare: prepareSave, screen: SET_SCREEN });
   server = createServer((req, res) => {
+    req.on('data', (c: Buffer) => (bodyBytesSeen += c.length));
     if (req.url?.startsWith('/__stage/stages')) handlers.stages(req, res);
     else if (req.url?.startsWith('/__stage/hud')) handlers.hud(req, res);
     else {
@@ -95,6 +96,8 @@ function body(over: Record<string, unknown> = {}): string {
   const layout = (JSON.parse(read('hud-640.json')) as { layout: unknown }).layout;
   return JSON.stringify({ stages: JSON.parse(read('stages-640.json')), axes: JSON.parse(read('axes.json')), hud: layout, facing: JSON.parse(read('enemyfacing.json')), heroes: JSON.parse(read('heroes.json')), ...over });
 }
+/** Bytes of request body the test server's handlers have taken in (a 413 must stop this from growing). */
+let bodyBytesSeen = 0;
 const post = (path: string, text: string, headers: IncomingHttpHeaders = SAME): Promise<Answer> => send('POST', path, text, headers);
 
 describe('reading', () => {
@@ -171,6 +174,10 @@ describe('the Host header (DNS rebinding): a page rebound to 127.0.0.1 is same-o
     expect(sameOrigin({ headers: { host: 'evil.com:3007', origin: 'http://evil.com:3007', 'sec-fetch-site': 'same-origin' } })).toBe(false);
     expect(sameOrigin({ headers: { host: 'localhost:3007', origin: 'http://localhost:3007', 'sec-fetch-site': 'same-origin' } })).toBe(true);
     expect(sameOrigin({ headers: {} })).toBe(false); // no Host at all
+    // A Host with a path, user or query is not a Host a browser sends; it must not parse as local.
+    for (const host of ['localhost/x', 'localhost:3007/x', 'localhost@evil.com', 'evil.com@localhost', 'localhost?x', 'localhost#x', 'localhost\\x','localhost x']) {
+      expect(sameOrigin({ headers: { host, 'sec-fetch-site': 'same-origin' } }), host).toBe(false);
+    }
   });
 });
 
@@ -310,6 +317,19 @@ describe('bad data gets 400 and writes nothing', () => {
     const r = await post('/__stage/stages', JSON.stringify({ stages: 'x'.repeat(MAX_BODY + 10) }));
     expect(r.status).toBe(413);
     expect(snapshot(dataDir)).toEqual(before);
+    // The server stops reading: a body of 60 MB declared and sent in pieces is not taken in to its end (a handler that kept reading would see all of it).
+    const huge = Buffer.alloc(60_000_000, 120);
+    bodyBytesSeen = 0;
+    await new Promise<void>((done) => {
+      const req = request({ host: '127.0.0.1', port, method: 'POST', path: '/__stage/stages', headers: { host: `127.0.0.1:${port}`, 'content-type': 'application/json', 'content-length': String(huge.length), ...SAME } }, (res) => {
+        res.resume();
+        res.on('end', () => done());
+        res.on('error', () => done());
+      });
+      req.on('error', () => done()); // the server may cut the connection after the 413
+      req.end(huge);
+    });
+    expect(bodyBytesSeen).toBeLessThan(4_000_000);
     // Control: the same body at the limit is read and checked (it is not JSON for `prepareSave`, so 400, not 413).
     expect((await post('/__stage/stages', 'x'.repeat(MAX_BODY - 10))).status).toBe(400);
   });

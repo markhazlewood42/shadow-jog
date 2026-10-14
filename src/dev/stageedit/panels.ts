@@ -254,7 +254,7 @@ export class StatusBar {
     private readonly msg: HTMLElement,
   ) {}
 
-  say(text: string, kind: '' | 'bad' | 'good' = ''): void {
+  say(text: string, kind: '' | 'bad' | 'good' | 'warn' = ''): void {
     this.message = text;
     this.msg.textContent = text;
     this.msg.className = `msg ${kind}`;

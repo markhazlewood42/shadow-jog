@@ -107,7 +107,7 @@ const shortNames = (parts: readonly Part[]): string => PART_ORDER.filter((p) => 
 const status = new (class {
   el = byId('st-msg');
 })();
-let say: (text: string, kind?: '' | 'bad' | 'good') => void = (t, k = '') => {
+let say: (text: string, kind?: '' | 'bad' | 'good' | 'warn') => void = (t, k = '') => {
   status.el.textContent = t;
   status.el.className = `msg ${k}`;
 };
@@ -700,7 +700,7 @@ async function main(): Promise<void> {
       } catch (e) {
         // The files ARE on disk (the POST succeeded), so this is a warning about the check, not a failed save: the dirty dot clears and save() answers true (PR 86 review, R2-3).
         session.markSaved(written);
-        bar.say(`Saved to ${fileNames(written)}, but reading it back to check failed: ${e instanceof Error ? e.message : String(e)}`, 'bad');
+        bar.say(`Saved to ${fileNames(written)}, but reading it back to check failed: ${e instanceof Error ? e.message : String(e)}`, 'warn');
         refreshPanels();
         return true;
       }
