@@ -42,7 +42,7 @@ export type LiveSessionRow = {
   /** When the process started (an ISO time), or null. */
   startedAt: string | null;
   /** Counts of the agents of the session, with their names. Names are descriptions that the agents were given, not message text. */
-  agents: { running: number; done: number; names: string[]; /** The agents with their state, model and times, running first. Missing from an older reporter: then the page draws the names. */ items?: LiveAgentItem[] };
+  agents: { running: number; done: number; names: string[]; /** The agents with their state, model and times, in session order. Missing from an older reporter: then the page draws the names. */ items?: LiveAgentItem[] };
   /**
    * The newest "Your move" box of the session, when it passes the four rules of src/shared/your-move.ts (the session is live, Mark has not answered, the box does not say
    * "nothing", and it is less than 12 hours old), else null. `lines` are plain text, at most 6, each at most 160 characters, redacted like a title. `at` is the time of the
