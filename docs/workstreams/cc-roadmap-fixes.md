@@ -3,7 +3,7 @@ type: workstream
 title: Command Center roadmap fixes
 branch: cc-roadmap-fixes
 roadmap: ET
-state: active
+state: merged
 updated: 2026-10-14
 ---
 
@@ -76,4 +76,6 @@ Fix round for the verifier findings on the PR and spike change and on the shared
 
 Mark merged PR #88 (PRs out of Your move, spike PRs hidden, one shared header, Docs title on the search row). CI found one stale e2e locator in `e2e/engine.spec.ts` after the PR opened; fixed in `a8dc02b`. The branch is fast-forwarded to main `cf5fb22`.
 
-Next: Mark picks the next round of Command Center work on this branch (keep the worktree). Mark uses only the hosted page; local-only work is out of scope.
+## Closed (2026-10-14)
+
+Mark closed this workstream: "That's all for now." This PR carries the workstream record to `main`. Open candidates, not built: a `home-base` session drops off Running when its folder leaves Shadow Jog (`src/server/sessions/discover.ts`); ghost sessions after pid reuse; the reporter re-reads up to 1 MiB per live session every 3 seconds; the `$` branch-name nit in `command-center-tray.ps1`. Mark uses only the hosted page; local-only work is out of scope.
