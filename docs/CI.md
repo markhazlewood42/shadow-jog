@@ -14,7 +14,7 @@ This is the full picture of CI for Shadow Jog. The workflow is `.github/workflow
 | Event | What happens |
 |---|---|
 | Pull request, game or code change | `check`, eight e2e shards, the `e2e` gate and `e2e-engines` all run. A new push cancels the earlier run of the same pull request |
-| Pull request, docs-only change | Every job still starts and reports. `check` runs only the roadmap test. The shards and `e2e-engines` skip their steps |
+| Pull request, docs-only change | Every job still starts and reports. `check` runs only the roadmap and changelog tests. The shards and `e2e-engines` skip their steps |
 | Push to `main` | The same jobs run, unless the push changes only docs, notes, `tools/command-center/` or the Claude review workflow. A run on `main` is never canceled once it starts |
 | Push to `main` (playtest) | `playtest.yml` runs the real-speed playtest. It does not run on pull requests |
 | Manual run | Actions tab, CI, **Run workflow**. A manual run is always a full run |
@@ -109,7 +109,7 @@ The job id of the shard matrix is `e2e-shards`, so the gate can have the id and 
 
 Every job has the same first step, "Check which files changed". It compares the pull request with its base. If every changed file is a docs file, the later steps skip. The job itself never skips, because a skipped job reports success without checking anything. Each job has its own copy of the step, on purpose: one shared detection job could fail, and a required check must not depend on it.
 
-On a docs-only pull request, `check` still runs `tests/roadmap.test.ts`. That test reads `docs/engine/migration.md` and `docs/roadmap/*`, so the skip must not hide drift there. It costs `npm ci` and one Vitest file.
+On a docs-only pull request, `check` still runs `tests/roadmap.test.ts` and `tests/changelog-fold.test.ts`. The roadmap test reads `docs/engine/migration.md` and `docs/roadmap/*`, and the changelog test validates `changelog.d/*.md` (a `.md` file, so a PR that only adds an entry file counts as docs-only), so the skip must not hide drift there. It costs `npm ci` and two Vitest files.
 
 ## Add a new spec
 
