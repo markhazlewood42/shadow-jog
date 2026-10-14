@@ -259,7 +259,7 @@
       "after": [
         "M6"
       ],
-      "notes": "Built 2026-10-13 on branch engine-et-editor-port. Every editor and tool runs on the new engine; the Battle Stage Editor (/stageedit.html) and Battle Test are back. The trailer is deleted (#84). Two exceptions until M8: the Battle Test glue module and the shared old Input. Record: docs/engine/et-brief.md."
+      "notes": "Built 2026-10-13 on branch engine-et-editor-port. Every editor and tool moved to the new engine; the Battle Stage Editor (/stageedit.html) and Battle Test are back. The trailer is deleted (#84). Two exceptions until M8: the Battle Test glue module and the shared old Input. Record: docs/engine/et-brief.md."
     },
     {
       "id": "Editors",

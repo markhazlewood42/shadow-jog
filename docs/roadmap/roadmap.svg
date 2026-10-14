@@ -200,7 +200,7 @@
     <text x="436" y="675" fill="#bfc3e4" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">OPTIONAL</text>
   </g>
   <g id="item-ET">
-    <title>ET Editor port: done. Built 2026-10-13 on branch engine-et-editor-port. Every editor and tool runs on the new engine; the Battle Stage Editor (/stageedit.html) and Battle Test are back. The trailer is deleted (#84). Two exceptions until M8: the Battle Test glue module and the shared old Input. Record: docs/engine/et-brief.md.</title>
+    <title>ET Editor port: done. Built 2026-10-13 on branch engine-et-editor-port. Every editor and tool moved to the new engine; the Battle Stage Editor (/stageedit.html) and Battle Test are back. The trailer is deleted (#84). Two exceptions until M8: the Battle Test glue module and the shared old Input. Record: docs/engine/et-brief.md.</title>
     <rect x="836" y="378" width="90" height="76" rx="6" fill="#14382e" stroke="#4cc38a" stroke-width="1.2"/>
     <text x="844" y="397" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">ET</text>
     <text x="844" y="415" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">Editor port</text>
