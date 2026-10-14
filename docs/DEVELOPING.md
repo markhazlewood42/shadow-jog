@@ -151,7 +151,7 @@ lists every tool below with a line on what it's for; `/?devmenu` opens the page 
 back to it. `npm run dev` prints the main ones under the server's addresses. The list is `src/dev/tools.ts`: a new
 tool, page or route goes there. The menu isn't mounted under Playwright (`navigator.webdriver`) or in a build.
 
-**The tools** (ET, 2026-10-13: every tool runs on the new engine, and no tool file reaches the old one; `tests/et-tools.test.ts` checks it). Each tool opens in a browser test (`e2e/tools.spec.ts`, or the spec named in the last column).
+**The tools** (ET, 2026-10-13: every tool runs on the new engine, with two named exceptions until M8: Battle Test loads `src/dev/stageedit/battleglue.ts` and `src/scenes/battle.ts` with a dynamic `import()`, and both reach the old engine; and `src/dev/stageedit/boot.ts` shares the old `Input` of `src/engine/input`, as `src/sje/boot.ts` does, until M8 gives the new engine its own input; `tests/et-tools.test.ts` checks the first). Each tool opens in a browser test (`e2e/tools.spec.ts`, or the spec named in the last column).
 
 | Tool | Where it lives | How to open it | Test |
 |---|---|---|---|

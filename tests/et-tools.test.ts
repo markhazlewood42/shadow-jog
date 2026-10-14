@@ -45,7 +45,8 @@ const DYNAMIC_GAME: string[] = [];
 const BATTLE_TEST_GLUE = 'src/dev/stageedit/battleglue.ts';
 const BATTLE_TEST_DYNAMIC = ['src/scenes/battle.ts', BATTLE_TEST_GLUE];
 /** The Battle Test files: the only files that may use the named list. */
-const isBattleTestFile = (f: string): boolean => /^src\/dev\/stageedit\/battle[a-z]*\.ts$/.test(f) && f !== BATTLE_TEST_GLUE;
+const BATTLE_TEST_FILES = ['src/dev/stageedit/battletest.ts', 'src/dev/stageedit/battledialog.ts'];
+const isBattleTestFile = (f: string): boolean => BATTLE_TEST_FILES.includes(f);
 
 interface Source {
   read(file: string): string | null;

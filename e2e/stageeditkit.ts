@@ -111,7 +111,7 @@ export async function openEditor(page: Page, scratch: string, query = '', opts: 
 
 /** Wait for the editor to be ready (first frame drawn and the panels built), or to have failed. */
 export async function waitReady(page: Page): Promise<void> {
-  await page.waitForFunction(() => (window.__stagelab?.ready === true && !!window.__stageedit) || !!window.__stagelab?.error, undefined, { timeout: 30_000 });
+  await page.waitForFunction(() => (window.__stagelab?.ready === true && !!window.__stageedit) || !!window.__stagelab?.error, undefined, { timeout: 60_000 }); // 60 s: a cold start (first compile of the page) once took over 30 s; a real failure still ends in `error`.
   const error = await page.evaluate(() => window.__stagelab?.error ?? null);
   if (error) throw new Error(`The editor failed to start: ${error}`);
   await flush(page);

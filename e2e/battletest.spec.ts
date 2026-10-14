@@ -141,7 +141,7 @@ test('Start runs one real round: the health changes by the engine’s number, th
   expect(errors).toEqual([]);
 });
 
-test('tests the UNSAVED stage, and Esc comes back to the editor with the selection and the undo history intact', async ({ page }) => {
+test('tests the UNSAVED stage, Delete leaves the slots and the selection as they were (it has no binding), and Esc comes back to the editor with the selection and the undo history intact', async ({ page }) => {
   const { errors } = await openEditor(page, scratch);
   const slotX = await page.evaluate(() => window.__stagelab?.scene()?.config.party[0]?.x ?? 0);
   await page.evaluate(() => {
@@ -164,9 +164,13 @@ test('tests the UNSAVED stage, and Esc comes back to the editor with the selecti
   await dlg.getByRole('button', { name: 'Start' }).click();
   await expect(page.locator('#st-msg')).toContainText('Testing unsaved changes');
   expect(await page.evaluate(() => !!window.__stageedit?.battle())).toBe(true);
-  // While it runs the editor’s own keys stay out of the way: Delete would remove the selection, here it does nothing, and the handles are hidden.
+  // While it runs the editor’s own keys stay out of the way: Delete has no binding in the editor, so it changes nothing (checked below as unchanged state), and the handles are hidden.
+  // Delete has no binding in `src/dev/stageedit`, so the check is that the party slots and the selection are the same before and after the key.
+  const readState = () => page.evaluate(() => ({ slots: JSON.stringify(window.__stageedit?.session.data.stages[window.__stageedit.session.stageId]?.party), selection: JSON.stringify(window.__stageedit?.session.selection) }));
+  const beforeDelete = await readState();
   await page.keyboard.press('Delete');
-  expect(await page.evaluate(() => window.__stageedit?.session.dirty)).toBe(true);
+  expect(beforeDelete.slots).toContain('x');
+  expect(await readState()).toEqual(beforeDelete);
   await expect(page.locator('#ovsvg')).toBeHidden();
   // Control: another editor key (E toggles Play and Edit) is not heard either, because the game has the keys.
   await page.keyboard.press('e');

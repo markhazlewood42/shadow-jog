@@ -340,6 +340,7 @@ A legacy scene is one that has `enter`, `exit`, `resume`, `update()`, and `rende
 | `src/dev/` trailer tooling and its script | Deleted. Re-created on the new engine under issue #84. | ET (done) |
 | The Battle Stage Editor and Battle Test (the archive tag `archive/phaser-stage-2026-10-09`) | Built on the engine in `src/dev/stageedit/`: `StageHost` over `BattleStageScene`, the page `stageedit.html`, the save endpoint `/__stage/stages`; Battle Test over the game's own `BattleScene`. | ET (done) |
 | `src/dev/stageedit/battleglue.ts` and `src/scenes/battle.ts` as Battle Test's dynamic imports | The pass line 2 exemption list in `tests/et-tools.test.ts`. | Removed in M8 |
+| `src/dev/stageedit/boot.ts` (imports the old `Input` from `src/engine/input`) | M8 moves it off `src/engine/input` onto the new engine's input, together with `src/sje/boot.ts`, and removes the glue exemption. | M8 |
 | `src/engine/*` after M6 | Deleted. | M8 |
 
 **Roughly 60% of the raw canvas calls are bake-time painters** (props, backdrops, enemies, buildings). They output canvases and become textures unchanged. The code that must change is the per-frame scene, UI, lighting, and effect drawing: about 600 raw calls, plus the `drawText` and `drawWindow` sites that M4 handles on demand. Part of the field's animated look (about 10 prop animation closures, water shimmer, weather) draws every frame. It needs a `CanvasImage` path, not a bake.
