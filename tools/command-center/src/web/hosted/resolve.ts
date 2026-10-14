@@ -78,6 +78,8 @@ export function createResolver(store: HostedStore, options: { origin?: () => str
     if (pathname === '/api/health') return { ok: true, data: hostedHealth(origin()), updatedAt: now().toISOString() } as Panel<T>;
     if (pathname === '/api/github') return (await fromSnapshot((snapshot) => snapshot.github)) as Panel<T>;
     if (pathname === '/api/ci') return (await fromSnapshot((snapshot) => snapshot.ci)) as Panel<T>;
+    // The list of the decision issues. The docs page uses it to name the engine decisions that have no issue.
+    if (pathname === '/api/decisions') return (await fromSnapshot((snapshot) => snapshot.decisions)) as Panel<T>;
     if (pathname === '/api/git') return (await fromSnapshot(gitInfoOf)) as Panel<T>;
 
     if (pathname === '/api/status') {
@@ -93,7 +95,7 @@ export function createResolver(store: HostedStore, options: { origin?: () => str
     if (pathname === '/api/workstreams' || pathname === '/api/now/your-move') {
       await Promise.all([store.ensure('snapshot'), store.ensure('live')]);
       if (pathname === '/api/workstreams') return (await fromSnapshot(viewOf)) as Panel<T>;
-      return (await fromSnapshot((snapshot) => buildHostedYourMove(snapshot, viewOf(snapshot)))) as Panel<T>;
+      return (await fromSnapshot((snapshot) => buildHostedYourMove(snapshot, readLive(store.live()), now().getTime()))) as Panel<T>;
     }
 
     const decision = /^\/api\/decisions\/([1-9]\d{0,9})$/.exec(pathname);

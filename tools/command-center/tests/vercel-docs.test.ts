@@ -25,6 +25,26 @@ function fakeGithub(answer: () => ReturnType<typeof reply> | Promise<ReturnType<
 
 afterEach(() => vi.restoreAllMocks());
 
+describe('GET /api/docs/<path>: svg', () => {
+  it('returns an svg as image/svg+xml with a policy that stops script, and nosniff', async () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>';
+    const { fetchImpl, seen } = fakeGithub(() => reply(svg, 200, { 'content-type': 'application/vnd.github.raw+json; charset=utf-8' }));
+    const response = await handleDocs(request('/api/docs/docs/roadmap/roadmap.svg'), { env, fetchImpl });
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe(svg);
+    expect(response.headers.get('Content-Type')).toBe('image/svg+xml');
+    expect(response.headers.get('Content-Security-Policy')).toBe("default-src 'none'; style-src 'unsafe-inline'; img-src data:; sandbox");
+    expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff');
+    expect(seen[0]?.url).toBe(`${BASE}/docs/roadmap/roadmap.svg?ref=main`);
+  });
+
+  it('sends no policy header with a png or a markdown doc', async () => {
+    const { fetchImpl } = fakeGithub(() => reply('x'));
+    const png = await handleDocs(request('/api/docs/docs/a.png'), { env, fetchImpl });
+    expect(png.headers.get('Content-Security-Policy')).toBeNull();
+  });
+});
+
 describe('GET /api/docs/<path>: good paths', () => {
   it('returns a markdown doc from main, cached 60 seconds', async () => {
     const { fetchImpl, seen } = fakeGithub(() => reply('# GDD\n\ntext', 200, { 'content-type': 'application/vnd.github.raw+json; charset=utf-8' }));

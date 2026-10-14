@@ -563,7 +563,19 @@ export type DecisionSection = { docId: string; anchor: string; heading: string |
 export type DecisionDetail = DecisionIssue & { sections: DecisionSection[] };
 
 /** What `GET /api/decisions` holds (inside a Panel): the decisions that wait for Mark, and the ones he answered in the last week. */
-export type DecisionsInfo = { open: DecisionIssue[]; recent: DecisionIssue[] };
+export type DecisionsInfo = {
+  open: DecisionIssue[];
+  recent: DecisionIssue[];
+  /**
+   * Every decision issue the module read, open or closed, answered or not, with no age limit. The coverage check of /docs/decisions reads it: `open` and `recent`
+   * hold only the open issues and the answers of the last 7 days, so an issue answered 8 days ago would look like a missing one. Only the fields the check reads
+   * are kept. Optional because a snapshot that an older reporter wrote has no such list.
+   */
+  covering?: DecisionCover[];
+};
+
+/** The part of a decision issue that the coverage check reads (src/shared/decision-coverage.ts). */
+export type DecisionCover = Pick<DecisionIssue, 'number' | 'title' | 'question' | 'docs'>;
 
 /** One banner of a doc page: an open decision that links to the heading with the id `anchor` of that doc. */
 export type DocDecision = { number: number; title: string; anchor: string };
@@ -586,7 +598,7 @@ export type AnswerErrorBody = ApiErrorBody & { step?: AnswerStep };
 // must show them as text.
 
 /** Where an item of "Your move" comes from. The page names the source in the notice for a source that could not be read. */
-export type YourMoveSource = 'decision-issue' | 'session' | 'pr' | 'doc-decision' | 'status' | 'workstream';
+export type YourMoveSource = 'decision-issue' | 'session' | 'pr';
 
 /**
  * One thing that waits for Mark. `text` is plain words. `href` is where its source is: an address of this site (it starts with `/`), an

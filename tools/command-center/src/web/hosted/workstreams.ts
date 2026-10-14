@@ -28,7 +28,6 @@ export type WorkstreamCard = {
   state: WorkstreamState;
   /** The state the file claims. It differs from `state` only when the PR merged. */
   fileState: WorkstreamState;
-  nextForMark: string[];
   blockedOn: number[];
   updated: string;
   pr: PullRequest | null;
@@ -123,7 +122,6 @@ function card(row: WorkstreamRow, workstream: Workstream, path: string, live: Li
     roadmap: workstream.roadmap,
     state: merged ? 'merged' : workstream.state,
     fileState: workstream.state,
-    nextForMark: workstream.next_for_mark,
     blockedOn: workstream.blocked_on,
     updated: workstream.updated,
     pr: row.pr,
@@ -186,7 +184,7 @@ export function buildWorkstreamsView(args: { snapshot: Snapshot; live: LiveState
   };
 }
 
-/** The cards that the view shows, flat (the Your move list reads their `next_for_mark`). */
+/** The cards that the view shows, flat. */
 export function visibleCards(view: WorkstreamsView): WorkstreamCard[] {
   return view.lanes.flatMap((lane) => lane.cards);
 }

@@ -4,7 +4,7 @@ import type { Config } from '../config';
 import type { Hub } from '../hub';
 import { say } from '../messages';
 import { PanelError, type PanelSource, createPanelSource } from '../source';
-import { type AgentFile, type FileStamp, type SessionFile, type SessionTree, type WorkflowFolder, keepSession, listSessionFiles, listSessionTree, sessionSources, stampOf } from '../sessions/discover';
+import { type AgentFile, type FileStamp, type SessionFile, type SessionTree, type WorkflowFolder, keepSession, listSessionFiles, listSessionTree, resolveSources, stampOf } from '../sessions/discover';
 import { applyAge, isSdkEntrypoint, readJournal, workflowStateOf } from '../sessions/parse';
 import { type SessionFacts, codeOf, createSessionReader, createdMs, isoOf } from '../sessions/reader';
 import { readTail } from '../sessions/tail';
@@ -73,7 +73,7 @@ export function createAgentsSource(deps: AgentsModuleDeps): PanelSource<AgentsLi
 
   /** The file of a session: `<projectsRoot>/<folder>/<id>.jsonl` in one of the folders that the config names (the whole ones first). Null when it is in none. */
   async function locate(sessionId: string): Promise<SessionFile | null> {
-    for (const { folder, matchedBy } of sessionSources(config.claude)) {
+    for (const { folder, matchedBy } of await resolveSources(config.claude)) {
       const path = join(projectsRoot, folder, `${sessionId}.jsonl`);
       const stamp = await reader.optional(path, null, () => stampOf(path));
       if (stamp !== null) return { ...stamp, id: sessionId, folder, matchedBy };

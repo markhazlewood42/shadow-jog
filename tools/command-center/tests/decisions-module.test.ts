@@ -144,7 +144,7 @@ describe('the decisions source', () => {
     if (stranger === undefined) throw new Error('no issue 42');
     const { events: _events, ...printed } = stranger;
     setRigMode(rig, { mode: 'ok', replies: { 'issue list': { stdout: JSON.stringify([printed]) } } });
-    expect(await infoOf(rig)).toEqual({ open: [], recent: [] });
+    expect(await infoOf(rig)).toMatchObject({ open: [], recent: [] });
   });
 
   it('lists the open decisions of Mark and the ones that he answered in the last week, and nothing else', async () => {
@@ -234,7 +234,7 @@ describe('the decisions source', () => {
 
   it('is empty, not an error, when there is no decision at all', async () => {
     const rig = rigOf({ store: { labels: ['decision', 'decided'], issues: [] } });
-    expect(await infoOf(rig)).toEqual({ open: [], recent: [] });
+    expect(await infoOf(rig)).toMatchObject({ open: [], recent: [] });
   });
 
   it('gh not signed in, missing, offline and timeout each give a named code and keep lastGood', async () => {

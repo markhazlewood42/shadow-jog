@@ -877,10 +877,10 @@ test.describe('links and errors', () => {
     await expect(sessionBoxes(page)).toHaveCount(3);
   });
 
-  test('a Your move item of a session that has closed opens the Agents page with the label Session not active', async ({ page, request }) => {
+  test('a session that has closed leaves Your move: its ask hides because the session is not live (rule 1)', async ({ page, request }) => {
     await page.addInitScript(() => localStorage.setItem('cc.now.glass', 'off'));
     writeWorld();
-    // A session that Mark closed 15 minutes ago, with a box that waits for him. The sessions module still lists it (it waits, and the file is recent), and the process list does not.
+    // A session that Mark closed 15 minutes ago, with a box that waits for him. The sessions module still lists it (the file is recent), and the process list does not.
     const c = clock();
     writeSession(ID(5), [prompt('A session that has closed', c.at(1200)), reply(yourMoveBox('🟡', ['Answer the closed session']), c.at(600))]);
     writeProcess(5, ID(5), 'idle', 20 * 60, false);
@@ -888,18 +888,10 @@ test.describe('links and errors', () => {
     expect((await request.get('/api/sessions?refresh=1')).status()).toBe(200);
     await page.goto('/');
 
-    const item = page.getByRole('region', { name: 'Your move', exact: true }).getByRole('listitem').filter({ hasText: 'Answer the closed session' });
-    const link = item.getByRole('link', { name: /Answer the closed session/ });
-    await expect(link).toHaveAttribute('href', `/agents#session-${ID(5)}`);
-    await link.click();
-
-    // The Agents page has no cluster for it. It does not stay silent: one label says why.
-    await expect(page).toHaveURL(`/agents#session-${ID(5)}`);
-    await expect(panel(page)).toContainText(/Updated \d\d:\d\d:\d\d/);
-    await expect(panel(page).getByText('Session not active', { exact: true })).toBeVisible();
-    await expect(clusterOf(page, ID(5))).toHaveCount(0);
-    await expect(sessionBoxes(page)).toHaveCount(3);
-    await expectAtMostTwoAmberItems(page);
+    // The live session of the world has its ask in the list (the control), and the closed one has none.
+    const yourMove = page.getByRole('region', { name: 'Your move', exact: true });
+    await expect(yourMove.getByRole('listitem').filter({ hasText: 'Review the diff' })).toHaveCount(1);
+    await expect(yourMove.getByRole('listitem').filter({ hasText: 'Answer the closed session' })).toHaveCount(0);
   });
 
   test('an unreadable agents list keeps its last good diagram under the error, and a retry brings the new one', async ({ page, request }) => {

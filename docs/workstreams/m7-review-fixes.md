@@ -4,9 +4,6 @@ title: M7 review fixes (issue 81)
 branch: m7-review-fixes
 roadmap: M7
 state: review
-next_for_mark:
-  - Try the longer glitch tear in npm run dev with ?scene=hack&fx=full&jack=glitch
-  - Merge PR #82 (CI is green, the second Claude review is triaged)
 updated: 2026-10-13
 ---
 

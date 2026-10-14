@@ -480,9 +480,9 @@ describe('trust: only markhazlewood42 can answer a decision', () => {
     ];
     for (const other of others) {
       // A comment by the other account on an issue that Mark labeled: there is no answer from Mark, so the issue stays closed and out of both lists.
-      expect(infoOf(node(other, MARK)), `comment by ${JSON.stringify(other)}`).toEqual({ open: [], recent: [] });
+      expect(infoOf(node(other, MARK)), `comment by ${JSON.stringify(other)}`).toMatchObject({ open: [], recent: [] });
       // A comment by Mark, but the label `decided` was put on by the other account: the answer is not complete.
-      expect(infoOf(node(MARK, other)), `label by ${JSON.stringify(other)}`).toEqual({ open: [], recent: [] });
+      expect(infoOf(node(MARK, other)), `label by ${JSON.stringify(other)}`).toMatchObject({ open: [], recent: [] });
       // The same two on an open issue: the answer is not Mark's, so there is none.
       const open = infoOf(node(other, MARK, { state: 'OPEN', labels: { nodes: [{ name: 'decision' }] } }));
       expect(open.open, `open, comment by ${JSON.stringify(other)}`).toHaveLength(1);
@@ -497,23 +497,23 @@ describe('trust: only markhazlewood42 can answer a decision', () => {
   });
 
   it('does not take an issue of another account, whatever its label says', () => {
-    expect(infoOf(node(MARK, MARK, { author: { login: 'stranger' } }))).toEqual({ open: [], recent: [] });
-    expect(infoOf(node(MARK, MARK, { author: null }))).toEqual({ open: [], recent: [] });
+    expect(infoOf(node(MARK, MARK, { author: { login: 'stranger' } }))).toMatchObject({ open: [], recent: [] });
+    expect(infoOf(node(MARK, MARK, { author: null }))).toMatchObject({ open: [], recent: [] });
   });
 
   it('does not count a label event with no actor (a deleted account), or the event of a different label', () => {
     const noActor = node(MARK, MARK);
     (noActor.timelineItems as { nodes: Json[] }).nodes = [{ __typename: 'LabeledEvent', createdAt: '2026-10-11T10:01:00Z', label: { name: 'decided' }, actor: null }];
-    expect(infoOf(noActor)).toEqual({ open: [], recent: [] });
+    expect(infoOf(noActor)).toMatchObject({ open: [], recent: [] });
     const otherLabel = node(MARK, MARK);
     (otherLabel.timelineItems as { nodes: Json[] }).nodes = [{ __typename: 'LabeledEvent', createdAt: '2026-10-11T10:01:00Z', label: { name: 'bug' }, actor: { login: MARK } }];
-    expect(infoOf(otherLabel)).toEqual({ open: [], recent: [] });
+    expect(infoOf(otherLabel)).toMatchObject({ open: [], recent: [] });
   });
 
   it('uses the newest label event: a label that another account put back is not Mark\'s', () => {
     const issue = node(MARK, MARK);
     (issue.timelineItems as { nodes: Json[] }).nodes.push({ __typename: 'LabeledEvent', createdAt: '2026-10-11T11:00:00Z', label: { name: 'decided' }, actor: { login: 'someone-else' } });
-    expect(infoOf(issue)).toEqual({ open: [], recent: [] });
+    expect(infoOf(issue)).toMatchObject({ open: [], recent: [] });
   });
 
   it('applies all of it to the fixture decisions end to end', async () => {

@@ -1,11 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { type YourMoveSources, buildYourMove } from '../src/server/now/yourMove';
-import { type Decision, type DecisionIssue, type DecisionsInfo, type GithubInfo, type Panel, type PullRequest, type SessionInfo, type SessionsInfo, type StatusInfo, type YourMoveBox, sessionAnchor, sessionHref } from '../src/shared/types';
+import { buildYourMove } from '../src/server/now/yourMove';
+import { extractYourMove } from '../src/server/sessions/parse';
+import { type AgentsLive, type DecisionIssue, type DecisionsInfo, type GithubInfo, type LiveSession, type Panel, type PullRequest, type SessionInfo, type SessionsInfo, type YourMoveBox, sessionAnchor, sessionHref } from '../src/shared/types';
+import { ASK_MAX_AGE_MS, ASK_MAX_CHARS, ASK_MAX_LINES, type LiveAsk, askStatus, buildYourMoveItems } from '../src/shared/your-move';
+import { ROOT, assistantText, at, box as boxText, userPrompt } from './sessions-helpers';
+import type { YourMoveSources } from '../src/server/now/yourMove';
 
-// buildYourMove is a plain function from five panels to the list "Your move" of the Now page, so these tests feed it made-up panels:
-// no server, no gh and no session file. Every name, title and line below is synthetic.
+// The shared rule of "Your move" (src/shared/your-move.ts) and the local list made from it (src/server/now/yourMove.ts). The rule has three sources: decision issues,
+// pull requests that wait for Mark, and live asks. A live ask hides when ANY of four rules holds, and each rule has its own test below. Every name, title and line is synthetic.
 
 const T0 = '2026-10-06T10:00:00.000Z';
+const NOW_MS = Date.parse(T0);
+const hoursAgo = (hours: number) => new Date(NOW_MS - hours * 3_600_000).toISOString();
 
 const good = <T>(data: T): Panel<T> => ({ ok: true, data, updatedAt: T0 });
 const failed = <T>(code: string, message: string, lastGood: T | null = null): Panel<T> => ({
@@ -40,7 +46,7 @@ function issue(number: number, extra: Partial<DecisionIssue> = {}): DecisionIssu
 const decisions = (open: DecisionIssue[], recent: DecisionIssue[] = []): DecisionsInfo => ({ open, recent });
 
 function box(extra: Partial<YourMoveBox> = {}): YourMoveBox {
-  return { light: 'yellow', items: ['Review the diff'], nothing: false, at: '2026-10-06T09:30:00.000Z', answered: false, ...extra };
+  return { light: 'yellow', items: ['Review the diff'], nothing: false, at: hoursAgo(0.5), answered: false, ...extra };
 }
 
 function session(id: string, extra: Partial<SessionInfo> = {}): SessionInfo {
@@ -52,8 +58,8 @@ function session(id: string, extra: Partial<SessionInfo> = {}): SessionInfo {
     cwd: '/fixture/repo',
     entrypoint: 'claude-desktop',
     branch: 'fixture-branch',
-    startedAt: '2026-10-06T08:00:00.000Z',
-    lastActivityAt: '2026-10-06T09:59:00.000Z',
+    startedAt: hoursAgo(2),
+    lastActivityAt: hoursAgo(0.1),
     state: 'waiting',
     prs: [],
     yourMove: null,
@@ -64,6 +70,9 @@ function session(id: string, extra: Partial<SessionInfo> = {}): SessionInfo {
 }
 
 const sessionsInfo = (sessions: SessionInfo[]): SessionsInfo => ({ sessions, scanned: sessions.length, skipped: 0, hiddenSdk: 0 });
+
+const liveSession = (id: string): LiveSession => ({ id, title: `Title of ${id}`, state: 'waiting', startedAt: hoursAgo(2), filePath: '', nodes: [] });
+const liveOf = (...ids: string[]): Panel<AgentsLive> => good<AgentsLive>({ sessions: ids.map(liveSession), hiddenScripts: 0, source: 'process-list' });
 
 function pr(number: number, extra: Partial<PullRequest> = {}): PullRequest {
   return {
@@ -85,213 +94,292 @@ function pr(number: number, extra: Partial<PullRequest> = {}): PullRequest {
   };
 }
 
-function docDecision(id: string, extra: Partial<Decision> = {}): Decision {
-  return {
-    id,
-    number: id.slice(1),
-    source: 'engine',
-    question: `Question of ${id}?`,
-    answer: 'A',
-    milestone: null,
-    who: 'Mark',
-    option: null,
-    status: 'open',
-    change: null,
-    docSlug: 'engine/decisions',
-    anchor: `${id.toLowerCase()}-heading`,
-    ...extra,
-  };
-}
-
-const statusInfo = (texts: string[]): StatusInfo => ({
-  updated: '2026-10-06',
-  nextUpForMark: texts.map((text) => ({ text, html: `<p>${text}</p>` })),
-  milestone: { current: null, problem: null },
-  milestones: [],
-});
-
-/** Five good panels with nothing in them. A test replaces the ones it cares about. */
+/** Four good panels with nothing in them. A test replaces the ones it cares about. */
 function sources(extra: Partial<YourMoveSources> = {}): YourMoveSources {
   return {
     decisionIssues: good(decisions([])),
     sessions: good(sessionsInfo([])),
-    status: good(statusInfo([])),
     github: good<GithubInfo>({ open: [], merged: [] }),
-    docDecisions: good<Decision[]>([]),
+    agents: liveOf(),
     ...extra,
   };
 }
 
-describe('buildYourMove', () => {
-  it('your move: open decision issues come first, then unanswered box items of non-idle sessions, PRs with attention, open doc decisions for Mark and status items', () => {
-    const result = buildYourMove({
-      // The sources are given in the opposite order of the list, so the order of the list cannot be an accident of the order of the arguments.
-      status: good(statusInfo(['Pick the gadget color.', 'A short last item.'])),
-      docDecisions: good([docDecision('E1', { status: 'approved' }), docDecision('D5', { source: 'phase-0.2', docSlug: 'PHASE-0.2', anchor: 'decisions-for-mark' }), docDecision('E2', { status: 'changed', change: 'edited' }), docDecision('C1', { source: 'engine-update', docSlug: 'engine/README', anchor: null })]),
-      github: good<GithubInfo>({
-        open: [pr(103, { checksSummary: 'pending' }), pr(101, { attention: 'merge' }), pr(102, { attention: 'fix', checksSummary: 'fail' }), pr(104, { author: 'someone-else' })],
-        merged: [pr(100, { state: 'MERGED', attention: null })],
+/** The texts of the live asks of a list for the given sessions, all of them live. */
+function askTexts(sessions: SessionInfo[], live: string[] = sessions.map((entry) => entry.id), nowMs = NOW_MS): string[] {
+  return buildYourMove(sources({ sessions: good(sessionsInfo(sessions)), agents: liveOf(...live) }), nowMs).items.map((item) => item.text);
+}
+
+describe('the three sources of "Your move"', () => {
+  it('lists the open decision issues first, then the live asks, then the PRs that wait for Mark, and nothing else', () => {
+    const result = buildYourMove(
+      sources({
+        github: good<GithubInfo>({
+          open: [pr(103, { checksSummary: 'pending' }), pr(101, { attention: 'merge' }), pr(102, { attention: 'fix', checksSummary: 'fail' }), pr(104, { author: 'someone-else' })],
+          merged: [pr(100, { state: 'MERGED', attention: null })],
+        }),
+        sessions: good(
+          sessionsInfo([
+            session('s-working', { state: 'working', yourMove: box({ light: 'red', items: ['Answer the question', 'Tell me to commit'] }) }),
+            session('s-answered', { yourMove: box({ answered: true }) }),
+            session('s-not-live', { yourMove: box() }),
+            session('s-no-box', { yourMove: null }),
+          ]),
+        ),
+        agents: liveOf('s-working', 's-answered', 's-no-box'),
+        decisionIssues: good(decisions([issue(41), issue(43, { title: 'Where should the cache go?' })], [issue(44, { state: 'answered' })])),
       }),
-      sessions: good(
-        sessionsInfo([
-          session('s-working', { state: 'working', yourMove: box({ light: 'red', items: ['Answer the question', 'Tell me to commit'] }) }),
-          session('s-answered', { yourMove: box({ answered: true }) }),
-          session('s-idle', { state: 'idle', yourMove: box() }),
-          session('s-no-box', { yourMove: null }),
-          session('s-waiting', { state: 'waiting', yourMove: box({ light: null, items: ['Look at the picture'], at: '' }) }),
-        ]),
-      ),
-      decisionIssues: good(decisions([issue(41), issue(43, { title: 'Where should the cache go?' })], [issue(44, { state: 'answered' })])),
-    });
+      NOW_MS,
+    );
 
     expect(result.missing).toEqual([]);
     expect(result.items).toEqual([
-      // 1. The open decision issues, oldest question first (the order of the source). The answered one (`recent`) waits for nothing.
       { source: 'decision-issue', text: 'Decision #41: Question 41?', href: '/decisions/41', light: null, at: '2026-10-05T08:00:00Z' },
       { source: 'decision-issue', text: 'Decision #43: Where should the cache go?', href: '/decisions/43', light: null, at: '2026-10-05T08:00:00Z' },
-      // 2. One item for each line of the box of a session that is not idle, each linked to the place of its session on the Agents page. The answered box, the idle session and the session with no box give none.
-      { source: 'session', text: 'Answer the question (session: Title of s-working)', href: '/agents#session-s-working', light: 'red', at: '2026-10-06T09:30:00.000Z' },
-      { source: 'session', text: 'Tell me to commit (session: Title of s-working)', href: '/agents#session-s-working', light: 'red', at: '2026-10-06T09:30:00.000Z' },
-      { source: 'session', text: 'Look at the picture (session: Title of s-waiting)', href: '/agents#session-s-waiting', light: null, at: null },
-      // 3. The pull requests with attention, in the order of the source. A pull request that is only running its checks, and one of another account, are not in it.
+      { source: 'session', text: 'Answer the question (session: Title of s-working)', href: '/agents#session-s-working', light: 'red', at: hoursAgo(0.5) },
+      { source: 'session', text: 'Tell me to commit (session: Title of s-working)', href: '/agents#session-s-working', light: 'red', at: hoursAgo(0.5) },
       { source: 'pr', text: 'PR #101 is ready to merge: Title of PR 101', href: 'https://github.com/fixture-owner/fixture-repo/pull/101', light: null, at: '2026-10-06T09:00:00Z' },
       { source: 'pr', text: 'PR #102 needs a fix: Title of PR 102', href: 'https://github.com/fixture-owner/fixture-repo/pull/102', light: null, at: '2026-10-06T09:00:00Z' },
-      // 4. The decisions of the docs that are open for Mark, each linked to its heading (or to the doc, when the page has no heading for it).
-      { source: 'doc-decision', text: 'Decision D5: Question of D5?', href: '/docs/PHASE-0.2#decisions-for-mark', light: null, at: null },
-      { source: 'doc-decision', text: 'Decision C1: Question of C1?', href: '/docs/engine/README', light: null, at: null },
-      // 5. The "Next up for Mark" list of status.md, each item linked to the doc.
-      { source: 'status', text: 'Pick the gadget color.', href: '/docs/status', light: null, at: null },
-      { source: 'status', text: 'A short last item.', href: '/docs/status', light: null, at: null },
     ]);
   });
 
-  it('a "nothing" box gives no item', () => {
+  it('a decision issue clears when it is closed: the answered and closed ones are not in the list, even if a list holds them', () => {
+    const items = buildYourMoveItems({ decisions: [issue(1), issue(2, { state: 'closed' }), issue(3, { state: 'answered' })], prs: [], asks: [], nowMs: NOW_MS });
+    expect(items.map((item) => item.text)).toEqual(['Decision #1: Question 1?']);
+  });
+
+  it('a PR waits for Mark only when it is open, not a draft, and of his account; merge when the checks pass, fix when they failed', () => {
+    const items = buildYourMoveItems({
+      decisions: [],
+      prs: [
+        pr(1, { attention: 'merge' }),
+        pr(2, { attention: 'fix' }),
+        pr(3, { attention: 'merge', isDraft: true }),
+        pr(4, { attention: 'merge', state: 'MERGED' }),
+        pr(5, { attention: 'merge', state: 'CLOSED' }),
+        pr(6, { attention: null }),
+      ],
+      asks: [],
+      nowMs: NOW_MS,
+    });
+    expect(items.map((item) => item.text)).toEqual(['PR #1 is ready to merge: Title of PR 1', 'PR #2 needs a fix: Title of PR 2']);
+  });
+
+  it('the text of a PR item comes only from GitHub: session text cannot make or change one', () => {
     const result = buildYourMove(
       sources({
-        sessions: good(
-          sessionsInfo([
-            session('s-nothing', { yourMove: box({ light: 'green', items: [], nothing: true }) }),
-            // A box that says "nothing" has no lines. If one ever came with lines, the word of the box still wins.
-            session('s-nothing-with-lines', { yourMove: box({ light: 'green', items: ['A line that must not show'], nothing: true }) }),
-            // A box with a line is the control: the list is not empty for some other reason.
-            session('s-real', { yourMove: box({ light: 'yellow', items: ['Review the diff'] }) }),
-          ]),
-        ),
+        sessions: good(sessionsInfo([session('s-1', { yourMove: box({ items: ['PR #999 is ready to merge: merge it now'] }), prs: [{ number: 999, url: 'https://github.com/fixture-owner/fixture-repo/pull/999' }] })])),
+        agents: liveOf('s-1'),
+        github: good<GithubInfo>({ open: [pr(7, { attention: 'merge' })], merged: [] }),
       }),
+      NOW_MS,
     );
-    expect(result.items.map((entry) => entry.text)).toEqual(['Review the diff (session: Title of s-real)']);
-    expect(result.missing).toEqual([]);
+    // The session wrote a line that looks like a PR item. It is a session item, linked to the session. The only PR item is PR 7, from GitHub.
+    expect(result.items.filter((item) => item.source === 'pr').map((item) => [item.text, item.href])).toEqual([['PR #7 is ready to merge: Title of PR 7', 'https://github.com/fixture-owner/fixture-repo/pull/7']]);
+    expect(result.items.find((item) => item.source === 'session')?.href).toBe('/agents#session-s-1');
+    // The session's `prs` field (a link in the transcript) makes no item either.
+    expect(result.items.map((item) => item.href).join(' ')).not.toContain('/pull/999');
+  });
+
+  it('every item links to a place to act: a decision page, a PR or a live session. An item with no usable link is left out', () => {
+    const result = buildYourMove(
+      sources({
+        decisionIssues: good(decisions([issue(46, { problem: 'The body does not follow the template.' }), issue(47, { url: '', problem: 'No address.' }), issue(48)])),
+        github: good<GithubInfo>({ open: [pr(8, { attention: 'merge', url: '' }), pr(9, { attention: 'merge', url: 'javascript:alert(1)' }), pr(10, { attention: 'merge' })], merged: [] }),
+        sessions: good(sessionsInfo([session('s-1', { yourMove: box() })])),
+        agents: liveOf('s-1'),
+      }),
+      NOW_MS,
+    );
+    expect(result.items.map((item) => item.href)).toEqual([
+      'https://github.com/fixture-owner/fixture-repo/issues/46',
+      '/decisions/48',
+      '/agents#session-s-1',
+      'https://github.com/fixture-owner/fixture-repo/pull/10',
+    ]);
+    for (const item of result.items) expect(item.href === null || item.href.startsWith('/decisions/') || item.href.startsWith('/agents#session-') || item.href.startsWith('https://github.com/')).toBe(true);
+    // A decision that cannot be read says so, and links to the issue, where Mark can mend it.
+    expect(result.items[0]?.text).toBe('Decision #46 is unreadable: The body does not follow the template.');
   });
 
   it('a session item links to the place of its session on the Agents page: /agents#session-<id>', () => {
     const result = buildYourMove(
       sources({
-        sessions: good(
-          sessionsInfo([
-            // Two lines of one box link to the same place, and two sessions link to two places. The id is the file name of the session (letters, digits, "_" and "-").
-            session('e2e00000-0000-4000-8000-000000000002', { yourMove: box({ items: ['First line', 'Second line'] }) }),
-            session('another_session-7', { yourMove: box({ items: ['Third line'] }) }),
-          ]),
-        ),
+        sessions: good(sessionsInfo([session('e2e00000-0000-4000-8000-000000000002', { yourMove: box({ items: ['First line', 'Second line'] }) }), session('another_session-7', { yourMove: box({ items: ['Third line'] }) })])),
+        agents: liveOf('e2e00000-0000-4000-8000-000000000002', 'another_session-7'),
       }),
+      NOW_MS,
     );
     expect(result.items.map((entry) => [entry.text.split(' (')[0], entry.href])).toEqual([
       ['First line', '/agents#session-e2e00000-0000-4000-8000-000000000002'],
       ['Second line', '/agents#session-e2e00000-0000-4000-8000-000000000002'],
       ['Third line', '/agents#session-another_session-7'],
     ]);
-    // The link is an address of this site (it starts with "/"), so the Now page opens it inside the app and not in a new tab.
-    for (const entry of result.items) expect(entry.href?.startsWith('/agents#')).toBe(true);
-    // The page finds the cluster of the session by the same words: the server and the page share one function for them (src/shared/types.ts), so the two cannot drift apart.
-    expect(sessionHref('abc-1')).toBe('/agents#session-abc-1');
     expect(sessionHref('abc-1')).toBe(`/agents#${sessionAnchor('abc-1')}`);
-    expect(sessionAnchor('abc-1')).toBe('session-abc-1');
   });
 
-  it('a failed source goes to missing, never throws', () => {
-    // gh is signed out: the decisions and the pull requests have no data at all. Sessions and status are fine.
+  it('the status.md "Next up for Mark" list and the open decisions of the engine docs are not sources any more', () => {
+    // The local builder takes four panels and no more: there is no panel of either of the two to give it.
+    const result = buildYourMove(sources(), NOW_MS);
+    expect(result.items).toEqual([]);
+    expect(Object.keys(sources()).sort()).toEqual(['agents', 'decisionIssues', 'github', 'sessions']);
+  });
+});
+
+describe('a live ask hides when any one of the four rules holds', () => {
+  const base = (id: string, extra: Partial<YourMoveBox> = {}) => session(id, { yourMove: box(extra) });
+
+  it('the control: a live session, not answered, a box with a line, half an hour old, is shown', () => {
+    expect(askTexts([base('s-1')])).toEqual(['Review the diff (session: Title of s-1)']);
+  });
+
+  it('rule 1: the session is not live (its process was not seen)', () => {
+    // The sessions module counts the session, and the process list does not have it.
+    expect(askTexts([base('s-1')], [])).toEqual([]);
+    // Another session is live, not this one.
+    expect(askTexts([base('s-1')], ['s-other'])).toEqual([]);
+  });
+
+  it('rule 1: a process list that cannot be read now hides every ask, also when its last good data had the session', () => {
+    const result = buildYourMove(
+      sources({
+        sessions: good(sessionsInfo([base('s-1')])),
+        agents: failed('agents-failed', 'The process list could not be read.', { sessions: [liveSession('s-1')], hiddenScripts: 0, source: 'process-list' }),
+      }),
+      NOW_MS,
+    );
+    expect(result.items).toEqual([]);
+    expect(result.missing).toEqual([{ source: 'session', message: 'The process list could not be read.' }]);
+  });
+
+  it('rule 1: a session read that failed now hides every ask, also when its last good data had a box', () => {
+    const result = buildYourMove(sources({ sessions: failed('sessions-failed', 'The session files could not be read.', sessionsInfo([base('s-1')])), agents: liveOf('s-1') }), NOW_MS);
+    expect(result.items).toEqual([]);
+    expect(result.missing).toEqual([{ source: 'session', message: 'The session files could not be read.' }]);
+  });
+
+  it('rule 2: Mark answered after the box', () => {
+    expect(askTexts([base('s-1', { answered: true })])).toEqual([]);
+    expect(askStatus({ nothing: false, answered: true, at: hoursAgo(1) }, true, NOW_MS)).toBe('answered');
+  });
+
+  it('rule 3: the box says "Your move: nothing"', () => {
+    expect(askTexts([base('s-1', { nothing: true, items: [] })])).toEqual([]);
+    // A box that says nothing wins over lines that came with it.
+    expect(askTexts([base('s-1', { nothing: true, items: ['A line that must not show'] })])).toEqual([]);
+    expect(askStatus(null, true, NOW_MS)).toBe('nothing');
+  });
+
+  it('rule 3: a newer box replaced the older one, and a newer reply with no box leaves the box', () => {
+    const roots = [ROOT];
+    const first = assistantText(boxText(['Old line']), { time: at(-300) });
+    const second = assistantText(boxText(['New line']), { time: at(-200) });
+    const nothing = assistantText(boxText([], { heading: '### 👉 Your move: nothing' }), { time: at(-100) });
+    const short = assistantText('A short status line, no box.', { time: at(-50) });
+    // Lines are timed against the helper clock; the session list below carries the box that `extractYourMove` kept, as the sessions module does.
+    const lineBox = (lines: unknown[]) => extractYourMove(lines, roots);
+    const shown = (lines: unknown[]) => {
+      const kept = lineBox(lines);
+      return kept === null ? [] : askTexts([session('s-1', { yourMove: { ...kept, at: hoursAgo(0.5) } })]);
+    };
+    // Two boxes: only the newer one shows.
+    expect(shown([first, second])).toEqual(['New line (session: Title of s-1)']);
+    // A newer box that says "nothing" replaces the older one, and hides it.
+    expect(shown([first, second, nothing])).toEqual([]);
+    // A newer reply with no box leaves the box where it is.
+    expect(shown([first, second, short])).toEqual(['New line (session: Title of s-1)']);
+    // Mark's prompt after the newer box answers it (rule 2 again, through the real parser).
+    expect(shown([first, second, userPrompt('Done', { time: at(-150) })])).toEqual([]);
+  });
+
+  it('rule 4: the box is more than 12 hours old', () => {
+    expect(ASK_MAX_AGE_MS).toBe(12 * 3_600_000);
+    expect(askTexts([base('s-1', { at: hoursAgo(11.9) })])).toEqual(['Review the diff (session: Title of s-1)']);
+    expect(askTexts([base('s-1', { at: hoursAgo(12) })])).toEqual(['Review the diff (session: Title of s-1)']);
+    expect(askTexts([base('s-1', { at: hoursAgo(12.1) })])).toEqual([]);
+    expect(askTexts([base('s-1', { at: hoursAgo(40) })])).toEqual([]);
+    expect(askStatus({ nothing: false, answered: false, at: hoursAgo(13) }, true, NOW_MS)).toBe('old');
+  });
+
+  it('rule 4: a box with a time more than a minute in the future is hidden, in askStatus and again at the shared list', () => {
+    const future = (ms: number) => new Date(NOW_MS + ms).toISOString();
+    expect(askStatus({ nothing: false, answered: false, at: future(9e9) }, true, NOW_MS)).toBe('old');
+    expect(askStatus({ nothing: false, answered: false, at: future(61_000) }, true, NOW_MS)).toBe('old');
+    expect(askStatus({ nothing: false, answered: false, at: future(30_000) }, true, NOW_MS)).toBe('show');
+    expect(askTexts([base('s-1', { at: future(3_600_000) })])).toEqual([]);
+    const ask: LiveAsk = { sessionId: 's-1', title: 'T', lines: ['A line'], at: future(9e9), light: null };
+    expect(buildYourMoveItems({ decisions: [], prs: [], asks: [ask], nowMs: NOW_MS })).toEqual([]);
+  });
+
+  it('rule 4: a box with no usable time is hidden, because its age cannot be shown to be inside the limit', () => {
+    expect(askTexts([base('s-1', { at: '' })])).toEqual([]);
+    expect(askTexts([base('s-1', { at: 'not a time' })])).toEqual([]);
+    expect(askStatus({ nothing: false, answered: false, at: null }, true, NOW_MS)).toBe('old');
+  });
+
+  it('rule 4 again at the shared rule: a list that was made long ago does not show a box that has grown old since', () => {
+    const ask: LiveAsk = { sessionId: 's-1', title: 'T', lines: ['A line'], at: hoursAgo(11), light: null };
+    expect(buildYourMoveItems({ decisions: [], prs: [], asks: [ask], nowMs: NOW_MS })).toHaveLength(1);
+    expect(buildYourMoveItems({ decisions: [], prs: [], asks: [ask], nowMs: NOW_MS + 2 * 3_600_000 })).toHaveLength(0);
+  });
+
+  it('a session that is not live shows nothing even when it is the only thing in the list, and the other asks stay', () => {
+    expect(askTexts([base('s-live', { items: ['Keep me'] }), base('s-gone', { items: ['Hide me'] })], ['s-live'])).toEqual(['Keep me (session: Title of s-live)']);
+  });
+});
+
+describe('the lines of an ask', () => {
+  const live = (box: YourMoveBox) => askTexts([session('s-1', { title: '<b>Bold</b> title', yourMove: box })]);
+
+  it('shows the text of a line as plain words: markdown marks are gone, an empty line gives no item, and the title is text', () => {
+    expect(live(box({ items: ['Run `npm test` and read **the** [log](http://example.test)', '   '] }))).toEqual(['Run npm test and read the log (session: <b>Bold</b> title)']);
+  });
+
+  it('shows at most 6 lines of a box, each cut to 160 characters', () => {
+    const lines = live(box({ items: Array.from({ length: 9 }, (_, index) => `Line ${index + 1} ${'x'.repeat(300)}`) }));
+    expect(ASK_MAX_LINES).toBe(6);
+    expect(ASK_MAX_CHARS).toBe(160);
+    expect(lines).toHaveLength(6);
+    for (const [index, text] of lines.entries()) {
+      const line = text.replace(' (session: <b>Bold</b> title)', '');
+      expect(line.length).toBeLessThanOrEqual(160);
+      expect(line.startsWith(`Line ${index + 1} `)).toBe(true);
+      expect(line.endsWith('…')).toBe(true);
+    }
+  });
+});
+
+describe('failed sources', () => {
+  it('a failed source goes to missing and never throws; the others go on', () => {
     const signedOut = failed<DecisionsInfo>('gh-not-signed-in', 'gh is not signed in to GitHub.');
     const result = buildYourMove(
       sources({
         decisionIssues: signedOut,
         github: failed<GithubInfo>('gh-not-signed-in', 'gh is not signed in to GitHub.'),
         sessions: good(sessionsInfo([session('s-one', { yourMove: box() })])),
-        status: good(statusInfo(['Pick the gadget color.'])),
+        agents: liveOf('s-one'),
       }),
+      NOW_MS,
     );
-    expect(result.items.map((entry) => entry.source)).toEqual(['session', 'status']);
+    expect(result.items.map((entry) => entry.source)).toEqual(['session']);
     expect(result.missing).toEqual([
       { source: 'decision-issue', message: 'gh is not signed in to GitHub.' },
       { source: 'pr', message: 'gh is not signed in to GitHub.' },
     ]);
 
-    // A source with no data and no error text of its own still never throws, and every source can fail at once.
-    const everything = buildYourMove({
-      decisionIssues: failed('x', 'one'),
-      sessions: failed('x', 'two'),
-      status: failed('x', 'three'),
-      github: failed('x', 'four'),
-      docDecisions: failed('x', 'five'),
-    });
+    const everything = buildYourMove({ decisionIssues: failed('x', 'one'), sessions: failed('x', 'two'), agents: failed('x', 'three'), github: failed('x', 'four') }, NOW_MS);
     expect(everything.items).toEqual([]);
     expect(everything.missing.map((entry) => [entry.source, entry.message])).toEqual([
       ['decision-issue', 'one'],
       ['session', 'two'],
+      ['session', 'three'],
       ['pr', 'four'],
-      ['doc-decision', 'five'],
-      ['status', 'three'],
     ]);
   });
 
-  it('reads the last good data of a failed source, and still names the source, as for a bad approvalRef and a missing milestone table', () => {
-    // A bad approvalRef: the engine module says so with a failed panel that holds all the decisions (with no "changed" flags).
-    // A missing migration doc: the status module says so with a failed panel that holds the status. Neither takes Mark's to-do list away.
-    const result = buildYourMove(
-      sources({
-        docDecisions: failed('approval-check-failed', 'approvalRef "x" cannot be used.', [docDecision('D5'), docDecision('E1', { status: 'approved' })]),
-        status: failed('milestones-doc-missing', 'docs/engine/migration.md was not found in the repo.', statusInfo(['Pick the gadget color.'])),
-      }),
-    );
-    expect(result.items.map((entry) => entry.text)).toEqual(['Decision D5: Question of D5?', 'Pick the gadget color.']);
-    expect(result.missing).toEqual([
-      { source: 'doc-decision', message: 'approvalRef "x" cannot be used.' },
-      { source: 'status', message: 'docs/engine/migration.md was not found in the repo.' },
-    ]);
-  });
-
-  it('a decision issue with a problem shows as "Decision #n is unreadable: <problem>" and links to the issue', () => {
-    const result = buildYourMove(
-      sources({
-        decisionIssues: good(
-          decisions([
-            issue(46, { title: 'Not the template', problem: 'The body does not follow the decision template (it has no "Question" heading).', question: '', options: [] }),
-            issue(47, { title: 'Decision: A readable one' }),
-          ]),
-        ),
-      }),
-    );
-    // It links to the issue on GitHub, where Mark can read it and mend the body, and not to the page of a decision that cannot be shown.
-    expect(result.items[0]).toEqual({
-      source: 'decision-issue',
-      text: 'Decision #46 is unreadable: The body does not follow the decision template (it has no "Question" heading).',
-      href: 'https://github.com/fixture-owner/fixture-repo/issues/46',
-      light: null,
-      at: '2026-10-05T08:00:00Z',
-    });
-    // The readable one after it is a plain item that links to its page.
-    expect(result.items[1]).toMatchObject({ text: 'Decision #47: A readable one', href: '/decisions/47' });
-  });
-
-  it('shows the text of a session line as plain words, and leaves a pull request of another account out of the list', () => {
-    const result = buildYourMove(
-      sources({
-        sessions: good(sessionsInfo([session('s-md', { title: '<b>Bold</b> title', yourMove: box({ items: ['Run `npm test` and read **the** [log](http://example.test)', '   '] }) })])),
-        github: good<GithubInfo>({ open: [pr(7, { author: 'stranger', attention: null }), pr(8, { url: '', attention: 'merge' })], merged: [] }),
-      }),
-    );
-    // Markdown marks are gone, an empty line gives no item, and the title is text: nothing is made into html here (the page shows every string as text).
-    expect(result.items.map((entry) => entry.text)).toEqual(['Run npm test and read the log (session: <b>Bold</b> title)', 'PR #8 is ready to merge: Title of PR 8']);
-    // A pull request with no usable address is listed without a link, never with an empty one.
-    expect(result.items[1]?.href).toBeNull();
+  it('the decisions and the PRs read the last good data of a failed source (a list a little old is still the list), and the source is still named', () => {
+    const result = buildYourMove(sources({ decisionIssues: failed('gh-failed', 'gh failed.', decisions([issue(5)])), github: failed('gh-failed', 'gh failed.', { open: [pr(6, { attention: 'merge' })], merged: [] }) }), NOW_MS);
+    expect(result.items.map((entry) => entry.text)).toEqual(['Decision #5: Question 5?', 'PR #6 is ready to merge: Title of PR 6']);
+    expect(result.missing).toHaveLength(2);
   });
 });

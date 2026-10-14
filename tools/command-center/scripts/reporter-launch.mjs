@@ -12,6 +12,8 @@
 //   5. Every 2 minutes it runs `git fetch` in the copy. When main changed anything under tools/command-center/, it updates the copy
 //      (and installs the packages again when the lock file changed) and starts the server again. A "needs install" marker makes a failed
 //      `npm ci` try again, and the server never starts with new code and old packages.
+//   (`--manual`, from the tray app: the server runs with `--no-idle-exit`, so rule 6 never applies to code 0. `--prepare-local` writes the config of the
+//   local Command Center on port 3009 and builds its page, then ends. `--stop` stops what the tray started.)
 //   6. When the server exits on its own (30 minutes with no session: code 0; a public page: code 3; no settings file: code 4), it stops too.
 //      Any other exit is a crash: it starts the server again, at most 3 times in 10 minutes. The 4th crash inside 10 minutes ends the launcher
 //      (code 1), so 3 restarts and 4 crashes is the most.
@@ -145,7 +147,11 @@ export function runGit(args, cwd, timeout = 60_000) {
  * Takes the lock, or says that another launcher holds it. A second launch does nothing.
  * The lock is held when its file was touched in the last 2 minutes, or when something answers on the reporter's port (a launcher that sleeps with the
  * machine has an old lock, but its server still holds the port). Only a lock that is old AND a port that is free is taken over.
- * @param {{ now: () => number, portInUse: () => Promise<boolean>, read: () => { text: string, mtimeMs: number } | null, create: (text: string) => boolean, remove: () => void }} deps
+ * A fresh lock is also taken over at once when its owner is gone: `deps.processInfo(pid)` says the launcher process does not exist, or exists with
+ * another start time than the lock records (the system gave the pid to another program). A null from `processInfo` counts as gone only when
+ * `deps.exists(pid)` (default `pidExists`) also says no such process exists. The port must be free too. If the check throws or the lock
+ * cannot be read, the lock counts as held (it is never taken when it cannot be judged). Nothing is killed here.
+ * @param {{ now: () => number, portInUse: () => Promise<boolean>, read: () => { text: string, mtimeMs: number } | null, create: (text: string) => boolean, remove: () => void, processInfo?: (pid: number) => Promise<{ start: string } | null>, exists?: (pid: number) => boolean | null }} deps
  * @param {string} text what to write into the lock (JSON with the process ids)
  * @returns {Promise<'acquired' | 'held'>}
  */
@@ -154,11 +160,37 @@ export async function acquireLock(deps, text) {
     if (deps.create(text)) return 'acquired';
     const lock = deps.read();
     if (lock === null) continue; // it vanished between the two calls: try again
-    if (deps.now() - lock.mtimeMs < LOCK_STALE_MS) return 'held';
+    if (deps.now() - lock.mtimeMs < LOCK_STALE_MS && !(await ownerGone(deps, lock.text))) return 'held';
     if (await deps.portInUse()) return 'held';
     deps.remove();
   }
   return 'held';
+}
+
+/** True only when the lock names a launcher process that is surely gone (no such pid, or the pid now has another start time). False when unsure. */
+async function ownerGone(deps, text) {
+  if (typeof deps.processInfo !== 'function') return false;
+  try {
+    const ids = JSON.parse(text);
+    if (ids === null || typeof ids !== 'object' || !Number.isInteger(ids.launcher) || ids.launcher <= 0) return false;
+    const info = await deps.processInfo(ids.launcher);
+    // processInfo also gives null when it cannot read the process (a PowerShell time out), so a null alone is not proof: the pid must also be absent.
+    if (info === null) return (deps.exists ?? pidExists)(ids.launcher) === false;
+    return typeof ids.launcherStart === 'string' && typeof info.start === 'string' && info.start !== ids.launcherStart;
+  } catch {
+    return false;
+  }
+}
+
+/** False only when no process has this pid (ESRCH). True when one does (EPERM means it exists but is not ours). Null when the answer is unclear. */
+export function pidExists(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    const code = error && typeof error === 'object' ? error.code : undefined;
+    return code === 'ESRCH' ? false : code === 'EPERM' ? true : null;
+  }
 }
 
 /** The lock functions on real files. `create` is atomic: the `wx` flag fails when the file exists. */
@@ -423,7 +455,7 @@ export async function updateCopy(paths, branch, deps) {
     log(`git reset failed (code ${moved.status}); the copy stays as it is`);
     return 'failed';
   }
-  log('main changed tools/command-center: the copy was updated');
+  log(`${branch} changed tools/command-center: the copy was updated`);
   if (lockChanged && (await retryInstall(paths, deps)) === 'failed') return 'failed';
   return 'updated';
 }
@@ -456,7 +488,8 @@ export function lockNamesUs(text, pid, startedIso, launcherStart = null) {
 /**
  * The whole launcher. Returns the exit code.
  * `options.settingsFile` and `options.deps` exist for the tests (a fake settings path, a fake git and installer).
- * @param {{ checkout: string, branch?: string, origin?: string, settingsFile?: string, deps?: { git?: Function, install?: Function, supervise?: Function } }} options
+ * `options.manual` is true when a person started it (the tray app): the reporter server then runs with `--no-idle-exit`.
+ * @param {{ checkout: string, branch?: string, origin?: string, settingsFile?: string, manual?: boolean, deps?: { git?: Function, install?: Function, supervise?: Function } }} options
  */
 export async function runLauncher(options) {
   const checkout = mainCheckout(options.checkout);
@@ -504,7 +537,7 @@ export async function runLauncher(options) {
     }
     lock.touch(lockText());
   };
-  const got = await acquireLock({ now: Date.now, portInUse: () => portInUse(REPORTER_PORT), read: lock.read, create: lock.create, remove: lock.remove }, lockText());
+  const got = await acquireLock({ now: Date.now, portInUse: () => portInUse(REPORTER_PORT), read: lock.read, create: lock.create, remove: lock.remove, processInfo }, lockText());
   if (got === 'held') return 0; // another launcher runs: do nothing, and say nothing
   log(`started (process ${process.pid}, branch ${branch})`);
   const heartbeat = setInterval(touch, LOCK_TOUCH_MS);
@@ -564,7 +597,7 @@ export async function runLauncher(options) {
           });
         }
       },
-      { update: () => updateCopy(paths, branch, { git, install, log }), install, signal: lostLock.signal },
+      { update: () => updateCopy(paths, branch, { git, install, log }), install, signal: lostLock.signal, manual: options.manual === true },
     );
   } finally {
     release();
@@ -572,11 +605,21 @@ export async function runLauncher(options) {
   }
 }
 
+/**
+ * The command line of the reporter server. A reporter that a person started on purpose (`manual`: the tray app) gets `--no-idle-exit`, so it does not
+ * end after 30 minutes with no session. A start by the hook keeps the idle exit. Nothing else differs.
+ * @param {{ config: string }} paths
+ * @param {boolean} [manual]
+ */
+export function serverArgs(paths, manual = false) {
+  return ['--import', 'tsx', 'src/server/main.ts', '--config', paths.config, '--reporter', ...(manual ? ['--no-idle-exit'] : [])];
+}
+
 /** The real server process: `--import tsx` runs the TypeScript source as `npm run cc` does. CC_NO_OPEN=1 keeps a browser tab from opening. */
-function spawnServer(paths) {
+function spawnServer(paths, manual = false) {
   const out = openSync(paths.log, 'a');
   try {
-    return spawn(process.execPath, ['--import', 'tsx', 'src/server/main.ts', '--config', paths.config, '--reporter'], {
+    return spawn(process.execPath, serverArgs(paths, manual), {
       cwd: paths.app,
       env: { ...process.env, CC_NO_OPEN: '1' },
       stdio: ['ignore', out, out],
@@ -594,7 +637,7 @@ function spawnServer(paths) {
  * @returns {Promise<number>}
  */
 export function supervise(paths, checkout, branch, log, onServerPid, deps = {}) {
-  const spawnChild = deps.spawnServer ?? spawnServer;
+  const spawnChild = deps.spawnServer ?? ((serverPaths) => spawnServer(serverPaths, deps.manual === true));
   const install = deps.install ?? npmCi;
   const update = deps.update ?? (() => updateCopy(paths, branch, { git: runGit, install, log }));
   const fetchEveryMs = deps.fetchEveryMs ?? FETCH_EVERY_MS;
@@ -818,6 +861,64 @@ export async function stopReporter(checkout, deps = {}) {
   return verified.length > 0 ? 'The reporter was stopped.' : 'The reporter is not running (its processes are gone). The lock file was removed.';
 }
 
+// ---- the local Command Center (port 3009), for the tray app ----
+
+/** The page build of the local server: `vite build`, run with the same `node`, so that no `npm` or shell is needed. */
+const VITE_BIN = join('node_modules', 'vite', 'bin', 'vite.js');
+export const LOCAL_CONFIG = 'local.config.json';
+/** The most time that the page build may take. */
+export const BUILD_TIMEOUT_MS = 5 * 60_000;
+
+/**
+ * The config for the local Command Center that the tray app runs from the pinned copy. The code comes from the pinned copy (the branch it follows: origin/main by default, or the `--branch` / tray `-Branch` one, so a branch switch
+ * in the shared checkout cannot break it), and the repo root and the roots point at the REAL checkout, so the docs, the search and the status are
+ * those of the working tree. It keeps the port of the config (3009). It is not a reporter run: no `--reporter`, so it publishes nothing.
+ * @param {Record<string, any>} original the parsed command-center.config.json of the pinned copy
+ * @param {string} checkout the main checkout
+ */
+export function localConfig(original, checkout) {
+  return reporterConfig(original, checkout, original.port);
+}
+
+/**
+ * Makes the local server ready: writes `.cc-reporter/local.config.json` and builds the page in the pinned copy (what `npm run cc` does first).
+ * Gives 0 when ready, 2 when the pinned copy is not ready yet (the tray app waits and asks again), 1 when it failed.
+ * `deps.run(command, args, options)` and `deps.log(message)` exist for the tests.
+ * @param {string} checkout
+ * @param {{ run?: typeof runCommand, log?: (message: string) => void }} [deps]
+ * @returns {Promise<number>}
+ */
+export async function prepareLocal(checkout, deps = {}) {
+  const run = deps.run ?? runCommand;
+  const main = mainCheckout(checkout);
+  const paths = pathsFor(main);
+  const log = deps.log ?? ((message) => {
+    try {
+      appendFileSync(paths.log, `${new Date().toISOString()} local: ${message}\n`);
+    } catch {
+      // no log to write to
+    }
+  });
+  if (!existsSync(readyFile(paths))) {
+    log('the pinned copy is not ready yet');
+    return 2;
+  }
+  try {
+    const original = JSON.parse(readFileSync(join(paths.app, 'command-center.config.json'), 'utf8'));
+    writeFileSync(join(paths.state, LOCAL_CONFIG), JSON.stringify(localConfig(original, main), null, 2));
+  } catch (error) {
+    log(`the config could not be written (${error instanceof Error ? error.message : 'unknown error'})`);
+    return 1;
+  }
+  const built = await run(process.execPath, [VITE_BIN, 'build'], { cwd: paths.app, timeout: BUILD_TIMEOUT_MS });
+  if (built.status !== 0) {
+    log(`the page build failed (code ${built.status}): ${(built.stderr || built.stdout).slice(-500)}`);
+    return 1;
+  }
+  log('ready');
+  return 0;
+}
+
 function readOption(argv, name) {
   const index = argv.indexOf(name);
   return index === -1 ? undefined : argv[index + 1];
@@ -836,8 +937,13 @@ if (isMainModule(import.meta.url)) {
     console.log(await stopReporter(checkout));
     process.exit(0);
   }
+  // --prepare-local is for the tray app: it writes the config of the local server and builds its page, then ends.
+  if (argv.includes('--prepare-local')) {
+    process.exit(await prepareLocal(checkout));
+  }
   // --branch and --origin are for testing a branch before it is merged: the pinned copy then follows that branch.
-  runLauncher({ checkout, ...(readOption(argv, '--branch') ? { branch: readOption(argv, '--branch') } : {}), ...(readOption(argv, '--origin') ? { origin: readOption(argv, '--origin') } : {}) }).then(
+  // --manual: a person started it (the tray app), so the reporter server has no idle exit.
+  runLauncher({ checkout, ...(argv.includes('--manual') ? { manual: true } : {}), ...(readOption(argv, '--branch') ? { branch: readOption(argv, '--branch') } : {}), ...(readOption(argv, '--origin') ? { origin: readOption(argv, '--origin') } : {}) }).then(
     (code) => process.exit(code),
     (error) => {
       console.error(`reporter-launch: ${error instanceof Error ? error.message : 'failed'}`);

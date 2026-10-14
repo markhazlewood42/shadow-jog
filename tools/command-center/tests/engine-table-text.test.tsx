@@ -3,7 +3,7 @@ import { act } from 'react';
 import { type Root, createRoot } from 'react-dom/client';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Decision, Panel } from '../src/shared/types';
+import type { Decision, DecisionIssue, DecisionsInfo, Panel } from '../src/shared/types';
 import { Decisions } from '../src/web/docs/Decisions';
 
 // The words of the engine decision table at /docs/decisions (Task 20; design 5.8): labels and links, and a sentence only where a reader would be lost
@@ -53,15 +53,19 @@ const failed = (lastGood: Decision[] | null): Panel<Decision[]> => ({
 // ---- the page ----
 
 let answer: Panel<Decision[]>;
+/** The decision issues (`/api/decisions`): the warning for an open decision with no issue reads them. */
+let issues: Panel<DecisionsInfo>;
 let container: HTMLDivElement;
 let root: Root;
 
 beforeEach(() => {
   answer = good(SAMPLE);
+  issues = { ok: true, data: { open: [], recent: [] }, updatedAt: '2026-10-06T12:00:00Z' };
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string) => {
       if (String(url).startsWith('/api/engine/decisions')) return new Response(JSON.stringify(answer), { status: 200, headers: { 'content-type': 'application/json' } });
+      if (String(url).startsWith('/api/decisions')) return new Response(JSON.stringify(issues), { status: 200, headers: { 'content-type': 'application/json' } });
       throw new Error(`the page asked for ${url}, which this test does not serve`);
     }),
   );
@@ -253,5 +257,65 @@ describe('the engine decision table', () => {
     expect(seen.some((sentence) => sentence.startsWith('Last good data:'))).toBe(true);
     expect(seen.filter((sentence) => wordsOf(sentence) > 20)).toEqual([]);
     expect(seen.filter((sentence) => CONTRACTION.test(sentence))).toEqual([]);
+  });
+});
+
+// ---- the warning for an open decision with no decision issue (your-move-redesign.md section 5) ----
+
+function issueOf(number: number, over: Partial<DecisionIssue> = {}): DecisionIssue {
+  return {
+    number,
+    title: `Decision: Question ${number}?`,
+    url: `https://github.com/fixture-owner/fixture-repo/issues/${number}`,
+    state: 'open',
+    question: `Question ${number}?`,
+    context: null,
+    options: [{ id: 'A', text: 'Yes' }],
+    recommended: null,
+    docs: [],
+    raisedBy: null,
+    waitsOn: null,
+    createdAt: '2026-10-05T08:00:00Z',
+    answer: null,
+    problem: null,
+    ...over,
+  };
+}
+
+const warning = (): string | null => container.querySelector('[aria-label="Decisions with no issue"]')?.textContent ?? null;
+
+describe('the warning for an open decision that has no decision issue', () => {
+  it('names the open decision of Mark that has no issue, and only that one', async () => {
+    // SAMPLE holds one open decision (D5, who decides: Mark). E3 is "Agent (FYI)" and changed, not open.
+    await show();
+    expect(warning()).toBe('1 open decision has no decision issue: D5. Raise it as a decision issue on GitHub.');
+  });
+
+  it('names every one when there are several', async () => {
+    answer = good([...SAMPLE, decision({ id: 'E9', number: 'E9', status: 'open', question: 'Another open one', anchor: 'e9-another' })]);
+    await show();
+    expect(warning()).toBe('2 open decisions have no decision issue: D5, E9. Raise each one as a decision issue on GitHub.');
+  });
+
+  it('shows no warning when an issue links to the heading of the decision, or names its id', async () => {
+    issues = { ok: true, updatedAt: '2026-10-06T12:00:00Z', data: { open: [issueOf(80, { docs: [{ docId: 'PHASE-0.2', slug: 'PHASE-0.2', anchor: 'decisions-for-mark', heading: 'Decisions for Mark' }] })], recent: [] } };
+    await show();
+    expect(warning()).toBeNull();
+    issues = { ok: true, updatedAt: '2026-10-06T12:00:00Z', data: { open: [], recent: [issueOf(81, { title: 'Decision D5: What happens to PixelLab?', state: 'answered' })] } };
+    await show();
+    expect(warning()).toBeNull();
+  });
+
+  it('says that the check did not run when the decision issues cannot be read, and never stays silent', async () => {
+    issues = { ok: false, error: { code: 'gh-not-signed-in', message: 'gh is not signed in to GitHub.' }, updatedAt: null, lastGood: null };
+    await show();
+    expect(warning()).toBeNull();
+    expect(text()).toContain('Check not run: the decision issues could not be read. gh is not signed in to GitHub.');
+  });
+
+  it('uses the last good issues under an error', async () => {
+    issues = { ok: false, error: { code: 'gh-failed', message: 'gh failed.' }, updatedAt: '2026-10-06T12:00:00Z', lastGood: { data: { open: [issueOf(80, { title: 'Decision D5: x' })], recent: [] }, updatedAt: '2026-10-06T11:00:00Z' } };
+    await show();
+    expect(warning()).toBeNull();
   });
 });

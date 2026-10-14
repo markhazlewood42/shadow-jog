@@ -120,8 +120,9 @@ function jsonResponse(body, status, cache, extra = {}) {
 function errorResponse(status, error, kind, extra = {}) {
   return jsonResponse({ error, kind }, status, CACHE.none, extra);
 }
-function bytesResponse(bytes, contentType, cache) {
-  return new Response(bytes, { status: 200, headers: { ...baseHeaders(cache), "Content-Type": contentType } });
+var SVG_HEADERS = { "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; img-src data:; sandbox" };
+function bytesResponse(bytes, contentType, cache, extra = {}) {
+  return new Response(bytes, { status: 200, headers: { ...baseHeaders(cache), "Content-Type": contentType, ...extra } });
 }
 var notConfigured = () => errorResponse(500, "not configured", "not-configured");
 
@@ -173,6 +174,7 @@ function parseDocPath(pathname) {
   if (segments[0] === "docs") {
     if (last.endsWith(".md")) return { ok: true, path: rest, type: "markdown" };
     if (last.endsWith(".png")) return { ok: true, path: rest, type: "png" };
+    if (last.endsWith(".svg")) return { ok: true, path: rest, type: "svg" };
   }
   return { ok: false, status: 404, reason: "not in the allow-list" };
 }
@@ -199,7 +201,7 @@ var DOCS_REF = "main";
 var MAX_BYTES = 4e6;
 var TIMEOUT_MS = 2e4;
 var mediaTypeOf = (contentType) => (contentType ?? "").split(";")[0]?.trim().toLowerCase() ?? "";
-var CONTENT_TYPE = { markdown: "text/markdown; charset=utf-8", png: "image/png" };
+var CONTENT_TYPE = { markdown: "text/markdown; charset=utf-8", png: "image/png", svg: "image/svg+xml" };
 var contentsUrl = (path) => `https://api.github.com/repos/${OWNER}/${REPO}/contents/${path}?ref=${DOCS_REF}`;
 function failureOf(status, headers, now) {
   if (status === 404) return errorResponse(404, "not found", "not-found");
@@ -254,7 +256,7 @@ async function handleDocs(request, deps) {
     const reply = await send(contentsUrl(parsed.path), {
       headers: {
         Authorization: `Bearer ${token}`,
-        // The raw media type: GitHub sends the file bytes (text or PNG) and not a JSON wrapper with base64.
+        // The raw media type: GitHub sends the file bytes (text, PNG or SVG) and not a JSON wrapper with base64.
         Accept: "application/vnd.github.raw+json",
         "X-GitHub-Api-Version": "2022-11-28",
         "User-Agent": "shadow-jog-command-center"
@@ -267,7 +269,7 @@ async function handleDocs(request, deps) {
     if (Number.isFinite(announced) && announced > MAX_BYTES) return errorResponse(502, "file is too large", "too-large");
     const bytes = await readCapped(reply, MAX_BYTES);
     if (bytes === null) return errorResponse(502, "file is too large", "too-large");
-    return bytesResponse(bytes, CONTENT_TYPE[parsed.type], CACHE.docs);
+    return bytesResponse(bytes, CONTENT_TYPE[parsed.type], CACHE.docs, parsed.type === "svg" ? SVG_HEADERS : {});
   } catch (error) {
     console.error(`docs failed: ${error instanceof Error ? error.name : "unknown error"}`);
     return responseOf(mapAdapterError({ code: "network" }));

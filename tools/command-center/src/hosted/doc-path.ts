@@ -1,8 +1,8 @@
 // The allow-list for `/api/docs/<repo path>` (design.md section 6). It matches the local docs set: `docs/**/*.md`, the root `*.md` files (`status.md`,
-// `CHANGELOG.md`, ...) and the diagram PNGs under `docs/`. It is strict on purpose: the path goes into a GitHub URL, so only plain names pass.
+// `CHANGELOG.md`, ...) and the diagram PNGs and SVGs under `docs/`. It is strict on purpose: the path goes into a GitHub URL, so only plain names pass.
 // Pure: it looks at text only.
 
-export type DocPath = { ok: true; path: string; type: 'markdown' | 'png' } | { ok: false; status: 400 | 404; reason: string };
+export type DocPath = { ok: true; path: string; type: 'markdown' | 'png' | 'svg' } | { ok: false; status: 400 | 404; reason: string };
 
 const PREFIX = '/api/docs/';
 /** One name in a path: a letter or digit first (so no hidden file), then letters, digits, dot, dash or underscore. */
@@ -35,6 +35,7 @@ export function parseDocPath(pathname: string): DocPath {
   if (segments[0] === 'docs') {
     if (last.endsWith('.md')) return { ok: true, path: rest, type: 'markdown' };
     if (last.endsWith('.png')) return { ok: true, path: rest, type: 'png' };
+    if (last.endsWith('.svg')) return { ok: true, path: rest, type: 'svg' };
   }
   return { ok: false, status: 404, reason: 'not in the allow-list' };
 }

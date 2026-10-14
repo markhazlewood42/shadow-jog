@@ -35,6 +35,7 @@ export function makeTestConfig(overrides: Partial<Config> = {}): Config {
       sessionsRoot: join(base, 'claude-sessions'),
       folders: ['folder-a'],
       cwdMatchFolders: ['folder-b'],
+      folderPrefixes: [],
       includeSdk: false,
       recentSeconds: 604800,
       workingSeconds: 300,

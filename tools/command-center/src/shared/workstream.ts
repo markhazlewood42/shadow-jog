@@ -33,8 +33,6 @@ export type Workstream = {
   /** An id in `docs/roadmap/roadmap.json`. */
   roadmap: string;
   state: WorkstreamState;
-  /** What Mark has to do. Empty when nothing. */
-  next_for_mark: string[];
   /** Numbers of the decision issues this workstream waits on. Empty when none. */
   blocked_on: number[];
   /** `YYYY-MM-DD`. */
@@ -62,7 +60,14 @@ export type BranchCheck =
   | { kind: 'invalid'; message: string };
 
 /** The fields a file may have. Any other key is an error: it is most likely a typo. */
-const KNOWN_KEYS = ['type', 'title', 'branch', 'roadmap', 'state', 'next_for_mark', 'blocked_on', 'updated'];
+const KNOWN_KEYS = ['type', 'title', 'branch', 'roadmap', 'state', 'blocked_on', 'updated'];
+
+/**
+ * A key that the "Your move" redesign retired (2026-10-13). Branches that began before it still carry `next_for_mark` in their own workstream file, and this check reads each
+ * branch's file as that branch has it. So the key is accepted and ignored: it is not shown anywhere and it is not an error. Every other unknown key stays an error.
+ * Remove this when no branch carries `next_for_mark` any more: `git grep next_for_mark origin/<branch> -- docs/workstreams` finds none on any branch.
+ */
+const IGNORED_LEGACY_KEYS = ['next_for_mark'];
 
 export function isValidBranchName(name: string): boolean {
   return BRANCH_NAME_PATTERN.test(name);
@@ -175,7 +180,7 @@ export function parseWorkstream(path: string, src: string): WorkstreamResult {
   const fields = data as Record<string, unknown>;
 
   for (const key of Object.keys(fields)) {
-    if (!KNOWN_KEYS.includes(key)) errors.push(`unknown field "${key}" (allowed: ${KNOWN_KEYS.join(', ')})`);
+    if (!KNOWN_KEYS.includes(key) && !IGNORED_LEGACY_KEYS.includes(key)) errors.push(`unknown field "${key}" (allowed: ${KNOWN_KEYS.join(', ')})`);
   }
 
   if (fields.type !== 'workstream') errors.push(`type must be "workstream", not ${describe(fields.type)}`);
@@ -204,9 +209,6 @@ export function parseWorkstream(path: string, src: string): WorkstreamResult {
   if (!(typeof updated === 'string' && isCalendarDate(updated))) errors.push(`updated must be a date written YYYY-MM-DD, not ${describe(updated)}`);
 
   // Empty lists may be left out, or written with nothing after the key (YAML reads that as null).
-  const nextForMark = fields.next_for_mark ?? [];
-  if (!(Array.isArray(nextForMark) && nextForMark.every((x) => typeof x === 'string' && x.trim() !== ''))) errors.push('next_for_mark must be a list of non-empty texts, one "- " line each');
-
   const blockedOn = fields.blocked_on ?? [];
   if (!(Array.isArray(blockedOn) && blockedOn.every((x) => Number.isInteger(x) && (x as number) > 0))) errors.push('blocked_on must be a list of issue numbers (whole numbers), for example [61]');
 
@@ -221,7 +223,6 @@ export function parseWorkstream(path: string, src: string): WorkstreamResult {
       branch: branch as string,
       roadmap: roadmap as string,
       state: state as WorkstreamState,
-      next_for_mark: nextForMark as string[],
       blocked_on: blockedOn as number[],
       updated: updated as string,
     },
