@@ -160,7 +160,7 @@ Groups are commits. M8a = tasks 1 to 3 and 5. M8b = tasks 4, 6 and 7. M8c = task
 | M8a order | Survey `b9e2eb4` after the data move `efcfe15` | Approval status `a931767` came before the survey, so pass line 16 holds | holds | |
 | M8a caps | Bundle caps raised with Mark's yes, 2026-10-14 | First play 395.9 to 402.1 kB. Total 456 to 462.5 kB. Commits `787f29e`, `162069a` | approved | |
 | M8a deferral | Data-layer items (d) `snapshot/restore` and (e) `step(n)` | Deferred to M8b, approved by Mark 2026-10-14 | approved | See `m8a-data-format.md` section 7 |
-| M8a pass line 12 | Perf | `render`, `display` and `three` diff is empty. `npm run perf` not run yet | pending, main session | |
+| M8a pass line 12 | Perf | `render`, `display` and `three` diff is empty. `npm run perf` run by Mark 2026-10-14 on RTX 4070: 14 of 16 passed first, 2 failed (battle live ratio 0.93 against 0.95, HackScene cost p95 9.40 ms against 8 ms). Both are in M1 and M7 tests outside the M8a diff. Rerun of the 2 with Chrome closed: both pass. Battle: interval p95 16.90 ms (bare 16.90), cost p95 5.40 ms. HackScene: interval p95 16.90 ms, cost p95 4.90 ms | pass | Mark |
 
 ### Known gaps for M8b
 
