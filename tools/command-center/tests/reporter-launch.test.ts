@@ -125,6 +125,44 @@ describe('the lock: a second launch does nothing', () => {
     expect(state.lock?.text).toBe('me');
   });
 
+  describe('a fresh lock whose owner is gone', () => {
+    const NOW = 1_000_000;
+    const fresh = (launcherStart: string | null) => ({ text: JSON.stringify({ launcher: 4242, launcherStart, started: 's' }), mtimeMs: NOW - 5000 });
+    const withInfo = (lookup: (pid: number) => Promise<{ start: string } | null>, port = false, launcherStart: string | null = 'T1') => {
+      const { deps, state } = fake(NOW, fresh(launcherStart), port);
+      return { deps: { ...deps, processInfo: lookup }, state };
+    };
+
+    it('takes the lock at once when the launcher process does not exist', async () => {
+      const asked: number[] = [];
+      const { deps, state } = withInfo(async (pid) => (asked.push(pid), null));
+      expect(await acquireLock(deps, 'me')).toBe('acquired');
+      expect(asked[0]).toBe(4242);
+      expect(state.removed).toBe(1);
+    });
+    it('takes the lock when the pid is alive but has another start time (pid reuse)', async () => {
+      const { deps } = withInfo(async () => ({ start: 'T2-other' }));
+      expect(await acquireLock(deps, 'me')).toBe('acquired');
+    });
+    it('keeps the lock when the owner lives with the same start time', async () => {
+      const { deps, state } = withInfo(async () => ({ start: 'T1' }));
+      expect(await acquireLock(deps, 'me')).toBe('held');
+      expect(state.removed).toBe(0);
+    });
+    it('keeps the lock when the check throws (it cannot judge)', async () => {
+      const { deps, state } = withInfo(async () => {
+        throw new Error('powershell failed');
+      });
+      expect(await acquireLock(deps, 'me')).toBe('held');
+      expect(state.removed).toBe(0);
+    });
+    it('keeps the lock when the owner is gone but the port still answers', async () => {
+      const { deps, state } = withInfo(async () => null, true);
+      expect(await acquireLock(deps, 'me')).toBe('held');
+      expect(state.removed).toBe(0);
+    });
+  });
+
   it('with real files: the first launch gets the lock and the second does not (the create is exclusive)', async () => {
     const file = join(scratch, 'one.lock');
     const lock = fileLock(file);

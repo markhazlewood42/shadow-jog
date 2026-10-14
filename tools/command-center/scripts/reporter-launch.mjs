@@ -147,7 +147,10 @@ export function runGit(args, cwd, timeout = 60_000) {
  * Takes the lock, or says that another launcher holds it. A second launch does nothing.
  * The lock is held when its file was touched in the last 2 minutes, or when something answers on the reporter's port (a launcher that sleeps with the
  * machine has an old lock, but its server still holds the port). Only a lock that is old AND a port that is free is taken over.
- * @param {{ now: () => number, portInUse: () => Promise<boolean>, read: () => { text: string, mtimeMs: number } | null, create: (text: string) => boolean, remove: () => void }} deps
+ * A fresh lock is also taken over at once when its owner is gone: `deps.processInfo(pid)` says the launcher process does not exist, or exists with
+ * another start time than the lock records (the system gave the pid to another program). The port must be free too. If the check throws or the lock
+ * cannot be read, the lock counts as held (it is never taken when it cannot be judged). Nothing is killed here.
+ * @param {{ now: () => number, portInUse: () => Promise<boolean>, read: () => { text: string, mtimeMs: number } | null, create: (text: string) => boolean, remove: () => void, processInfo?: (pid: number) => Promise<{ start: string } | null> }} deps
  * @param {string} text what to write into the lock (JSON with the process ids)
  * @returns {Promise<'acquired' | 'held'>}
  */
@@ -156,11 +159,25 @@ export async function acquireLock(deps, text) {
     if (deps.create(text)) return 'acquired';
     const lock = deps.read();
     if (lock === null) continue; // it vanished between the two calls: try again
-    if (deps.now() - lock.mtimeMs < LOCK_STALE_MS) return 'held';
+    if (deps.now() - lock.mtimeMs < LOCK_STALE_MS && !(await ownerGone(deps, lock.text))) return 'held';
     if (await deps.portInUse()) return 'held';
     deps.remove();
   }
   return 'held';
+}
+
+/** True only when the lock names a launcher process that is surely gone (no such pid, or the pid now has another start time). False when unsure. */
+async function ownerGone(deps, text) {
+  if (typeof deps.processInfo !== 'function') return false;
+  try {
+    const ids = JSON.parse(text);
+    if (ids === null || typeof ids !== 'object' || !Number.isInteger(ids.launcher) || ids.launcher <= 0) return false;
+    const info = await deps.processInfo(ids.launcher);
+    if (info === null) return true;
+    return typeof ids.launcherStart === 'string' && typeof info.start === 'string' && info.start !== ids.launcherStart;
+  } catch {
+    return false;
+  }
 }
 
 /** The lock functions on real files. `create` is atomic: the `wx` flag fails when the file exists. */
@@ -507,7 +524,7 @@ export async function runLauncher(options) {
     }
     lock.touch(lockText());
   };
-  const got = await acquireLock({ now: Date.now, portInUse: () => portInUse(REPORTER_PORT), read: lock.read, create: lock.create, remove: lock.remove }, lockText());
+  const got = await acquireLock({ now: Date.now, portInUse: () => portInUse(REPORTER_PORT), read: lock.read, create: lock.create, remove: lock.remove, processInfo }, lockText());
   if (got === 'held') return 0; // another launcher runs: do nothing, and say nothing
   log(`started (process ${process.pid}, branch ${branch})`);
   const heartbeat = setInterval(touch, LOCK_TOUCH_MS);

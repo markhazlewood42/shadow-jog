@@ -340,7 +340,10 @@ function Step-Stop {
     if ($script:StopStage -eq 'cmd') {
         $finished = ($null -eq $script:StopProc) -or $script:StopProc.HasExited
         if ($finished -or ((Get-Date) -gt $script:StopDeadline)) {
-            if (-not $finished) { Write-TrayLog 'the stop command took more than 35 seconds' }
+            if (-not $finished) {
+                Write-TrayLog 'the stop command took more than 35 seconds'
+                Show-Balloon ("The stop timed out after 35 seconds. The tray ended the processes itself. Details: {0}" -f $TrayLog) ([System.Windows.Forms.ToolTipIcon]::Error)
+            }
             foreach ($child in @($script:Server, $script:Prepare, $script:Launcher)) { Stop-Tree $child }
             $script:StopStage = 'dead'
             $script:StopDeadline = (Get-Date).AddSeconds(5)
@@ -350,7 +353,10 @@ function Step-Stop {
     $alive = 0
     foreach ($child in @($script:Server, $script:Prepare, $script:Launcher)) { if (Test-Alive $child) { $alive++ } }
     if (($alive -eq 0) -or ((Get-Date) -gt $script:StopDeadline)) {
-        if ($alive -gt 0) { Write-TrayLog ("{0} child process(es) did not end in 5 seconds; the job ends them" -f $alive) }
+        if ($alive -gt 0) {
+            Write-TrayLog ("{0} child process(es) did not end in 5 seconds; the job ends them" -f $alive)
+            Show-Balloon ("The stop timed out: {0} process(es) did not end in 5 seconds. The job ends them. Details: {1}" -f $alive, $TrayLog) ([System.Windows.Forms.ToolTipIcon]::Error)
+        }
         Finish-Stop
     }
 }
