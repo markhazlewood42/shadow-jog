@@ -11,11 +11,15 @@ updated: 2026-10-14
 
 Mark saw 15 empty squares and "Not started" in the Status panel although M0 to M7 and ET are merged.
 
-Cause: `milestone: none` in `status.md` (stale), and the ET row sat after M8 in the table of `docs/engine/migration.md`. The strip code is right: it already draws done squares before the current one.
+Cause: the strip had no way to show a done milestone except by the hand-set `milestone:` key of `status.md`. The key was `none` between milestones, so every square was empty. The ET row also sat after M8 in the table of `docs/engine/migration.md`.
 
-Design (Mark, 2026-10-14): keep the `milestone:` key. Done means rows before the current one. Order the rows by when they started.
+Design (Mark, 2026-10-14): the strip always shows completed milestones, and shows a current one only when a session sets the key because it works on that milestone. This session does not mark M8 active: another session owns M8. A first try (key `M8`, done = rows before the current one) failed the roadmap test and was replaced.
 
-Pass lines: ET row above M8. Key is `M8`. A test reads the real `status.md` and table and fails on a bad key or ET after M8. README states the order rule.
+- A square is done when its item in `docs/roadmap/roadmap.json` has status `done`.
+- A square is current when the `milestone:` key names it. Current wins over done.
+- With the key `none`, the label says `None active`.
+- An unreadable `roadmap.json` makes the strip say Unavailable, never a blank strip.
+- The ET row is above M8. A test reads the real files.
 
 ## Running panel (Mark, 2026-10-14)
 

@@ -79,9 +79,9 @@ The Status panel on the Now page is a summary. Each row is a label, a value and 
 
 A row whose source failed shows `Unavailable`, the error code and a Retry button. The other rows stay.
 
-Under the rows, a strip shows the milestones of the table in `docs/engine/migration.md`: one small square for each row of that table (12 today: Phase 0, Pre-M0, M0, M1, M1b, M2 to M8). The table is the source, so a new row adds a square. A square before the current milestone is filled, the current one has the accent color, and later ones are outlined. Each square links to its heading in the doc. The current milestone shows as a link beside the squares.
+Under the rows, a strip shows the milestones of the table in `docs/engine/migration.md`: one small square for each row of that table (12 today: Phase 0, Pre-M0, M0, M1, M1b, M2 to M8). The table is the source, so a new row adds a square. A square is filled when the item with the same id in `docs/roadmap/roadmap.json` has the status `done` (whatever the row order and the key). The square that the `milestone:` key names has the accent color, and it wins over filled. All other squares are outlined. Each square links to its heading in the doc. The current milestone shows as a link beside the squares. The strip is never blank: finished milestones show with any key.
 
-The current milestone is the `milestone:` key in the frontmatter of `status.md`:
+The current milestone is the `milestone:` key in the frontmatter of `status.md`. It says which milestone a session is working on now:
 
 ```yaml
 ---
@@ -92,13 +92,22 @@ milestone: Pre-M0
 | Value | What the strip shows |
 |---|---|
 | The id of a table row, as the table writes it in bold (`Pre-M0`, `M3`, `M1b`; case matters) | That milestone is current |
-| `none` | No square is current, and the label `Not started` |
-| No key, or an empty one | The label `Milestone key missing` |
-| Anything else (`m3`, an id the table does not have, a number) | The label `Unknown milestone`. The page never guesses which milestone you meant. |
+| `none` | No square is current, and the label `None active`. Squares that are done stay filled. |
+| No key, or an empty one | The label `Milestone key missing`. Squares that are done stay filled. |
+| Anything else (`m3`, an id the table does not have, a number) | The label `Unknown milestone`. The page never guesses which milestone you meant. Squares that are done stay filled. |
 
-Squares before the current one show as done, so list the table rows in the order the milestones start. Set the key when a milestone starts. A key left on `none` after work merged shows every square empty.
+Where each part comes from:
 
-The loader is `parseMilestoneKey` in `src/server/status/status.ts`.
+- Squares and their order: the rows of the table in `docs/engine/migration.md`.
+- Done: the roadmap item with the same id (kind `milestone`) has the status `done`. A row with no item is not done. A test checks that the table and the roadmap have the same ids.
+- Current: the `milestone:` key. Current wins over done, so a key left on a finished milestone shows that milestone as current. Set the key to `none` when the work on a milestone ends.
+- Mark a milestone done in `docs/roadmap/roadmap.json` and run `npm run roadmap`. Then the strip fills its square.
+
+`tests/roadmap.test.ts` also requires the key to name a roadmap item with the status `active` (or `none` when no item is active). So a session that starts a milestone sets the item to `active` and the key to its id in the same change.
+
+If `docs/roadmap/roadmap.json` is missing or is not a roadmap, the strip shows `Unavailable` with the code and a Retry button, and draws no squares. The other rows stay.
+
+The loaders are `parseMilestoneKey`, `parseMilestones` and `parseRoadmapDone` in `src/server/status/status.ts`.
 
 ## Copy and Download
 
@@ -202,6 +211,8 @@ The two labels `decision` and `decided` must exist in the GitHub repo. Creating 
 | The Agents page shows the label "Session not active" | You followed a link from Your move to a session that is not in the diagram. Its process ended, or it is not active (rule R42). The page opens and does not scroll. Check Your move again. |
 | The label "Process list unavailable" | The agents module cannot read the folder `claude.sessionsRoot` (it is missing or unreadable), or none of its files has the keys the module needs. The page falls back to the file ages: a session that works (wrote within `claude.workingSeconds`) or waits for Mark (up to `claude.waitingSeconds`) counts as active. Check the folder and the config key. |
 | The Status strip says "Milestone key missing" or "Unknown milestone" | `status.md` has no `milestone:` key, or its value is not `none` or an id of the milestone table in `docs/engine/migration.md`. Case matters. See the `milestone:` key above. |
+| The Status strip says "None active" and a finished milestone shows as current | Done squares come from `docs/roadmap/roadmap.json`. If a finished milestone shows as current, the key still names it: set `milestone:` to `none`. If a finished milestone is not filled, set its roadmap item to `done`. |
+| The Status strip says Unavailable with `milestones-roadmap-unreadable` or `milestones-roadmap-missing` | `docs/roadmap/roadmap.json` is missing, is not valid JSON, or has no `items` list. Fix the file, then press Retry. |
 | `/docs/decisions` shows an error that names a column | Someone edited the decision table in `docs/engine/decisions.md`. The parser finds columns by header name, so restore the named column. An error that names an id (such as `E 5`) or a verdict (such as `deferred`) means a table row or a PHASE-0.2 decision line is mistyped: fix the line. The page never drops a decision silently. |
 | A doc is missing from its section, or "Other" is not empty | Add it to `nav.json` (see above). The Docs overview lists broken links and nav mistakes. |
 | The Now page shows plain panels first, then glass | PlasmaUI compiles its shaders on the page's main thread, and plain panels paint first. In a headless run under software GL the block lasts about 5.5 seconds. On a real GPU it is shorter. Turn off "Glass panels" to skip it. |

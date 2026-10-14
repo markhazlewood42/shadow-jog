@@ -5,8 +5,9 @@ import { inlineText } from '../inline-text';
 import { say } from '../messages';
 import { PanelError } from '../source';
 
-// The two docs that the status module reads: status.md (its date, its `milestone` key, and the "Next up
-// for Mark" list in the "Right now" section) and docs/engine/migration.md (the table of milestones).
+// The three files that the status module reads: status.md (its date, its `milestone` key, and the "Next up
+// for Mark" list in the "Right now" section), docs/engine/migration.md (the table of milestones) and
+// docs/roadmap/roadmap.json (the status of each milestone: done or not).
 // Both are written by people and agents, so their shape drifts: a section is renamed, an old section is
 // kept under "history", a table gains a column. The parsers therefore find things by their words and not
 // by their place, ignore what is not the current one, and say what is missing in an error that names
@@ -15,6 +16,8 @@ import { PanelError } from '../source';
 /** Where the two docs are in the repo. */
 export const STATUS_DOC_PATH = 'status.md';
 export const MIGRATION_DOC_PATH = 'docs/engine/migration.md';
+/** The roadmap: the one place that says which milestones are done (the milestone table has no state column). */
+export const ROADMAP_PATH = 'docs/roadmap/roadmap.json';
 
 /**
  * A parser of its own: this file reads the structure of a doc (its headings, lists and tables),
@@ -251,15 +254,40 @@ function anchorOf(id: string, headings: readonly DocHeading[]): string | null {
 }
 
 /**
+ * The ids of the milestones that are done in the roadmap: the items of kind `milestone` whose status is `done`. The text is the file as it is on disk.
+ * Throws a PanelError (`milestones-roadmap-unreadable`) when the text is not JSON or is not a roadmap (no `items` list), so the strip says Unavailable and
+ * never draws squares that look like "nothing is done".
+ */
+export function parseRoadmapDone(text: string): Set<string> {
+  const unreadable = (message: 'roadmapNotJson' | 'roadmapNoItems') => new PanelError('milestones-roadmap-unreadable', say(message, { path: ROADMAP_PATH }));
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw unreadable('roadmapNotJson');
+  }
+  const items = typeof parsed === 'object' && parsed !== null ? (parsed as { items?: unknown }).items : undefined;
+  if (!Array.isArray(items)) throw unreadable('roadmapNoItems');
+  const done = new Set<string>();
+  for (const item of items) {
+    if (typeof item !== 'object' || item === null) continue;
+    const { id, kind, status } = item as { id?: unknown; kind?: unknown; status?: unknown };
+    if (kind === 'milestone' && status === 'done' && typeof id === 'string') done.add(id);
+  }
+  return done;
+}
+
+/**
  * Reads the milestones from the table of docs/engine/migration.md: the table with a "Milestone" column
  * and a "One-line scope" column, found by those names wherever it is and in whatever order its columns
  * are. Another table that has a "Milestone" column (the doc has one that says which milestone moves
  * each part of the content) lacks the second name, so it is not taken. The table has no column for the
- * state of a milestone, so a milestone is its id, its name, its scope and the id of its heading in the
- * page of the doc (`headings` is that page's outline, see `anchorOf`). Throws a PanelError that
- * names the two columns when there is no such table.
+ * state of a milestone, so a milestone is its id, its name, its scope, the id of its heading in the
+ * page of the doc (`headings` is that page's outline, see `anchorOf`) and whether it is done (`done` is
+ * the set from `parseRoadmapDone`, joined by id: a row with no item in the roadmap is not done). Throws a
+ * PanelError that names the two columns when there is no such table.
  */
-export function parseMilestones(source: string, headings: readonly DocHeading[]): StatusInfo['milestones'] {
+export function parseMilestones(source: string, headings: readonly DocHeading[], done: ReadonlySet<string>): StatusInfo['milestones'] {
   const { body } = splitFrontmatter(source);
   const table = readTables(md.parse(body, {})).find((candidate) => candidate.headers.includes(MILESTONE_COLUMN) && candidate.headers.includes(SCOPE_COLUMN));
   if (table === undefined) {
@@ -272,7 +300,7 @@ export function parseMilestones(source: string, headings: readonly DocHeading[])
   for (const cells of table.rows) {
     const { id, name } = splitMilestone(cells[milestoneAt] ?? '');
     if (id === '') continue; // an empty row
-    milestones.push({ id, name, scope: inlineText(cells[scopeAt] ?? ''), anchor: anchorOf(id, headings) });
+    milestones.push({ id, name, scope: inlineText(cells[scopeAt] ?? ''), anchor: anchorOf(id, headings), done: done.has(id) });
   }
   return milestones;
 }

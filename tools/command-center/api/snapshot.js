@@ -7538,6 +7538,9 @@ var MESSAGES = {
   statusDocMissing: "{path} is not in the repo. Restore the file to show the project status.",
   milestonesDocMissing: "{path} is not in the repo. Restore the file to show the milestones.",
   statusNoSection: '{path} has no current "Right now" heading. Add one.',
+  roadmapDocMissing: "{path} is not in the repo. Restore the file to show which milestones are done.",
+  roadmapNotJson: "{path} is not valid JSON. Fix the file to show which milestones are done.",
+  roadmapNoItems: '{path} has no "items" list. Fix the file to show which milestones are done.',
   milestonesNoTable: '{path} has no table with the columns "Milestone" and "One-line scope". Add one.',
   // ---- the engine decisions ----
   engineDocMissing: "{path} is not in the repo. Restore the file to list its decisions.",
