@@ -254,11 +254,13 @@ test('the same seed and the same ticks give the same fight, tick for tick', asyn
       const bt = window.__stageedit?.battle();
       const hook = (window as unknown as { __SJ__?: { battleStage: unknown } }).__SJ__;
       if (!bt || !hook) throw new Error('no battle');
+      // One row per tick, taken as the tick starts (the state the last tick left). `advance(1)` in a loop would draw a frame after every tick, and a software renderer
+      // (the CI runner) takes most of the time there; one `advance` with the sampler in `until` draws once. The rows are the same state, tick for tick.
       const rows: unknown[] = [];
-      for (let i = 0; i < 600; i++) {
-        await bt.advance(1);
+      await bt.advance(600, () => {
         rows.push([hook.battleStage, bt.status().foes.map((f) => f.hp), bt.status().party.map((p) => p.hp)]);
-      }
+        return false;
+      });
       return JSON.stringify([rows, bt.trace]);
     });
     await page.evaluate(() => window.__stageedit?.stopBattle());
@@ -292,8 +294,8 @@ test('a hit makes the target flash and shake, and a hero who is hit is tinted an
     let foeShake = 0;
     let heroTint = 0;
     let heroShake = 0;
-    for (let i = 0; i < 6000 && bt.outcome === null; i++) {
-      await bt.advance(1);
+    // The sampler runs as each tick starts (it sees what the last tick left) and `advance` draws once at the end, not after every tick: see the determinism test.
+    const sample = (): void => {
       for (const f of hook.battleStage?.figures ?? []) {
         if (f.side === 'enemy') {
           if (f.flash > 0) foeFlash++;
@@ -303,7 +305,11 @@ test('a hit makes the target flash and shake, and a hero who is hit is tinted an
           if (f.bodyDx !== 0) heroShake++;
         }
       }
-    }
+    };
+    await bt.advance(6000, () => {
+      sample();
+      return bt.outcome !== null;
+    });
     return { foeFlash, foeShake, heroTint, heroShake, outcome: bt.outcome };
   });
   expect(seen.foeFlash).toBeGreaterThan(0);
@@ -322,12 +328,12 @@ test('a hit makes the target flash and shake, and a hero who is hit is tinted an
     // Play to the second round menu: the first round's hits have landed, and nothing is moving now.
     let menus = 0;
     let last = '';
-    for (let i = 0; i < 8000 && menus < 2 && bt.outcome === null; i++) {
-      await bt.advance(1);
+    await bt.advance(8000, () => {
       const m = bt.status().mode;
       if (m === 'round' && last !== 'round') menus++;
       last = m;
-    }
+      return menus >= 2 || bt.outcome !== null;
+    });
     await bt.advance(30);
     // A defeated enemy is gone (alpha 0) and a fallen hero is dimmed: neither is "standing".
     const live = (hook.battleStage?.figures ?? []).filter((f) => !f.down && f.alpha > 0);
@@ -440,7 +446,7 @@ test('a hero who is knocked out stays down, dimmed, for the rest of the fight', 
     const hook = (window as unknown as { __SJ__?: { battleStage: { figures: Array<{ id: string; side: string; down: boolean; alpha: number }> } | null } }).__SJ__;
     if (!bt || !hook) throw new Error('no battle');
     const down = (): Array<{ id: string; alpha: number }> => (hook.battleStage?.figures ?? []).filter((f) => f.side === 'party' && f.down);
-    for (let i = 0; i < 8000 && down().length === 0 && bt.outcome === null; i++) await bt.advance(1);
+    await bt.advance(8000, () => down().length > 0 || bt.outcome !== null);
     const first = down();
     const hero = first[0];
     if (!hero) return { hero: '', alphaAtFall: 0, later: [] as boolean[], standingAlpha: 0 };
