@@ -74,7 +74,7 @@ export function writeTogether(jobs: readonly FileJob[], ops: Partial<WriteOps> =
             io.rename(back, job.path);
           } finally {
             try {
-              if (existsSync(back)) unlinkSync(back);
+              if (existsSync(back)) io.remove(back);
             } catch {
               // litter only
             }
@@ -89,7 +89,7 @@ export function writeTogether(jobs: readonly FileJob[], ops: Partial<WriteOps> =
   } finally {
     for (const t of temps) {
       try {
-        if (existsSync(t)) unlinkSync(t);
+        if (existsSync(t)) io.remove(t);
       } catch {
         // A temporary file that cannot be removed is only litter; it never changes what the game reads.
       }

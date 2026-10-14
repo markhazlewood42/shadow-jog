@@ -26,7 +26,8 @@ import { openStage } from './sjestagekit';
 const ROOT = join(import.meta.dirname, '..');
 
 /** The hash of a file, or 'absent'. `media/` is git-ignored, so a hash is the only way to see that a run left it alone. */
-function hashOf(rel: string): string {
+function hashOf(rel: string | readonly string[]): string {
+  if (typeof rel !== 'string') return rel.map(hashOf).join(',');
   const p = join(ROOT, rel);
   return existsSync(p) ? createHash('sha256').update(readFileSync(p)).digest('hex') : 'absent';
 }
@@ -358,7 +359,8 @@ test.describe('the dry run of the animation editor save (POST /__rig/skeleton?dr
 });
 
 test.describe('the dry run of the art review save (POST /__artpass/review?dry=1)', () => {
-  const FILE = 'media/art-pass/review.json';
+  // The dev server reads the committed fixture when Playwright starts it (CI), and Mark's media/art-pass when a server was already running: neither review.json may change.
+  const FILE = ['media/art-pass/review.json', 'tests/fixtures/artpass/review.json'];
 
   test('a good body is checked and not written, even on a machine with no media/art-pass: the answer says dry, and the file hash is the same', async ({ request }) => {
     const before = hashOf(FILE);
@@ -402,4 +404,29 @@ test.describe('the dry run of the art review save (POST /__artpass/review?dry=1)
     }
     expect(hashOf(FILE)).toBe(before);
   });
+});
+
+test.describe('the FX lab save (POST /__fxlab/fx)', () => {
+  const FILE = 'src/data/fx.json';
+
+  test('a body over the limit gets 413 (not a dropped connection), dry or not, and nothing is written', async ({ request }) => {
+    const before = hashOf(FILE);
+    const big = JSON.stringify({ presets: {}, moments: {}, pad: 'x'.repeat(1_000_100) });
+    for (const url of ['/__fxlab/fx?dry=1', '/__fxlab/fx']) {
+      const r = await request.post(url, { data: big });
+      expect(r.status(), url).toBe(413);
+      const j = (await r.json()) as { ok: boolean; problems: string[] };
+      expect(j.ok).toBe(false);
+      expect(j.problems.join(' ')).toMatch(/bigger than/);
+    }
+    expect(hashOf(FILE)).toBe(before);
+  });
+});
+
+test('the stage editor endpoints answer only at their own address: a sub-path is a 404', async ({ request }) => {
+  for (const path of ['/__stage/stages/anything', '/__stage/hud/anything']) {
+    const r = await request.get(path);
+    expect(r.status(), path).toBe(404);
+  }
+  expect((await request.get('/__stage/stages')).status()).toBe(200);
 });

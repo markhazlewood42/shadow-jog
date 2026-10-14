@@ -42,8 +42,16 @@ beforeAll(async () => {
   const handlers = stageHandlers({ dataDir, scratchRoot: scratchDir, prepare: prepareSave, screen: SET_SCREEN });
   server = createServer((req, res) => {
     req.on('data', (c: Buffer) => (bodyBytesSeen += c.length));
-    if (req.url?.startsWith('/__stage/stages')) handlers.stages(req, res);
-    else if (req.url?.startsWith('/__stage/hud')) handlers.hud(req, res);
+    // Like Connect's `server.middlewares.use(prefix, handler)` (vite.config.ts): a prefix mount on a path-segment boundary, and the handler sees the url WITHOUT the prefix.
+    const mounted = (prefix: string): boolean => {
+      const url = req.url ?? '';
+      if (url !== prefix && !url.startsWith(`${prefix}/`) && !url.startsWith(`${prefix}?`)) return false;
+      const rest = url.slice(prefix.length);
+      req.url = rest.startsWith('/') ? rest : `/${rest}`;
+      return true;
+    };
+    if (mounted('/__stage/stages')) handlers.stages(req, res);
+    else if (mounted('/__stage/hud')) handlers.hud(req, res);
     else {
       res.statusCode = 404;
       res.end();
@@ -116,6 +124,20 @@ describe('reading', () => {
     expect(r.status).toBe(405);
     expect(r.body.problems.join(' ')).toMatch(/__stage\/stages/);
     expect(snapshot(dataDir)).toEqual(before);
+  });
+
+  it('a sub-path of an endpoint is a 404 (the mount is a prefix): nothing is read or written', async () => {
+    const before = snapshot(dataDir);
+    for (const path of ['/__stage/stages/anything', '/__stage/stages/x/y?scratch=a', '/__stage/hud/anything']) {
+      expect((await send('GET', path)).status, `GET ${path}`).toBe(404);
+    }
+    for (const path of ['/__stage/stages/anything', '/__stage/stages/anything?dry=1']) {
+      expect((await post(path, body())).status, `POST ${path}`).toBe(404);
+    }
+    expect(snapshot(dataDir)).toEqual(before);
+    // Control: the endpoint itself, with and without a query, still answers.
+    expect((await send('GET', '/__stage/stages')).status).toBe(200);
+    expect((await send('GET', '/__stage/stages?x=1')).status).toBe(200);
   });
 
   it('PUT and DELETE are 405', async () => {

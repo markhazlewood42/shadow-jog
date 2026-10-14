@@ -3,13 +3,13 @@
  * for. Align that stays inside the design's limits and reports what really happened, a zoom that is always a whole
  * number, one save that writes all the files together or none, and wording that follows the real state.
  */
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { StageEntry } from '../src/battlestage/config';
 import { ALIGN_GAP, alignAcross, alignDepth, type Reach, standingRange } from '../src/dev/stageedit/model';
 import { prepareSave } from '../src/dev/stageedit/save';
-import { writeTogether } from '../src/dev/stageedit/writeset';
+import { type WriteOps, writeTogether } from '../src/dev/stageedit/writeset';
 import { RULE_LIMITS } from '../src/battlestage/rules';
 import { H, W } from '../src/sje';
 import { devicePixelsPerGamePixel, zoomLine } from '../src/dev/stageedit/zoom';
@@ -284,6 +284,56 @@ describe('writeTogether: all the files or none', () => {
       ]),
     ).toThrow();
     expect(readFileSync(join(d, 'a.json'), 'utf8')).toBe('old a');
+    expect(readdirSync(d).sort()).toEqual(['a.json', 'b.json']);
+  });
+
+  // The injected `io.remove` is the only way the function deletes a file (PR 86 review, round 3, finding 6): a call to `unlinkSync` directly would leave the temporary files behind here.
+  const spyRemove = (): { removed: string[]; remove: WriteOps['remove'] } => {
+    const removed: string[] = [];
+    return { removed, remove: (p) => (removed.push(p), unlinkSync(p)) };
+  };
+
+  it('the temporary files that a failed write leaves are removed through io.remove', () => {
+    const d = tmp();
+    writeFileSync(join(d, 'a.json'), 'old a');
+    const { removed, remove } = spyRemove();
+    let writes = 0;
+    expect(() =>
+      writeTogether(
+        [
+          { path: join(d, 'a.json'), text: 'new a' },
+          { path: join(d, 'b.json'), text: 'new b' },
+        ],
+        { remove, writeFile: (p, t) => (++writes === 2 ? (() => { throw new Error('disk full'); })() : writeFileSync(p, t)) },
+      ),
+    ).toThrow(/disk full/);
+    expect(removed.map((p) => p.slice(d.length + 1)).sort()).toEqual([`a.json.${process.pid}.tmp`]);
+    expect(readdirSync(d)).toEqual(['a.json']);
+  });
+
+  it('the undo temporary file of a restore that failed is removed through io.remove', () => {
+    const d = tmp();
+    writeFileSync(join(d, 'a.json'), 'old a');
+    writeFileSync(join(d, 'b.json'), 'old b');
+    const { removed, remove } = spyRemove();
+    let renames = 0;
+    // Renames 1 and 2 are the two files going in; the 2nd fails; the 3rd (the restore of a.json) fails too, so its undo temp file stays until the cleanup.
+    const rename: WriteOps['rename'] = (from, to) => {
+      renames++;
+      if (renames >= 2) throw new Error(`rename ${renames} failed`);
+      renameSync(from, to);
+    };
+    expect(() =>
+      writeTogether(
+        [
+          { path: join(d, 'a.json'), text: 'new a' },
+          { path: join(d, 'b.json'), text: 'new b' },
+        ],
+        { remove, rename },
+      ),
+    ).toThrow(/putting the old text back failed/);
+    const names = removed.map((p) => p.slice(d.length + 1)).sort();
+    expect(names).toContain(`a.json.${process.pid}.undo.tmp`);
     expect(readdirSync(d).sort()).toEqual(['a.json', 'b.json']);
   });
 

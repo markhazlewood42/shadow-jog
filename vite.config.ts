@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Plugin } from 'vite';
+import { withBody } from './src/dev/endpoint';
 import { isDry, sameOrigin } from './src/dev/sameorigin';
 import { stageHandlers } from './src/dev/stageedit/serve';
 import { DEV_TOOLS } from './src/dev/tools';
@@ -42,41 +43,36 @@ function fxLab(): Plugin {
           reply(403, { ok: false, problems: ['writes only from the dev server’s own pages'] });
           return;
         }
-        let body = '';
-        req.on('data', (chunk: Buffer) => {
-          body += chunk.toString('utf8');
-          if (body.length > 1_000_000) req.destroy();
-        });
-        // The handler is async: a rejection (fxdata.ts with a syntax error mid-edit makes ssrLoadModule reject) is caught and answered 500, never left unhandled (PR 86 review, R1-3).
-        const handle = async (): Promise<void> => {
-          // The checks and the file format, through the dev server (the same code the game and the
-          // lab run, current after any edit to it).
-          const { checkFx, formatFx } = (await server.ssrLoadModule('/src/sje/fx/fxdata.ts')) as FxDataModule;
-          let data: unknown;
-          try {
-            data = JSON.parse(body);
-          } catch {
-            reply(400, { ok: false, problems: ['not valid JSON'] });
-            return;
-          }
-          const problems = checkFx(data);
-          if (problems.length) {
-            reply(400, { ok: false, problems });
-            return;
-          }
-          const text = formatFx(data as Parameters<typeof formatFx>[0]);
-          try {
-            if (!isDry(req.url)) writeFileSync(FX_FILE, text);
-            reply(200, { ok: true, text });
-          } catch (e) {
-            reply(500, { ok: false, problems: [`couldn't write fx.json: ${String(e)}`] });
-          }
-        };
-        req.on('end', () => {
-          handle().catch((e: unknown) => {
-            if (res.headersSent) return;
-            reply(500, { ok: false, problems: [`could not check the fx data: ${e instanceof Error ? e.message : String(e)}`] });
-          });
+        // An oversize body is read to the end and answered 413, a failure of the handler (fxdata.ts with a syntax error mid-edit makes ssrLoadModule reject) is answered 500: see withBody.
+        withBody(req, res, {
+          max: 1_000_000,
+          reply,
+          tooBig: { ok: false, problems: ['the body is bigger than 1000000 characters'] },
+          failed: (message) => ({ ok: false, problems: [`could not check the fx data: ${message}`] }),
+          handle: async (body) => {
+            // The checks and the file format, through the dev server (the same code the game and the
+            // lab run, current after any edit to it).
+            const { checkFx, formatFx } = (await server.ssrLoadModule('/src/sje/fx/fxdata.ts')) as FxDataModule;
+            let data: unknown;
+            try {
+              data = JSON.parse(body);
+            } catch {
+              reply(400, { ok: false, problems: ['not valid JSON'] });
+              return;
+            }
+            const problems = checkFx(data);
+            if (problems.length) {
+              reply(400, { ok: false, problems });
+              return;
+            }
+            const text = formatFx(data as Parameters<typeof formatFx>[0]);
+            try {
+              if (!isDry(req.url)) writeFileSync(FX_FILE, text);
+              reply(200, { ok: true, text });
+            } catch (e) {
+              reply(500, { ok: false, problems: [`couldn't write fx.json: ${String(e)}`] });
+            }
+          },
         });
       });
     },
@@ -117,7 +113,8 @@ function stageEdit(): Plugin {
   };
 }
 
-const ART_PASS = resolve(import.meta.dirname, 'media/art-pass');
+/** Where the art-pass data is. `SJ_ART_PASS_DIR` (set by playwright.config.ts) points it at the committed fixture `tests/fixtures/artpass`, so the specs do not need Mark's local, git-ignored `media/art-pass`. */
+const ART_PASS = resolve(import.meta.dirname, process.env.SJ_ART_PASS_DIR ?? 'media/art-pass');
 
 /**
  * The art-pass review endpoint (dev server only; the art itself stays in media/, out of git until
@@ -239,53 +236,45 @@ function rigEdit(): Plugin {
           reply(403, { ok: false, problem: 'writes only from the dev server’s own pages' });
           return;
         }
-        let body = '';
-        let tooBig = false;
-        req.on('data', (chunk: Buffer) => {
-          // An oversize body is read to the end and answered 413 (as the stage endpoint does), never by dropping the connection.
-          if (tooBig) return;
-          body += chunk.toString('utf8');
-          if (body.length > 1_000_000) {
-            tooBig = true;
-            body = '';
-          }
-        });
-        req.on('end', async () => {
-          if (tooBig) {
-            reply(413, { ok: false, problem: 'the body is bigger than 1000000 characters' });
-            return;
-          }
-          let data: unknown;
-          try {
-            data = JSON.parse(body);
-          } catch {
-            reply(400, { ok: false, problem: 'not valid JSON' });
-            return;
-          }
-          // The checks through the dev server (current after any edit to them).
-          const { checkSkeletons } = (await server.ssrLoadModule('/src/art/rig2/check.ts')) as RigCheckModule;
-          const problems = checkSkeletons(data);
-          // A save never drops someone the file has (an empty or partial post would wipe them).
-          // Only once the check has shown it's an object: `id in null` would throw (Copilot review of PR #1).
-          if (!problems.length) {
-            const gone = Object.keys(JSON.parse(readFileSync(SKELETON_FILE, 'utf8')) as object).filter((id) => !(id in (data as object)));
-            if (gone.length) problems.push(`would remove ${gone.join(', ')}`);
-          }
-          if (problems.length) {
-            reply(400, { ok: false, problem: problems.slice(0, 5).join('; ') + (problems.length > 5 ? ` (and ${problems.length - 5} more)` : '') });
-            return;
-          }
-          if (isDry(req.url)) {
-            reply(200, { ok: true, dry: true });
-            return;
-          }
-          try {
-            writeFileSync(SKELETON_FILE, `${JSON.stringify(data, null, 1)}
+        // An oversize body is read to the end and answered 413 (as the stage endpoint does), never by dropping the connection; a failure of the handler is answered 500: see withBody.
+        withBody(req, res, {
+          max: 1_000_000,
+          reply,
+          tooBig: { ok: false, problem: 'the body is bigger than 1000000 characters' },
+          failed: (message) => ({ ok: false, problem: `could not check the skeletons: ${message}` }),
+          handle: async (body) => {
+            let data: unknown;
+            try {
+              data = JSON.parse(body);
+            } catch {
+              reply(400, { ok: false, problem: 'not valid JSON' });
+              return;
+            }
+            // The checks through the dev server (current after any edit to them).
+            const { checkSkeletons } = (await server.ssrLoadModule('/src/art/rig2/check.ts')) as RigCheckModule;
+            const problems = checkSkeletons(data);
+            // A save never drops someone the file has (an empty or partial post would wipe them).
+            // Only once the check has shown it's an object: `id in null` would throw (Copilot review of PR #1).
+            if (!problems.length) {
+              const gone = Object.keys(JSON.parse(readFileSync(SKELETON_FILE, 'utf8')) as object).filter((id) => !(id in (data as object)));
+              if (gone.length) problems.push(`would remove ${gone.join(', ')}`);
+            }
+            if (problems.length) {
+              reply(400, { ok: false, problem: problems.slice(0, 5).join('; ') + (problems.length > 5 ? ` (and ${problems.length - 5} more)` : '') });
+              return;
+            }
+            if (isDry(req.url)) {
+              reply(200, { ok: true, dry: true });
+              return;
+            }
+            try {
+              writeFileSync(SKELETON_FILE, `${JSON.stringify(data, null, 1)}
 `);
-            reply(200, { ok: true });
-          } catch (e) {
-            reply(500, { ok: false, problem: `couldn't write skeleton.json: ${String(e)}` });
-          }
+              reply(200, { ok: true });
+            } catch (e) {
+              reply(500, { ok: false, problem: `couldn't write skeleton.json: ${String(e)}` });
+            }
+          },
         });
       });
     },

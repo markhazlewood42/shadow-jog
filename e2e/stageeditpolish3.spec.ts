@@ -277,8 +277,10 @@ test('Who’s standing here: a plain click on an enemy selects its slot like a h
   // Plain click: the slot is selected on the stage, with no preview change.
   const before = (await stageOf(page)).enemySets;
   await here.nth(0).click();
-  expect((await selected(page, 'enemy')).length).toBeGreaterThanOrEqual(1);
-  await expect(page.locator('#inspector')).toContainText(/Enem(y|ies)/);
+  const slots = (await selected(page, 'enemy')).length;
+  expect(slots).toBeGreaterThanOrEqual(1);
+  // The inspector titles the selection: "Enemy 1 of 3 · name" for one slot, "2 enemies" (lower case) for several. A click selects every slot the type stands in, and the fixture's first row stands in two.
+  await expect(page.locator('#inspector')).toContainText(slots > 1 ? `${slots} enemies` : /Enemy \d+ of \d+/);
   // An enemy that is not standing on this stage: the status line says so, nothing is selected or changed.
   await page.evaluate(() => window.__stageedit?.session.select([]));
   const away = page.locator('#enemies li', { has: page.locator('small:not(:text("here"))') }).first();

@@ -55,6 +55,14 @@ export interface StageServeOptions {
 
 type Handler = (req: IncomingMessage, res: ServerResponse) => void;
 
+/**
+ * Whether the request is for the endpoint itself. `vite.config.ts` mounts a handler with `server.middlewares.use('/__stage/stages', ...)`, a PREFIX mount that strips the prefix, so
+ * `/__stage/stages/anything` reaches the handler with the url `/anything`. Only the endpoint itself (`/`, with or without a query) is answered; any sub-path is a 404 (PR 86 review, round 3, finding 2).
+ */
+function isRoot(url: string | undefined): boolean {
+  return new URL(url ?? '/', 'http://localhost').pathname === '/';
+}
+
 function reply(res: ServerResponse, code: number, body: unknown): void {
   res.statusCode = code;
   res.setHeader('Content-Type', 'application/json');
@@ -87,6 +95,10 @@ function readPart(part: SavePart, dir: string | null, opts: StageServeOptions): 
 /** The handlers for `/__stage/stages` and `/__stage/hud`. */
 export function stageHandlers(opts: StageServeOptions): { stages: Handler; hud: Handler } {
   const stages: Handler = (req, res) => {
+    if (!isRoot(req.url)) {
+      reply(res, 404, { ok: false, problems: ['no such endpoint: use /__stage/stages'] });
+      return;
+    }
     let url: URL;
     let dir: string | null;
     try {
@@ -180,6 +192,10 @@ export function stageHandlers(opts: StageServeOptions): { stages: Handler; hud: 
   };
 
   const hud: Handler = (req, res) => {
+    if (!isRoot(req.url)) {
+      reply(res, 404, { ok: false, problems: ['no such endpoint: use /__stage/hud'] });
+      return;
+    }
     let dir: string | null;
     try {
       dir = folderFor(new URL(req.url ?? '/', 'http://localhost'), opts);
