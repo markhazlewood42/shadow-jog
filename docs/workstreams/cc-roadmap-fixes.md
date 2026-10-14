@@ -3,7 +3,7 @@ type: workstream
 title: Command Center roadmap fixes
 branch: cc-roadmap-fixes
 roadmap: ET
-state: active
+state: review
 updated: 2026-10-14
 ---
 
@@ -88,6 +88,7 @@ Mark asked why his builder session was missing from Running, and why the hosted 
 | `8dc4408` | `busy` and `shell` give busy; every other value gives idle; a session is never dropped for its status | 4 new tests fail on the old rule |
 | `e8d49fd` | `agents.items` (label, state, model, start, end) published and validated; the hosted Agents page draws one box per agent; an older reporter falls back to names | Builder: tsc, Vitest, lint, e2e:hosted exit 0 |
 | Round 1 | Runner, reader, attacker | Runner PASS (133 local, 27 hosted e2e), 1 Important (last box clipped). Reader: 4 Minor. Attacker: 2 Important (model prefix leak before redaction; README "no file path" claim false for labels) |
-| Fix `84cd157` | Model only `opus`, `sonnet`, `haiku`, `fable`, else null (write and read); README claim corrected; cluster padding; no empty Copy on hosted; twin ids in start order (the reporter lists items in session order now); 4 Minor fixed | Builder: all exit 0. Round 2 (1 fresh verifier on the named findings) not run yet |
+| Fix `84cd157` | Model only `opus`, `sonnet`, `haiku`, `fable`, else null (write and read); README claim corrected; cluster padding; no empty Copy on hosted; twin ids in start order (the reporter lists items in session order now); 4 Minor fixed | Builder: all exit 0. Builder: all exit 0 |
+| Round 2 | 1 fresh verifier (sonnet) on I1, I2, I3, M1 to M4 | PASS: 129 Vitest, 27 e2e:hosted, 31 local e2e. 1 Minor (a stale "running first" comment), fixed in `f546d0e` |
 
-No CHANGELOG entry yet: another session is changing the changelog process (Mark, 2026-10-14). Add the entry last, on the newest `main`, by that process if it has landed.
+Changelog: `changelog.d/cc-roadmap-fixes.md` (the new entry-file process landed on `main`; `CHANGELOG.md` is not edited).
