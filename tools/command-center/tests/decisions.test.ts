@@ -6,11 +6,11 @@ import {
   approvedTextsOf,
   classifyDecisions,
   classifyUpdateChoices,
-  inlineText,
   parseEngineDecisions,
   parseUpdateChoices,
   readmeWaitsForMark,
 } from '../src/server/engine/decisions';
+import { inlineText } from '../src/server/inline-text';
 import { PanelError } from '../src/server/source';
 import type { DocHeading } from '../src/shared/types';
 import { PACKAGE_DIR } from './helpers';

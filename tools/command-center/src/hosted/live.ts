@@ -1,3 +1,4 @@
+import { LIVE_OFFLINE_AFTER_SECONDS } from '../shared/live';
 import { type Env, readUpstash } from './env';
 import { CACHE, errorResponse, jsonResponse, methodNotAllowed, notConfigured } from './http';
 
@@ -6,7 +7,7 @@ import { CACHE, errorResponse, jsonResponse, methodNotAllowed, notConfigured } f
 
 export const LIVE_KEY = 'live';
 /** The reporter is offline when `writtenAt` is older than this (design.md section 7). The key itself lives 600 s, so "offline since" can show. */
-export const OFFLINE_AFTER_SECONDS = 150;
+export const OFFLINE_AFTER_SECONDS = LIVE_OFFLINE_AFTER_SECONDS;
 
 export type ReporterState = 'online' | 'offline' | 'not-running';
 export type Reporter = { state: ReporterState; writtenAt: string | null; ageSeconds: number | null; offlineAfterSeconds: number };

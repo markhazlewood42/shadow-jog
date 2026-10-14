@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { NOW, NOW_ISO, decision, goodFile, liveAnswer, liveState, pr, row, snapshot } from '../fixtures/hosted/world';
+import { NOW, NOW_ISO, decision, liveAnswer, liveState, pr, row, snapshot } from '../fixtures/hosted/world';
 import type { Snapshot } from '../src/github-api/types';
 import type { AgentsLive, Decision, DocPageData, DocsListing, GitInfo, Health, Panel, StatusInfo, YourMoveInfo } from '../src/shared/types';
 import type { FetchFn } from '../src/web/hosted/fetch';
@@ -109,8 +109,8 @@ describe('the panels made from the snapshot', () => {
 describe('the panels made from the live key', () => {
   const sessions = liveState({
     sessions: [
-      { id: 'new', title: 'Newer', branch: 'a', folder: 'f', state: 'waiting', startedAt: '2026-10-12T11:00:00.000Z', agents: { running: 0, done: 0, names: [] } },
-      { id: 'old', title: 'Older', branch: 'b', folder: 'f', state: 'working', startedAt: '2026-10-12T09:00:00.000Z', agents: { running: 2, done: 1, names: ['x', 'y', 'z'] } },
+      { id: 'new', title: 'Newer', branch: 'a', folder: 'f', state: 'waiting', startedAt: '2026-10-12T11:00:00.000Z', agents: { running: 0, done: 0, names: [] }, yourMove: null },
+      { id: 'old', title: 'Older', branch: 'b', folder: 'f', state: 'working', startedAt: '2026-10-12T09:00:00.000Z', agents: { running: 2, done: 1, names: ['x', 'y', 'z'] }, yourMove: null },
     ],
   });
 
@@ -153,13 +153,14 @@ describe('the Workstreams view and "Your move"', () => {
     expect(view.live).toEqual({ state: 'not-running' });
   });
 
-  it('builds "Your move" from decisions, workstreams and PRs', async () => {
-    const withLines = row('alpha', {
-      workstream: goodFile('alpha', { state: 'review', next_for_mark: '[]' }),
+  it('builds "Your move" from the decisions and the PRs of the snapshot and the asks of the live key (the shared rule; see hosted-your-move.test.ts)', async () => {
+    const live = liveState({
+      sessions: [{ id: 's1', title: 'Flip it', branch: 'alpha', folder: 'f', state: 'waiting', startedAt: null, agents: { running: 0, done: 0, names: [] }, yourMove: { at: NOW_ISO, lines: ['Look at the picture'] } }],
     });
-    const { resolve } = setup({ snap: snapshot({ workstreams: [withLines], decisions: { open: [decision(5)], recent: [] } }) });
+    const { resolve } = setup({ snap: snapshot({ github: { open: [pr(30, 'alpha', { attention: 'merge' })], merged: [] }, decisions: { open: [decision(5)], recent: [] } }), live: liveAnswer('online', live) });
     const info = dataOf(await resolve<YourMoveInfo>('/api/now/your-move'));
-    expect(info.items.map((item) => item.source)).toContain('decision-issue');
+    expect(info.items.map((item) => item.source)).toEqual(['decision-issue', 'session', 'pr']);
+    expect(info.missing).toEqual([]);
   });
 });
 
@@ -169,6 +170,13 @@ describe('decisions', () => {
     expect(dataOf(await resolve<{ number: number; sections: unknown[] }>('/api/decisions/12'))).toMatchObject({ number: 12, sections: [] });
     expect(dataOf(await resolve<{ number: number }>('/api/decisions/8')).number).toBe(8);
     expect(await resolve<unknown>('/api/decisions/99')).toMatchObject({ ok: false, error: { code: 'decision-not-found' } });
+  });
+
+  it('answers /api/decisions (the list that the docs page checks the engine decisions against) from the snapshot', async () => {
+    const { resolve } = setup({ snap: snapshot({ decisions: { open: [decision(12)], recent: [decision(8, { state: 'answered' })] } }) });
+    const info = dataOf(await resolve<{ open: { number: number }[]; recent: { number: number }[] }>('/api/decisions'));
+    expect(info.open.map((entry) => entry.number)).toEqual([12]);
+    expect(info.recent.map((entry) => entry.number)).toEqual([8]);
   });
 });
 
@@ -211,6 +219,13 @@ describe('docs, read through /api/docs/<repo path>', () => {
     expect(doc.headings.length).toBeGreaterThan(0);
     expect(doc.title).not.toBe('');
     expect(requested).toEqual(['/api/docs/docs/engine/decisions.md']);
+  });
+
+  it('shows the roadmap chart (an svg) as a picture, not as a link', async () => {
+    const { resolve } = setup();
+    const doc = dataOf(await resolve<DocPageData>('/api/docs/roadmap/README'));
+    expect(doc.html).toMatch(/<img [^>]*src="\/api\/docs\/docs\/roadmap\/roadmap\.svg"[^>]*data-zoom="\/api\/docs\/docs\/roadmap\/roadmap\.svg"/);
+    expect(doc.html).not.toMatch(/<a [^>]*>The roadmap as a Gantt-style chart/);
   });
 
   it('tries the root file when a slug has no folder and no file in docs/', async () => {

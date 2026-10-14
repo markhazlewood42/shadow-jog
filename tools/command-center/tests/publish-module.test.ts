@@ -133,7 +133,7 @@ describe('the reporter module', () => {
     const value = JSON.parse(command[2] as string);
     expect(value).toEqual({
       writtenAt: '2026-10-12T09:00:00.000Z',
-      sessions: [{ id: 's1', title: 'Build the reporter', branch: 'reporter', folder: 'shadow-jog', state: 'waiting', startedAt: '2026-10-12T08:00:00.000Z', agents: { running: 1, done: 0, names: ['Check the diff'] } }],
+      sessions: [{ id: 's1', title: 'Build the reporter', branch: 'reporter', folder: 'shadow-jog', state: 'waiting', startedAt: '2026-10-12T08:00:00.000Z', agents: { running: 1, done: 0, names: ['Check the diff'] }, yourMove: null }],
       worktrees: [{ path: 'shadow-jog', branch: 'reporter', dirty: 1 }],
     });
     expect(stored[0]).not.toContain('SECRET');
@@ -303,5 +303,60 @@ describe('the reporter module: a failing source and the runners', () => {
     await module.stop();
     expect(seen.length).toBeGreaterThan(0);
     for (const roots of seen) expect(roots.slice(0, -1)).toEqual(config.roots);
+  });
+});
+
+// ---- the live ask, end to end through the module ----
+
+describe('the reporter module: the live ask', () => {
+  const NOW = '2026-10-12T09:00:00.000Z';
+  const settings = { upstashUrl: 'https://eu-1.upstash.io', token: new Secret(TOKEN), hostedUrl: 'https://cc.example.vercel.app' };
+  const git = async (args: string[]) => (args[0] === 'worktree' ? { code: 0, stdout: 'worktree C:/work/shadow-jog\nHEAD aaa\nbranch refs/heads/main\n', stderr: '' } : { code: 0, stdout: '', stderr: '' });
+  const live = { sessions: [{ id: 's1', title: 'Build it', state: 'waiting', startedAt: '2026-10-12T08:00:00.000Z', filePath: 'x', nodes: [] }], hiddenScripts: 0, source: 'process-list' } as unknown as AgentsLive;
+  const info = (yourMove: object): SessionsInfo =>
+    ({ sessions: [{ id: 's1', branch: 'main', cwd: 'C:\\x\\shadow-jog', title: 'ignored', yourMove }], scanned: 1, skipped: 0, hiddenSdk: 0 }) as unknown as SessionsInfo;
+  const box = (extra: object = {}) => ({ light: 'yellow', items: ['Look at the picture'], nothing: false, at: '2026-10-12T08:30:00.000Z', answered: false, ...extra });
+
+  /** Runs the module once and returns the `sessions[0].yourMove` of the value that it stored. */
+  async function askStored(sessions: PanelSource<SessionsInfo>): Promise<unknown> {
+    const stored: string[] = [];
+    const module = createReporterModule(
+      {
+        settings,
+        onExit: () => {},
+        http: async (_url, request) => {
+          if (request.method === 'POST') stored.push(request.body as string);
+          return request.method === 'GET' ? response(401) : response(200, '{"result":"OK"}');
+        },
+        now: () => Date.parse(NOW),
+        log: () => {},
+        git,
+      },
+      { config: makeTestConfig(), sessions, agents: agentsOf(live) },
+    );
+    module.start();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    module.stop();
+    const command = JSON.parse(stored[0] as string) as string[];
+    return (JSON.parse(command[2] as string) as { sessions: { yourMove: unknown }[] }).sessions[0]?.yourMove;
+  }
+
+  it('sends the lines of a box that waits for Mark', async () => {
+    expect(await askStored(sessionsOf(info(box())))).toEqual({ at: '2026-10-12T08:30:00.000Z', lines: ['Look at the picture'] });
+  });
+
+  it('sends none for a box that Mark answered, that says nothing, or that is more than 12 hours old', async () => {
+    expect(await askStored(sessionsOf(info(box({ answered: true }))))).toBeNull();
+    expect(await askStored(sessionsOf(info(box({ nothing: true, items: [] }))))).toBeNull();
+    expect(await askStored(sessionsOf(info(box({ at: '2026-10-11T20:00:00.000Z' }))))).toBeNull();
+  });
+
+  it('sends none when the sessions read failed, even if its last good data had a box: whether Mark answered is a fact of now', async () => {
+    const failing: PanelSource<SessionsInfo> = {
+      get: async (): Promise<Panel<SessionsInfo>> => ({ ok: false, error: { code: 'x', message: 'x' }, updatedAt: null, lastGood: { data: info(box()), updatedAt: 'then' } }),
+      start() {},
+      stop() {},
+    };
+    expect(await askStored(failing)).toBeNull();
   });
 });

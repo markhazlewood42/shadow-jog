@@ -389,10 +389,13 @@ export function isRecent(at: string, now: number): boolean {
 }
 
 /**
- * Puts a decision on the list it belongs to: the open ones, or the ones answered in the last week. Any other (a closed one, an old answer) is on neither list.
+ * Puts a decision on the list it belongs to: the open ones, or the ones answered in the last week. Any other (a closed one, an old answer) is on neither of those lists, but every issue is on `covering`.
  * The GitHub API adapter (src/github-api) uses it too, so both sources sort decisions in one way.
  */
 export function addDecision(info: DecisionsInfo, issue: DecisionIssue, now: number): void {
+  // Every issue goes on the coverage list, whatever its state or age: the check of /docs/decisions asks "does any decision issue exist for this doc decision", and an issue
+  // answered months ago still answers that.
+  (info.covering ??= []).push({ number: issue.number, title: issue.title, question: issue.question, docs: issue.docs });
   if (issue.state === 'open') info.open.push(issue);
   else if (issue.state === 'answered' && issue.answer !== null && isRecent(issue.answer.at, now)) info.recent.push(issue);
 }

@@ -77,6 +77,13 @@ describe('loadConfig', () => {
     expect(claude.waitingSeconds).toBeGreaterThan(claude.workingSeconds);
   });
 
+  it('names the worktree session folders of Shadow Jog by prefix, and a file without folderPrefixes means none', () => {
+    expect(loadConfig(REAL_CONFIG).claude.folderPrefixes).toEqual(['C--Users-markh-home-base-projects-shadow-jog--claude-worktrees-']);
+    const json = realConfigJson();
+    delete json.claude.folderPrefixes;
+    expect(loadConfig(writeConfig(json, 'no-folder-prefixes.json')).claude.folderPrefixes).toEqual([]);
+  });
+
   it('lists no SDK runs by default: the config file says includeSdk is false, and a file without the key means false (ruling R18)', () => {
     expect(JSON.parse(readFileSync(REAL_CONFIG, 'utf8')).claude.includeSdk).toBe(false); // the file says so itself
     expect(loadConfig(REAL_CONFIG).claude.includeSdk).toBe(false);
@@ -195,6 +202,11 @@ describe('loadConfig', () => {
     ['an empty roots list', (c) => (c.roots = []), /roots/],
     ['a session folder name with a path separator', (c) => (c.claude.folders = ['a/b']), /folders/],
     ['a session folder name that is ..', (c) => (c.claude.cwdMatchFolders = ['..']), /cwdMatchFolders/],
+    ['a session folder prefix with a path separator', (c) => (c.claude.folderPrefixes = ['a/b']), /folderPrefixes/],
+    ['a session folder prefix that is empty', (c) => (c.claude.folderPrefixes = ['']), /folderPrefixes/],
+    ['a session folder prefix that does not end in --claude-worktrees- (it would match a sibling folder)', (c) => (c.claude.folderPrefixes = ['C--Users-markh-home-base-projects-shadow-jog']), /folderPrefixes.*claude-worktrees-/],
+    ['a session folder prefix that is only the worktree ending', (c) => (c.claude.folderPrefixes = ['--claude-worktrees-']), /folderPrefixes/],
+    ['a one-character session folder prefix', (c) => (c.claude.folderPrefixes = ['C']), /folderPrefixes/],
     ['zero workingSeconds', (c) => (c.claude.workingSeconds = 0), /workingSeconds/],
     ['negative recentSeconds', (c) => (c.claude.recentSeconds = -5), /recentSeconds/],
     ['includeSdk given as text', (c) => (c.claude.includeSdk = 'true'), /includeSdk/],

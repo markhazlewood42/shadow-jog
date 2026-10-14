@@ -1,8 +1,9 @@
 import { Chip, type Key, ToggleButton, ToggleButtonGroup } from '@heroui/react';
-import { Check, CircleDot, Pencil } from 'lucide-react';
+import { Check, CircleDot, Pencil, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
-import type { Decision, DecisionSource, DecisionStatus, ModuleName } from '../../shared/types';
+import { decisionsWithoutIssue } from '../../shared/decision-coverage';
+import type { Decision, DecisionSource, DecisionStatus, DecisionsInfo, ModuleName } from '../../shared/types';
 import { PanelFrame } from '../PanelFrame';
 import { usePanel } from '../usePanel';
 import { docPath } from './paths';
@@ -10,6 +11,9 @@ import { useDocumentTitle } from './useDocumentTitle';
 
 /** The list reloads when the engine module says that a decision, or its status, changed. */
 const ENGINE_MODULES: readonly ModuleName[] = ['engine'];
+
+/** The warning about decisions with no issue loads again when the decision issues change. */
+const ISSUE_MODULES: readonly ModuleName[] = ['decisions'];
 
 /** The three places that hold decisions, in the order of the list, and what the page calls each. */
 const SOURCES: readonly { source: DecisionSource; title: string; where: string }[] = [
@@ -245,6 +249,37 @@ export function DecisionList({ decisions }: { decisions: readonly Decision[] }) 
 }
 
 /**
+ * The warning for the open decisions that have no decision issue (your-move-redesign.md section 5). "Your move" shows a decision only through its issue on GitHub, so
+ * a decision that has none is invisible to Mark. The warning names each one. When the issues cannot be read, the page says that the check did not run: it is never silent.
+ */
+function IssueCoverage({ decisions }: { decisions: readonly Decision[] }) {
+  const issues = usePanel<DecisionsInfo>('/api/decisions', ISSUE_MODULES);
+  const panel = issues.panel;
+  if (panel === null) return null;
+  const info = panel.ok ? panel.data : (panel.lastGood?.data ?? null);
+  if (info === null) {
+    const reason = panel.ok ? '' : panel.error.message;
+    return (
+      <p role="note" className="flex items-start gap-2 rounded-md border border-cc-rule-solid bg-cc-paper px-3 py-2 text-sm text-cc-muted">
+        <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0 text-cc-ink" />
+        <span className="min-w-0">Check not run: the decision issues could not be read. {reason}</span>
+      </p>
+    );
+  }
+  const missing = decisionsWithoutIssue(decisions, info.covering ?? [...info.open, ...info.recent]);
+  if (missing.length === 0) return null;
+  const one = missing.length === 1;
+  return (
+    <p role="note" aria-label="Decisions with no issue" className="flex items-start gap-2 rounded-md border border-cc-rule-solid bg-cc-paper px-3 py-2 text-sm">
+      <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0 text-cc-ink" />
+      <span className="min-w-0">
+        {missing.length} open {one ? 'decision has' : 'decisions have'} no decision issue: <span className="font-mono">{missing.map((decision) => decision.number).join(', ')}</span>. Raise {one ? 'it' : 'each one'} as a decision issue on GitHub.
+      </span>
+    </p>
+  );
+}
+
+/**
  * The page at /docs/decisions: every decision of the engine design in one table, from the three docs
  * that hold them, with the status of each (open for Mark, changed since the approval, or approved).
  * The list is a panel of its own: when the engine module fails (a table lost a column, the approval
@@ -258,7 +293,12 @@ export function Decisions() {
       {/* The heading stands alone (design 5.8): the page does not explain the three statuses. The design doc does, and the status chips say them in a word. */}
       <h1 className="text-3xl font-semibold tracking-tight">Decisions</h1>
       <PanelFrame title="Decisions" result={result}>
-        {(decisions) => <DecisionList decisions={decisions} />}
+        {(decisions) => (
+          <div className="flex flex-col gap-4">
+            <IssueCoverage decisions={decisions} />
+            <DecisionList decisions={decisions} />
+          </div>
+        )}
       </PanelFrame>
     </div>
   );

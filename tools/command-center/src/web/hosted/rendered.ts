@@ -25,7 +25,7 @@ const BLOB_BASE = `https://github.com/${HOSTED_REPO}/blob/main`;
 
 /**
  * The hosted page has no list of the files of the repo, so it cannot check a link against one. It answers by the allow-list of `/api/docs` (the same rule the function
- * applies): a markdown file under `docs/` or in the root is a doc of this site, a PNG under `docs/` is a picture the function serves, and any other path opens on GitHub.
+ * applies): a markdown file under `docs/` or in the root is a doc of this site, a PNG or SVG under `docs/` is a picture the function serves, and any other path opens on GitHub.
  * A link to a doc that does not exist shows the "Doc not found" page when it is opened. The local page marks such a link as broken at render time.
  */
 class HostedDocLinks extends Map<string, string> {
@@ -38,7 +38,7 @@ class HostedDocLinks extends Map<string, string> {
 class HostedAssetLinks extends Map<string, string> {
   override get(path: string): string | undefined {
     const parsed = parseDocPath(`/api/docs/${path}`);
-    return parsed.ok && parsed.type === 'png' ? `/api/docs/${path}` : undefined;
+    return parsed.ok && (parsed.type === 'png' || parsed.type === 'svg') ? `/api/docs/${path}` : undefined;
   }
 }
 

@@ -4,10 +4,6 @@ title: M7 3D mode
 branch: engine-m7-3d-mode
 roadmap: M7
 state: review
-next_for_mark:
-  - Check the new glitch GIF (2 s each way, sent in chat) or try it in npm run dev with ?scene=hack&fx=full&jack=glitch
-  - Merge PR #80 after the glitch looks right (CI green at 715387d)
-  - File the fifth review (6 findings, none Critical) on issue #81, or let a session do it
 updated: 2026-10-13
 ---
 
