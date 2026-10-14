@@ -41,7 +41,7 @@ Built from `docs/command-center/your-move-redesign.md`: one shared rule, three s
 | Hook | The `SessionStart` entry for `reporter-hook.mjs` is removed from `~/.claude/settings.json` (Mark) | Done |
 | Fix `7a67072` | The launcher "held lock" test used a fake owner pid, so it passed only while a real reporter held port 29417. It now names the test process. The update log line names the branch, not "main" | 1 verifier PASS, 103 tests and tsc exit 0, a forced takeover fails the test |
 
-Next: PR #85 is ready for Mark to merge. After the merge, the desktop shortcut (README step 5) starts the tray without `-Branch`. More Command Center work continues on this branch (Mark, 2026-10-13): keep the worktree.
+Next: PR #85 is merged, and the desktop shortcut (README step 5) runs the tray. The branch is fast-forwarded to main. Mark picks the next round of Command Center work on this branch (keep the worktree).
 
 Candidates for the next round (seen in the tray test, not built):
 - A `home-base` session shows in Running only while its working folder is inside Shadow Jog, so a session that steps out for a moment drops off the list.
