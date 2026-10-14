@@ -127,18 +127,6 @@ function Card({ card, now }: { card: WorkstreamCard; now: number }) {
 
       {card.pr === null ? <p className="text-sm text-cc-muted">No PR</p> : <PullRequestLine pr={card.pr} now={now} />}
 
-      {card.nextForMark.length > 0 && (
-        <Detail label="Next for Mark">
-          <ul className="flex flex-col gap-1 text-sm">
-            {card.nextForMark.map((line) => (
-              <li key={line} className="break-words">
-                {line}
-              </li>
-            ))}
-          </ul>
-        </Detail>
-      )}
-
       {card.blockedOn.length > 0 && (
         <Detail label="Blocked on">
           <ul className="flex flex-wrap gap-x-3 gap-y-1 text-sm">

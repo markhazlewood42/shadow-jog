@@ -21,7 +21,6 @@ function file(overrides: Record<string, string | null> = {}, body = 'Notes.\n'):
     branch: 'engine-m6-flip',
     roadmap: 'M6',
     state: 'review',
-    next_for_mark: '\n  - Rename the required checks\n  - Merge the PR',
     blocked_on: '[61]',
     updated: '2026-10-11',
     ...overrides,
@@ -52,7 +51,6 @@ describe('parseWorkstream: a valid file', () => {
         branch: 'engine-m6-flip',
         roadmap: 'M6',
         state: 'review',
-        next_for_mark: ['Rename the required checks', 'Merge the PR'],
         blocked_on: [61],
         updated: '2026-10-11',
       },
@@ -66,8 +64,6 @@ title: M6 flip default
 branch: engine-m6-flip
 roadmap: m6            # id in roadmap.json
 state: review          # active | review | blocked | parked | merged
-next_for_mark:
-  - Rename the required checks in the main ruleset to e2e (1/4) to e2e (4/4)
 blocked_on: [61]       # decision issue numbers
 updated: 2026-10-11
 ---
@@ -81,16 +77,11 @@ updated: 2026-10-11
     }
   });
 
-  it('lets next_for_mark and blocked_on be left out, empty or written with nothing after the key', () => {
-    for (const overrides of [
-      { next_for_mark: null, blocked_on: null },
-      { next_for_mark: '[]', blocked_on: '[]' },
-      { next_for_mark: '', blocked_on: '' },
-    ]) {
+  it('lets blocked_on be left out, empty or written with nothing after the key', () => {
+    for (const overrides of [{ blocked_on: null }, { blocked_on: '[]' }, { blocked_on: '' }]) {
       const result = parseWorkstream(PATH, file(overrides));
       expect(result.ok).toBe(true);
       if (result.ok) {
-        expect(result.workstream.next_for_mark).toEqual([]);
         expect(result.workstream.blocked_on).toEqual([]);
       }
     }
@@ -143,12 +134,6 @@ describe('parseWorkstream: each invalid field', () => {
     expect(errorsOf(file({ state: null }))[0]).toMatch(/not undefined/);
   });
 
-  it('rejects next_for_mark that is not a list of texts', () => {
-    expect(errorsOf(file({ next_for_mark: 'Merge the PR' }))[0]).toMatch(/^next_for_mark must be a list/);
-    expect(errorsOf(file({ next_for_mark: '[1, 2]' }))[0]).toMatch(/^next_for_mark must be a list/);
-    expect(errorsOf(file({ next_for_mark: '\n  - ok\n  - ""' }))[0]).toMatch(/^next_for_mark must be a list/);
-  });
-
   it('rejects blocked_on that is not a list of whole numbers', () => {
     for (const blocked_on of ['61', '[a]', '[61.5]', '["61"]', '[0]', '[-3]']) {
       expect(errorsOf(file({ blocked_on }))[0]).toMatch(/^blocked_on must be a list of issue numbers/);
@@ -166,7 +151,7 @@ describe('parseWorkstream: each invalid field', () => {
 
   it('rejects an unknown field, which is most likely a typo', () => {
     expect(errorsOf(file({ next_for_me: '[]' }))).toEqual([
-      'unknown field "next_for_me" (allowed: type, title, branch, roadmap, state, next_for_mark, blocked_on, updated)',
+      'unknown field "next_for_me" (allowed: type, title, branch, roadmap, state, blocked_on, updated)',
     ]);
   });
 

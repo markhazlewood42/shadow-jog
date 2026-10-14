@@ -4,8 +4,6 @@ title: Workstream contract
 branch: workstream-contract
 roadmap: cc-followups
 state: review
-next_for_mark:
-  - Merge the workstream-contract PR
 blocked_on: []
 updated: 2026-10-11
 ---
