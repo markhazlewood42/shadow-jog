@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BG_IDS } from '../src/art/battlebg480';
-import { checkAxes, checkStages, depthFor, type EntryFile, ORDER_STEP, type StageConfig, type StageEntry, setSize, slotPoint } from '../src/battlestage/config';
+import { checkAxes, checkStages, depthFor, type EntryFile, type StageConfig, type StageEntry, setSize, slotPoint } from '../src/battlestage/config';
 import { hitGrip, hitHud, hitLine, resizeBox } from '../src/dev/stageedit/hit';
 import { comboOf, KEYS, matchKey, RESERVED } from '../src/dev/stageedit/keys';
 import {
@@ -35,7 +35,7 @@ import { formatAxes, formatHud, formatStages, prepareSave } from '../src/dev/sta
 import { type EditorData, Session } from '../src/dev/stageedit/session';
 import { applyPreset } from '../src/battlestage/hudpresets';
 import { STAGE_KNOWN } from '../src/battlestage/known';
-import { formatJson } from '../src/tools/jsonfmt';
+import { formatJson } from '../src/dev/stageedit/jsonfmt';
 import { fixtureEntries, fixtureFacing, fixtureHeroes, fixtureHud, fixtureStages, shippedHud, shippedStagesJson } from './stagefiles';
 
 const file = (): EntryFile => fixtureEntries();
@@ -159,7 +159,8 @@ describe('moving fighters', () => {
     // Forward beats a same-row neighbour at any x, yet a back-row fighter cannot pass a front-row one.
     expect(depthFor(174, 200, 'party', 1)).toBeGreaterThan(depthFor(174, 240, 'party', 0));
     expect(depthFor(157, 240, 'enemy', 1)).toBeLessThan(depthFor(174, 0, 'party', -1));
-    expect(ORDER_STEP).toBeLessThan(14 * 1000);
+    // One step of draw order is worth 1000 depth units (the engine's `depthFor`: `order * 1000`): less than a row apart (rows are at least 14 px = 14,000).
+    expect(depthFor(174, 240, 'party', 1) - depthFor(174, 240, 'party', 0)).toBeLessThan(14 * 1000);
     const first = s.party[0];
     if (first) (first as { order: number }).order = 2;
     expect(valid(s).join()).toMatch(/order must be/);

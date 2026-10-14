@@ -1,5 +1,5 @@
 /**
- * Battle Stage Editor, polish round 2 (`/stageedit.html`, spike `spike/phaser-stage`): what Mark's judges asked for
+ * Battle Stage Editor, polish round 2 (`/stageedit.html`, spike `spike/phaser-stage`; ported to the engine and the 640x360 set in ET task 5): what Mark's judges asked for
  * after round 1, driven with a real mouse and keyboard on a private scratch copy of the data.
  *
  * Align that does what it says (the middle row, fighters packed on one row), shortcuts that the browser leaves alone,
@@ -44,15 +44,15 @@ test('Align Middle puts one fighter on the middle row by count: row 3 of 5', asy
 
 test('Align left, centre and right pack fighters that share a row, in their old order, and the status line says so', async ({ page }) => {
   await openEditor(page, scratch);
-  // Three enemies on one row, standing at x 360, 300 and 420 (left to right: the 2nd, the 1st, the 3rd).
+  // Three enemies on one row, standing at x 440, 380 and 500 (left to right: the 2nd, the 1st, the 3rd). (The 480 numbers 360, 300 and 420, moved right by 80.)
   await page.locator('#seg-set button[data-set="3"]').click();
   await page.evaluate(() => {
     window.__stageedit?.session.edit('Three on one row', (d) => {
       const s = d.stages.street as StageEntry;
       s.enemySets['3'] = [
-        { x: 360, row: 2 },
-        { x: 300, row: 2 },
-        { x: 420, row: 2 },
+        { x: 440, row: 2 },
+        { x: 380, row: 2 },
+        { x: 500, row: 2 },
       ];
     });
   });
@@ -90,9 +90,9 @@ test('Align left, centre and right pack fighters that share a row, in their old 
     window.__stageedit?.session.edit('Three rows', (d) => {
       const s = d.stages.street as StageEntry;
       s.enemySets['3'] = [
-        { x: 360, row: 1 },
-        { x: 300, row: 2 },
-        { x: 420, row: 3 },
+        { x: 440, row: 1 },
+        { x: 380, row: 2 },
+        { x: 500, row: 3 },
       ];
     });
   });
@@ -104,9 +104,9 @@ test('Align left, centre and right pack fighters that share a row, in their old 
     window.__stageedit?.session.edit('Three on one row', (d) => {
       const s = d.stages.street as StageEntry;
       s.enemySets['3'] = [
-        { x: 360, row: 2 },
-        { x: 300, row: 2 },
         { x: 440, row: 2 },
+        { x: 380, row: 2 },
+        { x: 520, row: 2 },
       ];
     });
   });
@@ -277,13 +277,13 @@ test('with something selected a "Stage settings" button is at the top of the ins
 
 // ---------------------------------------------------------------- I: the server checks overrides against the global HUD on disk
 
-test('the stage endpoint checks a stage’s HUD overrides against the HUD layout posted with them (round 3: one save), and a stage-only post against the hud.json on disk', async ({ page }) => {
+test('the stage endpoint checks a stage’s HUD overrides against the HUD layout posted with them (round 3: one save), and a stage-only post against the hud-640.json on disk', async ({ page }) => {
   await openEditor(page, scratch);
   const hud = await page.evaluate(async (name) => (await (await fetch(`/__stage/hud?scratch=${name}`)).json()) as { hud: string }, scratch);
   const file = JSON.parse(hud.hud) as { layout: { commands: { x: number; w: number } } };
-  // An override that moves the commands box to x 300 and leaves its width to the global layout.
+  // An override that moves the commands box to x 500 and leaves its width to the global layout.
   const stages = await page.evaluate(async (name) => JSON.parse(((await (await fetch(`/__stage/stages?scratch=${name}`)).json()) as { stages: string }).stages) as Record<string, StageEntry>, scratch);
-  (stages.street as StageEntry).hud = { commands: { x: 300 } };
+  (stages.street as StageEntry).hud = { commands: { x: 500 } };
   const post = (url: string, body: unknown) => page.request.post(url, { data: body, headers: { 'Content-Type': 'application/json' } });
   // With the narrow global box (w 100) the override fits...
   file.layout.commands.w = 100;
@@ -305,22 +305,22 @@ test('the Save tooltip names the files that would be written, undo says what it 
   await openEditor(page, scratch);
   // Nothing changed yet, so the tooltip names no file (round 3: it lists only the files that are really dirty).
   await expect(page.locator('#b-save')).toHaveAttribute('title', /Nothing to save/);
-  // Move a fighter: stages.json only (not axes.json, not hud.json).
+  // Move a fighter: stages-640.json only (not axes.json, not hud-640.json).
   await page.locator('#heroes li', { hasText: 'Kit' }).click();
   await page.keyboard.press('ArrowRight');
   await flush(page);
   const title = (await page.locator('#b-save').getAttribute('title')) ?? '';
-  expect(title).toContain('stages.json');
-  expect(title).not.toContain('hud.json');
+  expect(title).toContain('stages-640.json');
+  expect(title).not.toContain('hud-640.json');
   expect(title).not.toContain('axes.json');
-  // Move a HUD box too: now hud.json is named as well.
+  // Move a HUD box too: now hud-640.json is named as well.
   await page.evaluate(() => {
     window.__stageedit?.session.edit('Move the commands', (d) => {
       d.hud.commands.x += 8;
     });
   });
   await flush(page);
-  expect((await page.locator('#b-save').getAttribute('title')) ?? '').toContain('hud.json');
+  expect((await page.locator('#b-save').getAttribute('title')) ?? '').toContain('hud-640.json');
   // Undo names the step it took back.
   await expect(page.locator('#b-undo')).toHaveAttribute('title', /Move the commands/);
   await page.keyboard.press('Control+z');
@@ -348,7 +348,7 @@ test('Revert says which files it throws away: the stages, and the global HUD whe
   });
   await page.locator('#b-revert').click();
   const text = await page.locator('.dlg').innerText();
-  expect(text).toContain('Throw away 2 changes to street and the global HUD (hud.json, used by every battle)');
+  expect(text).toContain('Throw away 2 changes to street and the global HUD (hud-640.json, used by every battle)');
   await page.keyboard.press('Escape');
 });
 
@@ -459,19 +459,19 @@ test('the side panels have whole-pixel widths, so the stage starts on a whole pi
   expect(await page.evaluate(() => window.__stagelab?.crisp())).toBe(true);
 });
 
-test('the left panel can be folded away so the stage keeps 2x at 1440 x 900, with a button and the P key, and the choice is remembered', async ({ page }) => {
+test('the left panel can be folded away so the stage keeps 2x at 1700 x 1000, with a button and the P key, and the choice is remembered', async ({ page }) => {
   await openEditor(page, scratch);
-  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.setViewportSize({ width: 1700, height: 1000 });
   await flush(page);
   await page.waitForTimeout(200);
-  // With both panels there is not room for 2x at this width.
-  expect((await canvasRect(page)).w).toBe(480);
+  // With both panels there is not room for 2x at this width (the picture is 640x360: 2x needs 1280 px).
+  expect((await canvasRect(page)).w).toBe(640);
   await page.locator('#t-left').click();
   await page.waitForTimeout(300);
   await flush(page);
   await expect(page.locator('#left')).toBeHidden();
   const r = await canvasRect(page);
-  expect(r.w).toBe(960);
+  expect(r.w).toBe(1280);
   expect([r.x % 1, r.y % 1]).toEqual([0, 0]);
   expect(await page.evaluate(() => window.__stagelab?.crisp())).toBe(true);
   // The handles still sit exactly on the canvas.
@@ -483,7 +483,7 @@ test('the left panel can be folded away so the stage keeps 2x at 1440 x 900, wit
   await page.waitForTimeout(300);
   await expect(page.locator('#left')).toBeHidden();
   await expect(page.locator('#t-left')).not.toHaveClass(/on/);
-  expect((await canvasRect(page)).w).toBe(960);
+  expect((await canvasRect(page)).w).toBe(1280);
   // The key brings it back, and again hides it.
   await page.keyboard.press('p');
   await expect(page.locator('#left')).toBeVisible();
@@ -512,13 +512,13 @@ test('a browser that blocks storage still gets the editor, with the left panel o
 
 test('figure-rule breaks show as warnings: the chip counts them, lists each with its enemy count, and a click goes there', async ({ page }) => {
   await openEditor(page, scratch, '&stage=street&set=6');
-  // Break a rule on purpose (the first enemy at the middle line: its left edge is far left of the 260 the design needs), so there is
+  // Break a rule on purpose (the first enemy at the middle line: its left edge is far left of the 340 the design needs on this screen), so there is
   // always something to list whatever the data holds. What the chip and the list must show is what the rule module says for the
   // same stage, worked out in the page: no fixed list of expected warnings.
   await page.evaluate(() => {
     window.__stageedit?.session.edit('Move E1 to the middle', (d) => {
       const s = d.stages.street as StageEntry;
-      s.enemySets['3'] = (s.enemySets['3'] ?? []).map((q, i) => (i === 0 ? { ...q, x: 244 } : q));
+      s.enemySets['3'] = (s.enemySets['3'] ?? []).map((q, i) => (i === 0 ? { ...q, x: 324 } : q));
     });
   });
   await flush(page);
@@ -563,11 +563,11 @@ test('a placement that breaks a rule gets a red outline and a warning, and undoi
   expect(base).toBeGreaterThanOrEqual(0);
   const outlines = (): Promise<number> => page.locator('#ovsvg rect[stroke="#ff3b3b"]').count();
   const before = await outlines();
-  // Put the first enemy at the middle line: its left edge is far left of the 260 the design needs.
+  // Put the first enemy at the middle line: its left edge is far left of the 340 the design needs on this screen.
   await page.evaluate(() => {
     window.__stageedit?.session.edit('Move E1 to the middle', (d) => {
       const s = d.stages.street as StageEntry;
-      s.enemySets['3'] = (s.enemySets['3'] ?? []).map((q, i) => (i === 0 ? { ...q, x: 244 } : q));
+      s.enemySets['3'] = (s.enemySets['3'] ?? []).map((q, i) => (i === 0 ? { ...q, x: 324 } : q));
     });
   });
   await flush(page);
@@ -593,8 +593,8 @@ test('a placement that breaks a rule gets a red outline and a warning, and undoi
 test('the rules are the same code the stage lab test runs: the editor’s warnings equal the rule module’s answer for every stage and enemy count', async ({ page }) => {
   await openEditor(page, scratch, '&stage=street&set=3');
   const same = await page.evaluate(async () => {
-    const rulesUrl = '/src/stage/rules.ts';
-    const configUrl = '/src/stage/config.ts';
+    const rulesUrl = '/src/battlestage/rules.ts';
+    const configUrl = '/src/battlestage/config.ts';
     const { stageWarnings } = await import(/* @vite-ignore */ rulesUrl);
     const { SET_KEYS, resolveStage } = await import(/* @vite-ignore */ configUrl);
     const se = window.__stageedit;
@@ -622,7 +622,7 @@ test('the boxes measured for another enemy count match the ones the scene measur
     const out: string[] = [];
     for (const key of ['1', '3', '6', 'boss', 'boss+2']) {
       const asked = sc.figureBoxesFor(cfg, key, se.view.roster(cfg, key));
-      sc.setEnemies(se.view.roster(cfg, key), key);
+      sc.setEnemies(se.view.roster(cfg, key));
       const shown = sc.figureBoxes();
       const round = (b: Array<{ x: number; y: number; left: number; right: number; top: number }>): string => JSON.stringify(b.map((f) => [f.x, f.y, f.left, f.right, f.top]));
       if (round(asked) !== round(shown)) out.push(`${key}: ${round(asked)} vs ${round(shown)}`);

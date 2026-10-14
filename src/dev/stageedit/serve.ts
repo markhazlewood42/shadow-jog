@@ -12,7 +12,7 @@
  *     500  the files could not be written; none was changed (or, if putting an old file back failed too, the message names the files in an unknown state);
  *     200  the files were written ALL TOGETHER (`writeTogether`: a temporary file for each, then a rename for each, the old text put back if one rename fails);
  *          `{ ok: true, written: [...], stages, ... }` with the text of each file written.
- *     `?dry=1` (any `dry` parameter) checks and formats and answers 200 with the text, and writes nothing. The tests use it.
+ *     `?dry=1` (any `dry` parameter) checks and formats and answers 200 with the text and `dry: true`, and writes nothing (`written` then names the parts that a real Save would write). The tests use it.
  * `GET  /__stage/hud`     the HUD file as text. A POST there is refused (405): the HUD is saved together with the stages, which checks it against them.
  *
  * WHICH FILES. Only the 640x360 set the game reads, by FIXED paths (decision 4 of ET): `stages-640.json`, `hud-640.json`, and the shared `axes.json`, `enemyfacing.json`, `heroes.json`.
@@ -159,7 +159,7 @@ export function stageHandlers(opts: StageServeOptions): { stages: Handler; hud: 
           ...(made.hudText !== undefined ? { hud: made.hudText } : {}),
           ...(made.facingText !== undefined ? { facing: made.facingText } : {}),
           ...(made.heroesText !== undefined ? { heroes: made.heroesText } : {}),
-          written: url.searchParams.has('dry') ? [] : made.write,
+          written: made.write,
           file: dir ? `scratch copy ${url.searchParams.get('scratch')}` : 'src/data',
         });
       } catch (e) {

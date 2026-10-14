@@ -9,7 +9,7 @@ import { ALIGN_GAP, alignAcross, alignDepth, middleRow, type Reach } from '../sr
 import { comboOf, KEYS, matchKey, MOUSE, RESERVED, shown, unsafeReason } from '../src/dev/stageedit/keys';
 import { prepareSave } from '../src/dev/stageedit/save';
 import { type Item, Session, toggleInSelection } from '../src/dev/stageedit/session';
-import { formatJson } from '../src/tools/jsonfmt';
+import { formatJson } from '../src/dev/stageedit/jsonfmt';
 import { fixtureHudJson, fixtureEntries, fixtureFacing, fixtureHeroes, fixtureHud, fixtureStagesJson } from './stagefiles';
 
 const street = (): StageEntry => fixtureEntries().street as StageEntry;
@@ -264,7 +264,7 @@ describe('the server checks a stage against the global HUD that is on disk', () 
   it('an unreadable HUD file is one clear problem, not a crash', () => {
     const r = prepareSave(body(), '{ not json');
     expect(r.ok).toBe(false);
-    expect(!r.ok && r.problems[0]).toMatch(/hud\.json on disk is not valid JSON/);
+    expect(!r.ok && r.problems[0]).toMatch(/hud-640\.json on disk is not valid JSON/);
     const bad = prepareSave(body(), JSON.stringify({ version: 1, layout: {} }));
     expect(bad.ok).toBe(false);
   });

@@ -1,44 +1,57 @@
 /**
- * Shared by the Battle Stage Editor's specs (`e2e/stageedit*.spec.ts`): open the editor on a private scratch copy of
- * the stage files (`?scratch=<name>`, so no test ever touches `src/data/stages.json`), turn game pixels into screen
- * positions, and read the editor's state through its test hook.
+ * Shared by the Battle Stage Editor's specs (`e2e/stageedit*.spec.ts`): open the editor on a private scratch copy of the stage files
+ * (`?scratch=<name>`, so no test ever touches `src/data`), turn game pixels into screen positions, and read the editor's state through its test hook.
  *
- * WHAT THE SCRATCH COPY HOLDS. Mark edits the real files (`src/data/*.json`) in the editor, so a test must not start from
- * them: a number he moved would break any test that expects the old one. `openEditor` therefore SEEDS the scratch copy from the
- * frozen fixture (`tests/fixtures/stagedata/`) before the page loads, and the page reads it back from there. A test that wants
- * Mark's current files (to check an invariant of his data, never a value) passes `{ data: 'current' }`: a scratch copy that was
- * never seeded or saved reads the real files. Rule: `docs/DEVELOPING.md`, "Tests vs design data".
+ * ON THE ENGINE (ET task 5). The page draws the 640x360 picture with the engine's `Display`: the canvas fills the whole centre and the picture sits in the middle of it at a
+ * whole zoom, so "the stage on the screen" is `window.__stagelab.picture()` (the picture's box in CSS pixels), not the canvas. `canvasRect`, `toScreen` and `bodyOf` use it, so a
+ * spec never has to know the zoom.
+ *
+ * WHAT THE SCRATCH COPY HOLDS. Mark edits the real files (`src/data/*.json`) in the editor, so a test must not start from them: a number he moved would break any test that
+ * expects the old one. `openEditor` therefore SEEDS the scratch copy from the frozen 640 fixture (`tests/fixtures/stagedata/`) before the page loads, and the page reads it
+ * back from there. The scratch folder is `tests/fixtures/stagedata/.scratch/<name>/` (git-ignored; the dev server's `?scratch=` seam, `src/dev/stageedit/serve.ts`), so the
+ * only files a spec ever writes are under the test fixtures. A test that wants Mark's current files (to check an invariant of his data, never a value) passes
+ * `{ data: 'current' }`: a scratch copy that was never seeded or saved reads the real files. Rule: `docs/DEVELOPING.md`, "Tests vs design data".
  */
 import { copyFileSync, existsSync, mkdirSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Page } from '@playwright/test';
-import { HAVE_SPRITES, PRETEND_NO_SPRITES, hideSprites } from './stagelabkit';
+import { H, W } from '../src/sje/core/size';
+import { HAVE_ART } from './sjestagekit';
+
+/** Whether Mark's crew sheets are in `public/art/crew/` (they are committed since 2026-10-11; `STAGELAB_NO_SPRITES=1` pretends they are not, as a fresh checkout would find out). */
+export const PRETEND_NO_SPRITES = !!process.env.STAGELAB_NO_SPRITES;
+export const HAVE_SPRITES = !PRETEND_NO_SPRITES && HAVE_ART;
+
+/** Answer every request for the crew's sheets the way Vite does when the folder is not there: the app's own page (200, text/html). The editor must then use the stand-ins. */
+export async function hideSprites(page: Page): Promise<void> {
+  await page.route('**/art/crew/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>app</title>' }));
+}
+
+/** The frozen copy of the stage files that the editor specs start from. */
+export const FIXTURE_FOLDER = join(process.cwd(), 'tests', 'fixtures', 'stagedata');
+/** Where the dev server keeps scratch copies (it must match `STAGE_SCRATCH_DIR` in `vite.config.ts`). */
+export const SCRATCH_ROOT = join(FIXTURE_FOLDER, '.scratch');
+const FIXTURE_FILES = ['stages-640.json', 'axes.json', 'hud-640.json', 'enemyfacing.json', 'heroes.json'] as const;
 
 /** A scratch name nobody else uses, so parallel or repeated runs never share a copy. */
 export function scratchName(tag: string): string {
-  return `e2e-${tag}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+  return `e2e-${tag}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`.toLowerCase();
 }
 
-/** The folder the dev server keeps a scratch copy in (it must match `scratchDir` in `vite.config.ts`). */
-const scratchFolder = (name: string): string => join(tmpdir(), 'shadowjog-stageedit', name);
+/** The folder of one scratch copy. */
+export const scratchFolder = (name: string): string => join(SCRATCH_ROOT, name);
 
-/** Remove a scratch copy from the OS temp folder. */
+/** Remove a scratch copy. */
 export function dropScratch(name: string): void {
   rmSync(scratchFolder(name), { recursive: true, force: true });
 }
 
-/** The frozen copy of the five stage files that the editor specs start from. */
-export const FIXTURE_FOLDER = join(process.cwd(), 'tests', 'fixtures', 'stagedata');
-const FIXTURE_FILES = ['stages.json', 'axes.json', 'hud.json', 'enemyfacing.json', 'heroes.json'] as const;
-
 /**
- * Put the fixture files in a scratch copy, unless it already holds files (a test that saves and reloads must find what it
- * saved). Every call after the first for one name does nothing.
+ * Put the fixture files in a scratch copy, unless it already holds files (a test that saves and reloads must find what it saved). Every call after the first for one name does nothing.
  */
 export function seedScratch(name: string): void {
   const dir = scratchFolder(name);
-  if (existsSync(join(dir, 'stages.json'))) return;
+  if (existsSync(join(dir, 'stages-640.json'))) return;
   mkdirSync(dir, { recursive: true });
   for (const f of FIXTURE_FILES) copyFileSync(join(FIXTURE_FOLDER, f), join(dir, f));
 }
@@ -48,8 +61,11 @@ export interface Opened {
   errors: string[];
 }
 
-/** The editor window size the specs use: the stage lands at exactly 2x (960x540) between the panels. */
-export const EDITOR_VIEWPORT = { width: 1600, height: 900 };
+/**
+ * The editor window size the specs use: the picture lands at exactly 2x (1280x720) between the panels (the panels are at most 340 + 440 px wide, so the centre is 1320 x 900).
+ * Width 2100 and height 1000 leave the centre 1320 x 897 or so.
+ */
+export const EDITOR_VIEWPORT = { width: 2100, height: 1000 };
 
 /**
  * Open the editor on a scratch copy; resolves when the scene has drawn. Console and page errors are collected in `errors`.
@@ -84,23 +100,27 @@ export async function flush(page: Page): Promise<void> {
   await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
 }
 
-/** The stage canvas on the screen. */
+/** The 640x360 picture on the screen (the canvas around it is the void). */
 export async function canvasRect(page: Page): Promise<{ x: number; y: number; w: number; h: number }> {
   return page.evaluate(() => {
-    const r = (document.querySelector('#stage canvas') as HTMLCanvasElement).getBoundingClientRect();
-    return { x: r.left, y: r.top, w: r.width, h: r.height };
+    const r = window.__stagelab?.picture();
+    if (!r) throw new Error('no editor');
+    return { x: r.x, y: r.y, w: r.w, h: r.h };
   });
 }
 
-/** A point of the 480x270 game screen as a position in the browser window. */
+/** The size of the game's screen in game pixels, read from the page (the picture is W by H). */
+export const GAME = { w: W, h: H } as const;
+
+/** A point of the 640x360 game screen as a position in the browser window. */
 export async function toScreen(page: Page, gx: number, gy: number): Promise<{ x: number; y: number }> {
   const r = await canvasRect(page);
-  return { x: r.x + (gx / 480) * r.w, y: r.y + (gy / 270) * r.h };
+  return { x: r.x + (gx / GAME.w) * r.w, y: r.y + (gy / GAME.h) * r.h };
 }
 
 /**
  * A point on a fighter's drawn body, in game pixels (a good place to press the mouse): the solid pixel nearest the
- * middle of its box, found with the scene's own picking, so a click there really picks this fighter.
+ * middle of its box, found with the editor's own picking, so a click there really picks this fighter.
  */
 export async function bodyOf(page: Page, side: 'party' | 'enemy', index: number): Promise<{ x: number; y: number; feetX: number; feetY: number }> {
   return page.evaluate(
@@ -142,7 +162,7 @@ export async function dragGame(page: Page, from: { x: number; y: number }, to: {
 }
 
 /**
- * Every design-rule warning on every stage, worked out in the page straight from `src/stage/rules.ts` (the same inputs the editor
+ * Every design-rule warning on every stage, worked out in the page straight from `src/battlestage/rules.ts` (the same inputs the editor
  * measures: the stages as the editor holds them, the previewed rosters, the scene's real sprite sizes), as the keys the Warnings
  * list uses, `"<stage>[ <enemy count>]: <sentence>"`, sorted. A test compares the editor's chip and list with this, so it never
  * needs a fixed list of expected warnings. A warning is advice: it is never a reason for a test to fail.
@@ -150,8 +170,8 @@ export async function dragGame(page: Page, from: { x: number; y: number }, to: {
 export async function ruleKeys(page: Page): Promise<string[]> {
   return page.evaluate(async () => {
     // (The addresses are variables so the type checker does not try to resolve them: the dev server serves them to the page.)
-    const rulesUrl = '/src/stage/rules.ts';
-    const configUrl = '/src/stage/config.ts';
+    const rulesUrl = '/src/battlestage/rules.ts';
+    const configUrl = '/src/battlestage/config.ts';
     const { stageWarnings } = await import(/* @vite-ignore */ rulesUrl);
     const { SET_KEYS, resolveStage } = await import(/* @vite-ignore */ configUrl);
     const editor = window.__stageedit;

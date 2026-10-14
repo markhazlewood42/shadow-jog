@@ -4,7 +4,6 @@
  * number, one save that writes all the files together or none, and wording that follows the real state.
  */
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { StageEntry } from '../src/battlestage/config';
@@ -12,8 +11,12 @@ import { ALIGN_GAP, alignAcross, alignDepth, type Reach, standingRange } from '.
 import { prepareSave } from '../src/dev/stageedit/save';
 import { writeTogether } from '../src/dev/stageedit/writeset';
 import { RULE_LIMITS } from '../src/battlestage/rules';
-import { devicePixelsPerGamePixel, zoomLine } from '../src/battlestage/zoom';
+import { H, W } from '../src/sje';
+import { devicePixelsPerGamePixel, zoomLine } from '../src/dev/stageedit/zoom';
 import { fixtureHudJson, fixtureEntries, fixtureStagesJson } from './stagefiles';
+
+/** Where the tests that write files work: under the test fixtures, never under src/data. */
+const SCRATCH = join(import.meta.dirname, 'fixtures', 'stagedata', '.scratch');
 
 const street = (): StageEntry => fixtureEntries().street as StageEntry;
 const reach = (n: number, left = 20, right = 20): Record<number, Reach> => Object.fromEntries(Array.from({ length: n }, (_, i) => [i, { left, right }]));
@@ -162,26 +165,26 @@ describe('the zoom is always a whole number of screen pixels per game pixel', ()
     [1366, 768, 1],
     [1440, 900, 1],
     [1536, 864, 1],
-    [1600, 900, 2],
-    [1920, 1080, 2],
-    [2560, 1440, 3],
+    [1600, 900, 1],
+    [1920, 1080, 1],
+    [2560, 1440, 2],
   ])('at %i x %i the stage is %ix and never a fraction', (w, h, k) => {
     const v = room(w, h);
-    const got = devicePixelsPerGamePixel(v.w, v.h, 480, 270, 1);
+    const got = devicePixelsPerGamePixel(v.w, v.h, W, H, 1);
     expect(Number.isInteger(got)).toBe(true);
     expect(got).toBe(k);
   });
 
   it('on a 125% or 150% display it is still a whole number of screen pixels, never less than 1', () => {
-    for (const dpr of [1, 1.25, 1.5, 1.75, 2]) for (const w of [1366, 1440, 1536, 1600, 1920, 2560]) expect(Number.isInteger(devicePixelsPerGamePixel(room(w, 900).w, room(w, 900).h, 480, 270, dpr))).toBe(true);
+    for (const dpr of [1, 1.25, 1.5, 1.75, 2]) for (const w of [1366, 1440, 1536, 1600, 1920, 2560]) expect(Number.isInteger(devicePixelsPerGamePixel(room(w, 900).w, room(w, 900).h, W, H, dpr))).toBe(true);
   });
 
   it('offers the left-panel key only when hiding the panel reaches a bigger whole zoom', () => {
-    // 1536 x 864: 1x with both panels; with the left panel hidden the room is wide enough for 2x.
-    const v = room(1536, 864);
-    const wide = room(1536, 864, false);
-    const k1 = devicePixelsPerGamePixel(v.w, v.h, 480, 270, 1);
-    const k2 = devicePixelsPerGamePixel(wide.w, wide.h, 480, 270, 1);
+    // 1920 x 1080: 1x with both panels (the picture is 640x360, so 2x needs 1280 px of centre); with the left panel hidden the room is wide enough for 2x.
+    const v = room(1920, 1080);
+    const wide = room(1920, 1080, false);
+    const k1 = devicePixelsPerGamePixel(v.w, v.h, W, H, 1);
+    const k2 = devicePixelsPerGamePixel(wide.w, wide.h, W, H, 1);
     expect(k1).toBe(1);
     expect(k2).toBe(2);
     const line = zoomLine(k1, 1, k2, true);
@@ -226,7 +229,7 @@ describe('one save checks the HUD, the stages and the axes together', () => {
     b.hud.commands.x = 900;
     const r = prepareSave(b);
     expect(r.ok).toBe(false);
-    expect(!r.ok && r.problems[0]).toMatch(/the HUD layout \(src\/data\/hud\.json\) is not valid/);
+    expect(!r.ok && r.problems[0]).toMatch(/the HUD layout \(src\/data\/hud-640\.json\) is not valid/);
   });
 
   it('names what to write: all that were posted by default, or only the dirty ones; the others are still checked', () => {
@@ -249,7 +252,9 @@ describe('writeTogether: all the files or none', () => {
     for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true });
   });
   const tmp = (): string => {
-    const d = mkdtempSync(join(tmpdir(), 'writeset-'));
+    // The test fixtures' scratch folder (git-ignored): these tests write files, and only ever under tests/fixtures/stagedata/.
+    mkdirSync(SCRATCH, { recursive: true });
+    const d = mkdtempSync(join(SCRATCH, 'writeset-'));
     dirs.push(d);
     return d;
   };
@@ -300,9 +305,9 @@ describe('line endings: the files of this branch are LF (the repo has .gitattrib
   // A Windows tool that writes CRLF into the working tree makes every line show as changed in an editor and hides real diffs.
   const walk = (dir: string): string[] =>
     readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? (e.name === 'fixtures' ? [] : walk(join(dir, e.name))) : e.name.endsWith('.ts') ? [join(dir, e.name)] : []));
-  it('src/stage, e2e and tests have no carriage returns (fix with: sed -i "s/\r$//" <file>)', () => {
+  it('src/dev, e2e and tests have no carriage returns (fix with: sed -i "s/\r$//" <file>)', () => {
     const root = join(import.meta.dirname, '..');
-    const crlf = ['src/stage', 'e2e', 'tests'].flatMap((d) => walk(join(root, d))).filter((f) => readFileSync(f, 'utf8').includes('\r'));
+    const crlf = ['src/dev', 'e2e', 'tests'].flatMap((d) => walk(join(root, d))).filter((f) => readFileSync(f, 'utf8').includes('\r'));
     expect(crlf.map((f) => f.slice(root.length + 1))).toEqual([]);
   });
 });

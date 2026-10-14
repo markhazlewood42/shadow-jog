@@ -11,8 +11,8 @@
  *  - an unknown `?scene=` shows the title, not a viewer;
  *  - a bad body gets 400 with a problem, and the hash of the file is the same before and after a dry run.
  *
- * Held back (`test.fixme`) until the tool exists: the Battle Stage Editor (ET task 5, Builder B) and Battle Test (ET task 6, Builder C). Each one is listed in the commit
- * message of the step that holds it back. The person who builds the tool removes the `fixme` and adapts the element ids to the tool.
+ * Held back (`test.fixme`) until the tool exists: Battle Test (ET task 6, Builder C), listed in the commit message of the step that holds it back. The person who builds the tool
+ * removes the `fixme` and adapts the element ids to the tool. The Battle Stage Editor (ET task 5) is built: its case below is a real case.
  *
  * Run:  PW_PORT=3012 npx playwright test e2e/tools.spec.ts --reporter=line
  */
@@ -217,21 +217,38 @@ test('the stage lab (/sjestage.html) opens a stage at the game screen size and d
 // ---- held back until the tool exists ------------------------------------------------------------------------------------------------------------------------------
 
 test.describe('the Battle Stage Editor (/stageedit.html)', () => {
-  // Held back: ET task 5 (Builder B) builds the page. Remove the fixme and adapt the ids to the page.
-  test.fixme('opens with the stages of the 640 set, draws the stage canvas, and starts with nothing unsaved', async ({ page }) => {
+  test('opens with the stages of the 640 set, draws the stage canvas, and starts with nothing unsaved', async ({ page }) => {
     const problems: string[] = [];
     page.on('pageerror', (e) => problems.push(String(e)));
     page.on('console', (m) => {
       if (m.type() === 'error') problems.push(m.text());
     });
+    // No `?scratch=`: the page reads `src/data`. This case presses no Save, so it writes nothing (the save path has its own specs on private copies).
+    await page.setViewportSize({ width: 2100, height: 1000 });
     await page.goto('/stageedit.html');
-    const files = (await (await page.request.get('/__stage/stages')).json()) as { ok: boolean; stages?: Record<string, unknown> };
+    await page.waitForFunction(() => (window.__stagelab?.ready === true && !!window.__stageedit) || !!window.__stagelab?.error, undefined, { timeout: 30_000 });
+    expect(await page.evaluate(() => window.__stagelab?.error ?? null)).toBeNull();
+    // The stage list holds the stages of the 640 set (stages-640.json), not the 480 set, and the endpoint says the same.
+    const files = (await (await page.request.get('/__stage/stages')).json()) as { ok: boolean; stages: string };
     expect(files.ok).toBe(true);
-    const ids = Object.keys(files.stages ?? {});
+    const ids = Object.keys(JSON.parse(files.stages) as Record<string, unknown>);
+    expect(ids).toEqual(Object.keys(JSON.parse(readFileSync(join(ROOT, 'src', 'data', 'stages-640.json'), 'utf8')) as Record<string, unknown>));
     expect(ids.length).toBeGreaterThan(0);
-    await expect(page.locator('#stage-list option, #stage-list button')).toHaveCount(ids.length);
-    await expect(page.locator('canvas').first()).toBeVisible();
-    await expect(page.locator('#status')).not.toContainText('Unsaved');
+    await expect(page.locator('#stages li')).toHaveCount(ids.length);
+    // The stage is the game's own scene on the 640x360 screen, drawn: seven figures, and a picture that is not one flat color.
+    const scene = await page.evaluate(() => ({ screen: window.__stagelab?.scene()?.config.screen, figures: window.__stagelab?.scene()?.fighters.length, hud: window.__stagelab?.scene()?.hudObjects?.objects.length ?? 0 }));
+    expect(scene.screen).toEqual({ w: 640, h: 360 });
+    expect(scene.figures).toBe(7);
+    expect(scene.hud).toBeGreaterThan(0);
+    await expect(page.locator('#stage canvas')).toBeVisible();
+    const snap = await page.evaluate(() => window.__stagelab?.snapshot() ?? Promise.reject(new Error('no hook')));
+    expect(snap.colours).toBeGreaterThan(100);
+    // Nothing is unsaved: the status line, the Save button and the session agree.
+    await expect(page.locator('#st-save')).toHaveText('Saved');
+    await expect(page.locator('#b-save')).toBeDisabled();
+    expect(await page.evaluate(() => window.__stageedit?.session.dirty)).toBe(false);
+    // The breadcrumb leads back to the DEV menu.
+    await expect(page.locator('h1 a')).toHaveAttribute('href', '/?devmenu');
     expect(problems).toEqual([]);
   });
 });

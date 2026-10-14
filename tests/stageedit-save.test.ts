@@ -145,13 +145,13 @@ describe('a cross-site POST gets 403 and writes nothing', () => {
 });
 
 describe('?dry=1 from the dev server’s own page checks and writes nothing', () => {
-  it('answers 200 with the text it would write, and no file changes', async () => {
+  it('answers 200 with the text it would write (`written` names the parts, `dry: true` says nothing was), and no file changes', async () => {
     const before = snapshot(dataDir);
     const stages = JSON.parse(read('stages-640.json')) as Record<string, StageEntry>;
     (stages.street as StageEntry).party[0] = { x: 21, row: 2 };
     const r = await post('/__stage/stages?dry=1', body({ stages }));
     expect(r.status).toBe(200);
-    expect(r.body).toMatchObject({ ok: true, dry: true, written: [] });
+    expect(r.body).toMatchObject({ ok: true, dry: true, written: ['stages', 'axes', 'hud', 'facing', 'heroes'] });
     expect(r.body.stages).toContain('"x": 21');
     expect(snapshot(dataDir)).toEqual(before);
   });

@@ -169,7 +169,7 @@ const ENTRIES = [...filesUnder('src/dev'), 'src/devroutes.ts', 'src/sje-lab/stag
 
 describe('ET pass line 2: no old engine in tool code', () => {
   it('the scan sees the tools of the brief', () => {
-    for (const named of ['src/dev/devmenu.ts', 'src/dev/fxlab.ts', 'src/dev/rigedit.ts', 'src/dev/artreview.ts', 'src/dev/artswap.ts', 'src/dev/fieldshow.ts', 'src/devroutes.ts', 'src/sje-lab/stagelab.ts', 'src/sje-lab/lab.ts']) {
+    for (const named of ['src/dev/devmenu.ts', 'src/dev/fxlab.ts', 'src/dev/rigedit.ts', 'src/dev/artreview.ts', 'src/dev/artswap.ts', 'src/dev/fieldshow.ts', 'src/devroutes.ts', 'src/sje-lab/stagelab.ts', 'src/sje-lab/lab.ts', 'src/dev/stageedit/stageedit.ts']) {
       expect(ENTRIES, named).toContain(named);
     }
   });
@@ -184,6 +184,17 @@ describe('ET pass line 2: no old engine in tool code', () => {
       expect(existsSync(join(ROOT, `src/dev/viewers/${v}.ts`)), `src/dev/viewers/${v}.ts`).toBe(true);
       expect(existsSync(join(ROOT, `src/scenes/${v}.ts`)), `src/scenes/${v}.ts is moved, not copied`).toBe(false);
     }
+  });
+
+  it('the Battle Stage Editor (stageedit.html) runs on the new engine: its page loads its entry, the entry reaches the stage scene and the engine, and no file of its closure is Phaser or the old engine', () => {
+    expect(readFileSync(join(ROOT, 'stageedit.html'), 'utf8')).toContain('/src/dev/stageedit/stageedit.ts');
+    const { files } = closureOf(disk, 'src/dev/stageedit/stageedit.ts');
+    expect(files.has('src/dev/stageedit/host.ts')).toBe(true);
+    expect(files.has('src/battlestage/stagescene.ts')).toBe(true);
+    expect(files.size).toBeGreaterThan(20);
+    expect(problemsOf(disk, 'src/dev/stageedit/stageedit.ts')).toEqual([]);
+    // No editor file imports Phaser (it is gone from the project).
+    for (const f of filesUnder('src/dev/stageedit')) expect(code(readFileSync(join(ROOT, f), 'utf8')), f).not.toMatch(/from\s*['"]phaser['"]/);
   });
 
   it('the FX lab is a Scene of the new engine, not a LegacyShape', () => {

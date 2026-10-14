@@ -11,7 +11,6 @@
  *  7. A hero aligned Right keeps the 55 px gap to the enemies.
  */
 import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { StageEntry } from '../src/battlestage/config';
@@ -22,6 +21,9 @@ import { formatHud, prepareSave } from '../src/dev/stageedit/save';
 import { saveFailureMessage, writeTogether } from '../src/dev/stageedit/writeset';
 import { enemyLeftLimit, heroRightLimit, RULE_LIMITS } from '../src/battlestage/rules';
 import { fixtureHudJson, fixtureEntries, fixtureStagesJson } from './stagefiles';
+
+/** Where the tests that write files work: under the test fixtures, never under src/data. */
+const SCRATCH = join(import.meta.dirname, 'fixtures', 'stagedata', '.scratch');
 
 const street = (): StageEntry => fixtureEntries().street as StageEntry;
 /** The same reach for fighters 0 .. n-1. */
@@ -288,7 +290,9 @@ describe('6. a failed roll-back does not claim that no file was changed', () => 
     for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true });
   });
   const tmp = (): string => {
-    const d = mkdtempSync(join(tmpdir(), 'writeset4-'));
+    // The test fixtures' scratch folder (git-ignored): these tests write files, and only ever under tests/fixtures/stagedata/.
+    mkdirSync(SCRATCH, { recursive: true });
+    const d = mkdtempSync(join(SCRATCH, 'writeset4-'));
     dirs.push(d);
     return d;
   };

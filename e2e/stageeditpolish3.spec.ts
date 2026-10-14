@@ -1,5 +1,5 @@
 /**
- * Battle Stage Editor, polish round 3 (`/stageedit.html`, spike `spike/phaser-stage`): what Mark's judges asked for
+ * Battle Stage Editor, polish round 3 (`/stageedit.html`, spike `spike/phaser-stage`; ported to the engine and the 640x360 set in ET task 5): what Mark's judges asked for
  * after round 2, driven with a real mouse and keyboard on a private scratch copy of the data.
  *
  * Align keys that are plain letters, a stage that is always a whole zoom (with a hint for the left-panel key), Align
@@ -36,23 +36,24 @@ test.afterEach(() => dropScratch(scratch));
 
 // ---------------------------------------------------------------- 2: whole zoom only
 
+// The picture is 640x360, so 2x needs 1280 x 720 px between the panels: with both panels open that is 2x only from about 2100 px wide.
 const SIZES: Array<[number, number, number]> = [
   [1366, 768, 1],
   [1440, 900, 1],
   [1536, 864, 1],
-  [1600, 900, 2],
-  [1920, 1080, 2],
-  [2560, 1440, 3],
+  [1600, 900, 1],
+  [1920, 1080, 1],
+  [2560, 1440, 2],
 ];
 
 test('the stage is always a whole zoom at a whole-pixel position, at six laptop and desktop sizes', async ({ page }) => {
   const { errors } = await openEditor(page, scratch);
   for (const [w, h, k] of SIZES) {
     await page.setViewportSize({ width: w, height: h });
-    await page.waitForFunction((want) => Math.round((document.querySelector('#stage canvas') as HTMLCanvasElement).getBoundingClientRect().width / 480) === want, k, { timeout: 5000 });
+    await page.waitForFunction((want) => Math.round((window.__stagelab?.picture().w ?? 0) / 640) === want, k, { timeout: 5000 });
     await flush(page);
     const r = await canvasRect(page);
-    expect({ size: `${w}x${h}`, zoom: r.w / 480, h: r.h / 270 }).toEqual({ size: `${w}x${h}`, zoom: k, h: k });
+    expect({ size: `${w}x${h}`, zoom: r.w / 640, h: r.h / 360 }).toEqual({ size: `${w}x${h}`, zoom: k, h: k });
     // A whole pixel position: no half pixel for the picture to blur on.
     expect(Number.isInteger(r.x)).toBe(true);
     expect(Number.isInteger(r.y)).toBe(true);
@@ -62,8 +63,8 @@ test('the stage is always a whole zoom at a whole-pixel position, at six laptop 
     // The overlay's handles sit on the picture exactly.
     const ov = await page.evaluate(() => {
       const s = (document.querySelector('#ovsvg') as SVGSVGElement).getBoundingClientRect();
-      const c = (document.querySelector('#stage canvas') as HTMLCanvasElement).getBoundingClientRect();
-      return { dx: Math.abs(s.left - c.left), dw: Math.abs(s.width - c.width) };
+      const p = window.__stagelab?.picture() ?? { x: 0, w: 0 };
+      return { dx: Math.abs(s.left - p.x), dw: Math.abs(s.width - p.w) };
     });
     expect(ov.dx).toBeLessThan(0.51);
     expect(ov.dw).toBeLessThan(0.51);
@@ -73,21 +74,22 @@ test('the stage is always a whole zoom at a whole-pixel position, at six laptop 
 
 test('at 1x the status line offers the left-panel key, and pressing it reaches 2x; there is no nudge at 2x or when the panel is already hidden', async ({ page }) => {
   await openEditor(page, scratch);
-  await page.setViewportSize({ width: 1536, height: 864 });
-  await page.waitForFunction(() => Math.round((document.querySelector('#stage canvas') as HTMLCanvasElement).getBoundingClientRect().width / 480) === 1);
+  // 1700 x 1000: 1x with both panels (the centre is 1021 px wide), 2x with the left panel hidden (1318 px; 2x needs 1280).
+  await page.setViewportSize({ width: 1700, height: 1000 });
+  await page.waitForFunction(() => Math.round((window.__stagelab?.picture().w ?? 0) / 640) === 1);
   const zoom = page.locator('#st-zoom');
   await expect(zoom).toContainText('Zoom 1x');
   await expect(zoom).toContainText('Press P to hide the left panel: the stage then fits at 2x.');
   await page.keyboard.press('p');
-  await page.waitForFunction(() => Math.round((document.querySelector('#stage canvas') as HTMLCanvasElement).getBoundingClientRect().width / 480) === 2);
+  await page.waitForFunction(() => Math.round((window.__stagelab?.picture().w ?? 0) / 640) === 2);
   await expect(zoom).toContainText('Zoom 2x');
   await expect(zoom).not.toContainText('Press P');
   await page.keyboard.press('p');
   // Back to 1x, and the nudge is back.
-  await page.waitForFunction(() => Math.round((document.querySelector('#stage canvas') as HTMLCanvasElement).getBoundingClientRect().width / 480) === 1);
+  await page.waitForFunction(() => Math.round((window.__stagelab?.picture().w ?? 0) / 640) === 1);
   await expect(zoom).toContainText('Press P');
-  await page.setViewportSize({ width: 1600, height: 900 });
-  await page.waitForFunction(() => Math.round((document.querySelector('#stage canvas') as HTMLCanvasElement).getBoundingClientRect().width / 480) === 2);
+  await page.setViewportSize({ width: 2100, height: 1000 });
+  await page.waitForFunction(() => Math.round((window.__stagelab?.picture().w ?? 0) / 640) === 2);
   await expect(zoom).not.toContainText('Press P');
 });
 
@@ -100,7 +102,7 @@ test.describe('on scaled displays', () => {
       await page.setViewportSize({ width: 1536, height: 864 });
       await flush(page);
       const r = await canvasRect(page);
-      const device = (r.w * dpr) / 480;
+      const device = (r.w * dpr) / 640;
       expect(Number.isInteger(Math.round(device * 1e6) / 1e6)).toBe(true);
       expect(Math.abs(r.x * dpr - Math.round(r.x * dpr))).toBeLessThan(1e-6);
       expect(Math.abs(r.y * dpr - Math.round(r.y * dpr))).toBeLessThan(1e-6);
@@ -170,7 +172,7 @@ async function crowd(page: Page): Promise<void> {
     if (!e) return;
     e.session.edit('Crowd the enemies', (d) => {
       const st = d.stages.street as StageEntry;
-      st.enemySets['6'] = [270, 300, 330, 360, 390, 420].map((x) => ({ x, row: 2 }));
+      st.enemySets['6'] = [350, 380, 410, 440, 470, 500].map((x) => ({ x, row: 2 }));
     });
     e.session.showSet('6');
   });
@@ -187,7 +189,7 @@ const enemyEdges = (page: Page): Promise<Array<{ left: number; right: number; x:
     });
   });
 
-test('Align left on six enemies on one row that do not all fit: stays inside x 260 to 476, packs what fits and says so', async ({ page }) => {
+test('Align left on six enemies on one row that do not all fit: stays inside x 340 to 636, packs what fits and says so', async ({ page }) => {
   await openEditor(page, scratch);
   await crowd(page);
   await select(page, 'enemy', [0, 1, 2, 3, 4, 5]);
@@ -202,20 +204,20 @@ test('Align left on six enemies on one row that do not all fit: stays inside x 2
   const planned = (await stageOf(page)).enemySets['6'] ?? [];
   // The ones that were packed (the first `fit` by old order) are inside the limits the rules enforce.
   for (const e of edges.slice(0, fit)) {
-    expect(e.left).toBeGreaterThanOrEqual(259);
-    expect(e.right).toBeLessThanOrEqual(477);
+    expect(e.left).toBeGreaterThanOrEqual(339);
+    expect(e.right).toBeLessThanOrEqual(637);
   }
   // The rest did not move.
-  expect(planned.slice(fit).map((q) => q.x)).toEqual([270, 300, 330, 360, 390, 420].slice(fit));
+  expect(planned.slice(fit).map((q) => q.x)).toEqual([350, 380, 410, 440, 470, 500].slice(fit));
 });
 
-test('Align right never pushes an enemy past x 476, the limit the stage rules enforce, and the status line is computed from the final positions', async ({ page }) => {
+test('Align right never pushes an enemy past x 636, the limit the stage rules enforce, and the status line is computed from the final positions', async ({ page }) => {
   await openEditor(page, scratch);
   await page.evaluate(() => {
     window.__stageedit?.session.edit('Enemies at the edge', (d) => {
       (d.stages.street as StageEntry).enemySets['2'] = [
-        { x: 440, row: 1 },
-        { x: 470, row: 3 },
+        { x: 520, row: 1 },
+        { x: 550, row: 3 },
       ];
     });
     window.__stageedit?.session.showSet('2');
@@ -224,7 +226,7 @@ test('Align right never pushes an enemy past x 476, the limit the stage rules en
   await select(page, 'enemy', [0, 1]);
   await page.keyboard.press('d');
   await flush(page);
-  for (const e of await enemyEdges(page)) expect(e.right).toBeLessThanOrEqual(477);
+  for (const e of await enemyEdges(page)) expect(e.right).toBeLessThanOrEqual(637);
   expect(await msg(page)).toMatch(/right edge/);
   expect(await msg(page)).not.toMatch(/not enough room/);
   // Nobody was left on the same spot, and the stage rule for the right edge shows no warning for it.
@@ -239,10 +241,10 @@ test('Back, Middle and Front with several fighters landing on one row pack them 
     window.__stageedit?.session.edit('Heroes close together', (d) => {
       const st = d.stages.street as StageEntry;
       st.party = [
-        { x: 100, row: 0 },
-        { x: 106, row: 2 },
-        { x: 112, row: 4 },
-        { x: 40, row: 1 },
+        { x: 180, row: 0 },
+        { x: 186, row: 2 },
+        { x: 192, row: 4 },
+        { x: 120, row: 1 },
       ];
     });
   });
@@ -352,9 +354,9 @@ test('a HUD change that breaks a stage’s own HUD box refuses the whole save: n
     e?.session.edit('Move Kit', (d) => {
       (d.stages.street as StageEntry).party[0] = { x: 31, row: 2 };
     });
-    // The street keeps its own commands box at x 300 (its width comes from the global HUD)...
+    // The street keeps its own commands box at x 500 (its width comes from the global HUD)...
     e?.session.edit('Street has its own commands box', (d) => {
-      (d.stages.street as StageEntry).hud = { commands: { x: 300 } };
+      (d.stages.street as StageEntry).hud = { commands: { x: 500 } };
     });
     // ...and the global box is widened, so the street's box would run off the screen.
     e?.session.edit('Widen the commands', (d) => {
@@ -398,17 +400,17 @@ test('the Save tooltip lists only the files that changed: axes.json only when th
       (d.stages.street as StageEntry).party[0] = { x: 31, row: 2 };
     });
   });
-  await expect.poll(title).toMatch(/^Save stages\.json \(Ctrl\+S\)$/);
+  await expect.poll(title).toMatch(/^Save stages-640\.json \(Ctrl\+S\)$/);
   await page.evaluate(() => {
     window.__stageedit?.session.edit('Move the commands', (d) => {
       d.hud.commands.x += 8;
     });
   });
-  await expect.poll(title).toMatch(/^Save stages\.json, hud\.json \(Ctrl\+S\)$/);
+  await expect.poll(title).toMatch(/^Save stages-640\.json, hud-640\.json \(Ctrl\+S\)$/);
   await page.evaluate(() => {
     window.__stageedit?.session.edit('Nudge a foot anchor', (d) => {
       d.axes.rook = { x: 1, y: 0 };
     });
   });
-  await expect.poll(title).toMatch(/^Save stages\.json, hud\.json, axes\.json \(Ctrl\+S\)$/);
+  await expect.poll(title).toMatch(/^Save stages-640\.json, hud-640\.json, axes\.json \(Ctrl\+S\)$/);
 });

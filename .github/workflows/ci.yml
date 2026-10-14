@@ -177,7 +177,7 @@ jobs:
               e2e/sje-battle.spec.ts e2e/sje-draws.spec.ts e2e/sje-field-parity-b.spec.ts
           - shard: '7/8'
             specs: >-
-              e2e/default-path.spec.ts e2e/sje-field.spec.ts e2e/tools.spec.ts
+              e2e/default-path.spec.ts e2e/sje-field.spec.ts e2e/tools.spec.ts e2e/stageedit.spec.ts e2e/stageeditpolish2.spec.ts e2e/stageeditpolish3.spec.ts e2e/stageeditround4.spec.ts e2e/stageedit-scene.spec.ts e2e/stageedit-host.spec.ts
           - shard: '8/8'
             specs: >-
               e2e/prod.spec.ts e2e/economy.spec.ts e2e/sje-stage-parity.spec.ts e2e/fxlab.spec.ts

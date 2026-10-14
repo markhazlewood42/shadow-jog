@@ -1,7 +1,7 @@
 /**
- * Battle Stage Editor, bug-fix round 4 (`/stageedit.html`, spike `spike/phaser-stage`): the Align bugs the round-3 judges
+ * Battle Stage Editor, bug-fix round 4 (`/stageedit.html`, spike `spike/phaser-stage`; ported to the engine and the 640x360 set in ET task 5): the Align bugs the round-3 judges
  * found, driven with a real keyboard on a private scratch copy of the data. Six wide enemies (a Rustfang Punk is 73 px
- * wide, so only three fit on one row of the enemies' 216 px) show that fighters which do not fit stay exactly where they
+ * wide, so only a few fit on one row of the enemies' 296 px on the 640x360 screen; 216 px on the 480x270 one) show that fighters which do not fit stay exactly where they
  * were, and that Align keeps clear of fighters that are not selected.
  */
 import { expect, type Page, test } from '@playwright/test';
@@ -55,12 +55,12 @@ async function sixWide(page: Page, slots: Slot[]): Promise<void> {
 test('Back on six wide enemies: the ones that do not fit stay exactly where they were, and the status line says how many moved', async ({ page }) => {
   await openEditor(page, scratch);
   const start: Slot[] = [
-    { x: 290, row: 0 },
-    { x: 310, row: 1 },
-    { x: 330, row: 2 },
-    { x: 350, row: 3 },
-    { x: 370, row: 4, dy: 3 },
-    { x: 400, row: 2, dy: -2 },
+    { x: 370, row: 0 },
+    { x: 390, row: 1 },
+    { x: 410, row: 2 },
+    { x: 430, row: 3 },
+    { x: 450, row: 4, dy: 3 },
+    { x: 480, row: 2, dy: -2 },
   ];
   await sixWide(page, start);
   await select(page, 'enemy', [0, 1, 2, 3, 4, 5]);
@@ -76,13 +76,13 @@ test('Back on six wide enemies: the ones that do not fit stay exactly where they
   const notMoved = after.map((q, i) => ({ q, i })).filter(({ q }) => q.row !== 0);
   expect(notMoved.length).toBe(stayed);
   for (const { q, i } of notMoved) expect(q).toEqual(start[i]);
-  // Those on the back row stand side by side without touching, inside x 260 to 476.
+  // Those on the back row stand side by side without touching, inside x 340 to 636.
   const e = await edges(page, 'enemy');
   const onBack = after.map((q, i) => ({ q, i })).filter(({ q }) => q.row === 0);
   expect(overlap(onBack.map(({ i }) => e[i] as { left: number; right: number }))).toBe(false);
   for (const { i } of onBack) {
-    expect(e[i]?.left).toBeGreaterThanOrEqual(259);
-    expect(e[i]?.right).toBeLessThanOrEqual(477);
+    expect(e[i]?.left).toBeGreaterThanOrEqual(339);
+    expect(e[i]?.right).toBeLessThanOrEqual(637);
   }
   await expect(page.locator('#st-msg')).toHaveClass(/bad/);
   // One undo step puts everyone back.
@@ -102,12 +102,12 @@ test('Align does not land on an enemy that is not selected and already stands on
   await openEditor(page, scratch);
   // E2 (not selected) stands on the middle row. E0 and E1 are selected: Middle takes them to row 2 as well.
   await sixWide(page, [
-    { x: 290, row: 0 },
-    { x: 420, row: 4 },
-    { x: 340, row: 2 },
-    { x: 400, row: 1 },
-    { x: 430, row: 3 },
-    { x: 460, row: 1 },
+    { x: 370, row: 0 },
+    { x: 500, row: 4 },
+    { x: 420, row: 2 },
+    { x: 480, row: 1 },
+    { x: 510, row: 3 },
+    { x: 540, row: 1 },
   ]);
   const before = (await stageOf(page)).enemySets['6'] ?? [];
   await select(page, 'enemy', [0, 1]);
@@ -124,18 +124,18 @@ test('Align does not land on an enemy that is not selected and already stands on
 test('Right for one enemy packs around a neighbour on its row that is not selected', async ({ page }) => {
   await openEditor(page, scratch);
   await sixWide(page, [
-    { x: 300, row: 2 },
-    { x: 420, row: 2 },
-    { x: 330, row: 0 },
-    { x: 360, row: 1 },
-    { x: 390, row: 3 },
-    { x: 440, row: 4 },
+    { x: 380, row: 2 },
+    { x: 500, row: 2 },
+    { x: 410, row: 0 },
+    { x: 440, row: 1 },
+    { x: 470, row: 3 },
+    { x: 520, row: 4 },
   ]);
   await select(page, 'enemy', [0]);
   await page.keyboard.press('d');
   await flush(page);
   const after = (await stageOf(page)).enemySets['6'] ?? [];
-  expect(after[1]).toEqual({ x: 420, row: 2 });
+  expect(after[1]).toEqual({ x: 500, row: 2 });
   const e = await edges(page, 'enemy');
   expect(overlap([e[0] as { left: number; right: number }, e[1] as { left: number; right: number }])).toBe(false);
 });
@@ -152,8 +152,8 @@ test('a single hero aligned Right stops short of the enemies: the 55 px gap rule
   expect(text).toMatch(/55 px between the sides/);
   expect(await gapWarnings()).toEqual(before);
   const h = await edges(page, 'party');
-  expect(h[1]?.right).toBeLessThan(240);
-  expect(h[1]?.right).toBeGreaterThan(150);
+  expect(h[1]?.right).toBeLessThan(320);
+  expect(h[1]?.right).toBeGreaterThan(230);
 });
 
 test('the Align keys work on a Russian keyboard: the key at the A position types ф and still aligns left', async ({ page }) => {
@@ -162,7 +162,7 @@ test('the Align keys work on a Russian keyboard: the key at the A position types
   await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ф', code: 'KeyA', bubbles: true, cancelable: true })));
   await flush(page);
   await expect(page.locator('#st-msg')).toContainText('left edge');
-  expect((await stageOf(page)).party[2]?.x).toBeLessThan(130);
+  expect((await stageOf(page)).party[2]?.x).toBeLessThan(210);
   await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ц', code: 'KeyW', bubbles: true, cancelable: true })));
   await flush(page);
   expect((await stageOf(page)).party[2]?.row).toBe(0);
@@ -174,7 +174,7 @@ test('a save that does not write the HUD is checked against the HUD on disk, and
     const cur = (await (await fetch(`/__stage/stages?scratch=${name}`)).json()) as { stages: string; axes: string };
     const hud = (JSON.parse((await (await fetch(`/__stage/hud?scratch=${name}`)).json()).hud) as { layout: { commands: { w: number } } }).layout;
     const stages = JSON.parse(cur.stages) as Record<string, { hud?: unknown }>;
-    stages.street = { ...stages.street, hud: { commands: { x: 300 } } };
+    stages.street = { ...stages.street, hud: { commands: { x: 500 } } };
     hud.commands.w = 300; // would break the street's own box if it were saved
     const post = async (write: string[]): Promise<{ ok: boolean; problems: string[]; written?: string[] }> =>
       (await (await fetch(`/__stage/stages?scratch=${name}&dry=1`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ stages, axes: JSON.parse(cur.axes), hud, write }) })).json()) as { ok: boolean; problems: string[]; written?: string[] };
