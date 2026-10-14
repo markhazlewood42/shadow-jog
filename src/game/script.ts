@@ -1,5 +1,6 @@
 /** Story scripting API. Scripts are async functions that `await` presentation steps. */
 import type { Dir } from '../art/chars';
+import type { LineSlots } from '../data/dialogue';
 import type { HackDef, HackHandling, HackOutcome } from './hackseam';
 import type { MemberId } from './state';
 
@@ -17,10 +18,19 @@ export interface SayOpts {
 export type BattleResult = 'win' | 'lose' | 'run';
 
 export interface ScriptApi {
+  /** A box with its words in the script: for the maps' own talk, the game systems and dev tools. Chapter 1's story text goes through `line` and `choose`. */
   say(who: string | null, text: string, opts?: SayOpts): Promise<void>;
   /** Narration box without a speaker. */
   narrate(text: string, opts?: SayOpts): Promise<void>;
   ask(who: string | null, text: string, options: string[], opts?: SayOpts & { cancel?: number }): Promise<number>;
+  /**
+   * A dialogue box whose words are in `data/dialogue.json` (M8a): `id` names the line, and `slots` fill its `{name}` placeholders with live values.
+   * The speaker, face and box position are the line's own. A story script says when it plays; the file says what it says.
+   * The line is read when the box opens, so an edit of the file shows at the next box. An unknown id or a wrong slot throws and names the file and the line.
+   */
+  line(id: string, slots?: LineSlots): Promise<void>;
+  /** A question whose words and options are in `data/dialogue.json`: like `line`, for a line with `choices`. Returns the index of the chosen option. */
+  choose(id: string, slots?: LineSlots): Promise<number>;
   wait(frames: number): Promise<void>;
 
   flag(name: string): boolean;

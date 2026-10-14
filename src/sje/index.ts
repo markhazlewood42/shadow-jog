@@ -3,6 +3,8 @@
  * lab import. Everything under src/sje is reached through here, except the lazy 3D chunk
  * (`src/sje/three/index.ts`), which loads Three.js and so has its own door.
  *
+ * M8a adds the UI kit (`src/sje/ui`: TextObject, NineSlice, ListMenu, Bar, Cursor).
+ *
  * M0 holds the parts that the lab and the canary suite test directly: core, render, display and the GL
  * renderer. M1 adds the scene runtime (`Game`, `Scene`, `SceneManager`, `LegacyScene`, `Clock`, `TweenManager`, `Loader`,
  * `GameObjectFactory`). `Scene3D` is M1b. Add each export with its module.
@@ -41,4 +43,10 @@ export { browserBackend, CacheManager, type LoadBackend, type LoadFile, Loader }
 export { Scene, type SceneEvents, type SceneStatus, type Systems } from './runtime/scene';
 export { type AnyScene, computeVisibility, SceneManager } from './runtime/scenemanager';
 export type { LegacyCompat } from './runtime/screenfx';
+export { Bar, type BarRect, barRects } from './ui/bar';
+export { Cursor, type CursorKind, cursorNudge, moreVisible } from './ui/cursor';
+export { type ListAction, type ListInput, type ListItem, ListMenu, type ListResult, type RowGeometry, listRows, scrollFor, stepIndex, type UiSound } from './ui/listmenu';
+export { NineSlice, paintTab, paintWindow, type WindowBounds, type WindowStyle, windowBounds } from './ui/nineslice';
+export { type BarParams, type CursorParams, hpColor, keyLegend, type ListParams, OVERLAY_DIM, SELECT_FILL, UI, UI_DEFAULTS, type UiParams, type WindowParams } from './ui/params';
+export { layoutText, paintText, type TextLayout, TextObject, type TextStyle } from './ui/textobject';
 export { type Tween, type TweenConfig, TweenManager } from './runtime/tween';

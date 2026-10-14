@@ -80,7 +80,7 @@ const CHUNK_MAX = 480 * 1000;
 // 2026-10-12 (M7, D2 B of docs/engine/m7-brief.md): the total EXCLUDES the lazy 3D chunk (it has its own caps below), so what joins it is the hack door, the jump (the cover, its time line and
 // style A) and their data. Measured 455.193 kB gzip (the M6 baseline was 451.688 kB: +3.5 kB; the brief's estimate was +1.5 kB for the door alone, before the cover); set to 456 kB, rounded up
 // to the next 1 kB. The 3D chunk that the first stub-door build counted in the total was the +145.9 kB of that build.
-const GZIP_TOTAL_MAX = 456 * 1000;
+const GZIP_TOTAL_MAX = 462.5 * 1000; // 2026-10-14 (M8a, Mark yes): measured 461.4 kB + 1 kB; main was 455.2 kB
 // 2026-10-10 (M6): `first play` (boot + lazy-2d) is what every player downloads, so it has its own cap:
 // measured 391.363 kB gzip (boot 1.5 + the game's boot chunk and what it imports 184.7 + the engine 156.1 + the two stages 49.1), cap = measured + 1 kB = 392.4 kB. Before the flip it was 345.7 kB, with no cap
 // and without the stages. The largest-chunk cap (480 kB) holds because `src/sje/boot.ts` loads the game's boot with its own dynamic import: with a static one, Rolldown merged the engine and the game into one 770.8 kB chunk.
@@ -89,7 +89,8 @@ const GZIP_TOTAL_MAX = 456 * 1000;
 // `src/sje/three/index.ts` now, and `tests/sje-imports.test.ts` forbids the re-export. Three more cuts kept the start path small: the data checks (`src/hack3d/checkdata.ts`) run in a DEV build only,
 // the `uniform` block of `hacks.json` is a top-level key that the shipped game never imports, and the looks of the DEV styles B and C are behind `import.meta.env.DEV`.
 // Cap = measured + 1 kB, rounded up to the next 0.1 kB. PROVISIONAL: the numbers are set again from the build that ships once Mark has picked the style (task 10 of the brief).
-const FIRST_PLAY_MAX = 395_900;
+// 2026-10-14 (M8a, Mark yes): re-set to 402.1 kB (measured 401.1 + 1 kB) after the shop and dialogue data files and the UI kit joined first play.
+const FIRST_PLAY_MAX = 402_100;
 
 /**
  * The lazy 3D chunk (Three, the 3D facade, the UnrealBloomPass, the Phase 0 test scene), gzip. Set at 160 kB on 2026-10-05 (real choice C5, accepted by Mark): the spike

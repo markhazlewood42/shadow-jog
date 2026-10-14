@@ -14,6 +14,7 @@ import { flags, state } from '../../game/state';
 import { LOOKS } from '../../data/looks';
 import { fieldHooks } from '../../game/hooks';
 import { runHackUnsupported } from '../../game/hackseam';
+import { resolveChoice, resolveLine } from '../../data/dialogue';
 import { DialogScene } from '../dialog';
 import type { FieldScene } from '../field';
 import { cameraOrigin } from './camera';
@@ -29,6 +30,11 @@ export function scriptApi(f: FieldScene): ScriptApi {
     },
     ask: async (who, text, options, opts) =>
       f.game.run(new DialogScene({ who, text, choices: options, cancel: opts?.cancel, top: opts?.top, face: opts?.face })),
+    // The words are read from dialogue.json when the box opens, so an edit shows at the next box.
+    line: async (id, slots) => {
+      await f.game.run(new DialogScene(resolveLine(id, slots)));
+    },
+    choose: async (id, slots) => f.game.run(new DialogScene(resolveChoice(id, slots))),
     wait: (n) => f.game.wait(n),
     flag: (n) => flags.has(n),
     get: (n) => flags.get(n),

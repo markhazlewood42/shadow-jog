@@ -388,10 +388,10 @@ describe('parseMilestones', () => {
     expect((error as PanelError).message).toContain('no rows');
   });
 
-  it('reads the real docs/engine/migration.md: the milestones from Phase 0 to M8, each with a name and a scope', () => {
+  it('reads the real docs/engine/migration.md: the milestones from Phase 0 to M8d, each with a name and a scope', () => {
     const milestones = parseMilestones(readFileSync(join(REPO_DIR, 'docs', 'engine', 'migration.md'), 'utf8'), NO_HEADINGS, NO_DONE);
     const ids = milestones.map((milestone) => milestone.id);
-    for (const id of ['Phase 0', 'Pre-M0', 'M0', 'M1', 'M1b', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8']) expect(ids).toContain(id);
+    for (const id of ['Phase 0', 'Pre-M0', 'M0', 'M1', 'M1b', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8a', 'M8b', 'M8c', 'M8d']) expect(ids).toContain(id);
     for (const milestone of milestones) {
       expect(milestone.name, milestone.id).not.toBe('');
       expect(milestone.scope, milestone.id).not.toBe('');
@@ -754,7 +754,7 @@ The same words again.
       expect(info.milestone.problem).toBeNull();
       expect(info.updated).not.toBeNull();
       const byId = new Map(info.milestones.map((milestone) => [milestone.id, milestone]));
-      for (const id of ['M0', 'M1', 'M1b', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8']) {
+      for (const id of ['M0', 'M1', 'M1b', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8a', 'M8b', 'M8c', 'M8d']) {
         expect(byId.get(id)?.anchor, `the heading of ${id} in docs/engine/migration.md`).toMatch(/^m[0-9a-z-]+$/);
       }
     } finally {

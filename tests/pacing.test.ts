@@ -58,11 +58,17 @@ function pathSteps(map: string, pts: [number, number][]): number {
   return n;
 }
 
-/** Characters of prose in a source file: string literals long enough to be a line of dialogue. */
-function proseChars(path: string): number {
-  const src = readFileSync(path, 'utf8');
+/**
+ * Characters of prose in a source file: string literals long enough to be a line of dialogue. `rest` is for a file whose dialogue has moved to a data
+ * file (chapter 1, M8a): its comments are dropped and only single-quoted strings count (what is left is the tutorial cards and the objectives), because
+ * a comment with an apostrophe, or a template literal in code, would otherwise pair with a quote far away and count code as prose.
+ */
+function proseChars(path: string, rest = false): number {
+  const raw = readFileSync(path, 'utf8');
+  const src = rest ? raw.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '').replace(/ \/\/ .*$/gm, '') : raw;
   let n = 0;
-  for (const m of src.matchAll(/'((?:[^'\\\n]|\\.){12,})'|`([^`]{12,})`/g)) {
+  const pattern = rest ? /'((?:[^'\\\n]|\\.){12,})'/g : /'((?:[^'\\\n]|\\.){12,})'|`([^`]{12,})`/g;
+  for (const m of src.matchAll(pattern)) {
     const text = (m[1] ?? m[2] ?? '').replace(/\{[a-z/#0-9]*\}/g, '').replace(/\$\{[^}]*\}/g, '');
     if (text.includes(' ')) n += text.length;
   }
@@ -85,6 +91,22 @@ function proseCharsJson(path: string): number {
   return n;
 }
 
+/**
+ * Characters of prose in the chapter 1 dialogue file (M8a): the text of every box, counted as `proseChars` counts a literal (the text codes and the
+ * slots do not count: before the move a live value was `${...}`, which `proseChars` also dropped). The story's words moved here from `story/chapter1.ts`.
+ */
+function proseCharsDialogue(): number {
+  const lines = (JSON.parse(readFileSync('src/data/dialogue.json', 'utf8')) as { lines: Record<string, { text: string; choices?: string[] }> }).lines;
+  let n = 0;
+  for (const l of Object.values(lines)) {
+    for (const t of [l.text, ...(l.choices ?? [])]) {
+      const text = t.replace(/\{[a-z/#0-9]*\}/g, '').replace(/\{[a-z_]+\}/g, '');
+      if (text.length >= 12 && text.includes(' ')) n += text.length;
+    }
+  }
+  return n;
+}
+
 /** The map files with prose in them: the maps' TypeScript (not the data loader, whose strings are error messages) and their JSON. */
 function mapProse(): number {
   return readdirSync('src/data/maps')
@@ -104,7 +126,7 @@ describe('pacing', () => {
   const trash = fights - fixed.length;
   const fightS = trash * (TRASH_ROUNDS * ROUND_S + FIGHT_OVERHEAD_S) + fixed.reduce((n, f) => n + (BOSS_ROUNDS[f] ?? 3) * ROUND_S + FIGHT_OVERHEAD_S, 0);
 
-  const story = proseChars('src/story/chapter1.ts') + proseChars('src/scenes/panels.ts');
+  const story = proseChars('src/story/chapter1.ts', true) + proseCharsDialogue() + proseChars('src/scenes/panels.ts');
   const optional = mapProse();
   const readS = (story + optional * OPTIONAL_READ) / READ_CPS;
 
