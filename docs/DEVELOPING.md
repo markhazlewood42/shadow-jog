@@ -489,7 +489,7 @@ Mark's playtest and go-ahead come first. Pushing a tag and creating a GitHub Rel
 
 ### Deploying a release
 
-The public demo is a Vercel project, `shadow-jog` (team `markhazlewood42s-projects`), connected to this repo. Its **Production Branch is `release`, not `main`**: a push to `main` only makes a preview build, never the public site. Production is the build of whatever commit `release` points at. Nothing else moves it.
+The public demo is a Vercel project, `shadow-jog` (team `markhazlewood42s-projects`), connected to this repo. Its **Production Branch is `release`, not `main`**, and **only `release` deploys**: the root `vercel.json` sets `git.deploymentEnabled` to `{ "**": false, "release": true }`, so a push to `main` or any other branch makes no deployment at all (Mark, 2026-10-13: the Hobby plan allows 100 deployments a day across all projects, and every branch push used to make two). The Command Center project (`tools/command-center/vercel.json`) deploys only from `main` by the same key. Production is the build of whatever commit `release` points at. Nothing else moves it.
 
 - **Public URL:** https://shadow-jog.vercel.app (public, deployment protection off since 2026-10-09). The `shadowjog.com` domain is not attached yet.
 - **Build settings:** Vite preset, `npm run build`, output `dist`. The game is static (`base: './'`), so there is no server.

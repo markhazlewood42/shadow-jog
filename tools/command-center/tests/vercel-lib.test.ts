@@ -209,6 +209,7 @@ describe('vercel.json', () => {
     buildCommand: string;
     outputDirectory: string;
     ignoreCommand: string;
+    git: { deploymentEnabled: Record<string, boolean> };
     functions: Record<string, { maxDuration: number } | undefined>;
     rewrites: { source: string; destination: string }[];
   };
@@ -217,6 +218,10 @@ describe('vercel.json', () => {
     expect(config.framework).toBe('vite');
     expect(config.outputDirectory).toBe('dist');
     expect(readFileSync(join(PACKAGE_DIR, 'vite.config.ts'), 'utf8')).toContain("join(import.meta.dirname, 'dist')");
+  });
+
+  it('deploys only from main: no other branch makes a deployment (the Hobby plan allows 100 a day across all projects)', () => {
+    expect(config.git.deploymentEnabled).toEqual({ '**': false, main: true });
   });
 
   it('runs the ignore script, which exists', () => {
