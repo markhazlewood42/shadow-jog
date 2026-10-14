@@ -29,6 +29,12 @@ describe('parseLive: agents.items', () => {
     expect(parsed.ok && 'items' in (parsed.live.sessions[0]?.agents ?? {})).toBe(false);
   });
 
+  it('reads a model that is not one of the four families as null, and keeps each family', () => {
+    const models = ['opus', 'sonnet', 'haiku', 'fable', 'sk-abcdefghi', 'C:\\Users\\mar', 'markh@gmail.', 'Fable', ''];
+    const parsed = parseLive(value({ items: models.map((model) => item({ model })) }));
+    expect(parsed.ok && parsed.live.sessions[0]?.agents.items?.map((entry) => entry.model)).toEqual(['opus', 'sonnet', 'haiku', 'fable', null, null, null, null, null]);
+  });
+
   it('builds each item again from the named fields only', () => {
     const parsed = parseLive(value({ items: [item({ filePath: 'C:\\secret', prompt: 'SECRET' })] }));
     expect(parsed.ok && Object.keys(parsed.live.sessions[0]?.agents.items?.[0] ?? {}).sort()).toEqual(['endedAt', 'label', 'model', 'startedAt', 'state']);
@@ -39,7 +45,6 @@ describe('parseLive: agents.items', () => {
     expect(reason({ items: [item({ state: 'stopped' })] })).toMatch(/items\[0\]\.state/);
     expect(reason({ items: [item({ label: 4 })] })).toMatch(/items\[0\]\.label/);
     expect(reason({ items: [item({ label: 'x'.repeat(LIVE_ITEM_LIMITS.label + 1) })] })).toMatch(/items\[0\]\.label/);
-    expect(reason({ items: [item({ model: 'x'.repeat(LIVE_ITEM_LIMITS.model + 1) })] })).toMatch(/items\[0\]\.model/);
     expect(reason({ items: [item({ model: 5 })] })).toMatch(/items\[0\]\.model/);
     expect(reason({ items: [item({ startedAt: 'yesterday-ish' })] })).toMatch(/items\[0\]\.startedAt/);
     expect(reason({ items: [item({ endedAt: 12 })] })).toMatch(/items\[0\]\.endedAt/);

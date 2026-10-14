@@ -236,6 +236,23 @@ test.describe('the Now page on the hosted data layer', () => {
     await expect(box('builder')).toContainText('fable · 9 min');
     await expect(box('reader')).toHaveAttribute('data-state', 'done');
     await expect(box('reader')).toContainText('done');
+
+    // The whole last box is in the panel: no frame clips its lower border. The check runs at once, while the entry animation of the boxes (a fade and a slide of 8 px) may
+    // still run: a box that slides is 8 px lower than its place, and the cluster has room for that. Then it runs again when the animations have ended.
+    const expectLastBoxInPanel = async () => {
+      const panel = await agents.boundingBox();
+      const last = await boxes.last().boundingBox();
+      const cluster = await agents.locator('[data-cluster]').first().boundingBox();
+      if (panel === null || last === null || cluster === null) throw new Error('the panel, the cluster or the last box has no box on the page');
+      expect(last.y + last.height).toBeLessThanOrEqual(cluster.y + cluster.height);
+      expect(cluster.y + cluster.height).toBeLessThan(panel.y + panel.height);
+    };
+    await expectLastBoxInPanel();
+    await page.evaluate(() => Promise.all(document.getAnimations().map((animation) => animation.finished)));
+    await expectLastBoxInPanel();
+    // The hosted page has no file path, so no box has a Copy button (the session box too).
+    await expect(agents.getByRole('button', { name: 'Copy path' })).toHaveCount(0);
+    await shot(page, 'hosted-agents-2.png');
   });
 
   test('keeps the Reporter offline error on the Agents page', async ({ page }) => {

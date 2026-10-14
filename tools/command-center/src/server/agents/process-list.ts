@@ -11,9 +11,9 @@ import { readSmallJson } from '../sessions/tail';
 // The folder is an internal one of Claude Code, so its format can change with an update, and it also holds secrets: next to each
 // `<pid>.json` there is a `<pid>.<hash>.key` file with a token. So this reader:
 // - lists the folder and opens only the files named `<digits>.json`, never anything else;
-// - keeps four keys of a file (the session id, the pid, the start time and the status, which is shaped to busy or idle). Every other key (the working folder, the
-//   name, the socket path, the bridge id ...) is dropped here, and the pid is dropped as soon as the process is known to be alive,
-//   so nothing past this file can leak what it never had;
+// - keeps four keys of a file (the session id, the pid, the start time and the status, which is shaped to busy or idle). Every other key
+//   (the working folder, the name, the socket path, the bridge id ...) is dropped here, and the pid is dropped as soon as the process is
+//   known to be alive, so nothing past this file can leak what it never had;
 // - never throws for what it finds: a file that is malformed, of an unknown shape or not readable is skipped.
 
 /** One Claude process that is alive, as far as this module needs to know. The pid is not in it. */
@@ -22,7 +22,10 @@ export type ProcessEntry = {
   sessionId: string;
   /** When the process started, in milliseconds since 1970, or null when the file does not say. */
   startedAtMs: number | null;
-  /** `busy`: the session works (the file says `busy` or `shell`). `idle`: it waits for Mark, or the file says a word that this does not know. */
+  /**
+   * `busy`: the session works (the file says `busy` or `shell`).
+   * `idle`: it waits for Mark, or the file says a word that this does not know.
+   */
   status: 'busy' | 'idle';
 };
 

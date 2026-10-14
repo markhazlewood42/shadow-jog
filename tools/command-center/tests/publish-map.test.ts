@@ -102,18 +102,28 @@ describe('the allow-list mapper', () => {
       return build({ sessions: [session], facts: [], worktrees: [] }).sessions[0]?.agents.items;
     };
 
-    it('puts the running agents first, keeps the order inside each group, and caps the list', () => {
+    it('keeps the running agents first when it must cut at the cap, and keeps the order of the session', () => {
       const nodes = Array.from({ length: 40 }, (_, i) => node(i, { state: i >= 38 ? 'running' : 'done' }));
       const items = itemsOf(nodes);
       expect(items).toHaveLength(LIMITS.agentNames);
-      expect(items?.slice(0, 2).map((item) => [item.label, item.state])).toEqual([
-        ['agent 38', 'running'],
-        ['agent 39', 'running'],
-      ]);
-      expect(items?.[2]).toMatchObject({ label: 'agent 0', state: 'done' });
+      // The two running agents are kept (they come last in the session), with the first 18 done ones, in the order of the session.
+      expect(items?.map((item) => item.label)).toEqual([...Array.from({ length: 18 }, (_, i) => `agent ${i}`), 'agent 38', 'agent 39']);
+      expect(items?.slice(-2).map((item) => item.state)).toEqual(['running', 'running']);
     });
 
-    it('redacts and cuts the label, and cuts the model to 12 characters (null stays null)', () => {
+    it('does not move an item when an agent ends (twins are counted in this order on the page)', () => {
+      const twin = (state: string) => node(1, { label: 'same', startedAt: '2026-10-14T08:00:00.000Z', state, endedAt: state === 'done' ? '2026-10-14T08:05:00.000Z' : null });
+      const before = itemsOf([twin('running'), twin('running'), node(2, { state: 'running' })]);
+      const afterFirstEnds = itemsOf([twin('done'), twin('running'), node(2, { state: 'running' })]);
+      expect(before?.map((item) => item.label)).toEqual(['same', 'same', 'agent 2']);
+      expect(afterFirstEnds?.map((item) => [item.label, item.state])).toEqual([
+        ['same', 'done'],
+        ['same', 'running'],
+        ['agent 2', 'running'],
+      ]);
+    });
+
+    it('redacts and cuts the label, and sends the model only as one of the four families (else null)', () => {
       const items = itemsOf([
         node(1, { label: 'check with ghp_abcdefghijklmnopqrstuvwxyz0123456789 now' }),
         node(2, { label: 'long '.repeat(60), model: 'a-very-long-model-name' }),
@@ -121,9 +131,21 @@ describe('the allow-list mapper', () => {
       ]);
       expect(items?.[0]?.label).toBe(`check with ${REDACTED} now`);
       expect(items?.[1]?.label.length).toBe(LIMITS.agentName);
-      expect(items?.[1]?.model?.length).toBeLessThanOrEqual(12);
+      expect(items?.[1]?.model).toBeNull();
       expect(items?.[2]?.model).toBe('fable');
       expect(items?.[0]?.model).toBeNull();
+    });
+
+    it('gives null for a model that is not a family, so no prefix of a key, a path or an address leaves (the old cut to 12 characters let them through)', () => {
+      const leaks = ['sk-abcdefghijklmnopqrstuvwxyz', 'C:\\Users\\markh\\secret', 'markh@gmail.com', 'Fable', 'claude-fable-5', ''];
+      const items = itemsOf(leaks.map((model, i) => node(i, { model })));
+      expect(items?.map((item) => item.model)).toEqual(leaks.map(() => null));
+      expect(JSON.stringify(items)).not.toMatch(/sk-abcdefghi|C:\\Users|markh@/);
+    });
+
+    it('passes each of the four families', () => {
+      const items = itemsOf(['opus', 'sonnet', 'haiku', 'fable'].map((model, i) => node(i, { model })));
+      expect(items?.map((item) => item.model)).toEqual(['opus', 'sonnet', 'haiku', 'fable']);
     });
 
     it('sends only the five named keys: no path, no message count, no id, no extra field', () => {

@@ -12,11 +12,20 @@ import { ASK_MAX_CHARS, ASK_MAX_LINES, cutLine } from './your-move';
 export const LIVE_OFFLINE_AFTER_SECONDS = 150;
 
 /** The caps of the agent boxes of one session. The mapper of the reporter and the validator below both use them, so that they cannot drift apart. */
-export const LIVE_ITEM_LIMITS = { items: 20, label: 80, model: 12 } as const;
+export const LIVE_ITEM_LIMITS = { items: 20, label: 80 } as const;
+
+/**
+ * The only model values that the live contract carries. A model id of Claude holds its family (`claude-fable-5-1`: `fable`); any other value (a key, a path, an address, a name that
+ * this page does not know) is not a family, so it is no model (null). A fixed set cannot hold a secret or a path, whatever the redaction rules miss.
+ */
+export const LIVE_MODEL_FAMILIES: readonly string[] = ['opus', 'sonnet', 'haiku', 'fable'];
+
+/** The model of an agent as the contract allows it: one of the families, else null. The reporter and the reader of the value both use it. */
+export const liveModelOf = (value: unknown): string | null => (typeof value === 'string' && LIVE_MODEL_FAMILIES.includes(value) ? value : null);
 
 /**
  * One agent of a live session, for a box on the hosted Agents page (approved by Mark 2026-10-14): its description (redacted and cut like a name), running or done,
- * the model as a family name (at most 12 characters), and its start and end times (ISO times, or null). Nothing else of the agent leaves the machine.
+ * the model as a family name (`opus`, `sonnet`, `haiku` or `fable`, else null), and its start and end times (ISO times, or null). Nothing else of the agent leaves the machine.
  */
 export type LiveAgentItem = { label: string; state: 'running' | 'done'; model: string | null; startedAt: string | null; endedAt: string | null };
 
@@ -106,10 +115,11 @@ function itemsOf(value: unknown, where: string): LiveAgentItem[] | undefined | s
     const { label, state, model, startedAt, endedAt } = raw;
     if (typeof label !== 'string' || label.length > LIVE_ITEM_LIMITS.label) return `${at}.label must be a text of at most ${LIVE_ITEM_LIMITS.label} characters`;
     if (state !== 'running' && state !== 'done') return `${at}.state must be "running" or "done"`;
-    if (!(model === null || (typeof model === 'string' && model.length <= LIVE_ITEM_LIMITS.model))) return `${at}.model must be null or a text of at most ${LIVE_ITEM_LIMITS.model} characters`;
+    if (!(model === null || typeof model === 'string')) return `${at}.model must be null or a text`;
     if (!isTimeOrNull(startedAt)) return `${at}.startedAt must be a time or null`;
     if (!isTimeOrNull(endedAt)) return `${at}.endedAt must be a time or null`;
-    out.push({ label, state, model, startedAt, endedAt });
+    // A model that is not one of the families is read as no model, not as a reason to refuse the whole value: the page never shows it.
+    out.push({ label, state, model: liveModelOf(model), startedAt, endedAt });
   }
   return out;
 }

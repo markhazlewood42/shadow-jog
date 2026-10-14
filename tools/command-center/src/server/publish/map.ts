@@ -1,4 +1,4 @@
-import { LIVE_ITEM_LIMITS, type LiveAgentItem, type LiveSessionRow, type LiveWorktree } from '../../shared/live';
+import { LIVE_ITEM_LIMITS, type LiveAgentItem, liveModelOf, type LiveSessionRow, type LiveWorktree } from '../../shared/live';
 import type { LiveSession, SessionInfo } from '../../shared/types';
 import { ASK_MAX_CHARS, ASK_MAX_LINES, askStatus } from '../../shared/your-move';
 import { inlineText } from '../inline-text';
@@ -19,7 +19,7 @@ import { inlineText } from '../inline-text';
 // contract names, so a field that this file did not intend would be dropped there too.
 
 /** Limits for text that comes from a transcript, so that one odd value cannot make a very large write. */
-export const LIMITS = { title: 120, branch: 200, folder: 100, agentName: LIVE_ITEM_LIMITS.label, agentNames: LIVE_ITEM_LIMITS.items, agentModel: LIVE_ITEM_LIMITS.model, sessions: 50, worktrees: 30 } as const;
+export const LIMITS = { title: 120, branch: 200, folder: 100, agentName: LIVE_ITEM_LIMITS.label, agentNames: LIVE_ITEM_LIMITS.items, sessions: 50, worktrees: 30 } as const;
 
 /**
  * Cuts a text to `max` characters with an ellipsis. A redaction marker is never cut in the middle: when the cut would fall inside "[redacted]", the text is cut before the whole
@@ -156,18 +156,24 @@ export function mapAsk(box: SessionInfo['yourMove'] | undefined, nowMs: number):
 const isoOrNull = (time: string | null): string | null => (typeof time === 'string' && !Number.isNaN(Date.parse(time)) ? time : null);
 
 /**
- * The agents of a session for the hosted boxes: running first, then done, at most 20. Only agents (a workflow has no model and no clear start, and its name is in `names`).
+ * The agents of a session for the hosted boxes, at most 20. Only agents (a workflow has no model and no clear start, and its name is in `names`). When there are more than 20, the
+ * running ones are kept first, then the done ones in order. The list itself stays in the order of the session, so that it does not change when an agent ends: the page counts twins
+ * (same start, same label) in this order, and a running-first order would move the id of the one that is left (see `nodeId` in src/web/hosted/panels.ts).
  * Each field is written out by hand from the named node field: no spread, so no path, prompt or message count can get through.
  */
 export function mapItems(nodes: readonly LiveSession['nodes'][number][]): LiveAgentItem[] {
   const agents = nodes.filter((node) => node.kind === 'agent');
-  return [...agents.filter((node) => node.state === 'running'), ...agents.filter((node) => node.state === 'done')].slice(0, LIMITS.agentNames).map((node) => ({
-    label: cut(redact(node.label), LIMITS.agentName),
-    state: node.state,
-    model: node.model === null ? null : cut(redactName(node.model), LIMITS.agentModel),
-    startedAt: isoOrNull(node.startedAt),
-    endedAt: isoOrNull(node.endedAt),
-  }));
+  const kept = new Set([...agents.filter((node) => node.state === 'running'), ...agents.filter((node) => node.state === 'done')].slice(0, LIMITS.agentNames));
+  return agents
+    .filter((node) => kept.has(node))
+    .map((node) => ({
+      label: cut(redact(node.label), LIMITS.agentName),
+      state: node.state,
+      // One of four family names or null. The local value can be any text (tree.ts keeps a name that is not a Claude id), so it is never cut or redacted here: it is checked against the set.
+      model: liveModelOf(node.model),
+      startedAt: isoOrNull(node.startedAt),
+      endedAt: isoOrNull(node.endedAt),
+    }));
 }
 
 /** One live session as the contract wants it. `facts` is the sessions module's entry for the same id, or undefined when it has not looked yet. `nowMs` is the clock of the reporter. */

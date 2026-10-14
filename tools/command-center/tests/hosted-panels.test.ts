@@ -71,6 +71,21 @@ describe('agent boxes of a hosted session (nodesOf)', () => {
     const twins = nodesOf(withAgents({ items: [1, 2].map(() => ({ label: 'a', state: 'running', model: null, startedAt: at, endedAt: null })) }));
     expect(new Set(twins.map((node) => node.id)).size).toBe(2);
   });
+
+  it('does not change the id of a twin when the other one ends, and counts twins in the order of the start', () => {
+    const at = '2026-10-14T09:00:00.000Z';
+    const twin = (state: 'running' | 'done') => ({ label: 'a', state, model: null, startedAt: at, endedAt: state === 'done' ? at : null });
+    const other = { label: 'b', state: 'running', model: null, startedAt: '2026-10-14T08:00:00.000Z', endedAt: null };
+    const before = nodesOf(withAgents({ items: [twin('running'), twin('running'), other] }));
+    const afterFirst = nodesOf(withAgents({ items: [twin('done'), twin('running'), other] }));
+    const afterSecond = nodesOf(withAgents({ items: [twin('running'), twin('done'), other] }));
+    // Same list order, one agent ended: every box keeps its id, at its place.
+    expect(afterFirst.map((node) => node.id)).toEqual(before.map((node) => node.id));
+    expect(afterSecond.map((node) => node.id)).toEqual(before.map((node) => node.id));
+    // A list in another order (the later start first) gives the same ids: the count follows the start, not the list.
+    const shuffled = nodesOf(withAgents({ items: [twin('running'), other, twin('running')] }));
+    expect(shuffled.map((node) => node.id)).toEqual(before.map((node) => node.id));
+  });
 });
 
 describe('hostedHealth', () => {
