@@ -208,7 +208,7 @@ The page reads from top to bottom, in order of importance:
 
 **What is active** (Mark, 2026-10-07)
 - A session is active while its Claude process runs. The process list is the folder `~/.claude/sessions`. It holds one `<pid>.json` file for each running process.
-- The server reads four keys of a file: `sessionId`, `pid`, `startedAt` and `status` (`busy` or `idle`). It checks that the pid is alive. No other key leaves the server.
+- The server reads four keys of a file: `sessionId`, `pid`, `startedAt` and `status`. It checks that the pid is alive. No other key leaves the server. The status shows as `busy` or `idle`: `busy` and `shell` (it waits for a background shell command) give `busy`, and every other word, `waiting` and a missing one included, gives `idle`. A session is live whatever its status says, because Claude Code adds status words over time.
 - Only sessions about Shadow Jog count. The rule of version 1 applies: the session folder or the working directory is inside an allow-listed root. Automated runs (SDK) stay hidden, and a label gives their count.
 - The state word follows `status`. `busy` is "working". `idle` is "waiting".
 - An agent runs until it has an end record. If it has none and its file did not change for 5 minutes, it still counts as running while its session is `busy`, because a long tool call writes nothing. After 30 minutes without a change (`agents.staleSeconds`), it counts as stopped even then, because an agent that Mark stops writes no end record. While the session is `idle`, it counts as stopped and leaves the diagram.
@@ -366,7 +366,7 @@ The page:
 | GitHub | Open PRs, review state, checks, recent merges, and (revision 2) the newest CI run on `main` | The `gh` CLI (already signed in). Every 60 seconds, and on demand |
 | Decisions | Issues with the `decision` or `decided` label, and their comments | The `gh` CLI. Every 60 seconds, on demand, and right after an answer |
 | Claude sessions | The session files for Shadow Jog (found by their working folder), and their agent and workflow records | Only files changed in the last 7 days, and only the end of each file |
-| Process list (revision 2) | `~/.claude/sessions/<pid>.json`: the session id, the pid, the start time, and `busy` or `idle`. No other key leaves the server | Every 3 seconds, with a pid check |
+| Process list (revision 2) | `~/.claude/sessions/<pid>.json`: the session id, the pid, the start time, and the status (shaped to `busy` or `idle`). No other key leaves the server | Every 3 seconds, with a pid check |
 | GitHub API (revision 3, hosted only) | The same data as the `git` and `gh` rows, for every branch, plus the workstream files | Vercel functions, GitHub GraphQL, read-only token |
 | Live key (revision 3, hosted only) | `live` in Upstash Redis: sessions, agents and worktrees from this machine | `/api/live`, read-only token |
 
