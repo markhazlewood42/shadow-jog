@@ -5,6 +5,8 @@ import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import { createAgentsSource } from '../src/server/agents/module';
 import { MESSAGE_WINDOW_BYTES } from '../src/server/agents/tree';
 import { isInside } from '../src/server/config';
+import { stampOf } from '../src/server/sessions/discover';
+import { createSessionReader } from '../src/server/sessions/reader';
 import { createHub } from '../src/server/hub';
 import { createSessionsSource } from '../src/server/sessions/sessions';
 import type { AgentsLive, ChangeEvent } from '../src/shared/types';
@@ -39,7 +41,7 @@ import {
   writeProcessFile,
 } from './agents-helpers';
 import { makeTestConfig } from './helpers';
-import { INSIDE, OUTSIDE, PREFIX_ONLY, ROOT_PHASER, assistantText, toolResult, userPrompt } from './sessions-helpers';
+import { INSIDE, OUTSIDE, PREFIX_ONLY, ROOT_PHASER, assistantText, box, toolResult, userPrompt } from './sessions-helpers';
 
 // The agents module over the synthetic fixture world of tests/fixtures/claude (see tests/agents-helpers.ts): a folder of process files, and the session
 // folders that those processes run. The pid check is injected and the clock is fixed, so no test needs a real process or the real time. Text in the
@@ -234,6 +236,78 @@ describe('which sessions are live', () => {
       const result = await loadAgents({ world });
       expect(result.data.sessions.map((session) => session.id).includes(SB), label).toBe(kept);
     }
+  });
+
+  describe('where a session works, when the shell goes back to the folder it was launched in', () => {
+    const HOME = '/fixture/home-base';
+    const WORKTREE = '/fixture/repo-worktree';
+    /** B (a session of the mixed folder, so kept only by its working folder) with these lines, and a process file that says it was launched in `launch`. */
+    async function listsB(cwds: string[], launch: string, roots?: () => Promise<string[]>): Promise<boolean> {
+      const world = copyAgentFixtures(parent);
+      const lines = cwds.map((cwd, i) => assistantText(`reply ${i}`, { cwd, time: at(-3000 + i * 10) }));
+      writeAged(sessionFile(world, MIXED_FOLDER, SB), jsonl(lines), 60);
+      writeProcessFile(world, PID.B, SB, 'idle', NOW - 3_600_000, launch);
+      const { data } = await loadAgents({ world, ...(roots === undefined ? {} : { roots }) });
+      return data.sessions.some((session) => session.id === SB);
+    }
+
+    it('a session that works in the repo is kept although its newest line names the launch folder', async () => {
+      expect(await listsB([INSIDE, HOME, INSIDE, HOME], HOME)).toBe(true);
+    });
+
+    /** B with one line in the repo, then `pad` bytes of lines that name the launch folder, as a session that runs a long time after its shell reset. */
+    async function listsAfterPadding(pad: number, launch: string): Promise<boolean> {
+      const world = copyAgentFixtures(parent);
+      const padding = 'x'.repeat(2000);
+      const count = Math.ceil(pad / 2000);
+      const lines = [assistantText('in the repo', { cwd: INSIDE, time: at(-3000) }), ...Array.from({ length: count }, (_, i) => assistantText(padding, { cwd: HOME, time: at(-2900 + i) }))];
+      writeAged(sessionFile(world, MIXED_FOLDER, SB), jsonl(lines), 60);
+      writeProcessFile(world, PID.B, SB, 'idle', NOW - 3_600_000, launch);
+      return (await loadAgents({ world })).data.sessions.some((session) => session.id === SB);
+    }
+
+    it('a session whose newest 64 KB name only the launch folder is read further back, up to the cap, until a line names another folder', async () => {
+      expect(await listsAfterPadding(160 * 1024, HOME)).toBe(true);
+      expect(await listsAfterPadding(200 * 1024, HOME)).toBe(true);
+      // With no launch folder the first window decides, as before: it holds only the launch folder.
+      expect(await listsAfterPadding(160 * 1024, '')).toBe(false);
+    });
+
+    it('the growth stops at the cap: a line that names another folder beyond it is not found, and the session is decided by the launch folder', async () => {
+      expect(await listsAfterPadding(300 * 1024, HOME)).toBe(false);
+    });
+
+    it('the Your move box counts after a shell reset and for a worktree, and the roots are in the key of the kept read', async () => {
+      const world = copyAgentFixtures(parent);
+      const file = sessionFile(world, MIXED_FOLDER, SB);
+      const WORKTREE = '/fixture/repo-worktree';
+      const lines = [assistantText('work', { cwd: WORKTREE, time: at(-3000) }), assistantText(box(['Review the diff']), { cwd: HOME, time: at(-2900) })];
+      writeAged(file, jsonl(lines), 60);
+      const stamp = await stampOf(file);
+      if (stamp === null) throw new Error('no file');
+      const reader = createSessionReader(agentsConfig(world), 'test');
+      const sessionFileOf = { ...stamp, id: SB, folder: MIXED_FOLDER, matchedBy: 'cwd' as const };
+      const roots = agentsConfig(world).roots;
+      // The same file is read three times: the answer depends on the roots, so it must not be handed from one to the next.
+      expect((await reader.readSession(sessionFileOf, HOME, roots)).yourMove).toBeNull();
+      expect((await reader.readSession(sessionFileOf, HOME, [...roots, WORKTREE])).yourMove?.items).toEqual(['Review the diff']);
+      expect((await reader.readSession(sessionFileOf, HOME, roots)).yourMove).toBeNull();
+    });
+
+    it('a session that only works in its launch folder is dropped', async () => {
+      expect(await listsB([HOME, HOME, HOME], HOME)).toBe(false);
+    });
+
+    it('a session whose process file has no launch folder is decided by its newest line, as before', async () => {
+      expect(await listsB([INSIDE, HOME], '')).toBe(false);
+      expect(await listsB([HOME, INSIDE], '')).toBe(true);
+    });
+
+    it('a session that works in a worktree is kept when the roots hold it, and dropped when they do not', async () => {
+      const config = agentsConfig(copyAgentFixtures(parent));
+      expect(await listsB([WORKTREE, HOME], HOME, async () => config.roots)).toBe(false);
+      expect(await listsB([WORKTREE, HOME], HOME, async () => [...config.roots, WORKTREE])).toBe(true);
+    });
   });
 
   it('a process whose session file is in no named folder is not listed, and a process with no session file does not break the others', async () => {

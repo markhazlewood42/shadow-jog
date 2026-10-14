@@ -11,8 +11,9 @@ import { readSmallJson } from '../sessions/tail';
 // The folder is an internal one of Claude Code, so its format can change with an update, and it also holds secrets: next to each
 // `<pid>.json` there is a `<pid>.<hash>.key` file with a token. So this reader:
 // - lists the folder and opens only the files named `<digits>.json`, never anything else;
-// - keeps four keys of a file (the session id, the pid, the start time and the status, which is shaped to busy or idle). Every other key
-//   (the working folder, the name, the socket path, the bridge id ...) is dropped here, and the pid is dropped as soon as the process is
+// - keeps five keys of a file (the session id, the pid, the start time, the status, which is shaped to busy or idle, and the launch folder `cwd`,
+//   which only decides which sessions are Shadow Jog's and is never sent to a page). Every other key
+//   (the name, the socket path, the bridge id ...) is dropped here, and the pid is dropped as soon as the process is
 //   known to be alive, so nothing past this file can leak what it never had;
 // - never throws for what it finds: a file that is malformed, of an unknown shape or not readable is skipped.
 
@@ -27,6 +28,8 @@ export type ProcessEntry = {
    * `idle`: it waits for Mark, or the file says a word that this does not know.
    */
   status: 'busy' | 'idle';
+  /** The folder that Claude was launched in (the `cwd` of the file), or null when the file has none. The shell goes back to it after tool calls. */
+  cwd: string | null;
 };
 
 /**
@@ -76,7 +79,7 @@ type Shaped = { pid: number; entry: ProcessEntry };
 
 /** The four keys of a process file when they have the expected shape, else null. Everything else in the file is left where it is. */
 function shapeOf(json: Record<string, unknown>): Shaped | null {
-  const { sessionId, pid, startedAt, status } = json;
+  const { sessionId, pid, startedAt, status, cwd } = json;
   if (typeof sessionId !== 'string' || !SESSION_ID.test(sessionId)) return null;
   // A pid is a positive whole number. 0 and the negative ones are not processes: signal 0 to them goes to a whole group of processes.
   if (typeof pid !== 'number' || !Number.isSafeInteger(pid) || pid <= 0) return null;
@@ -84,7 +87,7 @@ function shapeOf(json: Record<string, unknown>): Shaped | null {
   const shapedStatus: ProcessEntry['status'] = typeof status === 'string' && BUSY_STATUSES.has(status) ? 'busy' : 'idle';
   // A start time that is not a time is no reason to lose a session that runs: it is left out and the session has no start.
   const startedAtMs = typeof startedAt === 'number' && startedAt > 0 && !Number.isNaN(new Date(startedAt).getTime()) ? startedAt : null;
-  return { pid, entry: { sessionId, startedAtMs, status: shapedStatus } };
+  return { pid, entry: { sessionId, startedAtMs, status: shapedStatus, cwd: typeof cwd === 'string' && cwd !== '' ? cwd : null } };
 }
 
 /** The older of two start times; a time beats null. */
@@ -151,7 +154,7 @@ export async function readProcessList(folder: string, isAlive: IsAlive = process
     const same = bySession.get(found.entry.sessionId);
     bySession.set(
       found.entry.sessionId,
-      same === undefined ? found.entry : { sessionId: same.sessionId, startedAtMs: earlier(same.startedAtMs, found.entry.startedAtMs), status: same.status === 'busy' || found.entry.status === 'busy' ? 'busy' : 'idle' },
+      same === undefined ? found.entry : { sessionId: same.sessionId, startedAtMs: earlier(same.startedAtMs, found.entry.startedAtMs), status: same.status === 'busy' || found.entry.status === 'busy' ? 'busy' : 'idle', cwd: same.cwd ?? found.entry.cwd },
     );
   }
 

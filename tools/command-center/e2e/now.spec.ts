@@ -664,7 +664,7 @@ test.describe('the data of the panels', () => {
     // The link to the merged ones is there when nothing is open too: it is not about the list.
     await expect(panel(page, 'Pull requests').getByRole('link', { name: 'Merged pull requests' })).toHaveAttribute('href', 'https://github.com/fixture-owner/fixture-repo/pulls?q=is%3Apr+is%3Amerged');
     // The Status panel has a label for each empty value, and the strip has no squares.
-    for (const label of ['No branch', 'no run', 'Nothing for you', 'No date', 'No commits', 'Not started']) await expect(panel(page, 'Status')).toContainText(label);
+    for (const label of ['No branch', 'no run', 'Nothing for you', 'No date', 'No commits', 'None active']) await expect(panel(page, 'Status')).toContainText(label);
     await expect(panel(page, 'Status').getByRole('listitem')).toHaveCount(0);
     // The Links panel always has the game, as a link. The label under it says that the config has no more.
     await expect(panel(page, 'Links').getByText('No other links', { exact: true })).toBeVisible();
@@ -954,10 +954,12 @@ test.describe('the status panel', () => {
       await expect(commit).toHaveAttribute('target', '_blank');
       expect(problems).toEqual([]);
 
-      // The strip under the rows: the label, and one square for each milestone of the table, none of them current while the key says "none".
+      // The strip under the rows: the label, and one square for each milestone of the table. The key says "none", so none is current, and the two that the fixture's
+      // roadmap.json marks done (Phase 0 and M0) are filled: the strip is not blank.
       await expect(status.getByText('Milestone', { exact: true })).toBeVisible();
       await expect(squaresOf(page)).toHaveCount(SQUARES.length);
-      await expect(status.getByText('Not started')).toBeVisible();
+      expect(await squaresOf(page).evaluateAll((links) => links.map((link) => link.getAttribute('data-state')))).toEqual(['done', 'done', 'later', 'later']);
+      await expect(status.getByText('None active')).toBeVisible();
 
       // CI in its other states: running and failing are links to the run, and "no run" (an empty list, or a run with no verdict) has no link and no age.
       for (const [stdout, word, linked] of [
@@ -989,19 +991,23 @@ test.describe('the status panel', () => {
       await page.goto('/');
       await allLoaded(page);
       await expect(squaresOf(page)).toHaveCount(SQUARES.length);
-      for (const square of await squaresOf(page).all()) await expect(square).toHaveAttribute('data-state', 'later'); // "none": every square is outlined
+      // "none": no square is current, and the squares that the roadmap marks done are filled (the key plays no part in that).
+      expect(await squaresOf(page).evaluateAll((links) => links.map((link) => link.getAttribute('data-state')))).toEqual(['done', 'done', 'later', 'later']);
 
       writeFileSync(STATUS_MD, original.replace('milestone: none', 'milestone: M0'));
       await expect.poll(async () => ((await (await request.get('/api/status')).json()) as { data?: { milestone?: { current: string | null } } }).data?.milestone?.current, { timeout: 15_000 }).toBe('M0');
 
       const status = panel(page, 'Status');
       const squares = squaresOf(page);
-      // Before the current milestone a square is filled, the current one is marked, and after it a square is outlined. Each links to its heading in the doc page.
+      // A square that the roadmap marks done is filled, the one that the key names is marked (current wins: the roadmap says M0 is done too), and the rest are outlined.
+      // Each links to its heading in the doc page.
       await expect(squares.nth(1)).toHaveAttribute('data-state', 'current');
       expect(await squares.evaluateAll((links) => links.map((link) => link.getAttribute('data-state')))).toEqual(['done', 'current', 'later', 'later']);
-      expect(await squares.evaluateAll((links) => links.map((link) => link.getAttribute('aria-label')))).toEqual(SQUARES.map((square) => square.name));
+      const stateNames = SQUARES.map((square, index) => `${square.name}, ${['done', 'current', 'later', 'later'][index]}`);
+      expect(await squares.evaluateAll((links) => links.map((link) => link.getAttribute('aria-label')))).toEqual(stateNames);
+      await expect(status.getByRole('link', { name: 'Phase 0 Platform spike, done' })).toHaveCount(1);
       // A square has no words, so its name is also its tooltip: a mouse finds out which milestone it is by resting on it.
-      expect(await squares.evaluateAll((links) => links.map((link) => link.getAttribute('title')))).toEqual(SQUARES.map((square) => square.name));
+      expect(await squares.evaluateAll((links) => links.map((link) => link.getAttribute('title')))).toEqual(stateNames);
       expect(await squares.evaluateAll((links) => links.map((link) => link.getAttribute('href')))).toEqual(SQUARES.map((square) => square.href));
       expect(await squares.evaluateAll((links) => links.map((link) => link.getAttribute('aria-current')))).toEqual([null, 'step', null, null]);
 
@@ -1017,7 +1023,7 @@ test.describe('the status panel', () => {
       const current = status.locator('a', { hasText: 'M0 Kernel' });
       await expect(current).toHaveCount(1);
       await expect(current).toHaveAttribute('href', '/docs/engine/migration#m0-kernel');
-      await expect(status.getByText('Not started')).toHaveCount(0);
+      await expect(status.getByText('None active')).toHaveCount(0);
 
       // The current square is the one amber item of the panel, and the page keeps to its two: with the glass off and with it on.
       for (const mode of NO_GPU ? (['plain'] as const) : (['plain', 'glass'] as const)) {
@@ -1026,7 +1032,7 @@ test.describe('the status panel', () => {
           await expect(glassSwitch(page)).toHaveAttribute('aria-pressed', 'true');
         }
         const amber = await amberItems(page);
-        expect(amber.filter((item) => item.startsWith('a[M0 Kernel]')), mode).toHaveLength(1);
+        expect(amber.filter((item) => item.startsWith('a[M0 Kernel, current]')), mode).toHaveLength(1);
         expect(amber.filter((item) => /^a\[(Phase 0|M1b|M2)/.test(item)), mode).toEqual([]);
         await expectAtMostTwoAmberItems(page);
       }
@@ -1041,11 +1047,66 @@ test.describe('the status panel', () => {
     }
   });
 
-  test('a milestone key that is missing or names no milestone shows an error label and no filled or current square', async ({ page }) => {
+  test('status panel keeps the done squares filled while the key is none, and a key on a later milestone is current beside them', async ({ page, request }) => {
+    // Real server, real fixture repo: roadmap.json marks Phase 0 and M0 done, and the key is `none`. The strip is not blank, and its label does not say that nothing started.
+    const original = readFileSync(STATUS_MD, 'utf8');
+    expect(original).toContain('milestone: none');
+    const states = () => squaresOf(page).evaluateAll((links) => links.map((link) => link.getAttribute('data-state')));
+    try {
+      await page.goto('/');
+      await allLoaded(page);
+      const status = panel(page, 'Status');
+      expect(await states()).toEqual(['done', 'done', 'later', 'later']);
+      await expect(status.getByText('None active')).toBeVisible();
+      await expect(status.getByText('Not started')).toHaveCount(0);
+      await expect(stripOf(page).locator('[aria-current]')).toHaveCount(0);
+
+      // The key names M2, a milestone that the roadmap does not call done and that comes last in the table: it is current, and the squares that are done stay done.
+      writeFileSync(STATUS_MD, original.replace('milestone: none', 'milestone: M2'));
+      await expect.poll(async () => ((await (await request.get('/api/status')).json()) as { data?: { milestone?: { current: string | null } } }).data?.milestone?.current, { timeout: 15_000 }).toBe('M2');
+      await expect.poll(states).toEqual(['done', 'done', 'later', 'current']);
+      await expect(status.locator('a', { hasText: 'M2 Stage' })).toHaveAttribute('href', '/docs/engine/migration#m2-stage');
+      await expect(status.getByText('None active')).toHaveCount(0);
+    } finally {
+      writeFileSync(STATUS_MD, original);
+      await expect.poll(async () => ((await (await request.get('/api/status')).json()) as { data?: { milestone?: { current: string | null } } }).data?.milestone?.current, { timeout: 15_000 }).toBeNull();
+    }
+  });
+
+  test('status panel says Unavailable on the strip only, and draws no squares, when roadmap.json cannot be read', async ({ page, request }) => {
+    const ROADMAP = join(REPO, 'docs', 'roadmap', 'roadmap.json');
+    const original = readFileSync(ROADMAP, 'utf8');
+    const readStatus = async () => (await (await request.get('/api/status?refresh=1')).json()) as Panel<StatusInfo>;
+    try {
+      writeFileSync(ROADMAP, '{ not json');
+      await expect
+        .poll(async () => {
+          const reply = await readStatus();
+          return reply.ok ? 'ok' : reply.error.code;
+        }, { timeout: 15_000 })
+        .toBe('milestones-roadmap-unreadable');
+
+      await page.addInitScript((key) => localStorage.setItem(key, 'off'), GLASS_KEY);
+      await page.goto('/');
+      await allLoaded(page);
+      const status = panel(page, 'Status');
+      // Done squares that are not drawn because the file is unreadable must not look like "nothing is done": the strip says why, and the other rows keep their values.
+      await expect(status.getByText('Unavailable')).toHaveCount(1);
+      await expect(status.getByText('milestones-roadmap-unreadable', { exact: true })).toBeVisible();
+      await expect(status.getByRole('button', { name: 'Retry Milestone' })).toBeVisible();
+      await expect(stripOf(page)).toHaveCount(0);
+      await expect(rowOf(page, 'Next up').getByRole('link')).toHaveText('3 for you');
+    } finally {
+      writeFileSync(ROADMAP, original);
+      await expect.poll(async () => (await readStatus()).ok, { timeout: 15_000 }).toBe(true);
+    }
+  });
+
+  test('a milestone key that is missing or names no milestone shows an error label and no current square, and the done squares stay filled', async ({ page }) => {
     const info = (milestone: { current: string | null; problem: 'missing' | 'unknown' | null }) => ({
       ok: true,
       updatedAt: new Date().toISOString(),
-      data: { updated: '2026-01-02', nextUpForMark: [], milestone, milestones: SQUARES.map((square, index) => ({ id: square.name.split(' ')[0], name: '', scope: '', anchor: index === 0 ? null : `anchor-${index}` })) },
+      data: { updated: '2026-01-02', nextUpForMark: [], milestone, milestones: SQUARES.map((square, index) => ({ id: square.name.split(' ')[0], name: '', scope: '', anchor: index === 0 ? null : `anchor-${index}`, done: index === 0 })) },
     });
     for (const [milestone, label] of [
       [{ current: null, problem: 'missing' }, 'Milestone key missing'],
@@ -1058,11 +1119,11 @@ test.describe('the status panel', () => {
       await page.goto('/');
       const status = panel(page, 'Status');
       await expect(status.getByText(label, { exact: true })).toBeVisible();
-      await expect(status.getByText('Not started')).toHaveCount(0);
-      // The rows stay, and every square is outlined.
+      await expect(status.getByText('None active')).toHaveCount(0);
+      // The rows stay, no square is current, and the first square (done in the roadmap) is still filled: a bad key never blanks the strip.
       await expect(status.locator('dl > div')).toHaveCount(5);
       await expect(squaresOf(page)).toHaveCount(SQUARES.length);
-      expect(await squaresOf(page).evaluateAll((links) => links.map((link) => link.getAttribute('data-state')))).toEqual(['later', 'later', 'later', 'later']);
+      expect(await squaresOf(page).evaluateAll((links) => links.map((link) => link.getAttribute('data-state')))).toEqual(['done', 'later', 'later', 'later']);
       await expect(stripOf(page).locator('[aria-current]')).toHaveCount(0);
       await expect(stripOf(page).getByRole('link').first()).toHaveAttribute('href', '/docs/engine/migration');
     }

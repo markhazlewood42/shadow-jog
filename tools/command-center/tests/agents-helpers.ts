@@ -99,11 +99,11 @@ export const sessionFile = (world: World, folder: string, id: string): string =>
 export const agentFile = (world: World, folder: string, sessionId: string, agentId: string): string => join(world.projects, folder, sessionId, 'subagents', `agent-${agentId}.jsonl`);
 
 /** Writes a process file (the pid in its name), with the keys of a real one around the four that matter. */
-export function writeProcessFile(world: World, pid: number, sessionId: string, status: 'busy' | 'idle', startedAtMs = NOW - 3_600_000): void {
+export function writeProcessFile(world: World, pid: number, sessionId: string, status: 'busy' | 'idle', startedAtMs = NOW - 3_600_000, cwd = '/fixture/repo'): void {
   mkdirSync(world.sessions, { recursive: true });
   writeFileSync(
     join(world.sessions, `${pid}.json`),
-    JSON.stringify({ pid, sessionId, cwd: '/fixture/repo', startedAt: startedAtMs, name: `SENTINEL-NAME-${pid}`, messagingSocketPath: `SENTINEL-SOCKET-PATH-${pid}`, bridgeSessionId: `SENTINEL-BRIDGE-ID-${pid}`, status }),
+    JSON.stringify({ pid, sessionId, cwd, startedAt: startedAtMs, name: `SENTINEL-NAME-${pid}`, messagingSocketPath: `SENTINEL-SOCKET-PATH-${pid}`, bridgeSessionId: `SENTINEL-BRIDGE-ID-${pid}`, status }),
   );
 }
 
@@ -172,6 +172,8 @@ type LoadOptions = {
   agents?: Partial<Config['agents']>;
   nowMs?: number;
   alive?: Set<number>;
+  /** The roots to compare working folders with, in place of the config's roots and the worktrees of the repo. */
+  roots?: () => Promise<string[]>;
 };
 
 /** Makes a world (or takes the one given), builds the module over it with a fixed clock and an injected pid check, looks once, and gives the answer. */
@@ -183,7 +185,7 @@ export async function loadAgents(options: LoadOptions): Promise<Loaded> {
   const events: ChangeEvent[] = [];
   hub.subscribe((event) => events.push(event));
   const alive = options.alive ?? aliveSet();
-  const source = createAgentsSource({ config, hub, now: () => options.nowMs ?? NOW, isAlive: (pid) => alive.has(pid) });
+  const source = createAgentsSource({ config, hub, now: () => options.nowMs ?? NOW, isAlive: (pid) => alive.has(pid), ...(options.roots === undefined ? {} : { roots: options.roots }) });
   const panel = await source.get(true);
   if (!panel.ok) throw new Error(`the panel failed: ${panel.error.code}: ${panel.error.message}`);
   return { data: panel.data, world, config, source, events, alive };

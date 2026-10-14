@@ -9,7 +9,7 @@ import { ENGINE_DOCS, classifyDecisions, classifyUpdateChoices, parseEngineDecis
 import { parsePhaseDecisions } from '../../server/engine/phase';
 import { say } from '../../server/messages';
 import { PanelError } from '../../server/source';
-import { MIGRATION_DOC_PATH, STATUS_DOC_PATH, parseMilestoneKey, parseMilestones, parseStatus } from '../../server/status/status';
+import { MIGRATION_DOC_PATH, ROADMAP_PATH, STATUS_DOC_PATH, parseMilestoneKey, parseMilestones, parseRoadmapDone, parseStatus } from '../../server/status/status';
 import navFile from '../../../nav.json';
 import { type HostedError, fetchHostedText } from './fetch';
 import { HOSTED_REPO } from './mode';
@@ -195,11 +195,14 @@ export function statusPanelOf(snapshot: Snapshot): Panel<StatusInfo> {
   let milestones: StatusInfo['milestones'] = [];
   let problem: { code: string; message: string } | null = null;
   const migrationMd = snapshot.main.migration;
+  const roadmapJson = snapshot.main.roadmap;
   if (migrationMd === null) {
     problem = { code: 'milestones-doc-missing', message: say('milestonesDocMissing', { path: MIGRATION_DOC_PATH }) };
+  } else if (roadmapJson === null) {
+    problem = { code: 'milestones-roadmap-missing', message: say('roadmapDocMissing', { path: ROADMAP_PATH }) };
   } else {
     try {
-      milestones = parseMilestones(migrationMd, renderDoc(migrationMd, contextFor(MIGRATION_DOC_PATH)).headings);
+      milestones = parseMilestones(migrationMd, renderDoc(migrationMd, contextFor(MIGRATION_DOC_PATH)).headings, parseRoadmapDone(roadmapJson));
     } catch (error) {
       if (!(error instanceof PanelError)) throw error;
       problem = { code: error.code, message: error.message };

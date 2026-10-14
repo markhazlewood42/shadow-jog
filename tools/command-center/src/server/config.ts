@@ -83,17 +83,31 @@ export class ConfigError extends Error {
 // ---- isInside ----
 
 /**
+ * The Git Bash form of a Windows drive path (`/c/Users/x`) as the Windows form (`C:/Users/x`). A session's shell writes
+ * its working folder in this form too, and `resolve('/c/Users/x')` would read it as `C:\c\Users\x`. Any other path is returned as it is.
+ */
+export function msysToWindows(path: string): string {
+  const match = /^\/([A-Za-z])(?:\/(.*))?$/.exec(path);
+  return match === null ? path : `${(match[1] as string).toUpperCase()}:/${match[2] ?? ''}`;
+}
+
+/**
  * A path in a form that can be compared as text: absolute, with "." and ".." folded away, with
  * forward slashes and no trailing slash. On Windows the case is dropped too, because C:\Repo and
  * c:/repo name the same folder there.
  */
 function comparable(path: string): string {
   const windows = process.platform === 'win32';
-  let text = resolve(path);
+  let text = resolve(windows ? msysToWindows(path) : path);
   if (windows) text = text.replace(/\\/g, '/');
   // Keep the slash of a drive or file system root ("C:/" or "/"): it is part of the root's name.
   if (text.length > 1 && text.endsWith('/') && !/^[A-Za-z]:\/$/.test(text)) text = text.slice(0, -1);
   return windows ? text.toLowerCase() : text;
+}
+
+/** Whether two paths name the same folder, compared as `isInside` compares them (on Windows `/c/x` and `C:\x` are the same). */
+export function sameFolder(a: string, b: string): boolean {
+  return comparable(a) === comparable(b);
 }
 
 /**

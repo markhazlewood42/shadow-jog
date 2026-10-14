@@ -10,7 +10,7 @@ import { registerStatusRoutes } from '../src/server/routes/status';
 import { createRunner } from '../src/server/runner';
 import { PanelError } from '../src/server/source';
 import { createStatusSource } from '../src/server/status/module';
-import { MIGRATION_DOC_PATH, STATUS_DOC_PATH, parseMilestoneKey, parseMilestones, parseStatus } from '../src/server/status/status';
+import { MIGRATION_DOC_PATH, ROADMAP_PATH, STATUS_DOC_PATH, parseMilestoneKey, parseMilestones, parseRoadmapDone, parseStatus } from '../src/server/status/status';
 import { type DocHeading, MIGRATION_DOC_SLUG, type Panel, STATUS_DOC_SLUG, type StatusInfo } from '../src/shared/types';
 import { type DocsRepo, makeDocsRepo, makeIndex, waitFor } from './doc-index-helpers';
 import { FIXTURE_REPO } from './doc-helpers';
@@ -313,15 +313,33 @@ Some words.
 
 /** No heading of the doc is known: every milestone then has no anchor. */
 const NO_HEADINGS: DocHeading[] = [];
+/** No milestone is done in the roadmap. */
+const NO_DONE: ReadonlySet<string> = new Set();
+
+/** A roadmap with an item for each row of MIGRATION_DOC (and M5): three are done, one is next, one is optional, and the last one is later. */
+const ROADMAP_JSON = JSON.stringify({
+  updated: '2026-01-02',
+  lanes: [{ id: 'a', title: 'A' }],
+  items: [
+    { id: 'Phase 0', kind: 'milestone', label: 'Spike', lane: 'a', status: 'done', after: [], notes: 'n' },
+    { id: 'Pre-M0', kind: 'milestone', label: 'Move', lane: 'a', status: 'done', after: [], notes: 'n' },
+    { id: 'M0', kind: 'milestone', label: 'Prepare', lane: 'a', status: 'done', after: [], notes: 'n' },
+    { id: 'M1b', kind: 'milestone', label: '3D', lane: 'a', status: 'next', after: [], notes: 'n' },
+    { id: 'M4', kind: 'milestone', label: 'UI', lane: 'a', status: 'optional', after: [], notes: 'n' },
+    { id: 'M5', kind: 'milestone', label: 'Field', lane: 'a', status: 'later', after: [], notes: 'n' },
+    // Not a milestone: it is never a done square, also when its id is a milestone's.
+    { id: 'Side', kind: 'task', label: 'Side', lane: 'a', status: 'done', after: [], notes: 'n' },
+  ],
+});
 
 describe('parseMilestones', () => {
   it('milestone ids such as "Phase 0" and "M1b" parse', () => {
-    expect(parseMilestones(MIGRATION_DOC, NO_HEADINGS)).toEqual([
-      { id: 'Phase 0', name: 'Platform spike', scope: 'A spike branch that closed the unknowns (section 3). Done.', anchor: null },
-      { id: 'Pre-M0', name: '640x360 move', scope: 'Move the game to 640x360 on its own branch.', anchor: null },
-      { id: 'M0', name: 'Prepare', scope: 'Size module, bundle gate, canary suite', anchor: null },
-      { id: 'M1b', name: '3D proof (parallel with M2)', scope: 'A spinning cube in a Scene3D, with the hand-off tests', anchor: null },
-      { id: 'M4', name: 'UI scenes (optional)', scope: 'NineSlice windows, a | in a cell', anchor: null },
+    expect(parseMilestones(MIGRATION_DOC, NO_HEADINGS, new Set(['Phase 0', 'M0', 'M7']))).toEqual([
+      { id: 'Phase 0', name: 'Platform spike', scope: 'A spike branch that closed the unknowns (section 3). Done.', anchor: null, done: true },
+      { id: 'Pre-M0', name: '640x360 move', scope: 'Move the game to 640x360 on its own branch.', anchor: null, done: false },
+      { id: 'M0', name: 'Prepare', scope: 'Size module, bundle gate, canary suite', anchor: null, done: true },
+      { id: 'M1b', name: '3D proof (parallel with M2)', scope: 'A spinning cube in a Scene3D, with the hand-off tests', anchor: null, done: false },
+      { id: 'M4', name: 'UI scenes (optional)', scope: 'NineSlice windows, a | in a cell', anchor: null, done: false },
     ]);
   });
 
@@ -332,12 +350,12 @@ describe('parseMilestones', () => {
 |---|---|---|
 | files | What it does | **M9** Last step |
 `;
-    expect(parseMilestones(shuffled, NO_HEADINGS)).toEqual([{ id: 'M9', name: 'Last step', scope: 'What it does', anchor: null }]);
+    expect(parseMilestones(shuffled, NO_HEADINGS, NO_DONE)).toEqual([{ id: 'M9', name: 'Last step', scope: 'What it does', anchor: null, done: false }]);
     // The table of the content moves has a "Milestone" column, and it is not the milestones. It is not taken after them ...
-    expect(parseMilestones(MIGRATION_DOC, NO_HEADINGS).map((milestone) => milestone.id)).not.toContain('M3');
+    expect(parseMilestones(MIGRATION_DOC, NO_HEADINGS, NO_DONE).map((milestone) => milestone.id)).not.toContain('M3');
     // ... and it is not taken when it comes first, either.
     const decoyFirst = '| Content | Milestone |\n|---|---|\n| Enemies | M3 |\n\n| Milestone | One-line scope |\n|---|---|\n| **M2** Effects | Particles |\n';
-    expect(parseMilestones(decoyFirst, NO_HEADINGS)).toEqual([{ id: 'M2', name: 'Effects', scope: 'Particles', anchor: null }]);
+    expect(parseMilestones(decoyFirst, NO_HEADINGS, NO_DONE)).toEqual([{ id: 'M2', name: 'Effects', scope: 'Particles', anchor: null, done: false }]);
   });
 
   it('a first cell with no bold id takes its first word as the id, and a row with no name text is still listed', () => {
@@ -347,15 +365,15 @@ describe('parseMilestones', () => {
 | **M8** | Only an id |
 | | An empty first cell |
 `;
-    expect(parseMilestones(doc, NO_HEADINGS)).toEqual([
-      { id: 'M7', name: 'Plain row', scope: 'Scope text', anchor: null },
-      { id: 'M8', name: '', scope: 'Only an id', anchor: null },
+    expect(parseMilestones(doc, NO_HEADINGS, NO_DONE)).toEqual([
+      { id: 'M7', name: 'Plain row', scope: 'Scope text', anchor: null, done: false },
+      { id: 'M8', name: '', scope: 'Only an id', anchor: null, done: false },
     ]);
   });
 
   it('a doc with no such table, or a table that lost a column, is an error that names the columns', () => {
     for (const doc of ['# Nothing\n', '| Milestone | Touches |\n|---|---|\n| **M1** x | y |\n', '| Name | One-line scope |\n|---|---|\n| **M1** x | y |\n']) {
-      const error = thrown(() => parseMilestones(doc, NO_HEADINGS));
+      const error = thrown(() => parseMilestones(doc, NO_HEADINGS, NO_DONE));
       expect(error).toBeInstanceOf(PanelError);
       expect((error as PanelError).code).toBe('milestones-table-missing');
       expect((error as PanelError).message).toContain('"Milestone"');
@@ -363,8 +381,15 @@ describe('parseMilestones', () => {
     }
   });
 
+  it('a milestone table with a header and no rows is an error that says so, not a blank strip', () => {
+    const error = thrown(() => parseMilestones('| Milestone | One-line scope |\n|---|---|\n', NO_HEADINGS, NO_DONE));
+    expect(error).toBeInstanceOf(PanelError);
+    expect((error as PanelError).code).toBe('milestones-table-empty');
+    expect((error as PanelError).message).toContain('no rows');
+  });
+
   it('reads the real docs/engine/migration.md: the milestones from Phase 0 to M8d, each with a name and a scope', () => {
-    const milestones = parseMilestones(readFileSync(join(REPO_DIR, 'docs', 'engine', 'migration.md'), 'utf8'), NO_HEADINGS);
+    const milestones = parseMilestones(readFileSync(join(REPO_DIR, 'docs', 'engine', 'migration.md'), 'utf8'), NO_HEADINGS, NO_DONE);
     const ids = milestones.map((milestone) => milestone.id);
     for (const id of ['Phase 0', 'Pre-M0', 'M0', 'M1', 'M1b', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8a', 'M8b', 'M8c', 'M8d']) expect(ids).toContain(id);
     for (const milestone of milestones) {
@@ -396,7 +421,7 @@ describe('parseMilestones', () => {
 | **M2** Effects | Five |
 | **M4** | Six |
 `;
-    expect(parseMilestones(doc, headings).map((milestone) => [milestone.id, milestone.anchor])).toEqual([
+    expect(parseMilestones(doc, headings, NO_DONE).map((milestone) => [milestone.id, milestone.anchor])).toEqual([
       ['Phase 0', null],
       ['M0', 'm0-prepare'],
       ['M1', 'm1-shell'],
@@ -405,6 +430,34 @@ describe('parseMilestones', () => {
       ['M2', null], // no heading for it
       ['M4', 'm4'],
     ]);
+  });
+});
+
+describe('parseRoadmapDone', () => {
+  it('collects the milestone items whose status is done, and nothing else', () => {
+    expect([...parseRoadmapDone(ROADMAP_JSON)].sort()).toEqual(['M0', 'Phase 0', 'Pre-M0']);
+  });
+
+  it('text that is not a roadmap is a PanelError that names the file and the reason', () => {
+    for (const [text, reason] of [
+      ['{ not json', 'is not valid JSON'],
+      ['', 'is not valid JSON'],
+      ['null', 'has no "items" list'],
+      ['[]', 'has no "items" list'],
+      ['{"items": "x"}', 'has no "items" list'],
+      ['{"lanes": []}', 'has no "items" list'],
+    ] as const) {
+      const error = thrown(() => parseRoadmapDone(text));
+      expect(error, text).toBeInstanceOf(PanelError);
+      expect((error as PanelError).code).toBe('milestones-roadmap-unreadable');
+      expect((error as PanelError).message).toContain(ROADMAP_PATH);
+      expect((error as PanelError).message).toContain(reason);
+    }
+  });
+
+  it('skips an item that is not an object and an item without a string id', () => {
+    const text = JSON.stringify({ items: [null, 7, 'M0', { kind: 'milestone', status: 'done' }, { id: 5, kind: 'milestone', status: 'done' }, { id: 'M1', kind: 'milestone', status: 'done' }] });
+    expect([...parseRoadmapDone(text)]).toEqual(['M1']);
   });
 });
 
@@ -473,7 +526,8 @@ afterEach(async () => {
 
 /** A temp repo with `files`, a doc index over it and a status module on the same hub. A test calls `status.get()`. */
 function rigWith(files: Record<string, string>): Rig {
-  const repo = makeDocsRepo(files);
+  // Every rig has the sample roadmap unless the test brings its own: the milestones need it (the panel fails without it).
+  const repo = makeDocsRepo({ [ROADMAP_PATH]: ROADMAP_JSON, ...files });
   const { index, hub, events } = makeIndex(repo);
   const status = createStatusSource({ config: repo.config, docs: index, hub });
   const rig = { repo, status, index, events };
@@ -627,6 +681,50 @@ The same words again.
     expect(dataOf(panel).milestones).toHaveLength(5);
   });
 
+  it('done comes from the roadmap, whatever the key says; the key makes a milestone current, and an edit of the roadmap shows up', async () => {
+    const rig = rigWith({ 'status.md': SAMPLE_STATUS, 'docs/engine/migration.md': MIGRATION_DOC });
+    rig.status.start();
+    const flags = async () => dataOf(await rig.status.get()).milestones.map((milestone) => [milestone.id, milestone.done]);
+    // The key says `none`, and three milestones are done in the roadmap: the rows after a done one that are not done stay not done, and the order of the rows plays no part.
+    expect(await flags()).toEqual([['Phase 0', true], ['Pre-M0', true], ['M0', true], ['M1b', false], ['M4', false]]);
+    expect(dataOf(await rig.status.get()).milestone).toEqual({ current: null, problem: null });
+
+    // A key that names a milestone does not change what is done. A key on a finished milestone is still a current one (the page lets current win).
+    rig.repo.write('status.md', SAMPLE_STATUS.replace('milestone: none', 'milestone: M0'));
+    await rig.index.refresh(['status.md']);
+    await waitFor(async () => dataOf(await rig.status.get()).milestone.current === 'M0', 'the key');
+    expect(await flags()).toEqual([['Phase 0', true], ['Pre-M0', true], ['M0', true], ['M1b', false], ['M4', false]]);
+
+    // A milestone with no item in the roadmap is not done (M4 and M5 would be, if the join took the table's own words).
+    rig.repo.write(ROADMAP_PATH, JSON.stringify({ items: [{ id: 'M1b', kind: 'milestone', status: 'done' }] }));
+    await rig.status.get(true);
+    expect(await flags()).toEqual([['Phase 0', false], ['Pre-M0', false], ['M0', false], ['M1b', true], ['M4', false]]);
+  });
+
+  it('a roadmap that is missing or unreadable is an error panel that still carries the status, with no milestones', async () => {
+    const rig = rigWith({ 'status.md': SAMPLE_STATUS, 'docs/engine/migration.md': MIGRATION_DOC, [ROADMAP_PATH]: '{ not json' });
+    rig.status.start();
+    const broken = await rig.status.get();
+    expect(broken.ok).toBe(false);
+    if (broken.ok) return;
+    expect(broken.error.code).toBe('milestones-roadmap-unreadable');
+    expect(broken.error.message).toContain(ROADMAP_PATH);
+    expect(broken.lastGood?.data.nextUpForMark).toHaveLength(3);
+    expect(broken.lastGood?.data.milestones).toEqual([]);
+
+    // Mended: the panel is good, and the done squares are back.
+    rig.repo.write(ROADMAP_PATH, ROADMAP_JSON);
+    expect((await rig.status.get(true)).ok).toBe(true);
+    expect(dataOf(await rig.status.get()).milestones.filter((milestone) => milestone.done)).toHaveLength(3);
+
+    // No roadmap file at all is the same kind of problem, with its own code.
+    rig.repo.remove(ROADMAP_PATH);
+    const gone = await rig.status.get(true);
+    expect(gone.ok ? '' : gone.error.code).toBe('milestones-roadmap-missing');
+    expect(gone.ok ? '' : gone.error.message).toContain(ROADMAP_PATH);
+    expect(gone.ok ? [] : gone.lastGood?.data.milestones).toEqual([]);
+  });
+
   it('the slugs of the two docs that the Status panel links to are the slugs of the paths that the module reads', () => {
     expect(slugOf(STATUS_DOC_PATH)).toBe(STATUS_DOC_SLUG);
     expect(slugOf(MIGRATION_DOC_PATH)).toBe(MIGRATION_DOC_SLUG);
@@ -637,7 +735,7 @@ The same words again.
   it.skipIf(process.env.CC_REAL_NAV !== '1')('real status.md has a valid milestone key', async () => {
     const statusMd = readFileSync(join(REPO_DIR, STATUS_DOC_PATH), 'utf8');
     const migrationMd = readFileSync(join(REPO_DIR, MIGRATION_DOC_PATH), 'utf8');
-    const ids = parseMilestones(migrationMd, NO_HEADINGS).map((milestone) => milestone.id);
+    const ids = parseMilestones(migrationMd, NO_HEADINGS, NO_DONE).map((milestone) => milestone.id);
     expect(ids.length).toBeGreaterThan(0);
 
     // The key is there, and it is `none` or an id of the table of the real migration doc.

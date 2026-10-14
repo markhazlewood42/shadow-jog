@@ -95,7 +95,7 @@ function failedOf(...sources: Source<unknown>[]): Failed[] {
   return sources.flatMap((source) => (source.panel.ok ? [] : [{ code: source.panel.error.code, reload: source.reload }]));
 }
 
-/** The start of the code that the status module gives to a failure of the milestone list only (`milestones-doc-missing`, `milestones-table-missing`). */
+/** The start of the code that the status module gives to a failure of the milestone list only (`milestones-doc-missing`, `milestones-table-missing`, `milestones-table-empty`, and the two codes of a roadmap that the list needs for its done squares). */
 const MILESTONE_FAILURE_PREFIX = 'milestones-';
 
 /**
@@ -170,26 +170,33 @@ export function nextUpLabel(count: number): string {
   return count === 0 ? 'Nothing for you' : `${count} for you`;
 }
 
-/** What a square of the strip is: before the current milestone (`done`), the current milestone, or after it (`later`). */
+/** What a square of the strip is: a milestone that the roadmap says is finished (`done`), the one that the key of status.md names (`current`), or any other (`later`). */
 export type SquareState = 'done' | 'current' | 'later';
 
-/** The state of each of `total` squares, in the order of the table. `current` is the place of the current milestone; with none (the key is `none`, or it has a problem) every square is `later`. */
-export function squareStates(total: number, current: number | null): SquareState[] {
-  return Array.from({ length: total }, (_unused, index) => (current === null || index > current ? 'later' : index < current ? 'done' : 'current'));
+/**
+ * The state of each square, in the order of the table. `done` is the roadmap's word for each milestone (`StatusInfo.milestones[].done`), whatever the order of the rows
+ * and whatever the key says. `current` is the place of the milestone that the key names, or null when no key names one (`none`, or a problem with the key); current wins
+ * over done, so a key that was left on a finished milestone still shows that milestone as current. The strip is never blank: finished milestones show with every key.
+ */
+export function squareStates(done: readonly boolean[], current: number | null): SquareState[] {
+  return done.map((isDone, index) => (index === current ? 'current' : isDone ? 'done' : 'later'));
 }
 
-/** What stands beside the strip: the current milestone (a link), `Not started`, or an error label for a key that is missing or names no milestone. */
-export type Beside = { kind: 'current'; index: number } | { kind: 'not-started' } | { kind: 'error'; label: 'Milestone key missing' | 'Unknown milestone' };
+/** What stands beside the strip: the current milestone (a link), `None active`, or an error label for a key that is missing or names no milestone. */
+export type Beside = { kind: 'current'; index: number } | { kind: 'none-active' } | { kind: 'error'; label: 'Milestone key missing' | 'Unknown milestone' };
 
 /** Decides what stands beside the strip. A key that names a milestone the list does not have is as unknown as one that the server flagged. */
 export function besideOf(info: Pick<StatusInfo, 'milestone' | 'milestones'>): Beside {
   const { current, problem } = info.milestone;
   if (problem === 'missing') return { kind: 'error', label: 'Milestone key missing' };
   if (problem === 'unknown') return { kind: 'error', label: 'Unknown milestone' };
-  if (current === null) return { kind: 'not-started' };
+  if (current === null) return { kind: 'none-active' };
   const index = info.milestones.findIndex((milestone) => milestone.id === current);
   return index === -1 ? { kind: 'error', label: 'Unknown milestone' } : { kind: 'current', index };
 }
+
+/** The accessible name and the tooltip of a square: the words of the milestone and its state (`M3 Battle stage, done`), so the state is not carried by the color alone. */
+const squareName = (milestone: StatusInfo["milestones"][number], state: SquareState): string => `${milestoneName(milestone)}, ${state}`;
 
 /** The words of a milestone: its id and its name (`M3 Battle stage`). Some rows of the table have no name. */
 const milestoneName = (milestone: StatusInfo['milestones'][number]): string => `${milestone.id} ${milestone.name}`.trim();
@@ -378,9 +385,9 @@ const SQUARE_CLASS: Record<SquareState, string> = {
 
 /**
  * The strip of the milestones: the label, one small square for each row of the table in the migration doc (each a link to the heading of its milestone), and,
- * beside the squares, the current milestone as a link, `Not started`, or an error label. A key that is missing or names no milestone leaves every square outlined:
- * the strip never guesses which milestone was meant. When the status source failed in any way, also when only the milestone list failed, there is no list to draw, and the
- * strip says Unavailable (the one place where it does, in the second case).
+ * beside the squares, the current milestone as a link, `None active`, or an error label. The filled squares are the milestones that roadmap.json says are done, with any key.
+ * A key that is missing or names no milestone makes no square current: the strip never guesses which milestone was meant. When the status source failed in any way, also
+ * when only the milestone list or the roadmap failed, there is no list to draw, and the strip says Unavailable (the one place where it does, in the second case).
  */
 function MilestoneStrip({ status }: { status: Source<StatusInfo> }) {
   let body: ReactNode;
@@ -389,14 +396,17 @@ function MilestoneStrip({ status }: { status: Source<StatusInfo> }) {
   } else {
     const info = status.panel.data;
     const beside = besideOf(info);
-    // An error beside the strip means that no square is current, whatever the key was.
-    const states = squareStates(info.milestones.length, beside.kind === 'current' ? beside.index : null);
+    // An error beside the strip means that no square is current, whatever the key was. The done squares do not depend on the key.
+    const states = squareStates(
+      info.milestones.map((milestone) => milestone.done),
+      beside.kind === 'current' ? beside.index : null,
+    );
     let note: ReactNode;
     if (beside.kind === 'current') {
       const milestone = info.milestones[beside.index];
       note = milestone === undefined ? null : <ValueLink href={milestoneHref(milestone)}>{milestoneName(milestone)}</ValueLink>;
-    } else if (beside.kind === 'not-started') {
-      note = <span className="text-cc-muted">Not started</span>;
+    } else if (beside.kind === 'none-active') {
+      note = <span className="text-cc-muted">None active</span>;
     } else {
       note = (
         <span className="inline-flex items-center gap-1.5 font-medium">
@@ -415,8 +425,8 @@ function MilestoneStrip({ status }: { status: Source<StatusInfo> }) {
               <li key={`${index}:${milestone.id}`}>
                 <Link
                   to={milestoneHref(milestone)}
-                  aria-label={milestoneName(milestone)}
-                  title={milestoneName(milestone)}
+                  aria-label={squareName(milestone, state)}
+                  title={squareName(milestone, state)}
                   aria-current={state === 'current' ? 'step' : undefined}
                   data-state={state}
                   className={`block size-4 rounded-xs border hover:border-cc-ink cc-focus-ring ${SQUARE_CLASS[state]}`}

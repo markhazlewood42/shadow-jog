@@ -47,6 +47,25 @@ describe('cwdInsideRoots', () => {
   });
 });
 
+describe('cwdInsideRoots, the Git Bash form of a Windows path', () => {
+  // A session's shell writes its working folder as `/c/Users/...` after a tool call. `resolve` would read that as `C:\c\Users\...`.
+  const roots = ['C:\\Users\\markh\\home-base\\projects\\shadow-jog'];
+
+  it.skipIf(process.platform !== 'win32')('on Windows a /c/... cwd is read as the same folder on drive C', () => {
+    expect(cwdInsideRoots('/c/Users/markh/home-base/projects/shadow-jog/x', roots)).toBe(true);
+    expect(cwdInsideRoots('/c/Users/markh/home-base/projects/shadow-jog', roots)).toBe(true);
+    expect(cwdInsideRoots('/C/Users/markh/home-base/projects/shadow-jog/x', roots)).toBe(true); // any case of the drive letter
+    expect(cwdInsideRoots('/c/Users/markh/home-base', roots)).toBe(false); // the folder above
+    expect(cwdInsideRoots('/d/Users/markh/home-base/projects/shadow-jog/x', roots)).toBe(false); // another drive
+    expect(cwdInsideRoots('C:\\Users\\markh\\home-base\\projects\\shadow-jog-old', roots)).toBe(false); // a name that only starts the same
+    expect(cwdInsideRoots('/c/Users/markh/home-base/projects/shadow-jog-old/x', roots)).toBe(false);
+  });
+
+  it.skipIf(process.platform !== 'win32')('on Windows a root can be given in the Git Bash form too', () => {
+    expect(cwdInsideRoots('C:\\Users\\markh\\home-base\\projects\\shadow-jog\\x', ['/c/Users/markh/home-base/projects/shadow-jog'])).toBe(true);
+  });
+});
+
 describe('keepSession', () => {
   it('a session whose newest cwd left the root is dropped', () => {
     // It started inside, and its newest line is somewhere else: only the newest cwd counts. In both kinds of folder.

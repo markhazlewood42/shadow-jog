@@ -213,10 +213,11 @@ export type StatusInfo = {
    */
   milestone: { current: string | null; problem: 'missing' | 'unknown' | null };
   /**
-   * The milestones of the table in docs/engine/migration.md, in the order of the table. The table has no state column, so there are names and scope only.
+   * The milestones of the table in docs/engine/migration.md, in the order of the table. The table has no state column, so the state comes from
+   * docs/roadmap/roadmap.json: `done` is true when the roadmap item with the same id has the status `done`, and false for any other status and for a row that has no item.
    * `anchor` is the id of the heading of the milestone in the page of that doc (the ids that the docs site gives its headings), or null when the doc has no heading for it.
    */
-  milestones: { id: string; name: string; scope: string; anchor: string | null }[];
+  milestones: { id: string; name: string; scope: string; anchor: string | null; done: boolean }[];
 };
 
 /** A local branch. `date` is when its newest commit was made (an ISO time). */
