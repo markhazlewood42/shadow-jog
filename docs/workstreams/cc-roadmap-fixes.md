@@ -3,7 +3,7 @@ type: workstream
 title: Command Center roadmap fixes
 branch: cc-roadmap-fixes
 roadmap: ET
-state: merged
+state: active
 updated: 2026-10-14
 ---
 
@@ -78,3 +78,16 @@ Mark merged PR #88 (PRs out of Your move, spike PRs hidden, one shared header, D
 ## Closed (2026-10-14)
 
 Mark closed this workstream: "That's all for now." This PR carries the workstream record to `main`. Open candidates, not built: a `home-base` session drops off Running when its folder leaves Shadow Jog (`src/server/sessions/discover.ts`); ghost sessions after pid reuse; the reporter re-reads up to 1 MiB per live session every 3 seconds; the `$` branch-name nit in `command-center-tray.ps1`. Mark uses only the hosted page; local-only work is out of scope.
+
+## Live sessions and hosted agent boxes (2026-10-14)
+
+Mark asked why his builder session was missing from Running, and why the hosted Agents page showed no agents. Cause 1: Claude Code 2.1.299 writes process `status` values `shell` and `waiting`, and the reporter kept only `busy` and `idle` (`process-list.ts`). Cause 2: the reporter already sent agent names and counts, but the hosted Agents page did not draw them. Mark approved a wider allow-list: each agent's model family and start and end time (`agents.items`).
+
+| Step | Change | Verdict |
+|---|---|---|
+| `8dc4408` | `busy` and `shell` give busy; every other value gives idle; a session is never dropped for its status | 4 new tests fail on the old rule |
+| `e8d49fd` | `agents.items` (label, state, model, start, end) published and validated; the hosted Agents page draws one box per agent; an older reporter falls back to names | Builder: tsc, Vitest, lint, e2e:hosted exit 0 |
+| Round 1 | Runner, reader, attacker | Runner PASS (133 local, 27 hosted e2e), 1 Important (last box clipped). Reader: 4 Minor. Attacker: 2 Important (model prefix leak before redaction; README "no file path" claim false for labels) |
+| Fix `84cd157` | Model only `opus`, `sonnet`, `haiku`, `fable`, else null (write and read); README claim corrected; cluster padding; no empty Copy on hosted; twin ids in start order (the reporter lists items in session order now); 4 Minor fixed | Builder: all exit 0. Round 2 (1 fresh verifier on the named findings) not run yet |
+
+No CHANGELOG entry yet: another session is changing the changelog process (Mark, 2026-10-14). Add the entry last, on the newest `main`, by that process if it has landed.
