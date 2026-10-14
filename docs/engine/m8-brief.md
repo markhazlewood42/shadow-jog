@@ -4,7 +4,7 @@ title: "Shadow Jog Engine — M8 build brief"
 project: shadow-jog
 created: 2026-10-14
 updated: 2026-10-14
-status: draft, decisions answered, awaiting Mark approval of the whole brief
+status: approved by Mark 2026-10-14 ("Plan looks good"); build starts with M8a
 tags: [engine, m8, plan, remove-legacy]
 ---
 
