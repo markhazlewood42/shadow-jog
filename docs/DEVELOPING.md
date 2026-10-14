@@ -151,6 +151,26 @@ lists every tool below with a line on what it's for; `/?devmenu` opens the page 
 back to it. `npm run dev` prints the main ones under the server's addresses. The list is `src/dev/tools.ts`: a new
 tool, page or route goes there. The menu isn't mounted under Playwright (`navigator.webdriver`) or in a build.
 
+**The tools** (ET, 2026-10-13: every tool runs on the new engine, and no tool file reaches the old one; `tests/et-tools.test.ts` checks it). Each tool opens in a browser test (`e2e/tools.spec.ts`, or the spec named in the last column).
+
+| Tool | Where it lives | How to open it | Test |
+|---|---|---|---|
+| DEV menu | `src/dev/devmenu.ts`, `src/dev/tools.ts` (the list) | the DEV tab on the game page, the ` key, or `/?devmenu` | `tools.spec.ts` (with the webdriver override) |
+| FX lab (particle presets and battle moments) | `src/dev/fxlab.ts`: a `Scene` of the engine that plays through `game.fx` | `/?scene=fxlab` | `fxlab.spec.ts` |
+| Animation editor (the crew's battle arms) | `src/dev/rigedit.ts`, `rigedit.html` | `/rigedit.html` | `tools.spec.ts` |
+| Art review (every version of the code-drawn art) | `src/dev/artreview.ts`, `artreview.html` | `/artreview.html` | `tools.spec.ts` |
+| Art swap (the review's picks tried in the game) | `src/dev/artswap.ts` | `?art=review[&try=asset/option,...]` on any route | `tools.spec.ts` |
+| Art viewers (five) | `src/dev/viewers/` (`mapview`, `chartest`, `portraittest`, `bestiarytest`, `fonttest`), on one scene base | `?scene=mapview`, `chars`, `portraits`, `bestiary`, `font` | `tools.spec.ts` |
+| Field show hooks (a field state fixed for the parity harness) | `src/dev/fieldshow.ts` | `window.__SJ__.fieldShow`, `fieldInfo` | `sje-field.spec.ts` |
+| Dev routes (the `?scene=` switch) | `src/devroutes.ts` | `?scene=...` (below) | `devroutes-hack.test.ts`, `devroutes-ticks.test.ts` |
+| Stage lab (the battle stage slice, the parity page) | `src/sje-lab/stagelab.ts` | `/sjestage.html` | `tools.spec.ts`, `sje-stage-parity.spec.ts` |
+| Engine lab (the canary page) | `src/sje-lab/lab.ts` and friends | `/sjelab.html` | `sje-canaries.spec.ts` |
+| 3D hack dev entry | `src/sje-lab/hackhook.ts` | `?scene=hack` | `sje-hack-a.spec.ts` to `-d` |
+| Battle Stage Editor | `src/dev/stageedit/` (the save endpoint is `serve.ts`, mounted by `vite.config.ts`) | `/stageedit.html`, or "Battle Stage Editor" in the DEV menu; `?scratch=<name>` makes it use a private copy of the data (tests) | `stageedit*.spec.ts`, `tools.spec.ts` |
+| Battle Test | `src/dev/stageedit/battle*.ts`: the dialog, the controller and one glue module for the game's old battle scene | the **Battle Test** button or Ctrl+Enter in the Battle Stage Editor; Esc returns | `battletest.spec.ts`, `tools.spec.ts` |
+
+The Battle Stage Editor writes the 640 set only (`stages-640.json`, `hud-640.json` and the shared `axes.json`, `enemyfacing.json`, `heroes.json`) through `POST /__stage/stages`; the 480 set is frozen for the parity fixtures. Battle Test runs the game's own `BattleScene` over the stage as it is on screen, saved or not, with no move animations (the shipped stage has none). Its one old-engine file is `src/dev/stageedit/battleglue.ts`, loaded with a dynamic `import()` and named on the exemption list in `tests/et-tools.test.ts`; M8 deletes it. In a spec, stop the real loop (`game.stop()`) and play the fight with `window.__stageedit.battle().advance(n)`; do not call `game.step(n)` in a loop, because the battle waits on promises that only run when the code lets go of the thread.
+
 **URL routes** (`src/devroutes.ts`):
 - `?scene=stage&stage=ID`: straight to a chapter preset (`start`, `town`, `sinkline`, `annex`, `finale`:
   `game/stages.ts`), with its party, levels, gear and flags.
