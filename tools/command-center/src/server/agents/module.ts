@@ -5,7 +5,8 @@ import type { Hub } from '../hub';
 import { say } from '../messages';
 import { PanelError, type PanelSource, createPanelSource } from '../source';
 import { type AgentFile, type FileStamp, type SessionFile, type SessionTree, type WorkflowFolder, keepSession, listSessionFiles, listSessionTree, resolveSources, stampOf } from '../sessions/discover';
-import { applyAge, isSdkEntrypoint, readJournal, workflowStateOf } from '../sessions/parse';
+import { createRootsResolver } from '../sessions/roots';
+import { applyAge, effectiveCwd, isSdkEntrypoint, readJournal, workflowStateOf } from '../sessions/parse';
 import { type SessionFacts, codeOf, createSessionReader, createdMs, isoOf } from '../sessions/reader';
 import { readTail } from '../sessions/tail';
 import { type IsAlive, type ProcessEntry, processIsAlive, readProcessList } from './process-list';
@@ -33,10 +34,12 @@ export type AgentsModuleDeps = {
   now?: () => number;
   /** Says whether a process runs. The tests set it, so no test needs a real process. `process.kill(pid, 0)` when this is not given (see agents/process-list.ts). */
   isAlive?: IsAlive;
+  /** The roots to compare working folders with. The tests set it. The config's roots and the worktrees of the repo when this is not given (see sessions/roots.ts). */
+  roots?: () => Promise<string[]>;
 };
 
 /** What the process list says about a session: when its process started, and whether it is busy. */
-type LiveProcess = { startedAtMs: number | null; busy: boolean };
+type LiveProcess = { startedAtMs: number | null; busy: boolean; launchCwd: string | null };
 
 /** A session that may be live: its file and what that file says, and what is known of its process. */
 type Candidate = {
@@ -62,6 +65,7 @@ export function createAgentsSource(deps: AgentsModuleDeps): PanelSource<AgentsLi
   const { config, hub } = deps;
   const now = deps.now ?? Date.now;
   const isAlive = deps.isAlive ?? processIsAlive;
+  const rootsOf = deps.roots ?? createRootsResolver({ config, now });
   const { projectsRoot, sessionsRoot, workingSeconds, recentSeconds } = config.claude;
   const lingerMs = config.agents.lingerSeconds * 1000;
   const workingMs = workingSeconds * 1000;
@@ -83,7 +87,7 @@ export function createAgentsSource(deps: AgentsModuleDeps): PanelSource<AgentsLi
 
   /** The facts of a session file. A file that cannot be read leaves the session out of this look (the console says so once): what is in it cannot be told. */
   async function candidate(file: SessionFile, live: LiveProcess | null): Promise<Candidate | null> {
-    const facts = await reader.optional<SessionFacts | null>(file.path, null, () => reader.readSession(file));
+    const facts = await reader.optional<SessionFacts | null>(file.path, null, () => reader.readSession(file, live?.launchCwd));
     return facts === null ? null : { file, facts, live };
   }
 
@@ -92,7 +96,7 @@ export function createAgentsSource(deps: AgentsModuleDeps): PanelSource<AgentsLi
     const found = await Promise.all(
       entries.map(async (entry) => {
         const file = await locate(entry.sessionId);
-        return file === null ? null : candidate(file, { startedAtMs: entry.startedAtMs, busy: entry.status === 'busy' });
+        return file === null ? null : candidate(file, { startedAtMs: entry.startedAtMs, busy: entry.status === 'busy', launchCwd: entry.cwd });
       }),
     );
     return present(found);
@@ -249,7 +253,9 @@ export function createAgentsSource(deps: AgentsModuleDeps): PanelSource<AgentsLi
       const candidates = list.ok ? await fromProcessList(list.entries) : await fromFileAges(nowMs);
 
       // The sessions about Shadow Jog: the folder, or a working folder inside a root (the rule of version 1). A session that works elsewhere is dropped, and not counted.
-      const mine = candidates.filter((entry) => keepSession(entry.file.matchedBy, entry.facts.cwd, config.roots));
+      // The shell goes back to the launch folder after tool calls, so a line that names it says nothing about where the session works (effectiveCwd).
+      const roots = await rootsOf();
+      const mine = candidates.filter((entry) => keepSession(entry.file.matchedBy, effectiveCwd(entry.facts.cwdTrail, entry.live?.launchCwd), roots));
       const inspected = await Promise.all(mine.map((entry) => inspect(entry, nowMs)));
 
       const sessions = inspected.flatMap((entry) => (entry.kind === 'live' ? [entry.session] : []));

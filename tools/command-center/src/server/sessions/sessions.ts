@@ -4,6 +4,7 @@ import type { Config } from '../config';
 import type { Hub } from '../hub';
 import { say } from '../messages';
 import { PanelError, type PanelSource, createPanelSource } from '../source';
+import { createRootsResolver } from './roots';
 import { type AgentFile, type FileStamp, type SessionFile, type WorkflowFolder, keepSession, newestWrite, listSessionFiles, listSessionTree } from './discover';
 import { type Journal, agentStateOf, applyAge, isSdkEntrypoint, readJournal, workflowStateOf } from './parse';
 import { type SessionFacts, codeOf, createSessionReader, createdMs, isoOf } from './reader';
@@ -36,6 +37,8 @@ export type SessionsModuleDeps = {
   hub: Hub;
   /** The clock, in milliseconds since 1970. The tests set it. `Date.now` when this is not given. */
   now?: () => number;
+  /** The roots to compare working folders with. The tests set it. The config's roots and the worktrees of the repo when this is not given (see sessions/roots.ts). */
+  roots?: () => Promise<string[]>;
 };
 
 /**
@@ -45,6 +48,7 @@ export type SessionsModuleDeps = {
 export function createSessionsSource(deps: SessionsModuleDeps): PanelSource<SessionsInfo> {
   const { config, hub } = deps;
   const now = deps.now ?? Date.now;
+  const rootsOf = deps.roots ?? createRootsResolver({ config, now });
   const { projectsRoot, workingSeconds, recentSeconds } = config.claude;
 
   const reader = createSessionReader(config, 'sessions');
@@ -160,7 +164,9 @@ export function createSessionsSource(deps: SessionsModuleDeps): PanelSource<Sess
       // The sessions about Shadow Jog. Of those, a session that a script started is left out and counted, unless the config lists them (ruling R18).
       // It is left out before its agents and workflows are read, so a hidden run costs the read of its own file and nothing more. A file that is not
       // Shadow Jog's is `skipped` whatever started it, so every file is in exactly one of the three counts: scanned = sessions + hiddenSdk + skipped.
-      const matching = readable.filter((entry) => keepSession(entry.file.matchedBy, entry.facts.cwd, config.roots));
+      // No launch folder is known here (there is no process list), so the newest working folder decides; it may be the folder where the shell reset to.
+      const roots = await rootsOf();
+      const matching = readable.filter((entry) => keepSession(entry.file.matchedBy, entry.facts.cwd, roots));
       const shown = config.claude.includeSdk ? matching : matching.filter((entry) => !isSdkEntrypoint(entry.facts.entrypoint));
       const hiddenSdk = matching.length - shown.length;
       const sessions = await Promise.all(shown.map((entry) => buildSession(entry.file, entry.facts, nowMs)));

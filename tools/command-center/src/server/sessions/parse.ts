@@ -1,4 +1,5 @@
 import type { SessionState, YourMoveBox } from '../../shared/types';
+import { sameFolder } from '../config';
 import { cwdInsideRoots } from './discover';
 
 // The line parser of the sessions module: pure functions that read what the lines of a Claude Code
@@ -97,16 +98,36 @@ export function hasConversationCwd(line: unknown): boolean {
   return isDecisive(line) && hasCwd(line);
 }
 
+/** How many different working folders a session's trail keeps. The newest ones matter; a session does not move through more than a few. */
+const TRAIL_LENGTH = 16;
+
+/** The working folders of the lines, newest first, each folder once (compared as folders: `/c/x` and `C:\x` are one). */
+export function cwdTrail(lines: readonly unknown[]): string[] {
+  const trail: string[] = [];
+  for (let i = lines.length - 1; i >= 0 && trail.length < TRAIL_LENGTH; i -= 1) {
+    const line = lines[i];
+    if (hasCwd(line) && !trail.some((seen) => sameFolder(seen, line.cwd))) trail.push(line.cwd);
+  }
+  return trail;
+}
+
+/**
+ * The folder a session works in, from its trail (newest first). The shell resets its working folder to the folder that the session was
+ * launched in after tool calls, so when the launch folder is known the newest line that names it says nothing: the newest folder that
+ * differs is the answer. When every line names the launch folder, that is the answer (a session that works only there). Without a launch
+ * folder, or with an empty trail, the newest folder is the answer.
+ */
+export function effectiveCwd(trail: readonly string[], launchCwd: string | null | undefined): string | null {
+  if (launchCwd === null || launchCwd === undefined) return trail[0] ?? null;
+  return trail.find((cwd) => !sameFolder(cwd, launchCwd)) ?? trail[0] ?? null;
+}
+
 /**
  * The working folder of the newest line that has one. An idle session ends in lines that have none
- * (`last-prompt`, `cost-state`, `mode`), so the newest line is not the one to ask.
+ * (`last-prompt`, `cost-state`, `mode`), so the newest line is not the one to ask. With `launchCwd` see `effectiveCwd`.
  */
-export function newestCwd(lines: readonly unknown[]): string | null {
-  for (let i = lines.length - 1; i >= 0; i -= 1) {
-    const line = lines[i];
-    if (hasCwd(line)) return line.cwd;
-  }
-  return null;
+export function newestCwd(lines: readonly unknown[], launchCwd?: string | null): string | null {
+  return effectiveCwd(cwdTrail(lines), launchCwd);
 }
 
 /** The git branch named by the newest line that names one. An empty name is a name: the folder is not in a git repo. */

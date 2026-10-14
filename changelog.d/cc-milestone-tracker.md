@@ -1,2 +1,3 @@
 ### Fixed
 - Command Center: the Milestone strip showed every square empty. `status.md` now names `M8` as the current milestone, and the ET row of `docs/engine/migration.md` sits before M8, in the order the milestones started. A new test checks both facts.
+- Command Center: the Running panel showed "No active session" while sessions worked on Shadow Jog. A working folder in the Git Bash form (`/c/Users/...`) was never inside a root, the newest line often named the launch folder (`home-base`) because the shell goes back to it after tool calls, and sessions in sibling git worktrees were not in `roots`. The server now reads both path forms, skips the launch folder from the process list, and adds the worktrees of the repo (`git worktree list`, 30 s cache) to the roots.

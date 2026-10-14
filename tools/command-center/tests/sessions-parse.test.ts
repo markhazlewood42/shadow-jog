@@ -180,6 +180,25 @@ describe('the working folder and the other facts of a line', () => {
     expect(newestBranch([...lines, { type: 'mode' }])).toBe('fixture-branch');
   });
 
+  it('the folder that the session was launched in is skipped: the shell goes back to it after tool calls', () => {
+    const REPO = '/fixture/repo/tools/example';
+    const HOME = '/fixture/home-base';
+    const lines = [userPrompt('a', { cwd: REPO }), assistantText('b', { cwd: HOME }), toolResult('x', { cwd: REPO }), assistantText('c', { cwd: HOME })];
+    expect(newestCwd(lines)).toBe(HOME); // without a launch folder the newest line decides, as before
+    expect(newestCwd(lines, null)).toBe(HOME);
+    expect(newestCwd(lines, HOME)).toBe(REPO); // with it, the newest folder that differs
+    // A session that works only in its launch folder has no other folder: that folder is the answer, and the session is dropped as before.
+    expect(newestCwd([userPrompt('a', { cwd: HOME }), assistantText('b', { cwd: HOME })], HOME)).toBe(HOME);
+    expect(newestCwd([lastPrompt()], HOME)).toBeNull();
+    // A folder is compared as a folder: a trailing slash makes no difference.
+    expect(newestCwd(lines, `${HOME}/`)).toBe(REPO);
+  });
+
+  it.skipIf(process.platform !== 'win32')('on Windows the launch folder is compared in both forms of a path', () => {
+    const lines = [userPrompt('a', { cwd: 'C:\\Users\\x\\shadow-jog' }), assistantText('b', { cwd: '/c/Users/x/home-base' })];
+    expect(newestCwd(lines, 'C:\\Users\\x\\home-base')).toBe('C:\\Users\\x\\shadow-jog');
+  });
+
   it('the newest line that has a cwd decides, whatever its type, and a cwd that is empty or not text is no cwd', () => {
     expect(newestCwd([assistantText('b', { cwd: '/fixture/second' }), attachment('x', { cwd: '/fixture/third' })])).toBe('/fixture/third');
     expect(newestCwd([assistantText('b', { cwd: '/fixture/second' }), { type: 'user', cwd: '' }, { type: 'user', cwd: 7 }, { type: 'user', cwd: null }])).toBe('/fixture/second');

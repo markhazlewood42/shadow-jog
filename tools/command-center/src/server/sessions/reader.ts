@@ -1,12 +1,13 @@
 import { join } from 'node:path';
 import type { SessionInfo, YourMoveBox } from '../../shared/types';
-import type { Config } from '../config';
+import { type Config, sameFolder } from '../config';
 import { type AgentFile, type FileStamp, type SessionFile, findScriptName, stampOf } from './discover';
 import {
   type Activity,
   type Journal,
   clipText,
   countLineTypes,
+  cwdTrail,
   extractPrs,
   extractYourMove,
   hasConversationCwd,
@@ -86,6 +87,8 @@ export function createLimiter(max: number) {
 /** What the end and the start of a session file say. Nothing in it depends on the clock. */
 export type SessionFacts = {
   cwd: string | null;
+  /** The different working folders of the lines that were read, newest first. With the session's launch folder it gives its real working folder (`effectiveCwd`). */
+  cwdTrail: string[];
   /** How the session was started, from its newest line that says so (`claude-desktop`, `sdk-py`, ...), or null when none does. */
   entrypoint: string | null;
   branch: string;
@@ -163,13 +166,20 @@ export function createSessionReader(config: Config, source: string) {
     }
   }
 
-  async function readSession(file: SessionFile): Promise<SessionFacts> {
+  /**
+   * The facts of a session file. With the folder the session was launched in (from the process list), the window grows until a line that names another folder is
+   * in it: the shell goes back to the launch folder after tool calls, so the end of a session that works in the repo can be lines that name only the launch folder.
+   * The answer is kept under its own key, so a session read with and without a launch folder does not share one.
+   */
+  async function readSession(file: SessionFile, launchCwd: string | null = null): Promise<SessionFacts> {
+    const until = launchCwd === null ? hasConversationCwd : (line: unknown) => hasConversationCwd(line) && !sameFolder((line as { cwd: string }).cwd, launchCwd);
     return memoRead(file, async () => {
       // The window grows until a line of the conversation that has a working folder is in it: the end of an idle session is notes
       // that have none, and attachments after the last reply can be big. The first 16 KB give when the session began and its first prompt.
-      const [{ lines }, head] = await Promise.all([readTail(file.path, { until: hasConversationCwd }), readHead(file.path)]);
+      const [{ lines }, head] = await Promise.all([readTail(file.path, { until }), readHead(file.path)]);
       return {
         cwd: newestCwd(lines),
+        cwdTrail: cwdTrail(lines),
         entrypoint: newestEntrypoint(lines),
         branch: newestBranch(lines) ?? '',
         titles: readTitles(lines),
@@ -180,7 +190,7 @@ export function createSessionReader(config: Config, source: string) {
         activity: readActivity(lines),
         lines: { read: lines.length, known: countLineTypes(lines).known },
       };
-    });
+    }, launchCwd === null ? file.path : `${file.path}#launch:${launchCwd}`);
   }
 
   /** The title that Mark gave the session, kept by its own file. It is a second copy of the title line, for when that line is out of reach. */

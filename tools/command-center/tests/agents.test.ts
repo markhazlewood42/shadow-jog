@@ -236,6 +236,51 @@ describe('which sessions are live', () => {
     }
   });
 
+  describe('where a session works, when the shell goes back to the folder it was launched in', () => {
+    const HOME = '/fixture/home-base';
+    const WORKTREE = '/fixture/repo-worktree';
+    /** B (a session of the mixed folder, so kept only by its working folder) with these lines, and a process file that says it was launched in `launch`. */
+    async function listsB(cwds: string[], launch: string, roots?: () => Promise<string[]>): Promise<boolean> {
+      const world = copyAgentFixtures(parent);
+      const lines = cwds.map((cwd, i) => assistantText(`reply ${i}`, { cwd, time: at(-3000 + i * 10) }));
+      writeAged(sessionFile(world, MIXED_FOLDER, SB), jsonl(lines), 60);
+      writeProcessFile(world, PID.B, SB, 'idle', NOW - 3_600_000, launch);
+      const { data } = await loadAgents({ world, ...(roots === undefined ? {} : { roots }) });
+      return data.sessions.some((session) => session.id === SB);
+    }
+
+    it('a session that works in the repo is kept although its newest line names the launch folder', async () => {
+      expect(await listsB([INSIDE, HOME, INSIDE, HOME], HOME)).toBe(true);
+    });
+
+    it('a session whose newest 64 KB name only the launch folder is read further back, until a line names another folder', async () => {
+      const world = copyAgentFixtures(parent);
+      const padding = 'x'.repeat(2000);
+      const lines = [assistantText('in the repo', { cwd: INSIDE, time: at(-3000) }), ...Array.from({ length: 80 }, (_, i) => assistantText(padding, { cwd: HOME, time: at(-2900 + i) }))];
+      writeAged(sessionFile(world, MIXED_FOLDER, SB), jsonl(lines), 60);
+      writeProcessFile(world, PID.B, SB, 'idle', NOW - 3_600_000, HOME);
+      expect((await loadAgents({ world })).data.sessions.some((session) => session.id === SB)).toBe(true);
+      // With no launch folder the first window decides, as before: it holds only the launch folder.
+      writeProcessFile(world, PID.B, SB, 'idle', NOW - 3_600_000, '');
+      expect((await loadAgents({ world })).data.sessions.some((session) => session.id === SB)).toBe(false);
+    });
+
+    it('a session that only works in its launch folder is dropped', async () => {
+      expect(await listsB([HOME, HOME, HOME], HOME)).toBe(false);
+    });
+
+    it('a session whose process file has no launch folder is decided by its newest line, as before', async () => {
+      expect(await listsB([INSIDE, HOME], '')).toBe(false);
+      expect(await listsB([HOME, INSIDE], '')).toBe(true);
+    });
+
+    it('a session that works in a worktree is kept when the roots hold it, and dropped when they do not', async () => {
+      const config = agentsConfig(copyAgentFixtures(parent));
+      expect(await listsB([WORKTREE, HOME], HOME, async () => config.roots)).toBe(false);
+      expect(await listsB([WORKTREE, HOME], HOME, async () => [...config.roots, WORKTREE])).toBe(true);
+    });
+  });
+
   it('a process whose session file is in no named folder is not listed, and a process with no session file does not break the others', async () => {
     const world = copyAgentFixtures(parent);
     writeProcessFile(world, 7702001, 'ffffffff-0000-4000-8000-0000000000f1', 'busy'); // no file anywhere
