@@ -35,6 +35,41 @@ export function sessionSources(claude: Pick<Config['claude'], 'folders' | 'cwdMa
 }
 
 /**
+ * The sources of the config with the folders that `claude.folderPrefixes` match added (the whole ones first, then the mixed ones). Claude Code keeps the
+ * sessions of a worktree in their own folder (`<project folder>--claude-worktrees-<branch>`), so the list of folders changes when a worktree is made. This
+ * reads the names in `projectsRoot` (names only, nothing is opened). A `projectsRoot` that is not there has no such folders, and one that cannot be read
+ * is the same: the named folders still work, and `listSessionFiles` is the place that reports an unreadable folder.
+ */
+export async function resolveSources(claude: Pick<Config['claude'], 'projectsRoot' | 'folders' | 'cwdMatchFolders' | 'folderPrefixes'>): Promise<SessionSource[]> {
+  const base = sessionSources({ folders: claude.folders, cwdMatchFolders: [] });
+  const named = new Set(base.map((source) => source.folder));
+  let matched: string[] = [];
+  if (claude.folderPrefixes.length > 0) {
+    try {
+      const entries = await readdir(claude.projectsRoot, { withFileTypes: true });
+      matched = entries
+        .filter((entry) => entry.isDirectory() && claude.folderPrefixes.some((prefix) => entry.name.startsWith(prefix)))
+        .map((entry) => entry.name)
+        .sort();
+    } catch {
+      matched = [];
+    }
+  }
+  const sources = [...base];
+  for (const folder of matched) {
+    if (named.has(folder)) continue;
+    named.add(folder);
+    sources.push({ folder, matchedBy: 'folder' });
+  }
+  for (const folder of claude.cwdMatchFolders) {
+    if (named.has(folder)) continue;
+    named.add(folder);
+    sources.push({ folder, matchedBy: 'cwd' });
+  }
+  return sources;
+}
+
+/**
  * Whether a working folder is a root or inside one, compared by whole path segments (so `shadow-jog-old`
  * is not inside `shadow-jog`). A working folder that is not a full path is outside: `isInside` would
  * read it against the folder that the server runs in, which is inside the repo, and "." would count.
@@ -99,7 +134,7 @@ export async function listSessionFiles(config: Config, nowMs: number): Promise<S
   const { projectsRoot, recentSeconds } = config.claude;
   const oldest = nowMs - recentSeconds * 1000;
   const found: SessionFile[] = [];
-  for (const { folder, matchedBy } of sessionSources(config.claude)) {
+  for (const { folder, matchedBy } of await resolveSources(config.claude)) {
     let ids: string[];
     try {
       const entries = await readdir(join(projectsRoot, folder), { withFileTypes: true });
@@ -188,7 +223,7 @@ export async function listSessionTree(sessionDir: string, nowMs: number, recentS
  */
 export async function findScriptName(config: Config, sessionId: string, workflowId: string): Promise<string | null> {
   const suffix = `-${workflowId}.js`;
-  for (const { folder } of sessionSources(config.claude)) {
+  for (const { folder } of await resolveSources(config.claude)) {
     const scripts = join(config.claude.projectsRoot, folder, sessionId, 'workflows', 'scripts');
     const names = await readdir(scripts).catch(() => [] as string[]);
     const hit = names.find((name) => name.endsWith(suffix) && name.length > suffix.length);

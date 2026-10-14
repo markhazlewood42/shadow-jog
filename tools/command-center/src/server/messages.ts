@@ -149,15 +149,12 @@ export const MESSAGES = {
   navReadingOrderItem: '{path}: the reading order item "{label}" does not link to a doc of the repo.',
   navReadingOrderName: '{path}: the reading order names "{label}" ({docPath}), which is not a doc of the repo.',
 
-  // ---- the decisions: a body that is not the template, the answer route, the "Your move" lines ----
+  // ---- the decisions: a body that is not the template, the answer route ----
   problemNotTemplate: 'The issue body does not follow the decision template. Edit it on GitHub.',
   problemBlankTemplate: 'The issue body is still the blank decision template. Edit it on GitHub.',
   problemNoQuestion: 'The issue has no question. Add one on GitHub.',
   problemNoOptions: 'The issue lists no options. Add them on GitHub.',
   problemRepeatedOption: 'The issue lists the option {option} twice. The page shows the first one.',
-  yourMoveUnreadable: 'Decision #{number} is unreadable: {problem}',
-  yourMovePrMerge: 'PR #{number} is ready to merge: {title}',
-  yourMovePrFix: 'PR #{number} needs a fix: {title}',
   labelMissing: 'The label "{name}" does not exist in {repo}. Create it on GitHub.',
   decisionNotFound: 'No decision of Mark has this number.',
   decisionAnswered: 'Decision #{number} is already answered. Reload the page to see the answer.',

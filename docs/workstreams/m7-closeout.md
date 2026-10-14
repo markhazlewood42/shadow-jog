@@ -4,8 +4,6 @@ title: M7 close-out records
 branch: m7-closeout
 roadmap: M7
 state: review
-next_for_mark:
-  - Merge the M7 close-out PR (docs only); ET brief comes next
 updated: 2026-10-13
 ---
 

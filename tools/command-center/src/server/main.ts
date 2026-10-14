@@ -42,10 +42,11 @@ export function startServer(app: Hono, port: number): Promise<Server> {
 }
 
 /** Reads the command line: `--config <file>`, `--dev`, `--reporter` and `--clear-live`. Anything else is an error, so a typo is not ignored. */
-function readArgs(argv: string[]): { configFile: string; dev: boolean; reporter: boolean; clearLive: boolean } {
+export function readArgs(argv: string[]): { configFile: string; dev: boolean; reporter: boolean; idleExit: boolean; clearLive: boolean } {
   let configFile = DEFAULT_CONFIG_FILE;
   let dev = false;
   let reporter = false;
+  let idleExit = true;
   let clearLiveKey = false;
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i] as string;
@@ -53,6 +54,8 @@ function readArgs(argv: string[]): { configFile: string; dev: boolean; reporter:
       dev = true;
     } else if (arg === '--reporter') {
       reporter = true;
+    } else if (arg === '--no-idle-exit') {
+      idleExit = false;
     } else if (arg === '--clear-live') {
       clearLiveKey = true;
     } else if (arg === '--config') {
@@ -60,10 +63,11 @@ function readArgs(argv: string[]): { configFile: string; dev: boolean; reporter:
       if (value === undefined || value.startsWith('--')) throw new ConfigError('--config needs the path of a config file after it.');
       configFile = resolve(value);
     } else {
-      throw new ConfigError(`Unknown option ${arg}. The options are --config <file>, --dev, --reporter and --clear-live.`);
+      throw new ConfigError(`Unknown option ${arg}. The options are --config <file>, --dev, --reporter, --no-idle-exit and --clear-live.`);
     }
   }
-  return { configFile, dev, reporter, clearLive: clearLiveKey };
+  if (!idleExit && !reporter) throw new ConfigError('--no-idle-exit needs --reporter.');
+  return { configFile, dev, reporter, idleExit, clearLive: clearLiveKey };
 }
 
 /** Keeps the built page up to date while Vite watches the page's source (for `npm run dev`). */
@@ -79,7 +83,7 @@ const STOP_WAIT_MS = 6000;
 
 async function main(argv: string[]): Promise<void> {
   let stop: (code?: number) => void = (code = 0) => process.exit(code);
-  const { configFile, dev, reporter, clearLive: clearKey } = readArgs(argv);
+  const { configFile, dev, reporter, idleExit, clearLive: clearKey } = readArgs(argv);
 
   // `--clear-live`: remove the live key and end (the launcher runs this after --stop). No server starts.
   if (clearKey) {
@@ -103,7 +107,7 @@ async function main(argv: string[]): Promise<void> {
       process.exit(EXIT.notConfigured);
     }
     // The server is not started yet at this point, so the callback reaches `stop` through a variable that is set below.
-    reporterOptions = { settings: settings.settings, onExit: (code) => stop(code) };
+    reporterOptions = { settings: settings.settings, onExit: (code) => stop(code), idleExit };
   }
 
   const composed = compose({ config, runner: createRunner(config), ...(reporterOptions === undefined ? {} : { reporter: reporterOptions }) });

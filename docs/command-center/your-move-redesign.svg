@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 500" width="940" height="500" role="img" aria-labelledby="ymr-title ymr-desc">
+<title id="ymr-title">Your move: facts plus live asks</title>
+<desc id="ymr-desc">Three sources feed one shared rule, which feeds the local page and the hosted page. Live asks travel from the session through the reporter and the live key.</desc>
+<defs>
+<marker id="ymr-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#9aa1b2"/></marker>
+<marker id="ymr-ac" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#f08a5d"/></marker>
+<style>
+text{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;fill:#e6e8ee}
+.n{font-size:14px;font-weight:600}
+.s{font-size:11px;fill:#9aa1b2;font-family:ui-monospace,Consolas,monospace}
+.l{font-size:10px;fill:#9aa1b2;font-family:ui-monospace,Consolas,monospace;letter-spacing:.06em}
+.t{font-size:20px;font-weight:600}
+.box{fill:#1c1f27;stroke:#4a5060;stroke-width:1}
+.foc{fill:#2a1f1a;stroke:#f08a5d;stroke-width:1.5}
+.ln{stroke:#9aa1b2;stroke-width:1.5;fill:none}
+.lna{stroke:#f08a5d;stroke-width:1.5;fill:none}
+.mk{fill:#14161c}
+</style>
+</defs>
+<rect width="940" height="500" fill="#14161c"/>
+<text x="30" y="30" class="t">Your move: facts plus live asks</text>
+<path class="ln" d="M220 88 H420" marker-end="url(#ymr-a)"/>
+<path class="ln" d="M220 168 H420" marker-end="url(#ymr-a)"/>
+<path class="ln" d="M620 88 H700" marker-end="url(#ymr-a)"/>
+<path class="ln" d="M620 168 H700" marker-end="url(#ymr-a)"/>
+<path class="lna" d="M220 358 H290" marker-end="url(#ymr-ac)"/>
+<path class="lna" d="M440 358 H510" marker-end="url(#ymr-ac)"/>
+<path class="lna" d="M585 330 V210" marker-end="url(#ymr-ac)"/>
+<rect class="mk" x="224" y="332" width="62" height="14"/><text class="l" x="255" y="343" text-anchor="middle">SEND</text>
+<rect class="mk" x="450" y="332" width="50" height="14"/><text class="l" x="475" y="343" text-anchor="middle">PUSH</text>
+<rect class="mk" x="598" y="256" width="104" height="14"/><text class="l" x="602" y="267">FRESH 150 S</text>
+<rect class="box" x="30" y="60" width="190" height="56" rx="6"/>
+<text class="n" x="44" y="84">Decision issues</text><text class="s" x="44" y="102">clears: issue closed</text>
+<rect class="box" x="30" y="140" width="190" height="56" rx="6"/>
+<text class="n" x="44" y="164">PRs that wait for Mark</text><text class="s" x="44" y="182">clears: merged or closed</text>
+<rect class="foc" x="30" y="330" width="190" height="56" rx="6" stroke-dasharray="5 4"/>
+<text class="n" x="44" y="354">Session Your move box</text><text class="s" x="44" y="372">expires: 4 rules (below)</text>
+<rect class="box" x="290" y="330" width="150" height="56" rx="6"/>
+<text class="n" x="304" y="354">Reporter</text><text class="s" x="304" y="372">6 lines, 160 chars</text>
+<rect class="foc" x="510" y="330" width="150" height="56" rx="6" stroke-dasharray="5 4"/>
+<text class="n" x="524" y="354">live key</text><text class="s" x="524" y="372">offline after 150 s</text>
+<rect class="foc" x="420" y="50" width="200" height="160" rx="6"/>
+<text class="n" x="436" y="82">Shared rule</text>
+<text class="s" x="436" y="102">src/shared/yourMove</text>
+<text class="s" x="436" y="128">1 decision issues</text>
+<text class="s" x="436" y="146">2 PRs: GitHub text only</text>
+<text class="s" x="436" y="164">3 live asks</text>
+<text class="s" x="436" y="192">one rule, two pages</text>
+<rect class="box" x="700" y="60" width="200" height="56" rx="6"/>
+<text class="n" x="714" y="84">Local page</text><text class="s" x="714" y="102">reads session files</text>
+<rect class="box" x="700" y="140" width="200" height="56" rx="6"/>
+<text class="n" x="714" y="164">Hosted page</text><text class="s" x="714" y="182">behind Vercel auth</text>
+<rect x="30" y="420" width="870" height="58" rx="6" fill="none" stroke="#4a5060" stroke-dasharray="5 4"/>
+<text class="l" x="44" y="440">LIVE ASK HIDES WHEN ANY ONE HOLDS</text>
+<text class="s" x="44" y="460">Mark answered after the box. Box says nothing or a newer box replaced it. Box is over 12 h old. Reporter offline.</text>
+</svg>

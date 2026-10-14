@@ -16,6 +16,8 @@ export type LockDeps = {
   read: () => { text: string; mtimeMs: number } | null;
   create: (text: string) => boolean;
   remove: () => void;
+  processInfo?: (pid: number) => Promise<{ start: string } | null>;
+  exists?: (pid: number) => boolean | null;
 };
 export function acquireLock(deps: LockDeps, text: string): Promise<'acquired' | 'held'>;
 export function fileLock(file: string): {
@@ -36,6 +38,7 @@ export type CopyDeps = { git: GitRunner; install: Installer; log: (message: stri
 export function runCommand(command: string, args: string[], options?: { cwd?: string; timeout?: number; env?: Record<string, string | undefined> }): Promise<CommandResult>;
 export function runGit(args: string[], cwd: string, timeout?: number): Promise<CommandResult>;
 export function npmCi(cwd: string, log: (message: string) => void, options?: { command?: string; args?: string[]; timeoutMs?: number }): Promise<boolean>;
+export function pidExists(pid: number): boolean | null;
 export function lockNamesUs(text: string | null, pid: number, startedIso: string, launcherStart?: string | null): boolean;
 export function processInfo(
   pid: number,
@@ -53,15 +56,22 @@ export function supervise(
   branch: string,
   log: (message: string) => void,
   onServerPid: (pid: number | null) => void,
-  deps?: { spawnServer?: (paths: unknown) => ChildLike; update?: () => Promise<'same' | 'updated' | 'failed'>; install?: Installer; fetchEveryMs?: number; restartDelayMs?: number; signal?: AbortSignal },
+  deps?: { manual?: boolean; spawnServer?: (paths: unknown) => ChildLike; update?: () => Promise<'same' | 'updated' | 'failed'>; install?: Installer; fetchEveryMs?: number; restartDelayMs?: number; signal?: AbortSignal },
 ): Promise<number>;
 export function runLauncher(options: {
   checkout: string;
   branch?: string;
   origin?: string;
   settingsFile?: string;
+  /** True when a person started it (the tray app): the reporter server then has no idle exit. */
+  manual?: boolean;
   deps?: { git?: GitRunner; install?: Installer; supervise?: (...args: unknown[]) => Promise<number> };
 }): Promise<number>;
+export function serverArgs(paths: { config: string }, manual?: boolean): string[];
+export const LOCAL_CONFIG: string;
+export const BUILD_TIMEOUT_MS: number;
+export function localConfig(original: Record<string, unknown> & { port: number }, checkout: string): Record<string, unknown>;
+export function prepareLocal(checkout: string, deps?: { run?: typeof runCommand; log?: (message: string) => void }): Promise<number>;
 export function stopReporter(
   checkout: string,
   deps?: { processInfo?: (pid: number) => Promise<{ start: string; command: string } | null>; kill?: (pid: number) => void; now?: () => number; clearLive?: (paths: { app: string }) => Promise<string> },

@@ -313,6 +313,25 @@ describe('extractYourMove', () => {
     expect(extractYourMove([], ROOTS)).toBeNull();
   });
 
+  it('M6: a code fence closes only on the same mark, so a heading inside a mixed fence is not a box', () => {
+    // "~~~" opens a block. The "```" line inside it is text, so the block goes on and the second heading is still quoted.
+    const mixed = assistantText('~~~\n### Your move\n- [ ] a\n```\n### Your move\n- [ ] SMUGGLED\n');
+    expect(extractYourMove([mixed], ROOTS)).toBeNull();
+    // The right mark closes it, and a box after it counts.
+    const closed = assistantText('~~~\n### Your move\n- [ ] quoted\n~~~\n\n### 👉 Your move\n- [ ] real\n');
+    expect(extractYourMove([closed], ROOTS)?.items).toEqual(['real']);
+    // A longer fence is closed only by a fence at least as long.
+    const longer = assistantText('````\n```\n### Your move\n- [ ] quoted\n````\n\n### Your move\n- [ ] real\n');
+    expect(extractYourMove([longer], ROOTS)?.items).toEqual(['real']);
+  });
+
+  it('M7: a line of a sidechain (a subagent) is not a box of the session', () => {
+    const own = assistantText(box(['Own item']), { time: at(-30) });
+    const side = { ...assistantText(box(['Side item']), { time: at(-20) }), isSidechain: true };
+    expect(extractYourMove([own, side], ROOTS)?.items).toEqual(['Own item']);
+    expect(extractYourMove([side], ROOTS)).toBeNull();
+  });
+
   it('the light is the first character of the same reply', () => {
     const light = (text: string) => extractYourMove([assistantText(text)], ROOTS)?.light;
     expect(light(box(['x'], { light: '🟢' }))).toBe('green');

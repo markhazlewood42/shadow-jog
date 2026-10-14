@@ -407,11 +407,18 @@ function lightOf(text: string): YourMoveBox['light'] {
 function parseBox(text: string): Pick<YourMoveBox, 'light' | 'items' | 'nothing'> | null {
   const rows = text.split(/\r?\n/);
   let heading = -1;
-  let inCode = false;
+  // The opening fence of the code block we are in: its character and its length. Only a fence of the SAME character, at least as long, with nothing after it, closes the block
+  // (CommonMark). A "```" inside a "~~~" block is text, and so is a "~~~" inside a "```" block.
+  let fence: { char: string; length: number } | null = null;
   for (let index = 0; index < rows.length; index += 1) {
     const row = rows[index] ?? '';
-    if (/^\s*(```|~~~)/.test(row)) inCode = !inCode;
-    else if (!inCode && BOX_HEADING.test(row)) heading = index;
+    const marker = /^\s*(`{3,}|~{3,})(.*)$/.exec(row);
+    if (fence === null) {
+      if (marker !== null) fence = { char: marker[1]?.[0] ?? '`', length: marker[1]?.length ?? 3 };
+      else if (BOX_HEADING.test(row)) heading = index;
+    } else if (marker !== null && marker[1]?.[0] === fence.char && (marker[1]?.length ?? 0) >= fence.length && (marker[2] ?? '').trim() === '') {
+      fence = null;
+    }
   }
   if (heading === -1) return null;
 
@@ -473,7 +480,8 @@ export function extractYourMove(lines: readonly unknown[], roots: readonly strin
   let found: { box: Pick<YourMoveBox, 'light' | 'items' | 'nothing' | 'at'>; index: number } | null = null;
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
-    if (!isLine(line) || line.type !== 'assistant') continue;
+    // A sidechain line belongs to a subagent, not to the session's own conversation: its box is not a box of this session.
+    if (!isLine(line) || line.type !== 'assistant' || line.isSidechain === true) continue;
     const text = replyText(line);
     const box = text === null ? null : parseBox(text);
     if (box === null) continue;

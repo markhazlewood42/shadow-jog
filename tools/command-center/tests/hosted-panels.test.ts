@@ -21,7 +21,7 @@ describe('readLive', () => {
   });
 });
 
-const row = (id: string, startedAt: string | null) => ({ id, title: id, branch: 'b', folder: 'f', state: 'working' as const, startedAt, agents: { running: 0, done: 0, names: [] as string[] } });
+const row = (id: string, startedAt: string | null) => ({ id, title: id, branch: 'b', folder: 'f', state: 'working' as const, startedAt, agents: { running: 0, done: 0, names: [] as string[] }, yourMove: null });
 
 describe('agentsOf', () => {
   it('keeps two sessions without a start time in the order they came (the comparator returns 0)', () => {

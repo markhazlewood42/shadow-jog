@@ -1,7 +1,7 @@
 import MarkdownIt, { type Token } from 'markdown-it';
 import type { DocHeading, StatusInfo } from '../../shared/types';
 import { splitFrontmatter } from '../docs/frontmatter';
-import { inlineText } from '../engine/decisions';
+import { inlineText } from '../inline-text';
 import { say } from '../messages';
 import { PanelError } from '../source';
 

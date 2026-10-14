@@ -24,6 +24,8 @@ export type ReporterOptions = {
   now?: () => number;
   log?: (message: string) => void;
   git?: GitIn;
+  /** False: the reporter does not exit after 30 minutes with no session (a start by hand). The default is true. */
+  idleExit?: boolean;
   /** Makes a runner for a config. Tests count the calls; the real one is `createRunner`. */
   makeRunner?: (config: Config) => Runner;
 };
@@ -88,9 +90,10 @@ export function createReporterModule(
     }
     if (agentsFailing) log('the agents source works again');
     agentsFailing = false;
-    // The branch and folder of a session change rarely, so the last good list of the sessions module is fine for them.
-    const facts = dataOrLastGood(info)?.sessions ?? [];
-    return buildLiveBody({ sessions: live.data.sessions, facts, worktrees: await worktreeRows() });
+    // The branch and folder of a session change rarely, so the last good list of the sessions module is fine for them. The "Your move" box is not: whether Mark answered it
+    // or a newer box came is a fact of NOW, so a box is read only from a fresh read of the sessions module. When that failed, no ask is sent (the page shows none).
+    const facts = (dataOrLastGood(info)?.sessions ?? []).map((session) => ({ id: session.id, branch: session.branch, cwd: session.cwd, yourMove: info.ok ? session.yourMove : null }));
+    return buildLiveBody({ sessions: live.data.sessions, facts, worktrees: await worktreeRows(), nowMs: now() });
   }
 
   const reporter = createReporter({
@@ -101,6 +104,7 @@ export function createReporterModule(
     log,
     collect,
     onExit: options.onExit,
+    ...(options.idleExit === undefined ? {} : { idleExit: options.idleExit }),
   });
 
   return {

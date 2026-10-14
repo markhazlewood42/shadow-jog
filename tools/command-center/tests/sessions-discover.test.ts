@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { PanelError } from '../src/server/source';
-import { cwdInsideRoots, findScriptName, keepSession, listSessionFiles, listSessionTree, sessionSources } from '../src/server/sessions/discover';
+import { cwdInsideRoots, findScriptName, keepSession, listSessionFiles, listSessionTree, resolveSources, sessionSources } from '../src/server/sessions/discover';
 import { INSIDE, MIXED_FOLDER, NOW, OUTSIDE, PREFIX_ONLY, ROOT, ROOT_PHASER, WHOLE_FOLDER, sessionsConfig, writeAged } from './sessions-helpers';
 
 // How the module decides which files and folders are about Shadow Jog: the folders are named one by one,
@@ -129,6 +129,37 @@ describe('listSessionFiles', () => {
     // The folders are read by their exact names. The next test shows that a bigger list reads more, so the list is what decides.
     const more = await listSessionFiles(sessionsConfig(projects, { folders: [WHOLE_FOLDER, `${WHOLE_FOLDER}-old`] }), NOW);
     expect(more.map((file) => file.id)).toContain('h-prefix');
+  });
+
+  it('folderPrefixes counts the session folders of worktrees (<project folder>--claude-worktrees-<branch>) as whole folders, and no other folder that shares the start', async () => {
+    const worktrees = `${WHOLE_FOLDER}--claude-worktrees-`;
+    writeAged(join(projects, `${worktrees}cc-roadmap-fixes`, 'w1-worktree.jsonl'), '{"type":"user"}\n');
+    writeAged(join(projects, `${worktrees}another-branch`, 'w2-worktree.jsonl'), '{"type":"user"}\n');
+    writeFileSync(join(projects, `${worktrees}a-plain-file`), 'a file, not a folder');
+    const config = sessionsConfig(projects, { folderPrefixes: [worktrees] });
+    const files = await listSessionFiles(config, NOW);
+    expect(files.filter((file) => file.id.startsWith('w')).map((file) => [file.folder, file.matchedBy, file.id])).toEqual([
+      [`${worktrees}another-branch`, 'folder', 'w2-worktree'],
+      [`${worktrees}cc-roadmap-fixes`, 'folder', 'w1-worktree'],
+    ]);
+    // The named folders and the siblings are as before: the prefix adds the worktree folders and nothing else.
+    expect(files.map((file) => file.id)).not.toContain('h-prefix');
+    expect(files.map((file) => file.id)).toContain('a-recent');
+    // Without the prefix setting (the default) the worktree folders are not read.
+    expect((await listSessionFiles(sessionsConfig(projects), NOW)).map((file) => file.id)).not.toContain('w1-worktree');
+    // A projects folder that is missing gives no folders and no error.
+    expect(await resolveSources({ projectsRoot: join(parent, 'no-projects-here'), folders: [], cwdMatchFolders: [], folderPrefixes: [worktrees] })).toEqual([]);
+  });
+
+  it('resolveSources lists the whole folders, then the folders that a prefix matches (sorted, once), then the mixed ones', async () => {
+    const worktrees = `${WHOLE_FOLDER}--claude-worktrees-`;
+    const sources = await resolveSources({ projectsRoot: projects, folders: [WHOLE_FOLDER, `${worktrees}cc-roadmap-fixes`], cwdMatchFolders: [MIXED_FOLDER], folderPrefixes: [worktrees] });
+    expect(sources).toEqual([
+      { folder: WHOLE_FOLDER, matchedBy: 'folder' },
+      { folder: `${worktrees}cc-roadmap-fixes`, matchedBy: 'folder' },
+      { folder: `${worktrees}another-branch`, matchedBy: 'folder' },
+      { folder: MIXED_FOLDER, matchedBy: 'cwd' },
+    ]);
   });
 
   it('a week is the config setting: a shorter one leaves out the older files', async () => {
