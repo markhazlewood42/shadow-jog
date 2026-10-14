@@ -143,8 +143,8 @@ export function compose(deps: ComposeDeps): Composed {
   // The reporter (only in a reporter run): it reads the sessions and agents above, and the worktrees, and writes the allow-listed live value to the store.
   if (deps.reporter !== undefined) modules.push(createReporterModule(deps.reporter, { config, sessions, agents }));
 
-  // The Now page: its list "Your move" is made from five of the sources above, under /api/now/your-move. It has no module of its own to start or stop.
-  registerNowRoutes(app, { decisions, sessions, status, github, engine });
+  // The Now page: its list "Your move" is made from four of the sources above, under /api/now/your-move. It has no module of its own to start or stop.
+  registerNowRoutes(app, { decisions, sessions, github, agents, ...(deps.now === undefined ? {} : { now: deps.now }) });
 
   return {
     app,

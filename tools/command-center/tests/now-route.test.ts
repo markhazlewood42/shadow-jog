@@ -5,10 +5,10 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { compose } from '../src/server/compose';
 import { registerNowRoutes } from '../src/server/routes/now';
 import type { PanelSource } from '../src/server/source';
-import type { Decision, DecisionsInfo, GithubInfo, Panel, SessionsInfo, StatusInfo, YourMoveInfo } from '../src/shared/types';
+import type { AgentsLive, DecisionsInfo, GithubInfo, Panel, SessionsInfo, YourMoveInfo } from '../src/shared/types';
 import { PACKAGE_DIR, getFrom, makeApp, makeTestConfig, noopRunner } from './helpers';
 
-// GET /api/now/your-move: the list "Your move" of the Now page, made from the panels of five sources. The tests give the route stub sources
+// GET /api/now/your-move: the list "Your move" of the Now page, made from the panels of four sources. The tests give the route stub sources
 // (a source here is only a Panel to read), so no gh, no git and no session file is involved, except in the last test, which composes the real server.
 
 const parent = mkdtempSync(join(tmpdir(), 'cc-now-route-'));
@@ -57,28 +57,22 @@ const goodDecisions: Panel<DecisionsInfo> = {
 };
 const noSessions: Panel<SessionsInfo> = { ok: true, updatedAt: T0, data: { sessions: [], scanned: 0, skipped: 0, hiddenSdk: 0 } };
 const noPrs: Panel<GithubInfo> = { ok: true, updatedAt: T0, data: { open: [], merged: [] } };
-const noDocDecisions: Panel<Decision[]> = { ok: true, updatedAt: T0, data: [] };
-const goodStatus: Panel<StatusInfo> = {
-  ok: true,
-  updatedAt: T0,
-  data: { updated: null, nextUpForMark: [{ text: 'Pick the color.', html: '<p>Pick the color.</p>' }], milestone: { current: null, problem: null }, milestones: [] },
-};
+const noLive: Panel<AgentsLive> = { ok: true, updatedAt: T0, data: { sessions: [], hiddenScripts: 0, source: 'process-list' } };
 
 function routeWith(overrides: { decisions?: Panel<DecisionsInfo>; github?: Panel<GithubInfo> } = {}) {
   const { app } = makeApp();
   const sources = {
     decisions: stub(overrides.decisions ?? goodDecisions),
     sessions: stub(noSessions),
-    status: stub(goodStatus),
     github: stub(overrides.github ?? noPrs),
-    engine: stub(noDocDecisions),
+    agents: stub(noLive),
   };
   registerNowRoutes(app, sources);
   return { app, sources };
 }
 
 describe('GET /api/now/your-move', () => {
-  it('answers the Panel of the list made from the five sources, stamped with the time it was made', async () => {
+  it('answers the Panel of the list made from the four sources, stamped with the time it was made', async () => {
     const { app, sources } = routeWith();
     const before = Date.now();
     const res = await getFrom(app, '/api/now/your-move');
@@ -92,7 +86,6 @@ describe('GET /api/now/your-move', () => {
     expect(panel.data.missing).toEqual([]);
     expect(panel.data.items.map((item) => [item.source, item.text, item.href])).toEqual([
       ['decision-issue', 'Decision #41: Where should Burrow keep its cache?', '/decisions/41'],
-      ['status', 'Pick the color.', '/docs/status'],
     ]);
     // The list is made now, from the panels that the sources have now: its time is the time of the request, not one of the sources'.
     expect(Date.parse(panel.updatedAt)).toBeGreaterThanOrEqual(before);
@@ -109,7 +102,7 @@ describe('GET /api/now/your-move', () => {
     const panel = (await res.json()) as Panel<YourMoveInfo>;
     expect(panel.ok).toBe(true);
     if (!panel.ok) return;
-    expect(panel.data.items.map((item) => item.source)).toEqual(['status']);
+    expect(panel.data.items).toEqual([]);
     expect(panel.data.missing).toEqual([
       { source: 'decision-issue', message: 'gh is not signed in to GitHub.' },
       { source: 'pr', message: 'gh is not signed in to GitHub.' },
@@ -146,7 +139,7 @@ describe('the server', () => {
       expect(panel.ok).toBe(true);
       if (!panel.ok) return;
       expect(panel.data.items).toEqual([]);
-      expect(panel.data.missing.map((entry) => entry.source).sort()).toEqual(['decision-issue', 'doc-decision', 'pr', 'status']);
+      expect(panel.data.missing.map((entry) => entry.source).sort()).toEqual(['decision-issue', 'pr']);
     } finally {
       await composed.stop();
     }

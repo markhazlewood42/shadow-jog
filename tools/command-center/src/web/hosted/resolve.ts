@@ -93,7 +93,7 @@ export function createResolver(store: HostedStore, options: { origin?: () => str
     if (pathname === '/api/workstreams' || pathname === '/api/now/your-move') {
       await Promise.all([store.ensure('snapshot'), store.ensure('live')]);
       if (pathname === '/api/workstreams') return (await fromSnapshot(viewOf)) as Panel<T>;
-      return (await fromSnapshot((snapshot) => buildHostedYourMove(snapshot, viewOf(snapshot)))) as Panel<T>;
+      return (await fromSnapshot((snapshot) => buildHostedYourMove(snapshot, readLive(store.live()), now().getTime()))) as Panel<T>;
     }
 
     const decision = /^\/api\/decisions\/([1-9]\d{0,9})$/.exec(pathname);

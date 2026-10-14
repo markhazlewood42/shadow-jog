@@ -125,7 +125,7 @@ export function richWorld(): { snapshot: Snapshot; live: LiveAnswer } {
       pr: reviewPr,
       workstream: parseWorkstream(
         'docs/workstreams/engine-m6-flip.md',
-        '---\ntype: workstream\ntitle: M6 flip default\nbranch: engine-m6-flip\nroadmap: M1\nstate: review\nnext_for_mark:\n  - Rename the required checks in the ruleset\nblocked_on: [61]\nupdated: 2026-10-11\n---\n',
+        '---\ntype: workstream\ntitle: M6 flip default\nbranch: engine-m6-flip\nroadmap: M1\nstate: review\nblocked_on: [61]\nupdated: 2026-10-11\n---\n',
       ),
     }),
     row('side-lab', { workstream: goodFile('side-lab', { title: 'Side lab', roadmap: 'S1', state: 'parked' }) }),
@@ -143,7 +143,7 @@ export function richWorld(): { snapshot: Snapshot; live: LiveAnswer } {
     live: liveAnswer(
       'online',
       liveState({
-        sessions: [{ id: 's1', title: 'Flip the default', branch: 'engine-m6-flip', folder: 'shadow-jog', state: 'working', startedAt: day(0.1), agents: { running: 2, done: 1, names: ['reader', 'runner', 'builder'] } }],
+        sessions: [{ id: 's1', title: 'Flip the default', branch: 'engine-m6-flip', folder: 'shadow-jog', state: 'working', startedAt: day(0.1), agents: { running: 2, done: 1, names: ['reader', 'runner', 'builder'] }, yourMove: null }],
         worktrees: [{ path: 'C:/work/shadow-jog-m6', branch: 'engine-m6-flip', dirty: 2 }],
       }),
     ),

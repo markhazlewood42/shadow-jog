@@ -1,55 +1,46 @@
 import type { Snapshot } from '../../github-api/types';
-import type { DecisionIssue, PullRequest, YourMoveInfo, YourMoveItem } from '../../shared/types';
-import { type WorkstreamsView, cardAnchor, visibleCards } from './workstreams';
+import { LIVE_OFFLINE_AFTER_SECONDS } from '../../shared/live';
+import type { YourMoveInfo } from '../../shared/types';
+import { type LiveAsk, buildYourMoveItems } from '../../shared/your-move';
+import { type LiveRead, clock } from './panels';
 
-// "Your move" on the hosted page (design.md section 5.1). The sources are different from the local page: there is no session file and no status.md here.
-// The list is, in order: the open decision issues, the `next_for_mark` lines of every workstream, and the pull requests that wait for Mark.
-// The local page keeps `status.md` as its source and builds the list on the server (src/server/now/yourMove.ts).
+// "Your move" on the hosted page (design.md section 5.1). The rule is the one the local page uses (src/shared/your-move.ts); this file only reads the two slots of the
+// store. The sources are the same three: the open decision issues and the pull requests of the snapshot, and the live asks of the `live` key.
+//
+// The live asks show only while the reporter is fresh. A `live` key older than 150 s, a request that failed, a key that is gone and a value that cannot be read all hide EVERY
+// live ask, and the list says why ("Reporter offline ..."). A failed reporter never shows old asks.
 
-/** The title of a decision issue without the "Decision:" that the issue template puts in front of it. The same rule as the local list. */
-function questionOf(title: string): string {
-  const stripped = title.replace(/^\s*decision\s*:\s*/i, '').trim();
-  return stripped === '' ? title.trim() : stripped;
-}
+/** The message of the notice, and the asks, for one state of the reporter. `asks` is empty whenever `message` is not null. */
+export function liveAsksOf(read: LiveRead, nowMs: number): { asks: LiveAsk[]; message: string | null } {
+  const { live, status, problem } = read;
+  const writtenAt = status.state === 'online' || status.state === 'offline' ? status.writtenAt : null;
+  const writtenMs = writtenAt === null || writtenAt === '' ? Number.NaN : Date.parse(writtenAt);
+  const since = writtenAt === null || writtenAt === '' ? '' : ` since ${clock(writtenAt)}`;
 
-const orNull = (text: string): string | null => (text === '' ? null : text);
+  // 1. A request that failed or a key that is gone or unreadable: the rows may be old, so there are no asks.
+  if (status.state === 'error') return { asks: [], message: `Live asks are hidden: ${status.message}` };
+  if (status.state === 'not-running') return { asks: [], message: 'Reporter not running. Live asks are hidden.' };
+  if (status.state === 'unreadable') return { asks: [], message: `Live asks are hidden: the live value is unreadable (${status.reason}).` };
+  // 2. A request that failed after a good one keeps the old value in the store. It is not fresh, and neither is its box.
+  if (problem !== null && status.state !== 'offline') return { asks: [], message: `Live asks are hidden: ${problem.message}` };
+  // 3. The key is older than 150 s: the state of the reporter from the server, and the same check again here with this page's clock (the page may have been open for a while).
+  if (status.state === 'offline' || live === null || Number.isNaN(writtenMs) || nowMs - writtenMs > LIVE_OFFLINE_AFTER_SECONDS * 1000) {
+    return { asks: [], message: `Reporter offline${since}. Live asks are hidden.` };
+  }
 
-function decisionItem(issue: DecisionIssue): YourMoveItem {
-  const at = orNull(issue.createdAt);
-  if (issue.problem !== null) return { source: 'decision-issue', text: `Decision #${issue.number} is unreadable: ${issue.problem}`, href: orNull(issue.url), light: null, at };
-  return { source: 'decision-issue', text: `Decision #${issue.number}: ${questionOf(issue.title)}`, href: `/decisions/${issue.number}`, light: null, at };
-}
-
-function prItem(pr: PullRequest): YourMoveItem {
-  const text = pr.attention === 'merge' ? `PR #${pr.number} is ready to merge: ${pr.title}` : `PR #${pr.number} needs a fix: ${pr.title}`;
-  return { source: 'pr', text, href: orNull(pr.url), light: null, at: orNull(pr.updatedAt) };
-}
-
-/** The `updated` day of a workstream file as an ISO time, or null. The day has no clock, so it counts from the start of the day (UTC). */
-function dayToIso(day: string): string | null {
-  const time = Date.parse(`${day}T00:00:00Z`);
-  return Number.isNaN(time) ? null : new Date(time).toISOString();
-}
-
-export function buildHostedYourMove(snapshot: Snapshot, view: WorkstreamsView): YourMoveInfo {
-  const workstreamItems: YourMoveItem[] = visibleCards(view).flatMap((card) =>
-    card.nextForMark.map((line) => ({
-      source: 'workstream' as const,
-      text: `${line} (workstream: ${card.title})`,
-      href: `/workstreams#${cardAnchor(card.branch)}`,
-      light: null,
-      at: dayToIso(card.updated),
-    })),
+  const asks: LiveAsk[] = live.sessions.flatMap((session) =>
+    session.yourMove === null ? [] : [{ sessionId: session.id, title: session.title, lines: session.yourMove.lines, at: session.yourMove.at, light: null }],
   );
+  return { asks, message: null };
+}
 
-  const items: YourMoveItem[] = [
-    ...snapshot.decisions.open.map(decisionItem),
-    ...workstreamItems,
-    ...snapshot.github.open.filter((pr) => pr.attention !== null).map(prItem),
-  ];
+export function buildHostedYourMove(snapshot: Snapshot, read: LiveRead, nowMs: number): YourMoveInfo {
+  const { asks, message } = liveAsksOf(read, nowMs);
+  const items = buildYourMoveItems({ decisions: snapshot.decisions.open, prs: snapshot.github.open, asks, nowMs });
 
   // A problem of the snapshot means that a source may be incomplete. The list is still made; the notice says what may be missing.
-  const missing: YourMoveInfo['missing'] = view.snapshotProblems.length === 0 ? [] : [{ source: 'workstream', message: `Snapshot incomplete: ${view.snapshotProblems[0]}` }];
-
+  const missing: YourMoveInfo['missing'] = [];
+  if (snapshot.problems.length > 0) missing.push({ source: 'pr', message: `Snapshot incomplete: ${snapshot.problems[0]?.message ?? 'a part could not be read'}` });
+  if (message !== null) missing.push({ source: 'session', message });
   return { items, missing };
 }

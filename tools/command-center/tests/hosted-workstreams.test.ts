@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { NOW, ROADMAP, decision, richWorld, goodFile, liveState, pr, row, snapshot, workstreamText } from '../fixtures/hosted/world';
+import { NOW, ROADMAP, richWorld, goodFile, liveState, pr, row, snapshot, workstreamText } from '../fixtures/hosted/world';
 import { parseLive } from '../src/shared/live';
 import { parseWorkstream } from '../src/shared/workstream';
-import { buildHostedYourMove } from '../src/web/hosted/your-move';
 import { type LiveStatus, buildWorkstreamsView, cardAnchor, parseRoadmapLanes, visibleCards } from '../src/web/hosted/workstreams';
 
-// The data of the Workstreams view and of "Your move" on the hosted page: the join of branches, PRs, files and live rows (design 5.9).
+// The data of the Workstreams view and the contract of the live key: the join of branches, PRs, files and live rows (design 5.9).
 
 const ONLINE: LiveStatus = { state: 'online', writtenAt: NOW.toISOString() };
 const daysAgo = (days: number) => new Date(NOW.getTime() - days * 86_400_000).toISOString();
@@ -100,8 +99,8 @@ describe('merged workstreams', () => {
 describe('live rows', () => {
   const live = liveState({
     sessions: [
-      { id: 's1', title: 'Session one', branch: 'alpha', folder: 'shadow-jog', state: 'working', startedAt: daysAgo(0), agents: { running: 1, done: 0, names: ['x'] } },
-      { id: 's2', title: 'Session two', branch: 'beta', folder: 'shadow-jog', state: 'waiting', startedAt: null, agents: { running: 0, done: 0, names: [] } },
+      { id: 's1', title: 'Session one', branch: 'alpha', folder: 'shadow-jog', state: 'working', startedAt: daysAgo(0), agents: { running: 1, done: 0, names: ['x'] }, yourMove: null },
+      { id: 's2', title: 'Session two', branch: 'beta', folder: 'shadow-jog', state: 'waiting', startedAt: null, agents: { running: 0, done: 0, names: [] }, yourMove: null },
     ],
     worktrees: [{ path: 'C:/work/alpha', branch: 'alpha', dirty: 3 }],
   });
@@ -153,45 +152,6 @@ describe('cardAnchor and parseRoadmapLanes', () => {
   });
 });
 
-describe('"Your move" on the hosted page', () => {
-  it('lists the open decisions first, then the next_for_mark lines of every card, then the PRs that wait for Mark', () => {
-    const rows = [
-      row('alpha', { workstream: parseWorkstream('docs/workstreams/alpha.md', `${workstreamText('alpha').replace('Body.', '')}`.replace('state: active', 'state: review\nnext_for_mark:\n  - Merge it\n  - Rename the checks')) }),
-      row('beta'),
-    ];
-    const snap = snapshot({
-      workstreams: rows,
-      decisions: { open: [decision(12)], recent: [] },
-      github: { open: [pr(30, 'alpha', { attention: 'merge' }), pr(31, 'other', { attention: null })], merged: [] },
-    });
-    const result = buildHostedYourMove(snap, buildWorkstreamsView({ snapshot: snap, live: null, liveStatus: { state: 'not-running' }, now: NOW }));
-    expect(result.items.map((item) => [item.source, item.text])).toEqual([
-      ['decision-issue', 'Decision #12: question 12'],
-      ['workstream', 'Merge it (workstream: Title of alpha)'],
-      ['workstream', 'Rename the checks (workstream: Title of alpha)'],
-      ['pr', 'PR #30 is ready to merge: Title of PR 30'],
-    ]);
-    expect(result.items[0]?.href).toBe('/decisions/12');
-    expect(result.items[1]?.href).toBe('/workstreams#ws-alpha');
-    expect(result.missing).toEqual([]);
-  });
-
-  it('leaves out the lines of a card that the 14-day rule hid, and of an invalid file', () => {
-    const merged = pr(1, 'old', { state: 'MERGED', mergedAt: daysAgo(20) });
-    const old = row('old', { pr: merged, workstream: parseWorkstream('docs/workstreams/old.md', workstreamText('old').replace('updated:', 'next_for_mark:\n  - Stale\nupdated:')) });
-    const bad = row('bad', { workstream: parseWorkstream('docs/workstreams/bad.md', 'x') });
-    const snap = snapshot({ workstreams: [old, bad] });
-    const result = buildHostedYourMove(snap, buildWorkstreamsView({ snapshot: snap, live: null, liveStatus: { state: 'not-running' }, now: NOW }));
-    expect(result.items).toEqual([]);
-  });
-
-  it('names the source when the snapshot is incomplete', () => {
-    const snap = snapshot({ problems: [{ code: 'truncated', message: 'The branch list was cut at 100' }] });
-    const result = buildHostedYourMove(snap, buildWorkstreamsView({ snapshot: snap, live: null, liveStatus: { state: 'not-running' }, now: NOW }));
-    expect(result.missing).toEqual([{ source: 'workstream', message: 'Snapshot incomplete: The branch list was cut at 100' }]);
-  });
-});
-
 describe('the contract of the live key', () => {
   const good = { writtenAt: '2026-10-12T12:00:00.000Z', sessions: [{ id: 's', title: 't', branch: 'b', folder: 'f', state: 'working', startedAt: null, agents: { running: 0, done: 1, names: ['n'] } }], worktrees: [{ path: '/p', branch: null, dirty: 0 }] };
 
@@ -202,7 +162,23 @@ describe('the contract of the live key', () => {
     expect(parseLive(noNames)).toMatchObject({ ok: true, live: { sessions: [{ agents: { names: [] } }] } });
   });
 
+  it('reads the ask of a session, and holds it to 6 lines of 160 characters even if the reporter sent more', () => {
+    const at = '2026-10-12T11:00:00.000Z';
+    const ask = (yourMove: unknown) => ({ ...good, sessions: [{ ...good.sessions[0], yourMove }] });
+    expect(parseLive(ask({ at, lines: ['one', 'two'] }))).toMatchObject({ ok: true, live: { sessions: [{ yourMove: { at, lines: ['one', 'two'] } }] } });
+    // Missing and null are "no ask" (an older reporter has no such field).
+    expect(parseLive(good)).toMatchObject({ ok: true, live: { sessions: [{ yourMove: null }] } });
+    expect(parseLive(ask(null))).toMatchObject({ ok: true, live: { sessions: [{ yourMove: null }] } });
+    // The caps hold on the reading side too.
+    const long = parseLive(ask({ at, lines: Array.from({ length: 9 }, (_, i) => `${i}${'x'.repeat(300)}`) }));
+    expect(long.ok && long.live.sessions[0]?.yourMove?.lines).toHaveLength(6);
+    expect(long.ok && long.live.sessions[0]?.yourMove?.lines.every((line) => line.length <= 160)).toBe(true);
+  });
+
   it.each([
+    ['an ask that is not an object', { ...good, sessions: [{ ...good.sessions[0], yourMove: 'text' }] }],
+    ['an ask with a bad time', { ...good, sessions: [{ ...good.sessions[0], yourMove: { at: 'soon', lines: [] } }] }],
+    ['an ask whose lines are not texts', { ...good, sessions: [{ ...good.sessions[0], yourMove: { at: '2026-10-12T11:00:00.000Z', lines: [1] } }] }],
     ['not an object', 'text'],
     ['no writtenAt', { ...good, writtenAt: undefined }],
     ['a bad time', { ...good, writtenAt: 'soon' }],

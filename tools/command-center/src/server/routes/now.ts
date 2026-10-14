@@ -1,20 +1,21 @@
 import type { Hono } from 'hono';
-import type { Decision, DecisionsInfo, GithubInfo, Panel, SessionsInfo, StatusInfo, YourMoveInfo } from '../../shared/types';
+import type { AgentsLive, DecisionsInfo, GithubInfo, Panel, SessionsInfo, YourMoveInfo } from '../../shared/types';
 import { buildYourMove } from '../now/yourMove';
 import type { PanelSource } from '../source';
 
-// The route of the Now page. The other panels of the page read the routes of their own modules (/api/sessions, /api/github, /api/status
-// and /api/git); the list "Your move" is the one thing that the page cannot make by itself, because it is made from five sources, and
+// The route of the Now page. The other panels of the page read the routes of their own modules (/api/sessions, /api/github, /api/agents
+// and /api/git); the list "Your move" is the one thing that the page cannot make by itself, because it is made from four sources, and
 // the page would have to know how to read each of them. The route is a GET, as every data route is (the server's method gate refuses every
 // other method), and it takes nothing from the request: no path, no id, no query.
 
 export type NowRoutesDeps = {
   decisions: PanelSource<DecisionsInfo>;
   sessions: PanelSource<SessionsInfo>;
-  status: PanelSource<StatusInfo>;
   github: PanelSource<GithubInfo>;
-  /** The decisions of the engine docs (the source of the engine review). */
-  engine: PanelSource<Decision[]>;
+  /** The live sessions (the process list): a live ask shows only for a session that this lists. */
+  agents: PanelSource<AgentsLive>;
+  /** The clock, in milliseconds since 1970. The tests set it. `Date.now` when this is not given. */
+  now?: () => number;
 };
 
 /**
@@ -27,10 +28,11 @@ export type NowRoutesDeps = {
  */
 export function registerNowRoutes(app: Hono, deps: NowRoutesDeps): void {
   app.get('/api/now/your-move', async (c) => {
-    // The five reads do not depend on each other. A source that has not loaded yet makes its read wait for the first load.
-    const [decisionIssues, sessions, status, github, docDecisions] = await Promise.all([deps.decisions.get(), deps.sessions.get(), deps.status.get(), deps.github.get(), deps.engine.get()]);
+    // The four reads do not depend on each other. A source that has not loaded yet makes its read wait for the first load.
+    const [decisionIssues, sessions, github, agents] = await Promise.all([deps.decisions.get(), deps.sessions.get(), deps.github.get(), deps.agents.get()]);
     // The list is as new as the moment it is made from the panels that the sources have now, so that is the time it carries.
-    const panel: Panel<YourMoveInfo> = { ok: true, data: buildYourMove({ decisionIssues, sessions, status, github, docDecisions }), updatedAt: new Date().toISOString() };
+    const nowMs = (deps.now ?? Date.now)();
+    const panel: Panel<YourMoveInfo> = { ok: true, data: buildYourMove({ decisionIssues, sessions, github, agents }, nowMs), updatedAt: new Date(nowMs).toISOString() };
     return c.json(panel);
   });
 }
