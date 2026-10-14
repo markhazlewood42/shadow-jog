@@ -78,6 +78,8 @@ export function createResolver(store: HostedStore, options: { origin?: () => str
     if (pathname === '/api/health') return { ok: true, data: hostedHealth(origin()), updatedAt: now().toISOString() } as Panel<T>;
     if (pathname === '/api/github') return (await fromSnapshot((snapshot) => snapshot.github)) as Panel<T>;
     if (pathname === '/api/ci') return (await fromSnapshot((snapshot) => snapshot.ci)) as Panel<T>;
+    // The list of the decision issues. The docs page uses it to name the engine decisions that have no issue.
+    if (pathname === '/api/decisions') return (await fromSnapshot((snapshot) => snapshot.decisions)) as Panel<T>;
     if (pathname === '/api/git') return (await fromSnapshot(gitInfoOf)) as Panel<T>;
 
     if (pathname === '/api/status') {

@@ -171,6 +171,13 @@ describe('decisions', () => {
     expect(dataOf(await resolve<{ number: number }>('/api/decisions/8')).number).toBe(8);
     expect(await resolve<unknown>('/api/decisions/99')).toMatchObject({ ok: false, error: { code: 'decision-not-found' } });
   });
+
+  it('answers /api/decisions (the list that the docs page checks the engine decisions against) from the snapshot', async () => {
+    const { resolve } = setup({ snap: snapshot({ decisions: { open: [decision(12)], recent: [decision(8, { state: 'answered' })] } }) });
+    const info = dataOf(await resolve<{ open: { number: number }[]; recent: { number: number }[] }>('/api/decisions'));
+    expect(info.open.map((entry) => entry.number)).toEqual([12]);
+    expect(info.recent.map((entry) => entry.number)).toEqual([8]);
+  });
 });
 
 describe('endpoints the hosted page does not have', () => {
