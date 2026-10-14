@@ -35,7 +35,7 @@ export interface World {
   battle?: 'win' | 'lose' | 'run';
 }
 
-export type Resolve = (id: string, slots: Record<string, string | number> | undefined) => LineRec;
+export type Resolve = (id: string, slots: Record<string, string | number> | undefined, kind: 'line' | 'choose') => LineRec;
 
 /** The names `unlock` hands back (live values the story announces). */
 export const UNLOCKED: Record<string, string[]> = {
@@ -94,12 +94,12 @@ export function record(world: World = {}, resolve?: Resolve): Recording {
     line: async (id: string, slots?: Record<string, string | number>) => {
       if (!resolve) throw new Error('this recording has no resolver for line()');
       ids.push(id);
-      lines.push(resolve(id, slots));
+      lines.push(resolve(id, slots, 'line'));
     },
     choose: async (id: string, slots?: Record<string, string | number>) => {
       if (!resolve) throw new Error('this recording has no resolver for choose()');
       ids.push(id);
-      const rec = resolve(id, slots);
+      const rec = resolve(id, slots, 'choose');
       lines.push(rec);
       return choice(rec.choices?.length ?? 0);
     },

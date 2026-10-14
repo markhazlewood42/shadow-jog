@@ -6,7 +6,9 @@
  * differently, the story would re-paginate and a writer would have to reread every page.
  *
  * The lines are found in the source, not listed here: a new `s.say`, `s.narrate` or `s.ask` anywhere
- * in the game's scripts is picked up without an edit to this file. Each call's text is read as a
+ * in the game's scripts is picked up without an edit to this file. Since M8a the chapter 1 story text is in
+ * `src/data/dialogue.json` (read through `LINES`), so every line of the file is checked too; a line with a
+ * `{slot}` is a text built at run time, so it is counted and named as such. Each call's text is read as a
  * string literal; a line built from a template with `${...}` in it cannot be read this way, and the
  * test counts those and names them (so a skipped line is never a silent one).
  */
@@ -14,6 +16,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { LINES, slotsOf } from '../src/data/dialogue';
 import { SPEAKERS } from '../src/data/speakers';
 import { measure, wrap } from '../src/engine/font';
 import { DIALOG_MAX_W, DIALOG_PAD, DIALOG_PORTRAIT_COL, dialogBoxW, dialogTextW } from '../src/ui/layout';
@@ -127,6 +130,16 @@ function authored(): { lines: Line[]; choices: Choice[]; unreadable: { where: st
         }
       }
     }
+  }
+  // The chapter 1 story text (M8a): one record per box in dialogue.json. A line with a slot has its words filled at run time.
+  for (const [id, def] of Object.entries(LINES)) {
+    const where = `src/data/dialogue.json:${id}`;
+    if (slotsOf(def).length) {
+      unreadable.push({ where, arg: `slots {${slotsOf(def).join(', ')}}: ${def.text}` });
+      continue;
+    }
+    lines.push({ where, who: def.who, text: def.text });
+    for (const c of def.choices ?? []) choices.push({ where, text: c });
   }
   return { lines, choices, unreadable };
 }
