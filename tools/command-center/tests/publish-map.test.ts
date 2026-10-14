@@ -46,7 +46,7 @@ describe('the allow-list mapper', () => {
       worktrees: [{ path: 'C:/Users/markh/home-base/projects/shadow-jog', branch: 'reporter', dirty: 3, ...({ fileBody: 'SECRET-FILE-BODY' } as object) }],
     });
     expect(Object.keys(out.sessions[0] as object).sort()).toEqual(['agents', 'branch', 'folder', 'id', 'startedAt', 'state', 'title', 'yourMove']);
-    expect(Object.keys((out.sessions[0] as { agents: object }).agents).sort()).toEqual(['done', 'names', 'running']);
+    expect(Object.keys((out.sessions[0] as { agents: object }).agents).sort()).toEqual(['done', 'items', 'names', 'running']);
     expect(Object.keys(out.worktrees[0] as object).sort()).toEqual(['branch', 'dirty', 'path']);
     const text = JSON.stringify(out);
     for (const secret of SECRETS) expect(text).not.toContain(secret);
@@ -57,7 +57,15 @@ describe('the allow-list mapper', () => {
       folder: 'shadow-jog',
       state: 'working',
       startedAt: '2026-10-12T08:00:00.000Z',
-      agents: { running: 1, done: 1, names: ['Check the diff', 'Read the docs'] },
+      agents: {
+        running: 1,
+        done: 1,
+        names: ['Check the diff', 'Read the docs'],
+        items: [
+          { label: 'Check the diff', state: 'running', model: 'sonnet', startedAt: null, endedAt: null },
+          { label: 'Read the docs', state: 'done', model: null, startedAt: null, endedAt: '2026-10-12T08:05:00.000Z' },
+        ],
+      },
       // The box in the facts above is not a box (a careless copy would have carried its text): no ask leaves.
       yourMove: null,
     });
@@ -83,6 +91,82 @@ describe('the allow-list mapper', () => {
     expect(agents.names[0]).toBe('agent 39');
     expect(agents.names).toHaveLength(LIMITS.agentNames);
     expect(agents).toMatchObject({ running: 1, done: 39 });
+  });
+
+  describe('agent items (approved by Mark 2026-10-14)', () => {
+    const node = (i: number, extra: Record<string, unknown> = {}) =>
+      ({ id: `n${i}`, parentId: 'sess-1', kind: 'agent', label: `agent ${i}`, model: null, state: 'done', startedAt: null, endedAt: null, filePath: `C:\\x\\agent-${i}.jsonl`, messages: { count: 3, approximate: false }, ...extra }) as never;
+    const itemsOf = (nodes: unknown[]) => {
+      const session = liveSession();
+      session.nodes = nodes as never;
+      return build({ sessions: [session], facts: [], worktrees: [] }).sessions[0]?.agents.items;
+    };
+
+    it('keeps the running agents first when it must cut at the cap, and keeps the order of the session', () => {
+      const nodes = Array.from({ length: 40 }, (_, i) => node(i, { state: i >= 38 ? 'running' : 'done' }));
+      const items = itemsOf(nodes);
+      expect(items).toHaveLength(LIMITS.agentNames);
+      // The two running agents are kept (they come last in the session), with the first 18 done ones, in the order of the session.
+      expect(items?.map((item) => item.label)).toEqual([...Array.from({ length: 18 }, (_, i) => `agent ${i}`), 'agent 38', 'agent 39']);
+      expect(items?.slice(-2).map((item) => item.state)).toEqual(['running', 'running']);
+    });
+
+    it('does not move an item when an agent ends (twins are counted in this order on the page)', () => {
+      const twin = (state: string) => node(1, { label: 'same', startedAt: '2026-10-14T08:00:00.000Z', state, endedAt: state === 'done' ? '2026-10-14T08:05:00.000Z' : null });
+      const before = itemsOf([twin('running'), twin('running'), node(2, { state: 'running' })]);
+      const afterFirstEnds = itemsOf([twin('done'), twin('running'), node(2, { state: 'running' })]);
+      expect(before?.map((item) => item.label)).toEqual(['same', 'same', 'agent 2']);
+      expect(afterFirstEnds?.map((item) => [item.label, item.state])).toEqual([
+        ['same', 'done'],
+        ['same', 'running'],
+        ['agent 2', 'running'],
+      ]);
+    });
+
+    it('redacts and cuts the label, and sends the model only as one of the four families (else null)', () => {
+      const items = itemsOf([
+        node(1, { label: 'check with ghp_abcdefghijklmnopqrstuvwxyz0123456789 now' }),
+        node(2, { label: 'long '.repeat(60), model: 'a-very-long-model-name' }),
+        node(3, { model: 'fable' }),
+      ]);
+      expect(items?.[0]?.label).toBe(`check with ${REDACTED} now`);
+      expect(items?.[1]?.label.length).toBe(LIMITS.agentName);
+      expect(items?.[1]?.model).toBeNull();
+      expect(items?.[2]?.model).toBe('fable');
+      expect(items?.[0]?.model).toBeNull();
+    });
+
+    it('gives null for a model that is not a family, so no prefix of a key, a path or an address leaves (the old cut to 12 characters let them through)', () => {
+      const leaks = ['sk-abcdefghijklmnopqrstuvwxyz', 'C:\\Users\\markh\\secret', 'markh@gmail.com', 'Fable', 'claude-fable-5', ''];
+      const items = itemsOf(leaks.map((model, i) => node(i, { model })));
+      expect(items?.map((item) => item.model)).toEqual(leaks.map(() => null));
+      expect(JSON.stringify(items)).not.toMatch(/sk-abcdefghi|C:\\Users|markh@/);
+    });
+
+    it('passes each of the four families', () => {
+      const items = itemsOf(['opus', 'sonnet', 'haiku', 'fable'].map((model, i) => node(i, { model })));
+      expect(items?.map((item) => item.model)).toEqual(['opus', 'sonnet', 'haiku', 'fable']);
+    });
+
+    it('sends only the five named keys: no path, no message count, no id, no extra field', () => {
+      const items = itemsOf([node(1, { state: 'running', model: 'sonnet', startedAt: '2026-10-12T08:00:00.000Z', lastMessage: 'SECRET RESULT', prompt: 'SECRET PROMPT TEXT' })]);
+      expect(Object.keys(items?.[0] as object).sort()).toEqual(['endedAt', 'label', 'model', 'startedAt', 'state']);
+      const text = JSON.stringify(items);
+      for (const secret of SECRETS) expect(text).not.toContain(secret);
+      expect(text).not.toContain('agent-1.jsonl');
+    });
+
+    it('leaves a workflow out of the items (it stays in the counts and the names) and turns a bad time into null', () => {
+      const body = build({
+        sessions: [{ ...liveSession(), nodes: [node(1, { kind: 'workflow', label: 'My flow', state: 'running' }), node(2, { startedAt: 'not a time', endedAt: '2026-10-12T08:05:00.000Z' })] } as never],
+        facts: [],
+        worktrees: [],
+      });
+      const agents = body.sessions[0]?.agents;
+      expect(agents).toMatchObject({ running: 1, done: 1, names: ['My flow', 'agent 2'] });
+      expect(agents?.items).toEqual([{ label: 'agent 2', state: 'done', model: null, startedAt: null, endedAt: '2026-10-12T08:05:00.000Z' }]);
+      expect(parseLive({ writtenAt: '2026-10-12T12:00:00.000Z', sessions: body.sessions, worktrees: [] }).ok).toBe(true);
+    });
   });
 
   it('cuts long text from a transcript, and the number of rows', () => {

@@ -11,9 +11,9 @@ import { readSmallJson } from '../sessions/tail';
 // The folder is an internal one of Claude Code, so its format can change with an update, and it also holds secrets: next to each
 // `<pid>.json` there is a `<pid>.<hash>.key` file with a token. So this reader:
 // - lists the folder and opens only the files named `<digits>.json`, never anything else;
-// - keeps four keys of a file (the session id, the pid, the start time and busy or idle). Every other key (the working folder, the
-//   name, the socket path, the bridge id ...) is dropped here, and the pid is dropped as soon as the process is known to be alive,
-//   so nothing past this file can leak what it never had;
+// - keeps four keys of a file (the session id, the pid, the start time and the status, which is shaped to busy or idle). Every other key
+//   (the working folder, the name, the socket path, the bridge id ...) is dropped here, and the pid is dropped as soon as the process is
+//   known to be alive, so nothing past this file can leak what it never had;
 // - never throws for what it finds: a file that is malformed, of an unknown shape or not readable is skipped.
 
 /** One Claude process that is alive, as far as this module needs to know. The pid is not in it. */
@@ -22,7 +22,10 @@ export type ProcessEntry = {
   sessionId: string;
   /** When the process started, in milliseconds since 1970, or null when the file does not say. */
   startedAtMs: number | null;
-  /** `busy`: the session works. `idle`: it waits for Mark. */
+  /**
+   * `busy`: the session works (the file says `busy` or `shell`).
+   * `idle`: it waits for Mark, or the file says a word that this does not know.
+   */
   status: 'busy' | 'idle';
 };
 
@@ -62,6 +65,13 @@ const SESSION_ID = /^[\w-]{1,128}$/;
 const RETRY_PAUSE_MS = 50;
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
+/**
+ * The `status` words of a process file that mean the session works: `busy`, and `shell` (it waits for a background shell command).
+ * Claude Code adds status words over time (`waiting` is one: it waits for Mark), so every other word, a missing one included, is idle.
+ * An unknown word must never hide a session that runs.
+ */
+const BUSY_STATUSES: ReadonlySet<string> = new Set(['busy', 'shell']);
+
 type Shaped = { pid: number; entry: ProcessEntry };
 
 /** The four keys of a process file when they have the expected shape, else null. Everything else in the file is left where it is. */
@@ -70,10 +80,11 @@ function shapeOf(json: Record<string, unknown>): Shaped | null {
   if (typeof sessionId !== 'string' || !SESSION_ID.test(sessionId)) return null;
   // A pid is a positive whole number. 0 and the negative ones are not processes: signal 0 to them goes to a whole group of processes.
   if (typeof pid !== 'number' || !Number.isSafeInteger(pid) || pid <= 0) return null;
-  if (status !== 'busy' && status !== 'idle') return null;
+  // The session is live whatever the status says. Only the known busy words make it busy.
+  const shapedStatus: ProcessEntry['status'] = typeof status === 'string' && BUSY_STATUSES.has(status) ? 'busy' : 'idle';
   // A start time that is not a time is no reason to lose a session that runs: it is left out and the session has no start.
   const startedAtMs = typeof startedAt === 'number' && startedAt > 0 && !Number.isNaN(new Date(startedAt).getTime()) ? startedAt : null;
-  return { pid, entry: { sessionId, startedAtMs, status } };
+  return { pid, entry: { sessionId, startedAtMs, status: shapedStatus } };
 }
 
 /** The older of two start times; a time beats null. */

@@ -42,12 +42,13 @@ export function Cluster({ session, nowMs, leaving }: ClusterProps) {
   return (
     // The cluster is a scroll box of its own, for a window that is narrower than a deep tree (the grid makes its columns as wide as the widest tree when the window has room), so
     // that a tree never runs under the cluster next to it or makes the page scroll. The anchor id is the one that "Your move" links to (sessionHref), and `scroll-mt-20` leaves
-    // room for the bar at the top of the page, which stays in view.
+    // room for the bar at the top of the page, which stays in view. `pb-2` (8 px) is the room that a new box needs: it slides up from 8 px lower (`cc-box-in`), and without this room
+    // the clip of the box would cut its lower border for the 200 ms of the slide.
     <div
       id={sessionAnchor(session.id)}
       data-cluster={session.id}
       {...(leaving ? { 'data-leaving': 'true', inert: true } : {})}
-      className="min-w-0 scroll-mt-20 overflow-x-auto overflow-y-hidden data-leaving:pointer-events-none data-leaving:opacity-0 motion-safe:transition-opacity motion-safe:duration-200 motion-safe:ease-out"
+      className="min-w-0 scroll-mt-20 overflow-x-auto overflow-y-hidden pb-2 data-leaving:pointer-events-none data-leaving:opacity-0 motion-safe:transition-opacity motion-safe:duration-200 motion-safe:ease-out"
     >
       <div className="relative" style={{ width: layout.width, height: layout.height }}>
         <Lines layout={layout} lines={lines} flashing={flashing} sessionId={session.id} />

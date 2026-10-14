@@ -220,11 +220,48 @@ test.describe('the Now page on the hosted data layer', () => {
     await expect(page.getByRole('region', { name: 'Agents', exact: true }).getByRole('alert')).toContainText('Reporter not running');
   });
 
-  test('lists the live sessions on the Agents page, with a label that the agent boxes need the local server', async ({ page }) => {
+  test('draws the live sessions on the Agents page, with one box for each agent: label, state, model and run time', async ({ page }) => {
     await mockApi(page, { snapshot: { json: world.snapshot }, live: { json: world.live } });
     await page.goto('/agents');
-    await expect(page.getByText('Sessions only: agent boxes show on the local Command Center')).toBeVisible();
-    await expect(page.getByRole('region', { name: 'Agents', exact: true })).toContainText('Flip the default');
+    const agents = page.getByRole('region', { name: 'Agents', exact: true });
+    await expect(agents).toContainText('Flip the default');
+    // The note of the first build is gone: the boxes are drawn here too.
+    await expect(page.getByText(/Sessions only/)).toHaveCount(0);
+    const boxes = agents.locator('[data-box="agent"]');
+    await expect(boxes).toHaveCount(3);
+    const box = (label: string) => agents.locator('[data-box="agent"]').filter({ hasText: label });
+    await expect(box('runner')).toHaveAttribute('data-state', 'running');
+    await expect(box('runner')).toContainText('sonnet · 3 min');
+    await expect(box('builder')).toHaveAttribute('data-state', 'running');
+    await expect(box('builder')).toContainText('fable · 9 min');
+    await expect(box('reader')).toHaveAttribute('data-state', 'done');
+    await expect(box('reader')).toContainText('done');
+
+    // The whole last box is in the panel: no frame clips its lower border. The check runs at once, while the entry animation of the boxes (a fade and a slide of 8 px) may
+    // still run: a box that slides is 8 px lower than its place, and the cluster has room for that. Then it runs again when the animations have ended.
+    const expectLastBoxInPanel = async () => {
+      const panel = await agents.boundingBox();
+      const last = await boxes.last().boundingBox();
+      const cluster = await agents.locator('[data-cluster]').first().boundingBox();
+      if (panel === null || last === null || cluster === null) throw new Error('the panel, the cluster or the last box has no box on the page');
+      expect(last.y + last.height).toBeLessThanOrEqual(cluster.y + cluster.height);
+      expect(cluster.y + cluster.height).toBeLessThan(panel.y + panel.height);
+    };
+    await expectLastBoxInPanel();
+    await page.evaluate(() => Promise.all(document.getAnimations().map((animation) => animation.finished)));
+    await expectLastBoxInPanel();
+    // The hosted page has no file path, so no box has a Copy button (the session box too).
+    await expect(agents.getByRole('button', { name: 'Copy path' })).toHaveCount(0);
+    await shot(page, 'hosted-agents-2.png');
+  });
+
+  test('keeps the Reporter offline error on the Agents page', async ({ page }) => {
+    await mockApi(page, {
+      snapshot: { json: world.snapshot },
+      live: { json: liveAnswer('offline', { ...(world.live.live as ReturnType<typeof liveState>), writtenAt: '2026-10-12T11:50:00.000Z' }) },
+    });
+    await page.goto('/agents');
+    await expect(page.getByRole('region', { name: 'Agents', exact: true }).getByRole('alert')).toContainText('Reporter offline');
   });
 
   test('shows the Status panel error when main has no status.md, and keeps the other rows', async ({ page }) => {

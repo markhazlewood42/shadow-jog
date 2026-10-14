@@ -118,7 +118,7 @@ describe('the panels made from the live key', () => {
     const { resolve } = setup({ live: liveAnswer('online', sessions) });
     const agents = dataOf(await resolve<AgentsLive>('/api/agents'));
     expect(agents.sessions.map((session) => session.id)).toEqual(['old', 'new']);
-    expect(agents.sessions[0]).toMatchObject({ title: 'Older', state: 'working', nodes: [] });
+    expect(agents.sessions[0]).toMatchObject({ title: 'Older', state: 'working', nodes: [expect.objectContaining({ label: 'x', kind: 'agent' }), expect.objectContaining({ label: 'y', kind: 'agent' }), expect.objectContaining({ label: 'z', state: 'done' })] });
   });
 
   it('says "reporter not running" when the key is gone', async () => {

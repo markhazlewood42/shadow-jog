@@ -1,7 +1,7 @@
 import type { Snapshot } from '../../github-api/types';
 import type { LiveAnswer } from '../../hosted/live';
-import { type LiveState, parseLive } from '../../shared/live';
-import { APP_NAME, type AgentsLive, type DecisionDetail, type DecisionIssue, type GitInfo, type Health, type LiveSession, type Panel } from '../../shared/types';
+import { type LiveAgentItem, type LiveSessionRow, type LiveState, parseLive } from '../../shared/live';
+import { APP_NAME, type AgentsLive, type DecisionDetail, type DecisionIssue, type GitInfo, type Health, type LiveNode, type LiveSession, type Panel } from '../../shared/types';
 import type { HostedError } from './fetch';
 import { HOSTED_REPO } from './mode';
 import type { Slot } from './store';
@@ -102,11 +102,64 @@ export function readLive(slot: Slot<LiveAnswer>): LiveRead {
   return { status, live, problem };
 }
 
+/**
+ * A stable id for an agent box: the same agent keeps its id while it moves from running to done, so its box does not blink. Twins (same start, same label) get a count.
+ * The count does not depend on the state: `nodesOf` counts the twins in the order of the start time (and, for equal times, the order of the list, which the reporter keeps
+ * in the order of the session), so an agent that ends does not change the id of its twin.
+ */
+function nodeId(sessionId: string, item: LiveAgentItem, seen: Map<string, number>): string {
+  const key = `${item.startedAt ?? ''}|${item.label}`;
+  const count = seen.get(key) ?? 0;
+  seen.set(key, count + 1);
+  return `${sessionId}|${key}|${count}`;
+}
+
+const byStartTime = (a: string | null, b: string | null): number => (a === b ? 0 : a === null ? 1 : b === null ? -1 : a.localeCompare(b));
+const byStart = (a: LiveNode, b: LiveNode): number => byStartTime(a.startedAt, b.startedAt);
+
+/**
+ * The agent boxes of one hosted session, as the same nodes that the local server makes, so the local Diagram draws them with the same look. The reporter sends `agents.items`
+ * (label, state, model, times). An older reporter sends only the counts and the names. That fallback is a known limit: the names of a session can include the names of
+ * workflows (the reporter names workflows but sends no item for them), so a workflow can show here as an agent box, and the state of a box is a guess from the counts (the
+ * reporter lists the running names first). It has no model and no time. A node has no file and no messages here. The id is made from the session, the start time and the label
+ * (with a count for twins, in the order of the start), so it stays the same when an agent ends and moves in the list.
+ */
+export function nodesOf(session: LiveSessionRow): LiveNode[] {
+  const { items, names, running } = session.agents;
+  const facts =
+    items ?? names.map((label, index): LiveAgentItem => ({ label, state: index < running ? 'running' : 'done', model: null, startedAt: null, endedAt: null }));
+  // The twin count is taken in the order of the start (a stable sort: equal times keep the order of the list), then each node goes back to its place in the list.
+  const ids: string[] = [];
+  const seen = new Map<string, number>();
+  [...facts.keys()]
+    .sort((a, b) => byStartTime(facts[a]?.startedAt ?? null, facts[b]?.startedAt ?? null) || a - b)
+    .forEach((index) => {
+      const item = facts[index];
+      if (item !== undefined) ids[index] = nodeId(session.id, item, seen);
+    });
+  const nodes = facts.map(
+    (item, index): LiveNode => ({
+      id: ids[index] ?? `${session.id}|${index}`,
+      parentId: session.id,
+      kind: 'agent',
+      label: item.label,
+      model: item.model,
+      state: item.state,
+      startedAt: item.startedAt,
+      endedAt: item.endedAt,
+      filePath: null,
+      messages: { count: 0, approximate: false },
+    }),
+  );
+  // In order of start, as the local list is. A sort is stable, so nodes with no start time keep the order they came in.
+  return nodes.sort(byStart);
+}
+
 export function agentsOf(live: LiveState): AgentsLive {
   const sessions: LiveSession[] = [...live.sessions]
     // The oldest first, as the local list is. A session with no start time goes last.
     .sort((a, b) => (a.startedAt === b.startedAt ? 0 : a.startedAt === null ? 1 : b.startedAt === null ? -1 : a.startedAt.localeCompare(b.startedAt)))
-    .map((session) => ({ id: session.id, title: session.title, state: session.state, startedAt: session.startedAt, filePath: '', nodes: [] }));
+    .map((session) => ({ id: session.id, title: session.title, state: session.state, startedAt: session.startedAt, filePath: '', nodes: nodesOf(session) }));
   return { sessions, hiddenScripts: 0, source: 'process-list' };
 }
 

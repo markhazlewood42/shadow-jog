@@ -100,7 +100,8 @@ export function BoxView({ entry, nowMs, leaving }: BoxViewProps) {
           <div data-part="detail" className={`flex min-w-0 flex-1 items-center gap-1.5 text-xs leading-4 whitespace-nowrap ${look.detail}`}>
             <Detail data={data} nowMs={nowMs} />
           </div>
-          {data.filePath !== null && <CopyButton path={data.filePath} />}
+          {/* No Copy button without a path: the hosted page has no file path (a session box there has the empty text). */}
+          {data.filePath !== null && data.filePath !== '' && <CopyButton path={data.filePath} />}
         </div>
       </div>
     </div>

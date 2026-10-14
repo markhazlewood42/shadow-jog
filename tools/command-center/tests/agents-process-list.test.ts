@@ -200,7 +200,6 @@ describe('the process list', () => {
     write(folder, '7710030.json', JSON.stringify({ pid: -7710030, sessionId: S2, status: 'busy', startedAt: 1 }));
     write(folder, '7710031.json', JSON.stringify({ pid: 12.5, sessionId: S2, status: 'busy', startedAt: 1 }));
     write(folder, '7710032.json', JSON.stringify({ pid: '7710032', sessionId: S2, status: 'busy', startedAt: 1 })); // a pid as text
-    write(folder, '7710033.json', JSON.stringify({ pid: 7710033, sessionId: S2, status: 'sleeping', startedAt: 1 })); // a status that this does not know
     write(folder, '7710034.json', JSON.stringify({ pid: 7710034, status: 'busy', startedAt: 1 })); // no session id
     write(folder, '7710035.json', `{"pad":"${'x'.repeat(70_000)}","pid":7710035,"sessionId":"${S2}","status":"busy"}`); // far bigger than a process file
     mkdirSync(join(folder, '7710036.json')); // a folder with the name of a file
@@ -252,6 +251,37 @@ describe('the process list', () => {
         { sessionId: S1, startedAtMs: 1_790_000_000_123, status: 'busy' },
         { sessionId: S2, startedAtMs: null, status: 'busy' },
         { sessionId: S3, startedAtMs: null, status: 'idle' },
+      ],
+    });
+  });
+
+  it('a session in shell status is live and busy', async () => {
+    const folder = freshFolder();
+    write(folder, '7710091.json', processFile(7710091, S1, 'shell')); // it waits for a background shell command
+    expect(await readProcessList(folder, () => true)).toEqual({ ok: true, entries: [{ sessionId: S1, startedAtMs: 1_790_000_000_000, status: 'busy' }] });
+  });
+
+  it('a session in waiting status is live and idle', async () => {
+    const folder = freshFolder();
+    write(folder, '7710092.json', processFile(7710092, S1, 'waiting')); // it waits for the user
+    expect(await readProcessList(folder, () => true)).toEqual({ ok: true, entries: [{ sessionId: S1, startedAtMs: 1_790_000_000_000, status: 'idle' }] });
+  });
+
+  it('a session with an unknown status word is live and idle', async () => {
+    const folder = freshFolder();
+    write(folder, '7710093.json', processFile(7710093, S1, 'sleeping'));
+    expect(await readProcessList(folder, () => true)).toEqual({ ok: true, entries: [{ sessionId: S1, startedAtMs: 1_790_000_000_000, status: 'idle' }] });
+  });
+
+  it('a session with a missing or non-string status is live and idle', async () => {
+    const folder = freshFolder();
+    write(folder, '7710094.json', JSON.stringify({ pid: 7710094, sessionId: S1, startedAt: 1_790_000_000_000 })); // no status key
+    write(folder, '7710095.json', JSON.stringify({ pid: 7710095, sessionId: S2, startedAt: 1_790_000_000_000, status: 7 })); // not a string
+    expect(await readProcessList(folder, () => true)).toEqual({
+      ok: true,
+      entries: [
+        { sessionId: S1, startedAtMs: 1_790_000_000_000, status: 'idle' },
+        { sessionId: S2, startedAtMs: 1_790_000_000_000, status: 'idle' },
       ],
     });
   });
