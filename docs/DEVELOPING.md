@@ -276,8 +276,10 @@ including why it ended at round 12. If a future milestone brings it back:
   endpoint had the fix and another didn't). Write it in one go, or touch it afterwards, and confirm with a request.
 - **The dev server's write endpoints write real files.** `/__rig/skeleton` writes `public/art/rig/skeleton.json`
   and `/__artpass/review` writes `media/art-pass/review.json`. Before probing one, back the file up and
-  byte-compare it afterwards; the FX lab has `?dry=1`. All three refuse requests from other sites (`Origin` /
-  `Sec-Fetch-Site`); a script with neither passes.
+  byte-compare it afterwards; every write endpoint (these, the FX lab and `/__stage/stages`) has `?dry=1`: only the value `1`
+  is dry (`isDry` in `src/dev/sameorigin.ts`), so `?dry=0` writes. All of them refuse requests from other sites (`Origin` /
+  `Sec-Fetch-Site`) and requests whose `Host` is not `localhost`, `127.0.0.1` or `[::1]` (DNS rebinding); a script with no
+  `Origin` and a local `Host` passes.
 
 ---
 

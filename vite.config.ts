@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Plugin } from 'vite';
-import { sameOrigin } from './src/dev/sameorigin';
+import { isDry, sameOrigin } from './src/dev/sameorigin';
 import { stageHandlers } from './src/dev/stageedit/serve';
 import { DEV_TOOLS } from './src/dev/tools';
 import { defineConfig } from 'vitest/config';
@@ -16,7 +16,7 @@ type StageSaveModule = typeof import('./src/dev/stageedit/save');
 /**
  * The FX lab's save endpoint (dev server only): GET /__fxlab/fx returns src/data/fx.json; POST
  * checks the posted data (engine/fxdata.ts `checkFx`) and writes it in the file's own format.
- * `?dry=1` checks and formats without writing (the tests use it). Answers with JSON:
+ * `?dry=1` (see `isDry`) checks and formats without writing (the tests use it). Answers with JSON:
  * `{ ok: true, text }` or `{ ok: false, problems }`.
  */
 function fxLab(): Plugin {
@@ -47,7 +47,8 @@ function fxLab(): Plugin {
           body += chunk.toString('utf8');
           if (body.length > 1_000_000) req.destroy();
         });
-        req.on('end', async () => {
+        // The handler is async: a rejection (fxdata.ts with a syntax error mid-edit makes ssrLoadModule reject) is caught and answered 500, never left unhandled (PR 86 review, R1-3).
+        const handle = async (): Promise<void> => {
           // The checks and the file format, through the dev server (the same code the game and the
           // lab run, current after any edit to it).
           const { checkFx, formatFx } = (await server.ssrLoadModule('/src/sje/fx/fxdata.ts')) as FxDataModule;
@@ -65,11 +66,17 @@ function fxLab(): Plugin {
           }
           const text = formatFx(data as Parameters<typeof formatFx>[0]);
           try {
-            if (!(req.url ?? '').includes('dry=1')) writeFileSync(FX_FILE, text);
+            if (!isDry(req.url)) writeFileSync(FX_FILE, text);
             reply(200, { ok: true, text });
           } catch (e) {
             reply(500, { ok: false, problems: [`couldn't write fx.json: ${String(e)}`] });
           }
+        };
+        req.on('end', () => {
+          handle().catch((e: unknown) => {
+            if (res.headersSent) return;
+            reply(500, { ok: false, problems: [`could not check the fx data: ${e instanceof Error ? e.message : String(e)}`] });
+          });
         });
       });
     },
@@ -117,7 +124,7 @@ const ART_PASS = resolve(import.meta.dirname, 'media/art-pass');
  * Mark picks). GET /__artpass/data gathers every generated asset's meta.json with the saved review
  * and the pass's spend; POST /__artpass/review saves the review (picks, verdicts, notes) to
  * media/art-pass/review.json. The review page is artreview.html; see scripts/pixellab/.
- * `POST /review?dry=1` checks the body and writes nothing (the tests use it): `{ ok: true, dry: true }` or the same 400 as a real save.
+ * `POST /review?dry=1` (see `isDry`: the value must be `1`) checks the body and writes nothing (the tests use it): `{ ok: true, dry: true }` or the same 400 as a real save.
  */
 function artPass(): Plugin {
   const readJson = (path: string): unknown => (existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : null);
@@ -180,7 +187,7 @@ function artPass(): Plugin {
                   reply(400, { ok: false, problem: 'expected { assets: {...} }' });
                   return;
                 }
-                if ((req.url ?? '').includes('dry=1')) {
+                if (isDry(req.url)) {
                   reply(200, { ok: true, dry: true });
                   return;
                 }
@@ -268,7 +275,7 @@ function rigEdit(): Plugin {
             reply(400, { ok: false, problem: problems.slice(0, 5).join('; ') + (problems.length > 5 ? ` (and ${problems.length - 5} more)` : '') });
             return;
           }
-          if ((req.url ?? '').includes('dry=1')) {
+          if (isDry(req.url)) {
             reply(200, { ok: true, dry: true });
             return;
           }

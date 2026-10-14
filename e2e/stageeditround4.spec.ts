@@ -176,12 +176,12 @@ test('a save that does not write the HUD is checked against the HUD on disk, and
     const stages = JSON.parse(cur.stages) as Record<string, { hud?: unknown }>;
     stages.street = { ...stages.street, hud: { commands: { x: 500 } } };
     hud.commands.w = 300; // would break the street's own box if it were saved
-    const post = async (write: string[]): Promise<{ ok: boolean; problems: string[]; written?: string[] }> =>
-      (await (await fetch(`/__stage/stages?scratch=${name}&dry=1`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ stages, axes: JSON.parse(cur.axes), hud, write }) })).json()) as { ok: boolean; problems: string[]; written?: string[] };
+    const post = async (write: string[]): Promise<{ ok: boolean; problems: string[]; wouldWrite?: string[] }> =>
+      (await (await fetch(`/__stage/stages?scratch=${name}&dry=1`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ stages, axes: JSON.parse(cur.axes), hud, write }) })).json()) as { ok: boolean; problems: string[]; wouldWrite?: string[] };
     return { without: await post(['stages']), withHud: await post(['stages', 'hud']) };
   }, scratch);
   expect(res.without.ok).toBe(true);
-  expect(res.without.written).toEqual(['stages']);
+  expect(res.without.wouldWrite).toEqual(['stages']);
   expect(res.withHud.ok).toBe(false);
   expect(res.withHud.problems.join(' ')).toContain("the HUD layout in this save does not fit a stage's own HUD box");
 });

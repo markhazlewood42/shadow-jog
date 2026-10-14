@@ -12,7 +12,7 @@
  *     500  the files could not be written; none was changed (or, if putting an old file back failed too, the message names the files in an unknown state);
  *     200  the files were written ALL TOGETHER (`writeTogether`: a temporary file for each, then a rename for each, the old text put back if one rename fails);
  *          `{ ok: true, written: [...], stages, ... }` with the text of each file written.
- *     `?dry=1` (any `dry` parameter) checks and formats and answers 200 with the text and `dry: true`, and writes nothing (`written` then names the parts that a real Save would write). The tests use it.
+ *     `?dry=1` (only the value `1`: see `isDry`) checks and formats and answers 200 with the text and `dry: true`, and writes nothing. The answer then has `wouldWrite` (the parts a real Save would write) and no `written` or `file`. The tests use it.
  * `GET  /__stage/hud`     the HUD file as text. A POST there is refused (405): the HUD is saved together with the stages, which checks it against them.
  *
  * WHICH FILES. Only the 640x360 set the game reads, by FIXED paths (decision 4 of ET): `stages-640.json`, `hud-640.json`, and the shared `axes.json`, `enemyfacing.json`, `heroes.json`.
@@ -26,7 +26,7 @@
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { join } from 'node:path';
-import { sameOrigin } from '../sameorigin';
+import { isDry, sameOrigin } from '../sameorigin';
 import type { Prepared, SaveOptions, SavePart } from './save';
 import { saveFailureMessage, writeTogether } from './writeset';
 
@@ -116,15 +116,23 @@ export function stageHandlers(opts: StageServeOptions): { stages: Handler; hud: 
     let size = 0;
     let tooBig = false;
     req.on('data', (chunk: Buffer) => {
+      if (tooBig) return;
       size += chunk.length;
-      if (size > MAX_BODY) tooBig = true;
-      else chunks.push(chunk);
-    });
-    req.on('end', () => {
-      if (tooBig) {
+      if (size > MAX_BODY) {
+        // Past the limit: answer 413 at once and stop reading, so a huge body is not read to its end (PR 86 review, R1-2). The request is paused (no more of the body is taken in) and
+        // destroyed a moment after the answer has gone out: destroying at once would reset the connection before a client that is still sending has read the 413.
+        tooBig = true;
+        chunks.length = 0;
+        req.pause();
+        res.setHeader('Connection', 'close'); // the connection is not reused: the timer below would otherwise cut the next request that rides on it
+        res.once('finish', () => setTimeout(() => req.destroy(), 250).unref());
         reply(res, 413, { ok: false, problems: [`the body is bigger than ${MAX_BODY} bytes`] });
         return;
       }
+      chunks.push(chunk);
+    });
+    req.on('end', () => {
+      if (tooBig) return; // already answered 413 above
       let data: unknown;
       try {
         data = JSON.parse(Buffer.concat(chunks).toString('utf8'));
@@ -146,8 +154,9 @@ export function stageHandlers(opts: StageServeOptions): { stages: Handler; hud: 
       }
       const texts: Record<SavePart, string | undefined> = { stages: made.stagesText, axes: made.axesText, hud: made.hudText, facing: made.facingText, heroes: made.heroesText };
       const target = pathsIn(dir ?? opts.dataDir);
+      const dry = isDry(req.url);
       try {
-        if (!url.searchParams.has('dry')) {
+        if (!dry) {
           // The scratch folder is made only now, by a request that passed every check.
           if (dir) mkdirSync(dir, { recursive: true });
           writeTogether(made.write.flatMap((part) => (texts[part] === undefined ? [] : [{ path: target[part], text: texts[part] as string }])));
@@ -155,14 +164,14 @@ export function stageHandlers(opts: StageServeOptions): { stages: Handler; hud: 
         reply(res, 200, {
           ok: true,
           problems: [],
-          dry: url.searchParams.has('dry'),
+          dry,
           stages: made.stagesText,
           axes: made.axesText,
           ...(made.hudText !== undefined ? { hud: made.hudText } : {}),
           ...(made.facingText !== undefined ? { facing: made.facingText } : {}),
           ...(made.heroesText !== undefined ? { heroes: made.heroesText } : {}),
-          written: made.write,
-          file: dir ? `scratch copy ${url.searchParams.get('scratch')}` : 'src/data',
+          // A dry run names the parts a real Save would write (`wouldWrite`) and says nothing was written: it has no `written` and no `file`.
+          ...(dry ? { wouldWrite: made.write } : { written: made.write, file: dir ? `scratch copy ${url.searchParams.get('scratch')}` : 'src/data' }),
         });
       } catch (e) {
         reply(res, 500, { ok: false, problems: [saveFailureMessage(e)] });

@@ -158,7 +158,8 @@ export function prepareSave(body: unknown, currentHudText?: string, opts: SaveOp
   // A stage's own HUD box that no longer fits is easy to miss from the stage list, so say plainly that the new layout is the cause.
   const explained = writesHud ? stageProblems.map((p) => (/\bhud\./.test(p) ? `the HUD layout in this save does not fit a stage's own HUD box: ${p}` : p)) : stageProblems;
   // The 640 set holds 640x360 stages only (ET decision 4): a stage laid out on another screen would draw wrong in the game.
-  const screenProblems = opts.screen && stageProblems.length === 0 ? wrongScreens(stages, opts.screen) : [];
+  // It runs whether or not the stage checks found problems, so one Save lists the wrong-screen stages together with the stage and HUD problems, not one kind per round trip (PR 86 review, R1-6).
+  const screenProblems = opts.screen ? wrongScreens(stages, opts.screen) : [];
   // The facing file is checked with the game's own loader check whenever it is posted (a bad file is refused whether or not it is written).
   const facingProblems = postedFacing === undefined ? [] : checkFacing(postedFacing).map((p) => `${FACING_FILE}: ${p}`);
   // So is the heroes file, with the loader the game reads it with.
@@ -170,10 +171,13 @@ export function prepareSave(body: unknown, currentHudText?: string, opts: SaveOp
   return { ok: true, stagesText: formatStages(stages, style), axesText: formatAxes(axes ?? {}), ...(hudText !== undefined ? { hudText } : {}), ...(postedFacing !== undefined ? { facingText: formatFacing(postedFacing) } : {}), ...(postedHeroes !== undefined ? { heroesText: formatHeroes(postedHeroes) } : {}), write };
 }
 
-/** The stages of a file that are not laid out on `screen`, as sentences. (The stages already passed `checkStages`, so each is an object.) */
+/** The stages of a file that are not laid out on `screen`, as sentences. It may run on stages that failed `checkStages`, so anything that is not a stage object is skipped here (the stage checks name it). */
 function wrongScreens(stages: unknown, screen: ScreenSize): string[] {
+  if (typeof stages !== 'object' || stages === null || Array.isArray(stages)) return [];
   return Object.entries(stages as Record<string, StageEntry>).flatMap(([id, entry]) => {
+    if (typeof entry !== 'object' || entry === null) return [];
     const own = screenOf(entry);
+    if (typeof own !== 'object' || own === null || typeof own.w !== 'number' || typeof own.h !== 'number') return []; // a malformed `screen`: the stage checks name it
     return own.w === screen.w && own.h === screen.h ? [] : [`stage "${id}" is laid out on ${own.w}x${own.h}, but ${STAGES_FILE} holds ${screen.w}x${screen.h} stages only`];
   });
 }

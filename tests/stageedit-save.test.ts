@@ -15,6 +15,7 @@ import type { AddressInfo } from 'node:net';
 import { join, resolve } from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { StageEntry } from '../src/battlestage/config';
+import { isDry, sameOrigin } from '../src/dev/sameorigin';
 import { SET_SCREEN, prepareSave } from '../src/dev/stageedit/save';
 import { MAX_BODY, PART_FILES, stageHandlers } from '../src/dev/stageedit/serve';
 
@@ -71,7 +72,7 @@ beforeEach(() => {
 
 interface Answer {
   status: number;
-  body: { ok: boolean; problems: string[]; written?: string[]; dry?: boolean; stages?: string; hud?: string; axes?: string; facing?: string; heroes?: string };
+  body: { ok: boolean; problems: string[]; written?: string[]; wouldWrite?: string[]; file?: string; dry?: boolean; stages?: string; hud?: string; axes?: string; facing?: string; heroes?: string };
 }
 
 /** One request, with the headers a browser would (or would not) send. */
@@ -144,14 +145,68 @@ describe('a cross-site POST gets 403 and writes nothing', () => {
   });
 });
 
+describe('the Host header (DNS rebinding): a page rebound to 127.0.0.1 is same-origin to the browser, so the Host must name this machine', () => {
+  const hostHeaders = (host: string, origin = `http://${host}`): IncomingHttpHeaders => ({ host, origin, 'sec-fetch-site': 'same-origin' });
+
+  it('a foreign Host is 403 and writes nothing, even with a matching Origin and Sec-Fetch-Site: same-origin (dry or not)', async () => {
+    const before = snapshot(dataDir);
+    for (const host of ['evil.com:3007', 'evil.com', '127.0.0.1.evil.com:3007', 'localhost.evil.com:3007', '10.0.0.5:3007']) {
+      for (const path of ['/__stage/stages', '/__stage/stages?dry=1']) {
+        const r = await post(path, body(), hostHeaders(host));
+        expect(r.status, `${host} ${path}`).toBe(403);
+      }
+    }
+    expect(snapshot(dataDir)).toEqual(before);
+  });
+
+  it('control: Host localhost, 127.0.0.1 and [::1] (any port) with the matching Origin gets through; so does a request with no Origin', async () => {
+    for (const host of ['localhost:3007', 'localhost', '127.0.0.1:3007', '[::1]:3007']) {
+      const r = await post('/__stage/stages?dry=1', body(), hostHeaders(host));
+      expect(r.status, host).toBe(200);
+    }
+    expect((await post('/__stage/stages?dry=1', body(), { host: 'localhost:3007' })).status).toBe(200);
+  });
+
+  it('sameOrigin directly: the same pair of requests differs only in the Host', () => {
+    expect(sameOrigin({ headers: { host: 'evil.com:3007', origin: 'http://evil.com:3007', 'sec-fetch-site': 'same-origin' } })).toBe(false);
+    expect(sameOrigin({ headers: { host: 'localhost:3007', origin: 'http://localhost:3007', 'sec-fetch-site': 'same-origin' } })).toBe(true);
+    expect(sameOrigin({ headers: {} })).toBe(false); // no Host at all
+  });
+});
+
+describe('the dry flag is read one way: only dry=1 is dry (isDry)', () => {
+  it('isDry: true for dry=1 among other parameters, false for dry=0, dry=10, dry=true, an empty or bare dry, and no dry', () => {
+    expect(isDry('/x?dry=1')).toBe(true);
+    expect(isDry('/x?scratch=a&dry=1')).toBe(true);
+    for (const u of ['/x?dry=0', '/x?dry=10', '/x?dry=true', '/x?dry=', '/x?dry', '/x?xdry=1', '/x', undefined]) expect(isDry(u), String(u)).toBe(false);
+  });
+
+  it('the stage endpoint writes for ?dry=0 and ?dry=10 (control: ?dry=1 still writes nothing)', async () => {
+    const stages = JSON.parse(read('stages-640.json')) as Record<string, StageEntry>;
+    (stages.street as StageEntry).party[0] = { x: 22, row: 2 };
+    const before = snapshot(dataDir);
+    expect((await post('/__stage/stages?dry=1', body({ stages }))).status).toBe(200);
+    expect(snapshot(dataDir)).toEqual(before);
+    for (const q of ['?dry=0', '?dry=10']) {
+      const r = await post(`/__stage/stages${q}`, body({ stages }));
+      expect(r.status, q).toBe(200);
+      expect(r.body.dry, q).toBe(false);
+      expect(readFileSync(join(dataDir, 'stages-640.json'), 'utf8'), q).toContain('"x": 22');
+      writeFileSync(join(dataDir, 'stages-640.json'), read('stages-640.json'));
+    }
+  });
+});
+
 describe('?dry=1 from the dev server’s own page checks and writes nothing', () => {
-  it('answers 200 with the text it would write (`written` names the parts, `dry: true` says nothing was), and no file changes', async () => {
+  it('answers 200 with the text it would write (`wouldWrite` names the parts, `dry: true` says nothing was), claims no `written` or `file`, and no file changes', async () => {
     const before = snapshot(dataDir);
     const stages = JSON.parse(read('stages-640.json')) as Record<string, StageEntry>;
     (stages.street as StageEntry).party[0] = { x: 21, row: 2 };
     const r = await post('/__stage/stages?dry=1', body({ stages }));
     expect(r.status).toBe(200);
-    expect(r.body).toMatchObject({ ok: true, dry: true, written: ['stages', 'axes', 'hud', 'facing', 'heroes'] });
+    expect(r.body).toMatchObject({ ok: true, dry: true, wouldWrite: ['stages', 'axes', 'hud', 'facing', 'heroes'] });
+    expect(r.body).not.toHaveProperty('written');
+    expect(r.body).not.toHaveProperty('file');
     expect(r.body.stages).toContain('"x": 21');
     expect(snapshot(dataDir)).toEqual(before);
   });
@@ -223,6 +278,24 @@ describe('bad data gets 400 and writes nothing', () => {
     expect((await post('/__stage/stages', body({ stages: stages640 }))).status).toBe(400);
   });
 
+  it('one Save lists the wrong-screen stages together with the HUD-box problem (R1-6), each in the archive’s words, and writes nothing', async () => {
+    const stages = JSON.parse(read('stages-640.json')) as Record<string, StageEntry>;
+    (stages.street as StageEntry).hud = { commands: { x: 560 } };
+    (stages.street as StageEntry).screen = { w: 480, h: 270 };
+    const layout = (JSON.parse(read('hud-640.json')) as { layout: { commands: { w: number } } }).layout;
+    layout.commands.w = 200; // street's own box (x 560) now runs off the 640 screen
+    const before = snapshot(dataDir);
+    const r = await post('/__stage/stages', body({ stages, hud: layout }));
+    expect(r.status).toBe(400);
+    const all = r.body.problems.join(' ');
+    expect(all).toMatch(/the HUD layout in this save does not fit a stage's own HUD box: .*street/);
+    expect(all).toMatch(/stage "street" is laid out on 480x270, but .*stages-640.json holds 640x360 stages only/);
+    expect(snapshot(dataDir)).toEqual(before);
+    // Control: with the street back on the 640 screen, only the HUD problem is left and the screen sentence is gone.
+    (stages.street as StageEntry).screen = { w: 640, h: 360 };
+    expect((await post('/__stage/stages', body({ stages, hud: layout }))).body.problems.join(' ')).not.toMatch(/laid out on/);
+  });
+
   it('write names a file, a path, a part that does not exist, or is not a list', async () => {
     await refused(body({ write: ['stages.json'] }), /not one of the parts/);
     await refused(body({ write: ['../../src/data/stages'] }), /not one of the parts/);
@@ -237,6 +310,8 @@ describe('bad data gets 400 and writes nothing', () => {
     const r = await post('/__stage/stages', JSON.stringify({ stages: 'x'.repeat(MAX_BODY + 10) }));
     expect(r.status).toBe(413);
     expect(snapshot(dataDir)).toEqual(before);
+    // Control: the same body at the limit is read and checked (it is not JSON for `prepareSave`, so 400, not 413).
+    expect((await post('/__stage/stages', 'x'.repeat(MAX_BODY - 10))).status).toBe(400);
   });
 
   it('a stage or file name that looks like a path changes no path: the paths are fixed', async () => {
