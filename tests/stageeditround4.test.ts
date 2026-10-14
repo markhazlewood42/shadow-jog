@@ -10,7 +10,7 @@
  *  6. When the roll-back of a failed save fails too, the message names the files whose state is unknown.
  *  7. A hero aligned Right keeps the 55 px gap to the enemies.
  */
-import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { StageEntry } from '../src/battlestage/config';
@@ -311,7 +311,8 @@ describe('6. a failed roll-back does not claim that no file was changed', () => 
         renameSync(from, to);
       },
       writeFile: (path: string, text: string): void => {
-        if (path === a && text === 'old a') throw new Error('EBUSY: resource busy or locked');
+        // The old text goes back through a temporary file next to a.json (R1-4), so match the file or its temporary name.
+        if (path.startsWith(a) && text === 'old a') throw new Error('EBUSY: resource busy or locked');
         writeFileSync(path, text);
       },
     };
@@ -337,6 +338,45 @@ describe('6. a failed roll-back does not claim that no file was changed', () => 
     // And the file really is the new text: the roll-back did fail.
     expect(readFileSync(a, 'utf8')).toBe('new a');
     expect(readFileSync(c, 'utf8')).toBe('old c');
+  });
+
+  it('the roll-back puts the old text back by a temporary file and a rename, never by writing the real file in place (an interrupted restore cannot leave half a file)', () => {
+    const d = tmp();
+    const a = join(d, 'a.json');
+    const b = join(d, 'b.json');
+    writeFileSync(a, 'old a');
+    // The rename of b.json fails after a.json was replaced (the spy makes it fail; a folder named b.json would fail earlier, when the old text is read).
+    const writes: string[] = [];
+    const renames: string[] = [];
+    const spy = {
+      writeFile: (path: string, text: string): void => {
+        writes.push(`${path}=${text}`);
+        writeFileSync(path, text);
+      },
+      rename: (from: string, to: string): void => {
+        renames.push(`${from}->${to}`);
+        if (to === b) throw new Error('EPERM: operation not permitted');
+        renameSync(from, to);
+      },
+    };
+    expect(() =>
+      writeTogether(
+        [
+          { path: a, text: 'new a' },
+          { path: b, text: 'new b' },
+        ],
+        spy,
+      ),
+    ).toThrow();
+    expect(readFileSync(a, 'utf8')).toBe('old a');
+    // Control: the real file a.json is never the target of a write, and 'old a' is written only to a temporary name that is renamed over a.json.
+    expect(writes.filter((w) => w.startsWith(`${a}=`))).toEqual([]);
+    const oldWrite = writes.find((w) => w.endsWith('=old a'));
+    expect(oldWrite).toBeDefined();
+    const temp = (oldWrite as string).slice(0, -'=old a'.length);
+    expect(temp).not.toBe(a);
+    expect(renames).toContain(`${temp}->${a}`);
+    expect(readdirSync(d).sort()).toEqual(['a.json']);
   });
 
   it('when the roll-back works, the message still says that none was changed', () => {

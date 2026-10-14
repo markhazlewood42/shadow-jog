@@ -8,8 +8,8 @@
  *  1. each file's new text goes to a temporary file next to it. A full disk or a locked folder fails HERE, before any
  *     real file has been touched;
  *  2. each temporary file is renamed over its real file (a rename replaces a file in one step, so a reader never sees
- *     half a file). If a rename fails after others went through, the old text of those files is written back and the
- *     error is thrown, so afterwards the files are all new or all as they were.
+ *     half a file). If a rename fails after others went through, the old text of those files is put back the same way (a temporary file, then a rename, so an interrupted
+ *     restore never leaves a half-written file; PR 86 review, R1-4) and the error is thrown, so afterwards the files are all new or all as they were.
  * The temporary files are always removed.
  *
  * Putting the old text back can fail too (a locked file, a disk that went away). Then the files are NOT all as they were,
@@ -66,7 +66,20 @@ export function writeTogether(jobs: readonly FileJob[], ops: Partial<WriteOps> =
       if (!job) continue;
       try {
         if (before === null || before === undefined) io.remove(job.path);
-        else io.writeFile(job.path, before);
+        else {
+          // Put the old text back the way it was written: a temporary file, then a rename over the file.
+          const back = `${job.path}.${process.pid}.undo.tmp`;
+          try {
+            io.writeFile(back, before);
+            io.rename(back, job.path);
+          } finally {
+            try {
+              if (existsSync(back)) unlinkSync(back);
+            } catch {
+              // litter only
+            }
+          }
+        }
       } catch {
         unknown.push(job.path);
       }
