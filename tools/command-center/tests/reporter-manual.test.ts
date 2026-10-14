@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { READY_MARKER, localConfig, pathsFor, prepareLocal, runLauncher, serverArgs } from '../scripts/reporter-launch.mjs';
+import { READY_MARKER, localConfig, pathsFor, prepareLocal, processInfo, runLauncher, serverArgs } from '../scripts/reporter-launch.mjs';
 import { ConfigError } from '../src/server/config';
 import { readArgs } from '../src/server/main';
 import { PACKAGE_DIR } from './helpers';
@@ -69,7 +69,11 @@ describe('runLauncher with manual', () => {
     const checkout = join(scratch, 'second-start');
     const paths = pathsFor(checkout);
     mkdirSync(paths.state, { recursive: true });
-    const firstLock = JSON.stringify({ launcher: 424242, launcherStart: 'FIRST', server: 424243, serverStart: 'FIRST-SERVER', started: 'first' });
+    // The owner of the lock must be ALIVE and verified, so the result does not depend on the machine (a fake pid is taken over unless a reporter holds port 29417).
+    // The test process is the "running launcher": its own pid and its real start time, as processInfo reads them.
+    const own = await processInfo(process.pid);
+    if (own === null) throw new Error('processInfo could not read the test process');
+    const firstLock = JSON.stringify({ launcher: process.pid, launcherStart: own.start, server: process.pid, serverStart: own.start, started: 'first' });
     writeFileSync(paths.lock, firstLock); // the lock of the running launcher: touched just now
     let supervised = 0;
     let gitCalls = 0;

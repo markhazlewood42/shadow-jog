@@ -455,7 +455,7 @@ export async function updateCopy(paths, branch, deps) {
     log(`git reset failed (code ${moved.status}); the copy stays as it is`);
     return 'failed';
   }
-  log('main changed tools/command-center: the copy was updated');
+  log(`${branch} changed tools/command-center: the copy was updated`);
   if (lockChanged && (await retryInstall(paths, deps)) === 'failed') return 'failed';
   return 'updated';
 }
@@ -870,7 +870,7 @@ export const LOCAL_CONFIG = 'local.config.json';
 export const BUILD_TIMEOUT_MS = 5 * 60_000;
 
 /**
- * The config for the local Command Center that the tray app runs from the pinned copy. The code comes from the pinned copy (origin/main, so a branch switch
+ * The config for the local Command Center that the tray app runs from the pinned copy. The code comes from the pinned copy (the branch it follows: origin/main by default, or the `--branch` / tray `-Branch` one, so a branch switch
  * in the shared checkout cannot break it), and the repo root and the roots point at the REAL checkout, so the docs, the search and the status are
  * those of the working tree. It keeps the port of the config (3009). It is not a reporter run: no `--reporter`, so it publishes nothing.
  * @param {Record<string, any>} original the parsed command-center.config.json of the pinned copy
