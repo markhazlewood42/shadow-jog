@@ -2,7 +2,7 @@ import { Chip } from '@heroui/react';
 import { CircleCheck, CircleDashed, CircleX, Clock, ExternalLink, FolderGit2, GitBranch, GitPullRequest, GitPullRequestDraft, MessageSquare, TriangleAlert } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
-import { APP_NAME, type ModuleName, type PullRequest } from '../../shared/types';
+import { type ModuleName, type PullRequest } from '../../shared/types';
 import type { WorkstreamState } from '../../shared/workstream';
 import { PanelFrame } from '../PanelFrame';
 import { useDocumentTitle } from '../docs/useDocumentTitle';
@@ -10,7 +10,6 @@ import { clock } from '../hosted/panels';
 import { type InvalidRow, type LiveStatus, type NoWorkstreamRow, type WorkstreamCard, type WorkstreamsView, cardAnchor } from '../hosted/workstreams';
 import { Age, formatDuration, msSince, useNow } from '../now/time';
 import { usePanel } from '../usePanel';
-import { WorkstreamsNavLink } from './WorkstreamsNavLink';
 
 // The Workstreams view (design.md section 5.9): one card for each workstream (a branch with its PR, checks, live sessions, worktree and the lines it asks of Mark),
 // grouped by the lane of the roadmap item that the file names. The data is `/api/workstreams`, which the hosted data layer makes from the snapshot and the live key.
@@ -30,34 +29,6 @@ const CHECKS: Record<PullRequest['checksSummary'], { label: string; Icon: typeof
 };
 
 const REVIEWS: Record<string, string> = { APPROVED: 'Approved', CHANGES_REQUESTED: 'Changes requested', REVIEW_REQUIRED: 'Review required' };
-
-/** The top bar: the name of the tool and the pages of the site. This page is the current one. */
-function Header() {
-  return (
-    <header className="sticky top-0 z-30 border-b border-cc-rule-solid bg-cc-paper">
-      <div className="mx-auto flex max-w-[96rem] flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 sm:px-6">
-        <Link to="/" className="font-semibold tracking-tight cc-focus-ring">
-          {APP_NAME}
-        </Link>
-        <nav aria-label="Main" className="flex items-center gap-4 text-sm">
-          <Link to="/" className="text-cc-muted hover:text-cc-ink cc-focus-ring">
-            Now
-          </Link>
-          <Link to="/docs/roadmap/README" className="text-cc-muted hover:text-cc-ink cc-focus-ring">
-            Roadmap
-          </Link>
-          <Link to="/docs" className="text-cc-muted hover:text-cc-ink cc-focus-ring">
-            Docs
-          </Link>
-          <Link to="/agents" className="text-cc-muted hover:text-cc-ink cc-focus-ring">
-            Agents
-          </Link>
-          <WorkstreamsNavLink current />
-        </nav>
-      </div>
-    </header>
-  );
-}
 
 function PullRequestLine({ pr, now }: { pr: PullRequest; now: number }) {
   const checks = CHECKS[pr.checksSummary];
@@ -294,7 +265,6 @@ export function WorkstreamsPage() {
   const now = useNow();
   return (
     <div className="min-h-screen">
-      <Header />
       <main className="mx-auto flex max-w-[96rem] flex-col gap-6 px-4 py-6 sm:px-6">
         <h1 className="text-2xl font-semibold tracking-tight">Workstreams</h1>
         <PanelFrame title="Workstreams" result={result}>

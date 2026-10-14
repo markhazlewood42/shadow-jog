@@ -50,3 +50,11 @@ Next: PR #85 is merged, and the desktop shortcut (README step 5) runs the tray. 
 Candidates for the next round (seen in the tray test, not built):
 - A `home-base` session shows in Running only while its working folder is inside Shadow Jog, so a session that steps out for a moment drops off the list.
 - The local page reads `status.md` from the main checkout's working tree, so it shows the checked-out branch (on `engine-et-editor-port` that is `milestone: none`, shown as "Not started" with empty squares), not `main`. Between milestones, "Not started" also hides that the last milestone is done.
+
+## One header on every page (2026-10-14)
+
+Mark asked for a header that does not move: "The nav jumps between pages." Each page built its own header (large title and unmarked nav on Now, nav beside the title and the search on Docs). Now one component, `SiteHeader` (`src/web/SiteHeader.tsx`), is drawn once by `App` above every page, outside the error boundary. It is the compact, sticky style: the small title, the links at the right edge, `Now`, `Roadmap`, `Docs`, `Agents` (and `Workstreams` in the hosted build). The page name is a heading in the page body (the Now page has `Now`). The Docs search box moved to a row at the top of the Docs body, at the right. The page keeps room for its scroll bar (`scrollbar-gutter: stable`), so a short page and a long page put the links at the same x. Measured at 1280 px on Now, Roadmap, Docs and Agents: nav at x 1024.4, width 216.6, header height 49 on all four.
+
+| Step | Change | Verdict |
+|---|---|---|
+| Build | `SiteHeader`, four page headers removed, `scrollbar-gutter`, search row. `tests/site-header.test.tsx` (every route, local and hosted, a scan that no other file holds the Main nav). `e2e/site-header.spec.ts` (pixel match at 1280, phone fit, search only on Docs) | Unit tests, tsc and biome lint exit 0. Touched Playwright specs pass, headless |

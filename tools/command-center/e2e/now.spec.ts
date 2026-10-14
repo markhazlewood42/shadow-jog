@@ -207,7 +207,7 @@ test.describe('the panels', () => {
   test('five panels show in plain mode', async ({ page }) => {
     const problems = watchConsole(page);
     await page.goto('/');
-    await expect(page.getByRole('heading', { level: 1, name: 'Shadow Jog Command Center' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Now', exact: true })).toBeVisible();
 
     // The switch turns the glass off: the same five panels, as plain boxes, and no canvas for the GPU to draw.
     // On CI the glass is off from the start (see playwright.config.ts), so there is nothing to switch.
@@ -422,7 +422,7 @@ test.describe('a page that cannot be shown', () => {
     // The file is there again, and Reload loads the page.
     await page.unroute('**/assets/NowPage-*.js');
     await alert.getByRole('button', { name: 'Reload' }).click();
-    await expect(page.getByRole('heading', { level: 1, name: 'Shadow Jog Command Center' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Now', exact: true })).toBeVisible();
     await allLoaded(page);
     await expect(page.getByRole('alert')).toHaveCount(0);
   });
@@ -1408,7 +1408,7 @@ test.describe('the build', () => {
     expect(downloaded.length).toBeGreaterThan(0);
     expect(downloaded.filter((name) => hasPlasma(join('assets', name)))).toEqual([]);
     await page.goto('/');
-    await expect(page.getByRole('heading', { level: 1, name: 'Shadow Jog Command Center' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Now', exact: true })).toBeVisible();
     await expect(panel(page, 'Links')).toBeVisible();
     expect(downloaded.filter((name) => hasPlasma(join('assets', name)))).toEqual([now.file.replace(/^assets\//, '')]);
   });

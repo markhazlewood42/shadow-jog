@@ -60,6 +60,8 @@
  */
 :root {
   color-scheme: dark;
+  /* Room for the scroll bar on every page, so a short page and a long page have the same width and the header links (SiteHeader) never move sideways. */
+  scrollbar-gutter: stable;
 
   --background: var(--cc-paper);
   --foreground: var(--cc-ink);

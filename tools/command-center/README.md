@@ -55,6 +55,8 @@ Four checks run against the real repo or the real machine and not against fixtur
 
 ## The pages
 
+Every page has the same header, `SiteHeader` in `src/web/SiteHeader.tsx`, drawn once by `App`: the small title on the left and the links (Now, Roadmap, Docs, Agents, and Workstreams on the hosted page) at the right edge, sticky at the top. A page names itself with a heading in its body. The docs search box is in the Docs page body, not in the header.
+
 | Address | What |
 |---|---|
 | `/` | Now: five panels. Your move (only what clears itself: the open decision issues and the live asks of the sessions that run now. It lists no pull request: the Pull requests panel does; a live ask hides when its session ends, when Mark answers, when the box says nothing or is replaced, or after 12 hours; the hosted page says "Reporter offline" and hides all live asks when its reporter stops), Running (the active Claude sessions only: each row links to its session at `/agents#session-<id>`), Pull requests (with their checks; the draft PRs from `spike/` branches, which are never merged, are hidden and not counted), Status (five rows and a milestone strip, see below) and Links. The panels are glass (PlasmaUI) that you can drag. The "Glass panels" switch turns the glass off, which also saves the GPU while the game runs. |

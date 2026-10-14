@@ -1,9 +1,8 @@
 import { Link, useParams } from 'react-router';
-import { APP_NAME, type DecisionDetail, type DecisionDocLink, type DocsListing, type ModuleName, type Panel } from '../../shared/types';
+import { type DecisionDetail, type DecisionDocLink, type DocsListing, type ModuleName, type Panel } from '../../shared/types';
 import { PanelFrame } from '../PanelFrame';
 import { docPath } from '../docs/paths';
 import { useDocumentTitle } from '../docs/useDocumentTitle';
-import { WorkstreamsNavLink } from '../workstreams/WorkstreamsNavLink';
 import { usePanel } from '../usePanel';
 import { AnswerForm, useAnswerDraft } from './AnswerForm';
 import { DecisionCard, Notice, OptionList, SectionLabel } from './DecisionCard';
@@ -16,34 +15,6 @@ const DECISION_MODULES: readonly ModuleName[] = ['decisions', 'docs'];
 
 /** The doc listing changes when a doc is added, renamed or retitled. */
 const DOC_MODULES: readonly ModuleName[] = ['docs'];
-
-/** The top bar: the name of the tool and the parts of the site. The decision page is none of them, so none is marked as the current page. */
-function Header() {
-  return (
-    <header className="sticky top-0 z-30 border-b border-cc-rule-solid bg-cc-paper">
-      <div className="mx-auto flex max-w-[96rem] flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 sm:px-6">
-        <Link to="/" className="font-semibold tracking-tight cc-focus-ring">
-          {APP_NAME}
-        </Link>
-        <nav aria-label="Main" className="flex items-center gap-4 text-sm">
-          <Link to="/" className="text-cc-muted hover:text-cc-ink cc-focus-ring">
-            Now
-          </Link>
-          <Link to="/docs/roadmap/README" className="text-cc-muted hover:text-cc-ink cc-focus-ring">
-            Roadmap
-          </Link>
-          <Link to="/docs" className="text-cc-muted hover:text-cc-ink cc-focus-ring">
-            Docs
-          </Link>
-          <Link to="/agents" className="text-cc-muted hover:text-cc-ink cc-focus-ring">
-            Agents
-          </Link>
-          <WorkstreamsNavLink />
-        </nav>
-      </div>
-    </header>
-  );
-}
 
 /** Whether the panel is the server's "no open decision has this number" answer (status 404). */
 function isMissing(panel: Panel<DecisionDetail> | null): boolean {
@@ -155,7 +126,6 @@ export function DecisionPage({ number }: { number: number }) {
 
   return (
     <div className="min-h-screen">
-      <Header />
       <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
         {isMissing(result.panel) ? (
           <NotFound number={number} />
@@ -176,7 +146,6 @@ export function DecisionRoute() {
   if (parsed === null) {
     return (
       <div className="min-h-screen">
-        <Header />
         <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
           <NotFound number={null} />
         </main>

@@ -1,8 +1,7 @@
-import { Link, Route, Routes, useLocation } from 'react-router';
+import { Route, Routes, useLocation } from 'react-router';
 import type { DocPageData, DocsListing, ModuleName } from '../../shared/types';
 import { PanelFrame } from '../PanelFrame';
 import { usePanel } from '../usePanel';
-import { WorkstreamsNavLink } from '../workstreams/WorkstreamsNavLink';
 import { visibleNav } from '../hosted/mode';
 import { Decisions } from './Decisions';
 import { DocView } from './DocView';
@@ -18,41 +17,6 @@ const DOCS_MODULES: readonly ModuleName[] = ['docs'];
 
 /** A doc also reloads when the decisions change, because the banners above its headings are the open decisions: an answer must take its banner away. */
 const DOC_MODULES: readonly ModuleName[] = ['docs', 'decisions'];
-
-/**
- * The top bar of every docs page: the name of the tool (a link to the start page), the parts of
- * the site, and the search. It stays at the top while a long doc scrolls.
- */
-function DocsHeader() {
-  return (
-    <header className="sticky top-0 z-30 border-b border-cc-rule-solid bg-cc-paper">
-      <div className="mx-auto flex max-w-[96rem] flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 sm:px-6">
-        <Link to="/" className="font-semibold tracking-tight cc-focus-ring">
-          Shadow Jog Command Center
-        </Link>
-        <nav aria-label="Main" className="flex items-center gap-4 text-sm">
-          <Link to="/" className="text-cc-muted hover:text-cc-ink cc-focus-ring">
-            Now
-          </Link>
-          <Link to="/docs/roadmap/README" className="text-cc-muted hover:text-cc-ink cc-focus-ring">
-            Roadmap
-          </Link>
-          <Link to="/docs" aria-current="page" className="text-cc-ink cc-focus-ring">
-            Docs
-          </Link>
-          <Link to="/agents" className="text-cc-muted hover:text-cc-ink cc-focus-ring">
-            Agents
-          </Link>
-          <WorkstreamsNavLink />
-        </nav>
-        {/* On a narrow window the search takes a row of its own, instead of shrinking to nothing. */}
-        <div className="flex min-w-0 basis-full justify-end sm:flex-1 sm:basis-0">
-          <SearchBox />
-        </div>
-      </div>
-    </header>
-  );
-}
 
 /**
  * The page of one doc, by the address. It loads the doc as a panel (so it has the loading, error and
@@ -74,7 +38,7 @@ function DocRoute({ slug }: { slug: string }) {
 }
 
 /**
- * The docs site, mounted at /docs and everything under it: the header with the search, the section
+ * The docs site, mounted at /docs and everything under it: the search, the section
  * tree on the left, and the page that the address names (the overview at /docs, a doc below it).
  *
  * The list of docs and the nav are loaded once here and shared by the tree and the overview, so the
@@ -87,8 +51,11 @@ export function DocsRoutes() {
 
   return (
     <div className="min-h-screen">
-      <DocsHeader />
-      <div className="mx-auto grid max-w-[96rem] items-start gap-6 px-4 py-6 sm:px-6 md:grid-cols-[15rem_minmax(0,1fr)] lg:grid-cols-[17rem_minmax(0,1fr)]">
+      {/* The row under the header of the site: the search sits at the right, where the docs header had it. The name of the page is the h1 of each doc. */}
+      <div className="mx-auto flex max-w-[96rem] justify-end px-4 pt-4 sm:px-6">
+        <SearchBox />
+      </div>
+      <div className="mx-auto grid max-w-[96rem] items-start gap-6 px-4 pt-4 pb-6 sm:px-6 md:grid-cols-[15rem_minmax(0,1fr)] lg:grid-cols-[17rem_minmax(0,1fr)]">
         <div className="md:sticky md:top-20 md:max-h-[calc(100vh-6rem)] md:overflow-y-auto">
           <PanelFrame title="Sections" result={listing}>
             {(data) => <SectionTree nav={visibleNav(data.nav)} activeSlug={slug} activePath={location.pathname} />}

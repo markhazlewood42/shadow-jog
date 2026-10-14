@@ -1,13 +1,10 @@
 import { Button, ToggleButton } from '@heroui/react';
 import { Layers, RotateCcw } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router';
-import { APP_NAME } from '../../shared/types';
 import { type ConnectionState, subscribeEvents } from '../api';
 import { GlassProvider, useGlass } from './GlassProvider';
 import type { PanelPlacement } from './GlassPanel';
 import { LinksPanel } from './LinksPanel';
-import { WorkstreamsNavLink } from '../workstreams/WorkstreamsNavLink';
 import { PullRequestsPanel } from './PullRequestsPanel';
 import { RunningPanel } from './RunningPanel';
 import { StatusPanel } from './StatusPanel';
@@ -88,31 +85,15 @@ function NowContent() {
   }
 
   return (
-    <main className="mx-auto flex max-w-[96rem] flex-col gap-6 px-4 py-8 sm:px-6">
-      <header className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
-          <h1 className="text-3xl font-semibold tracking-tight">{APP_NAME}</h1>
-          <nav aria-label="Main" className="flex items-center gap-4 text-sm">
-            <Link to="/" aria-current="page" className="text-cc-ink cc-focus-ring">
-              Now
-            </Link>
-            <Link to="/docs/roadmap/README" className="text-cc-muted hover:text-cc-ink cc-focus-ring">
-              Roadmap
-            </Link>
-            <Link to="/docs" className="text-cc-muted hover:text-cc-ink cc-focus-ring">
-              Docs
-            </Link>
-            <Link to="/agents" className="text-cc-muted hover:text-cc-ink cc-focus-ring">
-              Agents
-            </Link>
-            <WorkstreamsNavLink />
-          </nav>
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+    <main className="mx-auto flex max-w-[96rem] flex-col gap-6 px-4 py-6 sm:px-6">
+      {/* The name of the page is a heading here. The header of the site (SiteHeader) holds the title and the links. */}
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+        <h1 className="text-2xl font-semibold tracking-tight">Now</h1>
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
           <LiveStatus />
           <GlassControls onReset={resetLayout} />
         </div>
-      </header>
+      </div>
 
       {/* The five panels, the most important first: what waits for Mark, what runs, the pull requests, the status, the links. Your move takes the whole width. */}
       <div key={resets} ref={area} className="grid items-start gap-6 lg:grid-cols-2">

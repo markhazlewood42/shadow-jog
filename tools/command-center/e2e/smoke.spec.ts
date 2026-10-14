@@ -26,7 +26,7 @@ test.describe('the shell', () => {
     await page.goto('/');
 
     await expect(page).toHaveTitle('Shadow Jog Command Center');
-    await expect(page.getByRole('heading', { level: 1, name: 'Shadow Jog Command Center' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Now', exact: true })).toBeVisible();
 
     // Navy page (paper) and white text (ink), from the tokens.
     const colors = await page.evaluate(() => ({
@@ -101,7 +101,7 @@ test.describe('the shell', () => {
     await expect(pullRequests.getByText('Repo unknown', { exact: true })).toBeVisible();
     await expect(pullRequests.getByRole('link', { name: 'Merged pull requests' })).toHaveCount(0);
     // One broken source never blanks the page.
-    await expect(page.getByRole('heading', { level: 1, name: 'Shadow Jog Command Center' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Now', exact: true })).toBeVisible();
     await expect(page.getByText('Live: on', { exact: true })).toBeVisible();
 
     // The server comes back, and Retry brings the panel back.
