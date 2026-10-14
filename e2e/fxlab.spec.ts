@@ -90,6 +90,26 @@ test('the save endpoint checks what it gets and writes fx.json in its own format
   expect(bad[1]).toBeGreaterThan(0);
 });
 
+// PR 86 review R2-4: Revert reloads fx.json, and `game.fx.loadData` may refuse what it reads. The lab must say so in the error style, not claim a clean reload.
+test('Revert of an fx.json that game.fx refuses says so, in the error style (and a good reload still says Reloaded)', async ({ page }) => {
+  await page.goto('/?scene=fxlab');
+  await expect(page.locator('#fxlab')).toBeVisible();
+  const good = await page.evaluate(async () => (await (await fetch('/__fxlab/fx')).json()).text as string);
+  // Control: the real file reloads cleanly.
+  await page.getByRole('button', { name: 'Revert' }).click();
+  await expect(page.locator('#fxlab .status')).toContainText('Reloaded src/data/fx.json.');
+  await expect(page.locator('#fxlab .status')).toHaveClass(/ok/);
+  // A file whose max count is below its min count: `checkFx` (inside `loadData`) refuses it.
+  const data = JSON.parse(good) as { presets: Record<string, { count: number[] }> };
+  const first = Object.keys(data.presets)[0]!;
+  data.presets[first]!.count = [5, 1];
+  await page.route('**/__fxlab/fx', (route) => (route.request().method() === 'GET' ? route.fulfill({ json: { ok: true, text: JSON.stringify(data) } }) : route.continue()));
+  await page.getByRole('button', { name: 'Revert' }).click();
+  await expect(page.locator('#fxlab .status')).toContainText('keep the last good data');
+  await expect(page.locator('#fxlab .status')).toHaveClass(/err/);
+  await expect(page.locator('#fxlab .status')).not.toContainText('Reloaded src/data/fx.json.');
+});
+
 // Pass line 14 (ET): the effects contract is the real path. The lab hands every edit to the engine's own effects system through `game.fx.loadData` (the editor contract,
 // principle 11), and a bad edit leaves the last good data in place there. The lab edits its working copy of fx.json in place, so reading the shared object would pass even if the
 // lab never called `loadData`: the case counts the calls instead (the control), and reads the data the effects system holds, which must be a snapshot, not that object.

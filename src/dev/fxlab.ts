@@ -16,7 +16,6 @@
 import { BG_IDS, battleBg, type BattleBg } from '../art/battlebg';
 import { FxLayer, type Pt } from '../battle/fx';
 import { gpuCast, gpuSpell } from '../scenes/battlekit/gpufx';
-import { CanvasViewScene } from './viewers/base';
 import { ENEMY_MID_AT, PARTY_BOTTOM, PARTY_MID, partyX, placeEnemies, WORLD_SCALE } from '../scenes/battlekit/geom';
 import { artTop } from '../scenes/battlekit/sprites';
 import { type EnemyArt, enemyArt } from '../art/enemies';
@@ -29,6 +28,7 @@ import { checkFx, type FxData, type FxPreset, formatFx, type Moment, type Moment
 import { H, W } from '../sje/core/size';
 import type { ParticleShape } from '../engine/particles';
 import { BHT, BW, PANEL_Y } from '../scenes/battlekit/geom';
+import { CanvasViewScene } from './viewers/base';
 
 const PANEL_W = 400;
 
@@ -185,6 +185,8 @@ export class FxLabScene extends CanvasViewScene {
 
   override create(): void {
     super.create();
+    // The base class (`CanvasViewScene.create`, called above) registered its own 'shutdown' handler first, and it sets `image` to null. This handler runs after it, so `exit()` must
+    // never touch `this.image`: it only removes the panel, the style, the pointer and unload listeners and clears `game.fx` (PR 86 review, R1-10).
     this.events.on('shutdown', () => this.exit());
     this.game.fx.clear();
     // The engine's effects take a snapshot of the lab's data, now and after every edit.
@@ -818,10 +820,12 @@ export class FxLabScene extends CanvasViewScene {
       const j = (await r.json()) as { ok: boolean; text?: string };
       if (!j.ok || !j.text) throw new Error(`HTTP ${r.status}`);
       replaceFx(JSON.parse(j.text) as FxData);
-      this.sync();
+      // `game.fx.loadData` may refuse the reloaded data (it keeps the last good data then): say so, as `changed()` does, instead of claiming a clean reload (PR 86 review, R2-4).
+      const problems = this.sync();
       this.saved = j.text;
       this.build();
-      this.status('Reloaded src/data/fx.json.', 'ok');
+      if (problems.length) this.status(`Reloaded src/data/fx.json, but the effects keep the last good data because the file was refused:\n${problems.join('\n')}`, 'err');
+      else this.status('Reloaded src/data/fx.json.', 'ok');
     } catch (e) {
       this.status(`Couldn't reload: ${e instanceof Error ? e.message : String(e)}`, 'err');
     }
