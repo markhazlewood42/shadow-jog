@@ -1,0 +1,459 @@
+{
+  "sites": 224,
+  "scenarios": {
+    "intro_flat": [
+      {"who":"rook","text":"Up. Dutch called."},
+      {"who":"kit","text":"Dutch calls every day. Dutch calls to tell us the rent is late.","face":"smirk"},
+      {"who":"rook","text":"Dutch called with work."},
+      {"who":"kit","text":"Real work? Like, paying work? Not “hold this bag and don’t look inside” work?","face":"surprised"},
+      {"who":"rook","text":"The Drowned Saint. Ten minutes. And eat something first. Nobody punches well on an empty stomach."},
+      {"who":"kit","text":"Hungry’s fine. Hungry’s how I win.","face":"happy"},
+      {"who":null,"text":"Rook takes his coat from the hook the slow way, keeping his left side still."},
+      {"who":"kit","text":"Doc Yun said three weeks off. It’s been one.","face":"sad"},
+      {"who":"rook","text":"Then I’m two weeks ahead. The ribs are fine. It’s the wiring that’s sulking."}
+    ],
+    "first_fight_win": [
+      {"who":"Rustfang Punk","text":"Well, well. Rook’s little stray. Nice jacket. Bet it looks better on me."},
+      {"who":"kit","text":"Bet it looks better on you when you’re not face down in a puddle.","face":"smirk"},
+      {"who":"rook","text":"Two Rustfangs. Try not to show off."},
+      {"who":"rook","text":"Sloppy. You dropped your guard twice."},
+      {"who":"kit","text":"I won, didn’t I?","face":"happy"},
+      {"who":"rook","text":"You beat Rustfangs. That’s like beating the weather. Come on."},
+      {"who":null,"text":"He says it with a hand pressed flat to his side, where he thinks she can’t see."}
+    ],
+    "first_fight_lose": [
+      {"who":"Rustfang Punk","text":"Well, well. Rook’s little stray. Nice jacket. Bet it looks better on me."},
+      {"who":"kit","text":"Bet it looks better on you when you’re not face down in a puddle.","face":"smirk"},
+      {"who":"rook","text":"Two Rustfangs. Try not to show off."}
+    ],
+    "meet_dutch_first": [
+      {"who":"dutch","text":"There they are. My favorite disaster and his apprentice. Sit, sit. Mind the stain, it’s load-bearing.","face":"happy"},
+      {"who":"dutch","text":"This is Mr. Pale. He represents, let’s say, an interested party."},
+      {"who":null,"text":"Mr. Pale is peeling a satsuma with a small folding knife. The peel comes away in one unbroken spiral. He never looks at his hands."},
+      {"who":"pale","text":"A pleasure. I’ll be brief; I bill by the minute. Under the flooded Sinkline there is a sealed research annex. Kessler-Mori wrote it off after the flood of ’61."},
+      {"who":"pale","text":"Inside is a {y}data core{/}. Bring it to me intact and you will be paid {y}three thousand cred{/}."},
+      {"who":"kit","text":"Three thou—","face":"surprised"},
+      {"who":"rook","text":"Kit."},
+      {"who":"rook","text":"A written-off annex. A milk run. You could send anybody. Why us?"},
+      {"who":"pale","text":"Because “anybody” asks more questions. Also, the annex doors are still corporate-locked. You will need a deck jockey.","face":"smirk"},
+      {"who":"dutch","text":"Which you haven’t got, since your last one moved to Neo-Lagos and stopped taking my calls."},
+      {"who":"rook","text":"…Hex."},
+      {"who":"dutch","text":"Hex! Hex owes me money. Two birds, one run. Tell them if they do this, their tab goes in the canal.","face":"happy"},
+      {"who":"pale","text":"Expenses. I will not be asking for receipts."},
+      {"who":"pale","text":"Loading Dock 7, when you have it. I keep very exact hours."},
+      {"who":"pale","text":"Miss Kit. Those two Rustfangs outside: nine seconds, no weapon, no chrome in those hands. I watched from the window.","face":"smirk"},
+      {"who":"kit","text":"So?","face":"angry"},
+      {"who":"pale","text":"So nothing. I collect numbers. That one is unusual."},
+      {"who":"rook","text":"She’s not part of the price."},
+      {"who":"pale","text":"Of course not, Mr. Rook. Prices are for things one pays for."},
+      {"who":null,"text":"He splits the satsuma, counts the segments under his breath, and leaves it on the table uneaten. He is gone before the door finishes swinging."},
+      {"who":"dutch","text":"Does that every time. Never eats one. Don’t ask."},
+      {"who":"dutch","text":"Word of advice? Get paid before you get proud."},
+      {"who":"kit","text":"I’m always proud.","face":"smirk"},
+      {"who":"dutch","text":"I know, darlin’. That’s why I said it to you and not him. Oh, and if you need pocket money, the {c}job board{/} by the door always has something."}
+    ],
+    "meet_dutch_again": [
+      {"who":"dutch","text":"The meter’s running on Mr. Pale’s patience. Go find your jockey."}
+    ],
+    "meet_dutch_again_sable": [
+      {"who":"dutch","text":"Whoever that is with you, darlin’, I never saw him. I never saw any of you."}
+    ],
+    "meet_hex_first": [
+      {"who":"hex","text":"I didn’t do it. Whatever it is. Oh— it’s you. Hi, Rook. Hi, Rook’s kid.","face":"surprised"},
+      {"who":"kit","text":"Kit. My name’s been Kit for nineteen years.","face":"angry"},
+      {"who":"hex","text":"Right. Knew that. Hi, Kit."},
+      {"who":"rook","text":"We have a job. Corporate doors, down in the Sinkline."},
+      {"who":"hex","text":"No. Absolutely not. Also I can’t: my deck’s dead. Fried the coprocessor on an all-nighter. A hobby. Look at her. She’s crying.","face":"sad"},
+      {"who":"kit","text":"So buy a new one."},
+      {"who":"hex","text":"With what cred? A Stingray costs more than this building. Which I also owe money on."},
+      {"who":"rook","text":"Dutch will forget your debt."},
+      {"who":"hex","text":"…How much of it?","face":"smirk"},
+      {"who":"rook","text":"Some."},
+      {"who":"hex","text":"Some is a number. I can work with a number. There’s a scavver in the Rustyard, {y}Old Mags{/}. She had a Stingray last month. Rustyard’s east, past the Barrens. Get me that chip and I’m your jockey. Your professional, sober deck jockey."},
+      {"who":"hex","text":"The Barrens are nasty. Here, I can spare these.","face":"happy"}
+    ],
+    "meet_hex_asked": [
+      {"who":"hex","text":"Rustyard. Old Mags. Stingray, the one with the little fin logo. I’ll be here. Checking the door locks. Twice."}
+    ],
+    "meet_hex_chip": [
+      {"who":"hex","text":"Is that— is that a Stingray? Don’t drop it. Please don’t drop it. Slowly. Give it here slowly.","face":"surprised"},
+      {"who":"hex","text":"No. You do it. My hands are shaking. Pins to pins, then the clips. I’ll talk you through it.","face":"sad"},
+      {"who":null,"text":"Hex’s deck runs a new program: {y}Overload{/}, a surge that fries machines. Their deck’s under {c}Deck{/} in the menu now."},
+      {"who":"hex","text":"Okay. While she’s warm.","face":"smirk"},
+      {"who":"hex","text":"Rook. Sit. Your reflex wiring’s been double-firing since you walked in. I can hear it clicking. Chrome shouldn’t click."},
+      {"who":"rook","text":"It’s fine."},
+      {"who":"hex","text":"It’s clicking. Sit.","face":"angry"},
+      {"who":null,"text":"Hex runs a cable from the deck to the port behind Rook’s ear. Thirty seconds of scrolling numbers. Something in his shoulder stops twitching."},
+      {"who":null,"text":"Rook’s chrome is re-tuned: {y}Quickdraw{/} and {y}Reflex Burst{/} are back, and his wound costs him less."},
+      {"who":"hex","text":"Your side’s still a mess, though. That’s meat. I don’t do meat."},
+      {"who":"hex","text":"Okay. A deal’s a deal. I’m already regretting it. Let’s go rob a haunted subway."},
+      {"who":"hex","text":"Also, my emergency fund. It’s mostly been emergencies."},
+      {"who":"hex","text":"One more thing. I run a scanner, {c}Analyze{/}. Feed its target data into Rook’s smartgun and he literally cannot miss. I call it {y}Target Lock{/}. Patent pending."}
+    ],
+    "meet_hex_done": [
+
+    ],
+    "rustyard_gate_win": [
+      {"who":"mags","text":"Off my lot. Forty years I’ve held this yard against worse than you, and I’m still counting.","face":"angry"},
+      {"who":"Rustfang Punk","text":"Knuckles says this yard pays tribute now, grandma. Hounds! Fetch."},
+      {"who":"kit","text":"Hey! Grandma says no.","face":"angry"},
+      {"who":"Rustfang Punk","text":"Knuckles is gonna hear about this! He’s gonna feed you to the hounds!"},
+      {"who":"mags","text":"Hmph. Didn’t need help. Didn’t mind it, either. What do you want?","face":"smirk"},
+      {"who":"kit","text":"A Stingray coprocessor. For Hex."},
+      {"who":"mags","text":"Ha! Had one. Knuckles’ boys took it, along with half my stock. Hauled it all up to the old {y}tire depot{/} at the north end of the yard."},
+      {"who":"rook","text":"Then we’ll get it back."},
+      {"who":"mags","text":"You do that and the chip’s yours. Plus a discount at my counter. Deal’s a deal.","face":"happy"}
+    ],
+    "rustyard_gate_lose": [
+      {"who":"mags","text":"Off my lot. Forty years I’ve held this yard against worse than you, and I’m still counting.","face":"angry"},
+      {"who":"Rustfang Punk","text":"Knuckles says this yard pays tribute now, grandma. Hounds! Fetch."},
+      {"who":"kit","text":"Hey! Grandma says no.","face":"angry"}
+    ],
+    "knuckles_win": [
+      {"who":"“Knuckles” Tran","text":"So these are the heroes. Know what I do to heroes? I charge ’em rent."},
+      {"who":"rook","text":"We’ll pay you in teeth."},
+      {"who":"“Knuckles” Tran","text":"Ugh… fine… take your junk… I’m moving to Neo-Lagos…"},
+      {"who":"“Knuckles” Tran","text":"Your fixer’s got a big mouth, y’know. Whole yard knew you were hunting a deck jockey before you did."},
+      {"who":"rook","text":"…Dutch."},
+      {"who":"kit","text":"Dutch talks. That’s not the same as selling us.","face":"angry"},
+      {"who":"rook","text":"With Dutch it usually is."},
+      {"who":"kit","text":"The crate. Mags’ stuff should be in there.","face":"happy"}
+    ],
+    "knuckles_lose": [
+      {"who":"“Knuckles” Tran","text":"So these are the heroes. Know what I do to heroes? I charge ’em rent."},
+      {"who":"rook","text":"We’ll pay you in teeth."}
+    ],
+    "mags_early": [
+      {"who":"mags","text":"Tire depot, north end. Knuckles is the big one with the chrome hands. Can’t miss him. Wish I could."}
+    ],
+    "mags_take_stash": [
+      {"who":"mags","text":"Well, well. Knuckles is limping all the way to Neo-Lagos, I hear. Here. As promised.","face":"happy"},
+      {"who":"mags","text":"Our water filter was in that crate too. The little ones have been drinking canal for a month."},
+      {"who":"kit","text":"We found the camp’s tribute as well. Behind the tagged heap. It’s yours."},
+      {"who":"mags","text":"Keep it. Where you’re going you’ll need it more than we will. The camp voted. I counted."},
+      {"who":"mags","text":"And this. The camp took up a collection for whoever ran Knuckles off: {y}150¢{/}. Don’t argue with me, I’m old.","choices":["Take it","Leave it with the camp"],"cancel":0},
+      {"who":"mags","text":"And tell Hex they still owe me for the last one."}
+    ],
+    "mags_keep_stash": [
+      {"who":"mags","text":"Well, well. Knuckles is limping all the way to Neo-Lagos, I hear. Here. As promised.","face":"happy"},
+      {"who":"mags","text":"Our water filter was in that crate too. The little ones have been drinking canal for a month."},
+      {"who":"kit","text":"We found the camp’s tribute as well. Behind the tagged heap. It’s yours."},
+      {"who":"mags","text":"Keep it. Where you’re going you’ll need it more than we will. The camp voted. I counted."},
+      {"who":"mags","text":"And this. The camp took up a collection for whoever ran Knuckles off: {y}150¢{/}. Don’t argue with me, I’m old.","choices":["Take it","Leave it with the camp"],"cancel":0},
+      {"who":"kit","text":"Keep it. The little ones need it more than our rent does."},
+      {"who":"mags","text":"Hmph. Then here’s what it buys you: anything on my lot, a fifth off. For as long as I’m breathing.","face":"happy"},
+      {"who":"mags","text":"And tell Hex they still owe me for the last one."}
+    ],
+    "mags_take": [
+      {"who":"mags","text":"Well, well. Knuckles is limping all the way to Neo-Lagos, I hear. Here. As promised.","face":"happy"},
+      {"who":"mags","text":"Our water filter was in that crate too. The little ones have been drinking canal for a month."},
+      {"who":"mags","text":"And this. The camp took up a collection for whoever ran Knuckles off: {y}150¢{/}. Don’t argue with me, I’m old.","choices":["Take it","Leave it with the camp"],"cancel":0},
+      {"who":"mags","text":"And tell Hex they still owe me for the last one."}
+    ],
+    "mags_keep": [
+      {"who":"mags","text":"Well, well. Knuckles is limping all the way to Neo-Lagos, I hear. Here. As promised.","face":"happy"},
+      {"who":"mags","text":"Our water filter was in that crate too. The little ones have been drinking canal for a month."},
+      {"who":"mags","text":"And this. The camp took up a collection for whoever ran Knuckles off: {y}150¢{/}. Don’t argue with me, I’m old.","choices":["Take it","Leave it with the camp"],"cancel":0},
+      {"who":"kit","text":"Keep it. The little ones need it more than our rent does."},
+      {"who":"mags","text":"Hmph. Then here’s what it buys you: anything on my lot, a fifth off. For as long as I’m breathing.","face":"happy"},
+      {"who":"mags","text":"And tell Hex they still owe me for the last one."}
+    ],
+    "mags_shop": [
+      {"who":"mags","text":"Shopping? The crew that ran Knuckles off my lot gets fair prices. For once.","choices":["Shop","Talk","Leave"],"cancel":2}
+    ],
+    "mags_talk": [
+      {"who":"mags","text":"Shopping? The crew that ran Knuckles off my lot gets fair prices. For once.","choices":["Shop","Talk","Leave"],"cancel":2},
+      {"who":"mags","text":"The Sinkline? Flooded in ’61, whole trains still down there. Things live in the water now. Big things. Bring fire. Or a bigger thing."}
+    ],
+    "mags_leave": [
+      {"who":"mags","text":"Shopping? The crew that ran Knuckles off my lot gets fair prices. For once.","choices":["Shop","Talk","Leave"],"cancel":2}
+    ],
+    "sinkline_gate_alone": [
+      {"who":null,"text":"A transit-authority service gate. The lock panel blinks {r}LOCKED{/}: corporate encryption."},
+      {"who":"rook","text":"This is what the jockey’s for."}
+    ],
+    "sinkline_gate_hex": [
+      {"who":"hex","text":"Transit authority lock with Kessler-Mori wrapping. Cute. Give me a second."},
+      {"who":"hex","text":"Done. Welcome to the Sinkline. Mind the gap. Mind the ghosts. Mind the everything.","face":"happy"}
+    ],
+    "dead_crew": [
+      {"who":null,"text":"Three bodies in expensive gear, slumped against the platform. Whatever got them wasn’t a ghoul. Their wounds are cauterized."},
+      {"who":"hex","text":"That’s the {c}Glass Wolves{/}. Runners out of Harbor Ward. Good ones.","face":"sad"},
+      {"who":null,"text":"One of them clutches a data slate. The last message reads: {c}“Dutch set it up. Milk run. In and out.”{/}"},
+      {"who":"kit","text":"Dutch? Our Dutch?","face":"surprised"},
+      {"who":"rook","text":"Same job. Different crew. Before us. And he sat there and poured us drinks and didn’t say a word."},
+      {"who":"hex","text":"Maybe he didn’t know they didn’t come back.","face":"sad"},
+      {"who":"rook","text":"Dutch knows everything that happens below the canal. That’s what he sells."},
+      {"who":"rook","text":"Eyes open."},
+      {"who":null,"text":"A cred stick in the leader’s jacket, still warm with charge."},
+      {"who":"hex","text":"Feels wrong.","face":"sad"},
+      {"who":"rook","text":"They’d want it spent on the job that killed them. Take it."}
+    ],
+    "pump_v1_open": [
+      {"who":null,"text":"Intake 1, open. The gauge sits steady at {c}50 psi{/}."}
+    ],
+    "pump_v2_open": [
+      {"who":null,"text":"Intake 2, open. The gauge sits steady at {c}30 psi{/}."}
+    ],
+    "pump_v3_open": [
+      {"who":null,"text":"Intake 3, open. The gauge sits steady at {c}70 psi{/}."}
+    ],
+    "pump_v2_leave_first": [
+      {"who":"hex","text":"Hold on. Before anybody cranks a random wheel: this is one of the pump intakes. The pump room console should say how they want opening. South, off the platform."},
+      {"who":null,"text":"Intake 2: a rusted valve wheel. Its gauge reads {c}30 psi{/}.","choices":["Open it","Leave it"],"cancel":1}
+    ],
+    "pump_v2_leave_seen": [
+      {"who":null,"text":"Intake 2: a rusted valve wheel. Its gauge reads {c}30 psi{/}.","choices":["Open it","Leave it"],"cancel":1}
+    ],
+    "pump_v2_right_first": [
+      {"who":null,"text":"Intake 2: a rusted valve wheel. Its gauge reads {c}30 psi{/}.","choices":["Open it","Leave it"],"cancel":1},
+      {"who":null,"text":"The wheel grinds round. Water hisses into Intake 2, and somewhere across the level a pipe knocks in answer."}
+    ],
+    "pump_v1_right_second": [
+      {"who":null,"text":"Intake 1: a rusted valve wheel. Its gauge reads {c}50 psi{/}.","choices":["Open it","Leave it"],"cancel":1},
+      {"who":null,"text":"The wheel grinds round. Water hisses into Intake 1, and somewhere across the level a pipe knocks in answer."}
+    ],
+    "pump_v3_right_last": [
+      {"who":null,"text":"Intake 3: a rusted valve wheel. Its gauge reads {c}70 psi{/}.","choices":["Open it","Leave it"],"cancel":1},
+      {"who":null,"text":"The last wheel turns. Every pipe in the room drums once, then settles into a low, even hum."},
+      {"who":"hex","text":"Pressure’s balanced and the pumps are primed. Now the console in the pump room.","face":"happy"}
+    ],
+    "pump_v1_wrong_first_seen": [
+      {"who":null,"text":"Intake 1: a rusted valve wheel. Its gauge reads {c}50 psi{/}.","choices":["Open it","Leave it"],"cancel":1},
+      {"who":null,"text":"{r}BANG.{/} A pressure kick hammers down the line. The wheel won’t budge."},
+      {"who":"hex","text":"Okay. Order matters. Lowest pressure first, and that means reading all three gauges before we touch anything. I did say that. Out loud.","face":"sad"}
+    ],
+    "pump_v1_wrong_first_unseen": [
+      {"who":null,"text":"Intake 1: a rusted valve wheel. Its gauge reads {c}50 psi{/}.","choices":["Open it","Leave it"],"cancel":1},
+      {"who":null,"text":"{r}BANG.{/} A pressure kick hammers down the line. The wheel won’t budge."},
+      {"who":"hex","text":"Okay. Order matters. There’s a right order, and the pump console in the pump room knows it. Let’s go ask it.","face":"sad"}
+    ],
+    "pump_v3_wrong_after_one": [
+      {"who":null,"text":"Intake 3: a rusted valve wheel. Its gauge reads {c}70 psi{/}.","choices":["Open it","Leave it"],"cancel":1},
+      {"who":null,"text":"{r}BANG.{/} A pressure kick hammers down the line, and Intake 2’s wheel spins shut again."}
+    ],
+    "pump_v1_wrong_after_two": [
+      {"who":null,"text":"Intake 1: a rusted valve wheel. Its gauge reads {c}50 psi{/}.","choices":["Open it","Leave it"],"cancel":1},
+      {"who":null,"text":"{r}BANG.{/} A pressure kick hammers down the line, and Intake 1’s wheel spins shut again."}
+    ],
+    "floodgate_done": [
+      {"who":null,"text":"The pump console hums. Water levels: {g}NOMINAL{/}."}
+    ],
+    "floodgate_dry_first": [
+      {"who":null,"text":"The pump console flickers awake: {r}INTAKES DRY.{/} {c}PRIME: OPEN INTAKES 1–3, LOWEST PRESSURE FIRST.{/}\nIntake 1: platform track bed · Intake 2: service bay · Intake 3: this station."},
+      {"who":"hex","text":"Three intakes, all over the level. We read every gauge first. Then we open them lowest to highest. Nobody touches a wheel before that. Please."}
+    ],
+    "floodgate_dry_seen": [
+      {"who":null,"text":"The pump console flickers awake: {r}INTAKES DRY.{/} {c}PRIME: OPEN INTAKES 1–3, LOWEST PRESSURE FIRST.{/}\nIntake 1: platform track bed · Intake 2: service bay · Intake 3: this station."}
+    ],
+    "floodgate_ready": [
+      {"who":"hex","text":"Pump control. Still got power, somehow. If I spin up the drainage pumps, the junction should empty out."},
+      {"who":"kit","text":"And whatever lives in the junction?","face":"sad"},
+      {"who":"hex","text":"Will be a lot easier to see coming. Best I can do from a pump console."},
+      {"who":null,"text":"Across the level, pumps groan to life. The black water in the junction falls away, and a catwalk rises out of it."}
+    ],
+    "lurker_win": [
+      {"who":"kit","text":"The water— it’s moving on its own.","face":"surprised"},
+      {"who":"hex","text":"That is not water. That is a LOT of teeth.","face":"surprised"},
+      {"who":"rook","text":"Everyone breathing?"},
+      {"who":"kit","text":"Breathing. Mostly screaming internally.","face":"happy"},
+      {"who":"hex","text":"Maintenance shaft past the junction goes down. The annex should be under us."}
+    ],
+    "lurker_lose": [
+      {"who":"kit","text":"The water— it’s moving on its own.","face":"surprised"},
+      {"who":"hex","text":"That is not water. That is a LOT of teeth.","face":"surprised"}
+    ],
+    "annex_door_locked": [
+      {"who":null,"text":"A pressure door marked {c}K-M ANNEX 7 · AUTHORIZED PERSONNEL{/}. The lock wants a physical passkey."},
+      {"who":"hex","text":"Hardware key. I can’t crack a chunk of plastic. Somebody down here has one."}
+    ],
+    "annex_door_open": [
+
+    ],
+    "annex_guards_win": [
+      {"who":"K-M Sentinel","text":"Contact! Unauthorized personnel in Annex 7! Lethal response authorized!"},
+      {"who":"kit","text":"Written off, huh?","face":"angry"},
+      {"who":null,"text":"One of the Sentinels wears a passkey on a lanyard. Hex lifts it off him with two fingers."},
+      {"who":"hex","text":"One chunk of plastic, acquired. Told you somebody down here had one."},
+      {"who":"hex","text":"Huh. The door log has us in it. “Contractor team, due the 14th. Status: pending resolution.” That’s a weird word for a door to use."},
+      {"who":"rook","text":"Active security in an abandoned lab. Pale lied."},
+      {"who":"hex","text":"Pale lied, the lab lied, the lights are lying. I read systems for a living, and nothing down here will tell me the truth.","face":"sad"}
+    ],
+    "annex_guards_lose": [
+      {"who":"K-M Sentinel","text":"Contact! Unauthorized personnel in Annex 7! Lethal response authorized!"},
+      {"who":"kit","text":"Written off, huh?","face":"angry"}
+    ],
+    "lattice_down": [
+
+    ],
+    "lattice_first": [
+      {"who":null,"text":"A security lattice: three emitters, beams humming across the passage. Three cables climb its frame, amber, green and violet, each tapping into some of the emitters.\nEmitters: 1 {r}LIVE{/}  ·  2 {r}LIVE{/}  ·  3 {r}LIVE{/}"},
+      {"who":"hex","text":"Can’t hack a laser. But lasers need power, and power comes through relays. Find the relays."}
+    ],
+    "lattice_seen_a": [
+      {"who":null,"text":"A security lattice: three emitters, beams humming across the passage. Three cables climb its frame, amber, green and violet, each tapping into some of the emitters.\nEmitters: 1 {g}DARK{/}  ·  2 {g}DARK{/}  ·  3 {r}LIVE{/}"}
+    ],
+    "lattice_seen_b": [
+      {"who":null,"text":"A security lattice: three emitters, beams humming across the passage. Three cables climb its frame, amber, green and violet, each tapping into some of the emitters.\nEmitters: 1 {g}DARK{/}  ·  2 {g}DARK{/}  ·  3 {g}DARK{/}"}
+    ],
+    "lattice_seen_c": [
+      {"who":null,"text":"A security lattice: three emitters, beams humming across the passage. Three cables climb its frame, amber, green and violet, each tapping into some of the emitters.\nEmitters: 1 {r}LIVE{/}  ·  2 {g}DARK{/}  ·  3 {g}DARK{/}"}
+    ],
+    "relay_a_down": [
+      {"who":null,"text":"Relay A (amber cable). The lattice is down; nothing left to route."}
+    ],
+    "relay_b_down": [
+      {"who":null,"text":"Relay B (green cable). The lattice is down; nothing left to route."}
+    ],
+    "relay_c_down": [
+      {"who":null,"text":"Relay C (violet cable). The lattice is down; nothing left to route."}
+    ],
+    "relay_a_leave_first": [
+      {"who":"hex","text":"Security relay. I can cycle it, but I can’t see what it feeds from here. Only one way to find out."},
+      {"who":null,"text":"Relay A (amber cable). Lattice emitters: 1 {r}LIVE{/}  ·  2 {r}LIVE{/}  ·  3 {r}LIVE{/}","choices":["Cycle the relay","Leave it"],"cancel":1}
+    ],
+    "relay_b_leave_first": [
+      {"who":"hex","text":"Security relay. I can cycle it, but I can’t see what it feeds from here. Only one way to find out."},
+      {"who":null,"text":"Relay B (green cable). Lattice emitters: 1 {r}LIVE{/}  ·  2 {r}LIVE{/}  ·  3 {r}LIVE{/}","choices":["Cycle the relay","Leave it"],"cancel":1}
+    ],
+    "relay_c_leave_first": [
+      {"who":"hex","text":"Security relay. I can cycle it, but I can’t see what it feeds from here. Only one way to find out."},
+      {"who":null,"text":"Relay C (violet cable). Lattice emitters: 1 {r}LIVE{/}  ·  2 {r}LIVE{/}  ·  3 {r}LIVE{/}","choices":["Cycle the relay","Leave it"],"cancel":1}
+    ],
+    "relay_a_cycle": [
+      {"who":null,"text":"Relay A (amber cable). Lattice emitters: 1 {r}LIVE{/}  ·  2 {r}LIVE{/}  ·  3 {r}LIVE{/}","choices":["Cycle the relay","Leave it"],"cancel":1},
+      {"who":null,"text":"The relay clunks over. Lattice emitters: 1 {g}DARK{/}  ·  2 {g}DARK{/}  ·  3 {r}LIVE{/}"}
+    ],
+    "relay_c_cycle": [
+      {"who":null,"text":"Relay C (violet cable). Lattice emitters: 1 {r}LIVE{/}  ·  2 {r}LIVE{/}  ·  3 {r}LIVE{/}","choices":["Cycle the relay","Leave it"],"cancel":1},
+      {"who":null,"text":"The relay clunks over. Lattice emitters: 1 {r}LIVE{/}  ·  2 {g}DARK{/}  ·  3 {g}DARK{/}"}
+    ],
+    "relay_b_cycle_dark": [
+      {"who":null,"text":"Relay B (green cable). Lattice emitters: 1 {r}LIVE{/}  ·  2 {r}LIVE{/}  ·  3 {r}LIVE{/}","choices":["Cycle the relay","Leave it"],"cancel":1},
+      {"who":null,"text":"Down the hall, the laser lattice stutters, flickers, and dies."},
+      {"who":"hex","text":"Lattice is down! Turns out I can lie to a lab too.","face":"happy"}
+    ],
+    "relay_b_cycle_first": [
+      {"who":"hex","text":"Security relay. I can cycle it, but I can’t see what it feeds from here. Only one way to find out."},
+      {"who":null,"text":"Relay B (green cable). Lattice emitters: 1 {r}LIVE{/}  ·  2 {r}LIVE{/}  ·  3 {r}LIVE{/}","choices":["Cycle the relay","Leave it"],"cancel":1},
+      {"who":null,"text":"Down the hall, the laser lattice stutters, flickers, and dies."},
+      {"who":"hex","text":"Lattice is down! Turns out I can lie to a lab too.","face":"happy"}
+    ],
+    "annex_log": [
+      {"who":null,"text":"{c}SUBJECT LOG · S-7{/}\nSubject S-7 (orc, shamanic)."}
+    ],
+    "cryopod_done": [
+
+    ],
+    "cryopod_full": [
+      {"who":null,"text":"A cryopod, humming, lit from within. Frost on the glass. Behind it, a figure: an orc, bone-white hair, eyes closed."},
+      {"who":"hex","text":"Label reads {c}ASSET S-7 · “VESSEL” · SPARK YIELD 94%{/}. Oh no. Oh no no no.","face":"sad"},
+      {"who":"hex","text":"This is the data core. It’s not data. It’s a person.","face":"sad"},
+      {"who":"rook","text":"…"},
+      {"who":"kit","text":"We’re getting them out.","face":"angry"},
+      {"who":"rook","text":"Kit. Three thousand cred, the rent, Hex’s debt—"},
+      {"who":"kit","text":"Nine seconds. Pale timed me in the street and wrote it down.","face":"sad"},
+      {"who":"kit","text":"That’s how you end up in there, Rook. Somebody likes your numbers."},
+      {"who":"kit","text":"We’re getting them OUT.","face":"angry"},
+      {"who":"rook","text":"…"},
+      {"who":"rook","text":"Twenty years ago I stood in a lab like this. Different logo. My crew got paid, and I walked out past a tank with somebody still in it."},
+      {"who":"rook","text":"I told myself it wasn’t my job. I’ve been telling myself that every night since."},
+      {"who":"rook","text":"Do it, kid. Whatever it costs."},
+      {"who":"kit","text":"You never told me that.","face":"sad"},
+      {"who":"rook","text":"You never needed to carry it. Now you do. Go on."},
+      {"who":"hex","text":"For the record, I hate “whatever it costs.” I’m doing it anyway.","face":"angry"},
+      {"who":null,"text":"Kit’s hand touches the glass, and something in her answers. Ki surges up through her arm like a struck match. Frost blooms, cracks, and shatters."},
+      {"who":"sable","text":"…The crow was screaming. For so long. Now it’s quiet.","face":"sad"},
+      {"who":"sable","text":"You. Your hands are burning."},
+      {"who":"kit","text":"Started last month. I don’t know why.","face":"surprised"},
+      {"who":"sable","text":"Mm. The crow says you’re loud. That’s not an insult."},
+      {"who":"sable","text":"I am Sable. I don’t know how long I was in there. They took— they took a lot. I still have enough."},
+      {"who":"rook","text":"We’ll get you out of here. After that you owe us nothing."},
+      {"who":"sable","text":"Everyone who opened this glass said something kind. The crow remembers each of them.","face":"sad"},
+      {"who":"kit","text":"We’re not them.","face":"angry"},
+      {"who":"sable","text":"No. None of them burned."},
+      {"who":"sable","text":"There were others. S-5. S-6. The pods beside mine went dark, one night and then another. Nobody wrote down where they went.","face":"sad"},
+      {"who":"hex","text":"Somebody did. It’s in the pod logs.","face":"angry"},
+      {"who":null,"text":"Hex jacks into the pod’s panel. For a long minute the only sound is the deck, copying: intake dates, yields, transfer orders. Every name."},
+      {"who":"hex","text":"Got it. All of it. It goes wherever we go, and it doesn’t go to Pale."},
+      {"who":"sable","text":"…Then I will walk with you. As far as the door. After that I will decide."},
+      {"who":null,"text":"Hex puts their jacket round Sable’s shoulders. Rook watches the door. Nobody says anything about three thousand cred."},
+      {"who":null,"text":"Kit falls in beside Rook. She doesn’t ask about the other tank, and he doesn’t offer. Their shoulders touch, once, on the way to the door."},
+      {"who":"sable","text":"You. The old one. You’re bleeding under that coat."},
+      {"who":"rook","text":"Old news."},
+      {"who":"sable","text":"The crow doesn’t care how old it is. Hold still."},
+      {"who":null,"text":"Sable lays two fingers against Rook’s side. Something black-feathered and warm passes through the room. When he steps back, the stitches are just a scar."},
+      {"who":null,"text":"Rook’s wound is closed: full strength, every charge back, and {y}Second Wind{/} too."},
+      {"who":"rook","text":"…Huh."},
+      {"who":"kit","text":"Don’t get used to it. You still owe Doc Yun for the stitches.","face":"smirk"},
+      {"who":null,"text":"{r}ALERT. ASSET S-7 CONTAINMENT BREACH. WARDEN PROTOCOL ENGAGED.{/}"},
+      {"who":"hex","text":"WARDEN protocol. That sounds big. Things named “Warden” are always big.","face":"surprised"},
+      {"who":"rook","text":"Freight lift. South, through the containment door. Move."},
+      {"who":"hex","text":"One stop first: that armory by the hall had weapon cases. Whatever WARDEN is, I want to meet it holding something better."}
+    ],
+    "warden_win": [
+      {"who":null,"text":"The floor shudders. A security platform unfolds from the wall, three meters of plate and cannon. Something inside its chest glows and screams."},
+      {"who":"sable","text":"There’s a spirit in its heart. Bound. Starving. It was one of us once.","face":"angry"},
+      {"who":"rook","text":"Then we set it free. Crew, on me."},
+      {"who":null,"text":"The spirit rises from the wreck, no longer screaming. It circles Sable once, like a bird, and fades into the pipes."},
+      {"who":"sable","text":"It thanked you. It said its name. I won’t repeat it; it was only for us."},
+      {"who":"rook","text":"Not this time. That’s all I wanted."},
+      {"who":"sable","text":"The crow has gone up the lift shaft ahead of us. It sees farther than I can."},
+      {"who":"sable","text":"Cars at the top. People waiting in the rain."},
+      {"who":"rook","text":"Pale’s pickup. He did say he keeps exact hours."},
+      {"who":"hex","text":"The lift’s live. Let’s never come back here.","face":"happy"}
+    ],
+    "warden_lose": [
+      {"who":null,"text":"The floor shudders. A security platform unfolds from the wall, three meters of plate and cannon. Something inside its chest glows and screams."},
+      {"who":"sable","text":"There’s a spirit in its heart. Bound. Starving. It was one of us once.","face":"angry"},
+      {"who":"rook","text":"Then we set it free. Crew, on me."}
+    ],
+    "betrayal_done": [
+
+    ],
+    "betrayal_go_for_pale": [
+      {"who":null,"text":"Mr. Pale is waiting under the cranes, peeling a satsuma. The spiral of peel hangs from his knife, unbroken."},
+      {"who":"pale","text":"Three minutes early. I do appreciate punctuality in a liability.","face":"smirk"},
+      {"who":"kit","text":"Your “property” is a person.","face":"angry"},
+      {"who":"pale","text":"Asset S-7 is Kessler-Mori property, recovered from a site we officially abandoned by deniable contractors."},
+      {"who":"pale","text":"You were the deniable contractors."},
+      {"who":"rook","text":"And the three thousand?"},
+      {"who":"pale","text":"A figure of speech."},
+      {"who":"pale","text":"I did tell you I collect numbers, Miss Kit. I have already sold yours.","face":"smirk"},
+      {"who":null,"text":"He splits the satsuma and counts the segments under his breath. Eleven."},
+      {"who":"pale","text":"Contractors are paid on completion. You have completed."},
+      {"who":"pale","text":"Except you, Miss Kit. The Vessel program is always short of subjects."},
+      {"who":null,"text":"The peel drops to the wet concrete. One unbroken spiral."},
+      {"who":"K-M Sentinel","text":"Contractor tags read. Four signatures. One flagged for intake, three for disposal."},
+      {"who":null,"text":"Rifles come up all along the dock.","choices":["Go for Pale","Get in front of Hex and Sable"],"cancel":1},
+      {"who":null,"text":"Kit is across the gap before she has decided to be. A Sentinel’s rifle butt meets her halfway, and the concrete meets her after that."},
+      {"who":"pale","text":"Nine seconds in the street, Miss Kit. You were faster when nobody was watching.","face":"smirk"},
+      {"who":"rook","text":"Kit. When I say run, you run. You don’t look back, you don’t wait for me."},
+      {"who":null,"text":"Rook’s hand comes out of his coat with something small and round in it. The pin is already gone."},
+      {"who":"kit","text":"Rook—","face":"sad"},
+      {"who":"rook","text":"Run."}
+    ],
+    "betrayal_cover_crew": [
+      {"who":null,"text":"Mr. Pale is waiting under the cranes, peeling a satsuma. The spiral of peel hangs from his knife, unbroken."},
+      {"who":"pale","text":"Three minutes early. I do appreciate punctuality in a liability.","face":"smirk"},
+      {"who":"kit","text":"Your “property” is a person.","face":"angry"},
+      {"who":"pale","text":"Asset S-7 is Kessler-Mori property, recovered from a site we officially abandoned by deniable contractors."},
+      {"who":"pale","text":"You were the deniable contractors."},
+      {"who":"rook","text":"And the three thousand?"},
+      {"who":"pale","text":"A figure of speech."},
+      {"who":"pale","text":"I did tell you I collect numbers, Miss Kit. I have already sold yours.","face":"smirk"},
+      {"who":null,"text":"He splits the satsuma and counts the segments under his breath. Eleven."},
+      {"who":"pale","text":"Contractors are paid on completion. You have completed."},
+      {"who":"pale","text":"Except you, Miss Kit. The Vessel program is always short of subjects."},
+      {"who":null,"text":"The peel drops to the wet concrete. One unbroken spiral."},
+      {"who":"K-M Sentinel","text":"Contractor tags read. Four signatures. One flagged for intake, three for disposal."},
+      {"who":null,"text":"Rifles come up all along the dock.","choices":["Go for Pale","Get in front of Hex and Sable"],"cancel":1},
+      {"who":null,"text":"Kit plants herself in front of Hex and Sable, fists up, burning. The crow screams from a crane. Every red dot on the dock finds her chest."},
+      {"who":"pale","text":"Touching. Inefficient, but touching.","face":"smirk"},
+      {"who":"rook","text":"Kit. When I say run, you run. You don’t look back, you don’t wait for me."},
+      {"who":null,"text":"Rook’s hand comes out of his coat with something small and round in it. The pin is already gone."},
+      {"who":"kit","text":"Rook—","face":"sad"},
+      {"who":"rook","text":"Run."}
+    ]
+  }
+}
