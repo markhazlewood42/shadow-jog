@@ -13,7 +13,14 @@
 #   - A child that ends by itself gives a balloon tip and changes the icon. Nothing is restarted in a loop. "Restart services" is the way to try again.
 #   - The settings file `~/.shadow-jog-cc/upstash.env` is read only for the key CC_HOSTED_URL, on a click. Its content is never logged.
 #   - A named mutex keeps one tray at a time.
+#   - `-Branch <name>` is for a test before a merge: it adds `--branch <name>` to the launcher start, so the pinned copy follows that branch and not
+#     `origin/main`. Without it, `main`'s server does not know `--no-idle-exit` and the launcher fails until the merge. `--stop` and `--prepare-local`
+#     need no branch: they use the pinned copy as it is.
 # ASCII only: Windows PowerShell 5.1 reads a file without a byte order mark as the system code page.
+
+param(
+    [string]$Branch = ''
+)
 
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
@@ -288,7 +295,13 @@ function Start-Services {
     $env:CC_NO_OPEN = '1'
     if (Test-Port $ReporterPort) { Write-TrayLog ("port {0} answers before the start: a reporter that this tray did not start runs" -f $ReporterPort) }
     if (Test-Port $LocalPort) { Write-TrayLog ("port {0} answers before the start: a server that this tray did not start runs" -f $LocalPort) }
-    $script:Launcher = Start-Child 'reporter launcher' ('"{0}" --repo "{1}" --manual' -f $LauncherJs, $MainCheckout) $AppDir (Join-Path $StateDir 'tray-launcher.out.log') (Join-Path $StateDir 'tray-launcher.err.log')
+    $launcherArgs = '"{0}" --repo "{1}" --manual' -f $LauncherJs, $MainCheckout
+    if ($Branch -ne '') {
+        # Only git-ref-safe characters, no leading dash (it must not read as an option) and no "..". The throw reaches the "services could not start" balloon.
+        if (($Branch -notmatch '^[A-Za-z0-9._/-]+$') -or $Branch.StartsWith('-') -or $Branch.Contains('..')) { throw ("The -Branch value is not a safe branch name: {0}" -f $Branch) }
+        $launcherArgs += (' --branch "{0}"' -f $Branch)
+    }
+    $script:Launcher = Start-Child 'reporter launcher' $launcherArgs $AppDir (Join-Path $StateDir 'tray-launcher.out.log') (Join-Path $StateDir 'tray-launcher.err.log')
     $script:Prepare = $null
     $script:Server = $null
     $script:Phase = 'waitCopy'

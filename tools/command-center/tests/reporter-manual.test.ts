@@ -267,6 +267,31 @@ describe('the tray script (scripts/command-center-tray.ps1)', () => {
     expect(() => checkStop(read().replace('$code = $LASTEXITCODE', '$code = 0'))).toThrow();
   });
 
+  const checkBranch = (text: string) => {
+    // The optional -Branch parameter is the first statement after the comments, so PowerShell reads it as the script's parameter block.
+    expect(code(text).trimStart()).toMatch(/^param\(\s*\[string\]\$Branch = ''\s*\)/);
+    // Only the start of the launcher gets --branch, after the value is validated (safe characters, no leading dash, no "..").
+    const start = body(text, 'Start-Services');
+    expect(start).toMatch(/if \(\$Branch -ne ''\) \{/);
+    expect(start).toContain("-notmatch '^[A-Za-z0-9._/-]+$'");
+    expect(start).toContain("$Branch.StartsWith('-')");
+    expect(start).toContain("$Branch.Contains('..')");
+    expect(start).toMatch(/throw \([^\n]*\$Branch\)/);
+    expect(start).toMatch(/\$launcherArgs \+= \(' --branch "\{0\}"' -f \$Branch\)/);
+    expect(start).toMatch(/Start-Child 'reporter launcher' \$launcherArgs /);
+    expect(start.indexOf('throw')).toBeLessThan(start.indexOf('$launcherArgs +='));
+    // --stop and --prepare-local use the pinned copy as it is: no --branch there.
+    expect(code(text).match(/--branch/g)).toHaveLength(1);
+    expect(code(text)).toMatch(/--manual'/);
+  };
+  it('passes -Branch to the launcher start as --branch, validated, and nowhere else', () => {
+    checkBranch(read());
+    expect(() => checkBranch(read().replace("param(\n    [string]$Branch = ''\n)", ''))).toThrow();
+    expect(() => checkBranch(read().replace(' --branch "{0}"', ''))).toThrow();
+    expect(() => checkBranch(read().replace("-notmatch '^[A-Za-z0-9._/-]+$'", '-eq $null'))).toThrow();
+    expect(() => checkBranch(read().replace("--stop --repo \"{1}\"'", "--stop --repo \"{1}\" --branch x'"))).toThrow();
+  });
+
   it('shows an error balloon tip when a page, Notepad or the poll fails (no silent log-only catch)', () => {
     const text = read();
     expect(body(text, 'Open-Url')).toContain('Show-Balloon');
