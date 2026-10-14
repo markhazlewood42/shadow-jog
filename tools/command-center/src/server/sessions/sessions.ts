@@ -139,11 +139,13 @@ export function createSessionsSource(deps: SessionsModuleDeps): PanelSource<Sess
     try {
       const files = await listSessionFiles(config, nowMs);
 
+      const roots = await rootsOf();
+
       // Read the end of every recent file. A file that cannot be read is skipped and counted, never the end of the module.
       const read = await Promise.all(
         files.map(async (file) => {
           try {
-            return { file, facts: await reader.readSession(file), failure: null };
+            return { file, facts: await reader.readSession(file, null, roots), failure: null };
           } catch (error) {
             return { file, facts: null, failure: codeOf(error) };
           }
@@ -165,7 +167,6 @@ export function createSessionsSource(deps: SessionsModuleDeps): PanelSource<Sess
       // It is left out before its agents and workflows are read, so a hidden run costs the read of its own file and nothing more. A file that is not
       // Shadow Jog's is `skipped` whatever started it, so every file is in exactly one of the three counts: scanned = sessions + hiddenSdk + skipped.
       // No launch folder is known here (there is no process list), so the newest working folder decides; it may be the folder where the shell reset to.
-      const roots = await rootsOf();
       const matching = readable.filter((entry) => keepSession(entry.file.matchedBy, entry.facts.cwd, roots));
       const shown = config.claude.includeSdk ? matching : matching.filter((entry) => !isSdkEntrypoint(entry.facts.entrypoint));
       const hiddenSdk = matching.length - shown.length;

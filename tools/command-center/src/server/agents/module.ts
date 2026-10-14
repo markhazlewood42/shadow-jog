@@ -87,7 +87,8 @@ export function createAgentsSource(deps: AgentsModuleDeps): PanelSource<AgentsLi
 
   /** The facts of a session file. A file that cannot be read leaves the session out of this look (the console says so once): what is in it cannot be told. */
   async function candidate(file: SessionFile, live: LiveProcess | null): Promise<Candidate | null> {
-    const facts = await reader.optional<SessionFacts | null>(file.path, null, () => reader.readSession(file, live?.launchCwd));
+    const roots = await rootsOf();
+    const facts = await reader.optional<SessionFacts | null>(file.path, null, () => reader.readSession(file, live?.launchCwd, roots));
     return facts === null ? null : { file, facts, live };
   }
 

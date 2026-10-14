@@ -104,12 +104,22 @@ const TRAIL_LENGTH = 16;
 /** The working folders of the lines, newest first, each folder once (compared as folders: `/c/x` and `C:\x` are one). */
 export function cwdTrail(lines: readonly unknown[]): string[] {
   const trail: string[] = [];
-  for (let i = lines.length - 1; i >= 0 && trail.length < TRAIL_LENGTH; i -= 1) {
+  let seenLines = 0;
+  for (let i = lines.length - 1; i >= 0 && trail.length < TRAIL_LENGTH && seenLines < TRAIL_LINES; i -= 1) {
     const line = lines[i];
-    if (hasCwd(line) && !trail.some((seen) => sameFolder(seen, line.cwd))) trail.push(line.cwd);
+    if (!hasCwd(line)) continue;
+    seenLines += 1;
+    if (!trail.some((seen) => sameFolder(seen, line.cwd))) trail.push(line.cwd);
   }
   return trail;
 }
+
+/**
+ * How many of the newest lines that have a working folder the trail looks at. A live stint flips between the work folder and the folder that the shell
+ * resets to, all the time, so a folder that the session works in now is always near the end. An older folder is a past stint, and it must not keep a
+ * session that has since run only in its launch folder (then the trail holds only the launch folder, and `effectiveCwd` gives it).
+ */
+export const TRAIL_LINES = 200;
 
 /**
  * The folder a session works in, from its trail (newest first). The shell resets its working folder to the folder that the session was
@@ -497,7 +507,11 @@ function isHumanPrompt(line: unknown): boolean {
  * The box of the last reply that has one wins, even when later replies have none (a short status line is not a
  * new box). `answered` is true when a prompt of Mark's came after it.
  */
-export function extractYourMove(lines: readonly unknown[], roots: readonly string[]): YourMoveBox | null {
+export function extractYourMove(lines: readonly unknown[], roots: readonly string[], launchCwd: string | null = null): YourMoveBox | null {
+  // When the session's own folder (the newest folder that is not the launch folder) is inside the roots, a reply that the shell reset to the launch folder
+  // is the session's too: the shell goes back there after tool calls. When the session works outside the roots, only a reply inside them counts, as before.
+  const folder = launchCwd === null ? null : effectiveCwd(cwdTrail(lines), launchCwd);
+  const sessionInside = folder !== null && cwdInsideRoots(folder, roots);
   let found: { box: Pick<YourMoveBox, 'light' | 'items' | 'nothing' | 'at'>; index: number } | null = null;
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
@@ -507,7 +521,9 @@ export function extractYourMove(lines: readonly unknown[], roots: readonly strin
     const box = text === null ? null : parseBox(text);
     if (box === null) continue;
     // The reply's own working folder: a reply that has none, or has one outside the roots, has no say.
-    if (typeof line.cwd !== 'string' || !cwdInsideRoots(line.cwd, roots)) continue;
+    if (typeof line.cwd !== 'string') continue;
+    const atLaunch = sessionInside && launchCwd !== null && sameFolder(line.cwd, launchCwd);
+    if (!cwdInsideRoots(line.cwd, roots) && !atLaunch) continue;
     found = { box: { ...box, at: timeOf(line) ?? '' }, index };
   }
   if (found === null) return null;

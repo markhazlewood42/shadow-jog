@@ -86,7 +86,7 @@ export class ConfigError extends Error {
  * The Git Bash form of a Windows drive path (`/c/Users/x`) as the Windows form (`C:/Users/x`). A session's shell writes
  * its working folder in this form too, and `resolve('/c/Users/x')` would read it as `C:\c\Users\x`. Any other path is returned as it is.
  */
-function msysToWindows(path: string): string {
+export function msysToWindows(path: string): string {
   const match = /^\/([A-Za-z])(?:\/(.*))?$/.exec(path);
   return match === null ? path : `${(match[1] as string).toUpperCase()}:/${match[2] ?? ''}`;
 }

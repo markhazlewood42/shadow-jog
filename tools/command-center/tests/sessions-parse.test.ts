@@ -3,6 +3,8 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_STATE_LIMITS,
+  cwdTrail,
+  effectiveCwd,
   agentStateOf,
   classifySession,
   countLineTypes,
@@ -194,6 +196,29 @@ describe('the working folder and the other facts of a line', () => {
     expect(newestCwd(lines, `${HOME}/`)).toBe(REPO);
   });
 
+  it('a folder that is older than the last 200 lines with a working folder does not keep a session that has since run only in its launch folder', () => {
+    const REPO = '/fixture/repo/tools/example';
+    const HOME = '/fixture/home-base';
+    // The session worked in the repo, then ran only in its launch folder: the repo stint is stale.
+    const stale = [assistantText('old', { cwd: REPO }), ...Array.from({ length: 200 }, (_, i) => assistantText(`r${i}`, { cwd: HOME }))];
+    expect(newestCwd(stale, HOME)).toBe(HOME);
+    expect(newestCwd([assistantText('old', { cwd: REPO }), ...stale.slice(2)], HOME)).toBe(REPO);
+    // A live stint flips between the work folder and the reset folder all the time: the work folder is always near the end.
+    const live = [assistantText('old', { cwd: REPO }), ...Array.from({ length: 400 }, (_, i) => assistantText(`r${i}`, { cwd: i % 50 === 0 ? REPO : HOME }))];
+    expect(newestCwd(live, HOME)).toBe(REPO);
+  });
+
+  it('effectiveCwd edge cases', () => {
+    expect(effectiveCwd([], '/x/home')).toBeNull();
+    expect(effectiveCwd([], null)).toBeNull();
+    expect(effectiveCwd([], undefined)).toBeNull();
+    expect(effectiveCwd(['/x/a', '/x/b'], null)).toBe('/x/a');
+    expect(effectiveCwd(['/x/home', '/x/a', '/x/b'], '/x/home')).toBe('/x/a');
+    expect(effectiveCwd(['/x/home'], '/x/home')).toBe('/x/home');
+    expect(effectiveCwd(['/x/a'], '/x/home')).toBe('/x/a');
+    expect(cwdTrail([])).toEqual([]);
+  });
+
   it.skipIf(process.platform !== 'win32')('on Windows the launch folder is compared in both forms of a path', () => {
     const lines = [userPrompt('a', { cwd: 'C:\\Users\\x\\shadow-jog' }), assistantText('b', { cwd: '/c/Users/x/home-base' })];
     expect(newestCwd(lines, 'C:\\Users\\x\\home-base')).toBe('C:\\Users\\x\\shadow-jog');
@@ -282,6 +307,30 @@ describe('extractPrs', () => {
     ]);
     // GitHub does not tell two spellings of a name apart, so neither does the check.
     expect(extractPrs([prLink(3, 'Octo-Owner/Octo-Repo')], repo).map((pr) => pr.number)).toEqual([3]);
+  });
+});
+
+describe('extractYourMove and the launch folder', () => {
+  const HOME = '/fixture/home-base';
+  const WORKTREE = '/fixture/repo-worktree';
+  const reply = (cwd: string) => assistantText(box(['Review the diff']), { cwd, time: at(-100) });
+
+  it('a box written after the shell reset to the launch folder counts when the session works inside the roots', () => {
+    const lines = [assistantText('x', { cwd: INSIDE }), reply(HOME)];
+    expect(extractYourMove(lines, ROOTS)).toBeNull(); // no launch folder: the old rule
+    expect(extractYourMove(lines, ROOTS, HOME)?.items).toEqual(['Review the diff']);
+  });
+
+  it('keeps the old rule when the session works outside the roots', () => {
+    const lines = [assistantText('x', { cwd: OUTSIDE }), reply(HOME)];
+    expect(extractYourMove(lines, ROOTS, HOME)).toBeNull();
+    expect(extractYourMove([assistantText('x', { cwd: HOME }), reply(HOME)], ROOTS, HOME)).toBeNull();
+  });
+
+  it('a worktree-only session counts through the effective roots', () => {
+    const lines = [assistantText('x', { cwd: WORKTREE }), reply(HOME), reply(WORKTREE)];
+    expect(extractYourMove([lines[0], lines[1]], ROOTS, HOME)).toBeNull();
+    expect(extractYourMove([lines[0], lines[1]], [...ROOTS, WORKTREE], HOME)?.items).toEqual(['Review the diff']);
   });
 });
 
