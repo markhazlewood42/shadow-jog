@@ -218,7 +218,8 @@ The API (`game/script.ts`): `say`, `narrate`, `ask` (returns the chosen index), 
   story flag in the order the chapter sets them**; `tests/maps.test.ts` walks every map at every one of those stages
   to prove there's no dead end.
 - Scripts attach to data: an NPC's `talk`, an event's `run`, a warp's `blocked`, a map's `onEnter`.
-- **Speakers** (`data/speakers.ts`): name, colour, voice pitch and portrait for each `say` id.
+- **Speakers** (`data/speakers.ts`, from `speakers.json`): name, colour, voice pitch and portrait for each speaker id.
+- **Dialogue text** (`data/dialogue.ts`, from `dialogue.json`, M8a): chapter 1's words are data, one record per box under a dotted id. A script plays a box with `s.line(id)` or `s.choose(id)` and fills a `{slot}` with a live value; the loader checks the file and `loadDialogue` swaps the live table in place. The maps' own talk still goes through `say`, `narrate` and `ask`.
 - **Comic panels** (`scenes/panels.ts`): the intro and the ending, as pages of panels with captions and speech.
 
 ---
@@ -406,9 +407,10 @@ recurring enemy and each boss has `attack` and `hurt` frames; pack-mates are dis
 | `abilities.ts` | Every tech, skill, combo and enemy move (`ABILITIES`), combos (`COMBOS`), learnsets (`LEARNSETS`), `ability(id)` |
 | `enemies.ts` | Enemies (stats, family, moves, drops, lore, AI key, sprite), `FAMILY_WEAK`, `FAMILY_IMMUNE`, encounter tables (`ENCOUNTERS`: `street`, `barrens`, `park`, `sinkline`, `annex`, and the fixed fights `f_*`) |
 | `items.ts` | Consumables, weapons, armour, headgear, mods (with `who` can equip), key items, loot; `sellPrice` |
-| `shops.ts` | Shop stock, keepers, greetings, discounts |
+| `shops.ts` | Shop stock, keepers, greetings, discounts (loader for `shops.json`) |
 | `looks.ts` | Character looks and crowd generators |
-| `speakers.ts` | Dialogue speakers |
+| `speakers.ts` | Dialogue speakers (loader for `speakers.json`) |
+| `dialogue.ts` | Chapter 1's dialogue text (loader for `dialogue.json`): `LINES`, `resolveLine`, `checkDialogue` |
 | `maps/` | Every map (section 4) |
 
 Words, names and places are catalogued in `docs/GLOSSARY.md`; the world behind them in `docs/SETTING.md`.
