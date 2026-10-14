@@ -6,7 +6,7 @@
 #   check        lint, typecheck, unit tests and the bundle budget (both builds, the game and the lab page). The ruleset on main
 #                requires this check by name. So the job id must stay `check`, it must not get a different
 #                `name:`, and it must always start and report (see "Check which files changed"
-#                below). On a docs-only pull request it runs only tests/roadmap.test.ts (it reads docs/).
+#                below). On a docs-only pull request it runs only tests/roadmap.test.ts and tests/changelog-fold.test.ts (they read docs/ and changelog.d/).
 #   e2e-shards   the Playwright specs, on Chromium (the engine canary suite and the default-path goldens included), split into eight shards by a matrix. The checks are
 #                named `e2e (1/8)` to `e2e (8/8)`. The ruleset must NOT require these names (see the gate below). Each shard has its own named spec list in the matrix (`--shard` split by test
 #                count and was lopsided). The cap is 30 minutes for each shard.
@@ -116,11 +116,11 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      # On a docs-only pull request this is the one test that runs. tests/roadmap.test.ts reads docs/engine/migration.md and docs/roadmap/*, so the docs-only skip must not hide a drift there.
+      # On a docs-only pull request these are the only tests that run. tests/roadmap.test.ts reads docs/engine/migration.md and docs/roadmap/*, and tests/changelog-fold.test.ts validates changelog.d/*.md (a .md path), so the docs-only skip must not hide a drift there.
       # (On any other change `npm test` below runs it with all the other unit tests.)
-      - name: Roadmap test (docs-only pull request)
+      - name: Roadmap and changelog tests (docs-only pull request)
         if: steps.scope.outputs.skip == 'true'
-        run: npx vitest run tests/roadmap.test.ts
+        run: npx vitest run tests/roadmap.test.ts tests/changelog-fold.test.ts
       - run: npm run lint
         if: steps.scope.outputs.skip != 'true'
       - run: npm run typecheck
