@@ -90,7 +90,7 @@ const query = new URLSearchParams(location.search);
 const scratch = query.get('scratch');
 /** The save endpoint's address (`?scratch=<name>` makes it use a private copy, for tests). */
 const ENDPOINT = `/__stage/stages${scratch ? `?scratch=${encodeURIComponent(scratch)}` : ''}`;
-/** The global HUD layout has its own file (`src/data/hud.json`) and its own endpoint to READ it. It is saved together with the stages, through ENDPOINT. */
+/** The global HUD layout (`src/data/hud-640.json`; the 480 `hud.json` is frozen) has its own endpoint to READ it. It is saved together with the stages and the other three files of the 640 set (`axes.json`, `enemyfacing.json`, `heroes.json`), through ENDPOINT. */
 const HUD_ENDPOINT = `/__stage/hud${scratch ? `?scratch=${encodeURIComponent(scratch)}` : ''}`;
 /** The order files are named in: the same on the Save tooltip, in the messages and in the Revert confirm. */
 const PART_ORDER: readonly Part[] = ['stages', 'hud', 'axes', 'facing', 'heroes'];
@@ -663,10 +663,11 @@ async function main(): Promise<void> {
     }
 
     /**
-     * Save (Ctrl+S): ONE request writes the files that changed (`stages.json`, `hud.json`, `axes.json`) together.
-     * Everything is checked first, all three together and as the game will see them (each stage's own HUD boxes against the
-     * NEW global HUD), by the same code the dev server runs, so a bad file never leaves the page. If the server refuses
-     * (or cannot be reached), no file was changed: it writes them as a set or not at all.
+     * Save (Ctrl+S): ONE request writes the files that changed together. They are the 640 set: `stages-640.json`, `hud-640.json`, `axes.json`, `enemyfacing.json` and `heroes.json`
+     * (the 480 files `stages.json` and `hud.json` are frozen and never written). Everything is checked first, all of it together and as the game will see it (each stage's own HUD boxes
+     * against the NEW global HUD), by the same code the dev server runs, so a bad file never leaves the page. If the server refuses (or cannot be reached), no file was changed: it writes
+     * them as a set or not at all. Answers true when the files were written (also when the read-back check afterwards could not run: that is a warning in the status line, not a failed
+     * save), false when nothing was written. No caller reads the answer today; the test hook `window.__stageedit.save` returns it.
      */
     async function save(): Promise<boolean> {
       // Tidy first: a stage override keeps only what differs from the all-battles HUD (an empty "different on this stage" box is not saved).
@@ -697,9 +698,11 @@ async function main(): Promise<void> {
       try {
         back = await loadFiles();
       } catch (e) {
+        // The files ARE on disk (the POST succeeded), so this is a warning about the check, not a failed save: the dirty dot clears and save() answers true (PR 86 review, R2-3).
         session.markSaved(written);
-        bar.say(`Saved, but reading it back failed: ${e instanceof Error ? e.message : String(e)}`, 'bad');
-        return false;
+        bar.say(`Saved to ${fileNames(written)}, but reading it back to check failed: ${e instanceof Error ? e.message : String(e)}`, 'bad');
+        refreshPanels();
+        return true;
       }
       const same =
         (!written.includes('stages') || formatJson(back.stages) === formatJson(data.stages)) &&

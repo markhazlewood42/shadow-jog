@@ -184,7 +184,7 @@ export class BattleStageScene extends Scene<void> {
   private build(enemies: readonly string[]): void {
     const init = this.init0;
     this.crew = registerCrew(this.textures, init.metas, this.lineup, init.standIns, init.heroes ?? {});
-    // The wall and the floor, baked into one 480x270 picture (floor.ts): the backdrop band of the depth table.
+    // The wall and the floor, baked into one picture of the stage's own screen size (`screenOf(stage)`, 640x360 for the shipped set; floor.ts): the backdrop band of the depth table.
     const picture = bakeStage(this.textures, this.stage, this.floorFrom ?? this.stage);
     this.backdrop = this.add.image(0, 0, picture.key).setOrigin(0, 0).setDepth(DEPTH.BACKDROP);
     this.makeParty(this.lineup);
