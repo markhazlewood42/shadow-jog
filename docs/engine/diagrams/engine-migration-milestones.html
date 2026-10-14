@@ -64,25 +64,25 @@
     <!-- Type ramp matches the engine-layers pilot: names 16, descriptions 13, mono text 12.
          This is a 960-unit canvas, not the 1280 doc-wide one: a README shows it at about 880px (scale 0.92).
          The layout is a staircase so the figure stays narrow. -->
-    <svg viewBox="0 0 960 996" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="engine-migration-milestones-title engine-migration-milestones-desc">
+    <svg viewBox="0 0 960 1100" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="engine-migration-milestones-title engine-migration-milestones-desc">
       <title id="engine-migration-milestones-title">Engine migration milestones</title>
-      <desc id="engine-migration-milestones-desc">The order of the engine migration in three zones. Before code: the design gate, the Phase 0 platform spike and the final doc approval. Build: M0 Prepare, M1 Shell, then M1b 3D proof in parallel with M2 Effects, then M3 Battle stage, which splits into an optional M4 UI scenes and M5 Field that join at M6 Flip default. Finish: M7 3D mode, which needs both M1b and M6, then M8 Remove legacy.</desc>
+      <desc id="engine-migration-milestones-desc">The order of the engine migration in three zones. Before code: the design gate, the Phase 0 platform spike and the final doc approval. Build: M0 Prepare, M1 Shell, then M1b 3D proof in parallel with M2 Effects, then M3 Battle stage, which splits into an optional M4 UI scenes and M5 Field that join at M6 Flip default. Finish: M7 3D mode, which needs both M1b and M6, and ET Editor port, which is done and needs M6. Both lead to M8a UI kit and data, then M8b UI scenes, M8c Battle and field, and M8d Delete old engine, in a row.</desc>
       <defs>
         <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#bfc3e4"/></marker>
       </defs>
       <rect width="100%" height="100%" fill="#0d0c1f"/>
 
       <!-- Header -->
-      <text x="40" y="60" fill="#f4f1ff" font-size="24" font-style="italic" font-family="'Instrument Serif', serif">M7 needs both the 3D proof and the default flip.</text>
-      <text x="40" y="84" fill="#8f94bd" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">READ DOWN. THE PLAN SPLITS AT M1 AND M3. THE PATHS JOIN AGAIN AT M6 AND M7.</text>
+      <text x="40" y="60" fill="#f4f1ff" font-size="24" font-style="italic" font-family="'Instrument Serif', serif">M8 waits for M7 and the editor port, then ships in four phases.</text>
+      <text x="40" y="84" fill="#8f94bd" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">READ DOWN. THE PLAN SPLITS AT M1 AND M3. THE PATHS JOIN AGAIN AT M6, M7 AND M8A.</text>
 
       <!-- Zones (outline only, staircase down and to the right) -->
       <rect x="40" y="108" width="528" height="112" rx="6" fill="none" stroke="rgba(122,128,196,0.28)" stroke-width="1"/>
       <text x="56" y="130" fill="#8f94bd" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.14em">BEFORE CODE</text>
       <rect x="216" y="248" width="528" height="552" rx="6" fill="none" stroke="rgba(122,128,196,0.28)" stroke-width="1"/>
       <text x="232" y="270" fill="#8f94bd" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.14em">BUILD</text>
-      <rect x="392" y="828" width="528" height="112" rx="6" fill="none" stroke="rgba(122,128,196,0.28)" stroke-width="1"/>
-      <text x="408" y="850" fill="#8f94bd" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.14em">FINISH</text>
+      <rect x="216" y="828" width="704" height="216" rx="6" fill="none" stroke="rgba(122,128,196,0.28)" stroke-width="1"/>
+      <text x="232" y="850" fill="#8f94bd" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.14em">FINISH</text>
 
       <!-- Arrows (drawn before the nodes) -->
       <path d="M 200 176 H 232" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
@@ -96,9 +96,14 @@
       <path d="M 408 580 H 312 Q 304 580 304 588 V 640" fill="none" stroke="#bfc3e4" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
       <path d="M 304 696 V 748 Q 304 756 312 756 H 408" fill="none" stroke="#bfc3e4" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
       <path d="M 480 696 V 728" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
-      <path d="M 480 784 V 888 Q 480 896 488 896 H 584" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 480 784 V 868" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 552 756 H 600 Q 608 756 608 764 V 868" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
       <path d="M 656 520 V 868" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
-      <path d="M 728 896 H 760" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 408 896 H 312 Q 304 896 304 904 V 972" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 656 924 V 936 Q 656 944 648 944 H 360 Q 352 944 352 952 V 972" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 376 1000 H 408" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 552 1000 H 584" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 728 1000 H 760" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
 
       <!-- Nodes -->
       <rect x="56" y="148" width="144" height="56" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
@@ -138,18 +143,30 @@
       <rect x="584" y="868" width="144" height="56" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
       <text x="596" y="890" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.06em">M7</text>
       <text x="596" y="912" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">3D mode</text>
-      <rect x="760" y="868" width="144" height="56" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
-      <text x="772" y="890" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.06em">M8</text>
-      <text x="772" y="912" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">Remove legacy</text>
+      <rect x="408" y="868" width="144" height="56" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+      <text x="420" y="890" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.06em">ET  DONE</text>
+      <text x="420" y="912" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">Editor port</text>
+      <rect x="232" y="972" width="144" height="56" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+      <text x="244" y="994" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.06em">M8a</text>
+      <text x="244" y="1016" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">UI kit + data</text>
+      <rect x="408" y="972" width="144" height="56" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+      <text x="420" y="994" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.06em">M8b</text>
+      <text x="420" y="1016" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">UI scenes</text>
+      <rect x="584" y="972" width="144" height="56" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+      <text x="596" y="994" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.06em">M8c</text>
+      <text x="596" y="1016" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">Battle + field</text>
+      <rect x="760" y="972" width="144" height="56" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+      <text x="772" y="994" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.06em">M8d</text>
+      <text x="772" y="1016" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">Delete legacy</text>
 
       <!-- Legend -->
-      <line x1="40" y1="960" x2="920" y2="960" stroke="rgba(122,128,196,0.28)" stroke-width="1"/>
-      <line x1="40" y1="980" x2="72" y2="980" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
-      <text x="82" y="984" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">NEXT STEP</text>
-      <line x1="220" y1="980" x2="252" y2="980" stroke="#bfc3e4" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
-      <text x="262" y="984" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">OPTIONAL PATH</text>
-      <rect x="420" y="972" width="32" height="16" rx="2" fill="rgba(255,204,61,0.10)" stroke="#ffcc3d" stroke-width="1"/>
-      <text x="462" y="984" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">NEW ENGINE BECOMES DEFAULT</text>
+      <line x1="40" y1="1064" x2="920" y2="1064" stroke="rgba(122,128,196,0.28)" stroke-width="1"/>
+      <line x1="40" y1="1084" x2="72" y2="1084" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <text x="82" y="1088" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">NEXT STEP</text>
+      <line x1="220" y1="1084" x2="252" y2="1084" stroke="#bfc3e4" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+      <text x="262" y="1088" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">OPTIONAL PATH</text>
+      <rect x="420" y="1076" width="32" height="16" rx="2" fill="rgba(255,204,61,0.10)" stroke="#ffcc3d" stroke-width="1"/>
+      <text x="462" y="1088" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">NEW ENGINE BECOMES DEFAULT</text>
     </svg>
     </div>
   </div>

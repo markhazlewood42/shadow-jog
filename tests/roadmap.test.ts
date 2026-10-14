@@ -123,7 +123,7 @@ describe('the roadmap data', () => {
     expect(validate(badDep).join('\n')).toMatch(/"M99", which does not exist/);
 
     const cyclic = copy();
-    first(cyclic).after = ['M8']; // Phase 0 after M8, and M8 depends back on it through the chain
+    first(cyclic).after = ['M8d']; // Phase 0 after M8d, and M8d depends back on it through the chain
     expect(validate(cyclic).join('\n')).toMatch(/cycle/);
 
     const badLane = copy();

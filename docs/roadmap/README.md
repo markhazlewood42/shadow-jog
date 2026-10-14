@@ -3,7 +3,7 @@ type: reference
 title: Shadow Jog roadmap
 project: shadow-jog
 created: 2026-10-09
-updated: 2026-10-13
+updated: 2026-10-14
 tags: [roadmap, planning]
 ---
 
@@ -11,11 +11,11 @@ tags: [roadmap, planning]
 
 # Shadow Jog roadmap
 
-Now: no milestone.
+Now: no milestone. Next: M8a UI kit and data.
 
 **Order and dependency only. Bar length is not time.** Mark wants no hour or day estimates. A column is a step in the order. Items in the same column can run in parallel.
 
-![The roadmap as a Gantt-style chart. Order and dependency only. Bar length is not time. Now: no milestone. The table below lists the same items.](roadmap.svg)
+![The roadmap as a Gantt-style chart. Order and dependency only. Bar length is not time. Now: no milestone. Next: M8a UI kit and data. The table below lists the same items.](roadmap.svg)
 
 *Source: [roadmap.json](roadmap.json). The chart is [roadmap.svg](roadmap.svg).*
 
@@ -32,10 +32,13 @@ Now: no milestone.
 | M5 Field | Engine path | 7 | done | M3 | none | Field map, actors, camera, lights, weather. Mark approves the lighting. GPU timing check (npm run perf) once at the end, not in CI. |
 | M6 Flip default | Engine path | 8 | done | M5, M4 | branch `engine-m6-flip`, PR #58 (merged 2026-10-11) | ?engine=sje becomes the default. The old presenter goes. M4 joins here if it is built. It is optional (dashed arrow). GPU timing check (npm run perf) once at the end, not in CI. |
 | M7 3D mode | Engine path | 9 | done | M6, M1b | branch `engine-m7-3d-mode`, PR #80 (merged 2026-10-13), review fixes #82 (merged 2026-10-13) | Needs both the 3D proof (M1b) and the default flip (M6). GPU timing check (npm run perf) once at the end, not in CI. |
-| M8 Remove legacy | Engine path | 10 | later | M7, ET | none | Delete the old engine files. |
+| M8a UI kit and data | Engine path | 10 | next | M7, ET | none | Waits for Mark to approve docs/engine/m8-brief.md and the shop and dialogue data format. The UI kit in src/sje/ui, then the data move. GPU timing check (npm run perf) once at the end. |
+| M8b UI scenes | Engine path | 11 | later | M8a | none | Port the 15 UI scenes to native scenes, small to big. Follows the diff rule for the GPU timing check. |
+| M8c Battle and field | Engine path | 12 | later | M8b | none | Port the battle and field scenes. Follows the diff rule for the GPU timing check. |
+| M8d Delete old engine | Engine path | 13 | later | M8c | none | Delete the old engine, LegacyScene and the exemptions. Move the kept src/engine files into src/sje. Docs and the PR #86 follow-ups. Follows the diff rule for the GPU timing check. |
 | M1b 3D proof | Side paths | 5 | done | M1 | none | Parallel with M2. A spinning cube in a Scene3D, with the hand-off, leak and loss tests. |
 | M4 UI scenes | Side paths | 7 | optional | M3 | none | Optional. A UI scene ports only when it needs a camera, a filter, a mask or a transition. |
-| ET Editor port | Side paths | 9 | done | M6 | none | Built 2026-10-13 on branch engine-et-editor-port. Every editor and tool moved to the new engine; the Battle Stage Editor (/stageedit.html) and Battle Test are back. The trailer is deleted (#84). Two exceptions until M8: the Battle Test glue module and the shared old Input. Record: docs/engine/et-brief.md. |
+| ET Editor port | Side paths | 9 | done | M6 | branch `engine-et-editor-port`, PR #86 (merged 2026-10-14) | Merged 2026-10-14 (PR #86), before M8. Every editor and tool moved to the new engine; the Battle Stage Editor (/stageedit.html) and Battle Test are back. The trailer is deleted (#84). Two exceptions until M8d: the Battle Test glue module and the shared old Input. Record: docs/engine/et-brief.md. |
 | Editors Editor suite | Side paths | 10 | later | ET | none | After Chapter 1. New UI editors so Mark builds the game mostly in tools: troops, database, maps, conversations, animation composer, lights and weather. Plan: docs/TOOLING-UI.md section 4. |
 | archive-tags Archive tags | Needs Mark's go-ahead | 7 | gated | M3 | none | archive/side-battle-<date> and archive/phaser-stage-<date>, then close PRs #3 and #4. Mark approves each tag. They wait until M3 lands (status.md, Next for agents 3). |
 | release-tags Release tags | Needs Mark's go-ahead | 10 | gated | none | none | Annotated v* tags. Cut only after Mark's playtest and go-ahead. Not tied to one milestone. The column is only a place on the chart. |

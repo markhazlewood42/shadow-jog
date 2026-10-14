@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-13",
+  "updated": "2026-10-14",
   "lanes": [
     {
       "id": "foundations",
@@ -136,16 +136,62 @@
       "pr": "#80 (merged 2026-10-13), review fixes #82 (merged 2026-10-13)"
     },
     {
-      "id": "M8",
+      "id": "ET",
       "kind": "milestone",
-      "label": "Remove legacy",
+      "label": "Editor port",
+      "lane": "side",
+      "status": "done",
+      "after": [
+        "M6"
+      ],
+      "notes": "Merged 2026-10-14 (PR #86), before M8. Every editor and tool moved to the new engine; the Battle Stage Editor (/stageedit.html) and Battle Test are back. The trailer is deleted (#84). Two exceptions until M8d: the Battle Test glue module and the shared old Input. Record: docs/engine/et-brief.md.",
+      "branch": "engine-et-editor-port",
+      "pr": "#86 (merged 2026-10-14)"
+    },
+    {
+      "id": "M8a",
+      "kind": "milestone",
+      "label": "UI kit and data",
       "lane": "engine",
-      "status": "later",
+      "status": "next",
       "after": [
         "M7",
         "ET"
       ],
-      "notes": "Delete the old engine files."
+      "notes": "Waits for Mark to approve docs/engine/m8-brief.md and the shop and dialogue data format. The UI kit in src/sje/ui, then the data move. GPU timing check (npm run perf) once at the end."
+    },
+    {
+      "id": "M8b",
+      "kind": "milestone",
+      "label": "UI scenes",
+      "lane": "engine",
+      "status": "later",
+      "after": [
+        "M8a"
+      ],
+      "notes": "Port the 15 UI scenes to native scenes, small to big. Follows the diff rule for the GPU timing check."
+    },
+    {
+      "id": "M8c",
+      "kind": "milestone",
+      "label": "Battle and field",
+      "lane": "engine",
+      "status": "later",
+      "after": [
+        "M8b"
+      ],
+      "notes": "Port the battle and field scenes. Follows the diff rule for the GPU timing check."
+    },
+    {
+      "id": "M8d",
+      "kind": "milestone",
+      "label": "Delete old engine",
+      "lane": "engine",
+      "status": "later",
+      "after": [
+        "M8c"
+      ],
+      "notes": "Delete the old engine, LegacyScene and the exemptions. Move the kept src/engine files into src/sje. Docs and the PR #86 follow-ups. Follows the diff rule for the GPU timing check."
     },
     {
       "id": "M1b",
@@ -249,17 +295,6 @@
       "after": [],
       "column": 4,
       "notes": "An upstream bug report for the plasma-ui canvas width (R28), if Mark wants one."
-    },
-    {
-      "id": "ET",
-      "kind": "milestone",
-      "label": "Editor port",
-      "lane": "side",
-      "status": "done",
-      "after": [
-        "M6"
-      ],
-      "notes": "Built 2026-10-13 on branch engine-et-editor-port. Every editor and tool moved to the new engine; the Battle Stage Editor (/stageedit.html) and Battle Test are back. The trailer is deleted (#84). Two exceptions until M8: the Battle Test glue module and the shared old Input. Record: docs/engine/et-brief.md."
     },
     {
       "id": "Editors",
