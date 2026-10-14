@@ -9,7 +9,7 @@
 // runs the validator over the real changelog.d folder, so `npm run check` and CI fail on a bad entry file. Plain Node, no dependencies.
 // Format and rules: changelog.d/README.md.
 
-import { existsSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -24,6 +24,20 @@ export const FILE_NAME = /^[a-z0-9]+(-[a-z0-9]+)*\.md$/;
 
 const VERSION = /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** True when `date` is YYYY-MM-DD and names a real calendar day (2026-02-30 is not). */
+export function isRealDate(date) {
+  if (!DATE.test(date)) return false;
+  const [y, mo, d] = date.split('-').map(Number);
+  const check = new Date(Date.UTC(y, mo - 1, d));
+  return check.getUTCFullYear() === y && check.getUTCMonth() === mo - 1 && check.getUTCDate() === d;
+}
+
+/** Today as YYYY-MM-DD in the local time zone. (`toISOString` is UTC: in the evening in the Americas it names tomorrow.) */
+export function localDate(now = new Date()) {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
 
 const lf = (text) => text.replace(/\r\n?/g, '\n');
 
@@ -60,11 +74,11 @@ export function parseEntry(text, name = 'entry') {
       blanks += 1;
       return;
     }
-    const h = /^(#{1,6})\s*(.*)$/.exec(line);
+    const h = /^(#{1,6})(?:\s+(.*))?$/.exec(line); // a heading needs a space after the hashes: `###Added` is plain text
     if (h) {
       close();
       blanks = 0;
-      const title = h[2].replace(/^\[(.*)\]$/, '$1').trim();
+      const title = (h[2] ?? '').replace(/^\[(.*)\]$/, '$1').trim();
       heading = null;
       badHeading = true;
       if (/^unreleased\b/i.test(title)) at(n, 'an entry file has no Unreleased heading: CHANGELOG.md keeps it, and the fold fills it');
@@ -109,24 +123,32 @@ export function parseEntry(text, name = 'entry') {
 
 /** Lists the problems of one entry file (its text and its name). An empty list means the file is good. */
 export function validateEntry(text, name) {
-  const errors = FILE_NAME.test(name)
-    ? []
-    : [`${name}: the file name must be the branch name in lowercase kebab-case, ending in .md (a slash becomes a hyphen)`];
+  const errors = FILE_NAME.test(name) ? [] : [nameError(name)];
   return [...errors, ...parseEntry(text, name).errors];
 }
 
-/** The entry files of a folder: every `.md` file except README.md, sorted by name. */
+const nameError = (name) =>
+  `${name}: the file name must be the branch name in lowercase kebab-case, ending in .md (a slash becomes a hyphen)`;
+
+/**
+ * The entries of a folder, sorted by name: everything except README.md. A name that breaks the file-name rule
+ * (`Foo.MD`, `x.markdown`, `x.txt`) is listed too, so the check reports it. A silent skip would pass the check and leave the file behind at a release.
+ */
 export function listEntryFiles(dir = ENTRY_DIR) {
   if (!existsSync(dir)) return [];
   return readdirSync(dir)
-    .filter((file) => file.endsWith('.md') && file.toLowerCase() !== 'readme.md')
+    .filter((file) => file.toLowerCase() !== 'readme.md')
     .sort();
 }
 
-/** Reads and validates every entry file of a folder. */
+/** Reads and validates every entry of a folder. A name that breaks the rule, or a sub-folder, is an error and is not read. */
 export function checkDir(dir = ENTRY_DIR) {
   const files = listEntryFiles(dir);
-  const errors = files.flatMap((file) => validateEntry(readFileSync(join(dir, file), 'utf8'), file));
+  const errors = files.flatMap((file) => {
+    if (!FILE_NAME.test(file)) return [nameError(file)];
+    if (!statSync(join(dir, file)).isFile()) return [`${file}: only entry files go in changelog.d, not a folder`];
+    return validateEntry(readFileSync(join(dir, file), 'utf8'), file);
+  });
   return { files, errors };
 }
 
@@ -160,7 +182,7 @@ export function renderRelease(version, date, merged) {
  */
 export function foldIntoChangelog(changelog, entries, version, date) {
   if (!VERSION.test(version)) throw new Error(`"${version}" is not a version like 0.2.0`);
-  if (!DATE.test(date) || Number.isNaN(Date.parse(date))) throw new Error(`"${date}" is not a date like 2026-10-14`);
+  if (!isRealDate(date)) throw new Error(`"${date}" is not a date like 2026-10-14`);
   const lines = lf(changelog).split('\n');
   const start = lines.findIndex((line) => /^## \[Unreleased\]\s*$/.test(line));
   if (start < 0) throw new Error('CHANGELOG.md has no "## [Unreleased]" heading');
@@ -186,10 +208,13 @@ export function foldIntoChangelog(changelog, entries, version, date) {
 
   // Compare links at the foot: [Unreleased] now compares from the new tag, and [version] compares the old tag with the new one.
   for (let i = 0; i < out.length; i += 1) {
-    const m = /^\[Unreleased\]: (.*)\/compare\/v(.+)\.\.\.HEAD\s*$/.exec(out[i]);
+    // The tag prefix (`v` or none) is copied from the old link. A `[version]:` link that exists already is not added again.
+    const m = /^\[Unreleased\]: (.*)\/compare\/(v?)(.+)\.\.\.HEAD\s*$/.exec(out[i]);
     if (!m) continue;
-    out[i] = `[Unreleased]: ${m[1]}/compare/v${version}...HEAD`;
-    out.splice(i + 1, 0, `[${version}]: ${m[1]}/compare/v${m[2]}...v${version}`);
+    out[i] = `[Unreleased]: ${m[1]}/compare/${m[2]}${version}...HEAD`;
+    if (!out.some((line) => line.startsWith(`[${version}]: `))) {
+      out.splice(i + 1, 0, `[${version}]: ${m[1]}/compare/${m[2]}${m[3]}...${m[2]}${version}`);
+    }
     break;
   }
   return `${out.join('\n').replace(/\n+$/, '')}\n`;
@@ -198,20 +223,38 @@ export function foldIntoChangelog(changelog, entries, version, date) {
 /**
  * Folds the entry files of `dir` into the changelog file, then deletes them. With `dryRun` it writes and deletes nothing.
  * Throws an Error with every problem when an entry file is bad or the folder holds no entry.
+ * Every check runs before the first write. The new text goes to a temp file, then the entry files are deleted, then the temp file replaces
+ * CHANGELOG.md. If a delete or the replace fails, the script puts back the files it deleted, removes the temp file and leaves CHANGELOG.md as it was.
+ * `unlink` and `now` are for tests.
  * @returns {{ text: string, files: string[], release: string }}
  */
-export function fold({ dir = ENTRY_DIR, changelogPath = CHANGELOG, version, date = new Date().toISOString().slice(0, 10), dryRun = false }) {
+export function fold({ dir = ENTRY_DIR, changelogPath = CHANGELOG, version, date, dryRun = false, unlink = unlinkSync, now = new Date() }) {
+  date ??= localDate(now);
+  if (!isRealDate(date)) throw new Error(`"${date}" is not a date like 2026-10-14`);
   const { files, errors } = checkDir(dir);
   if (errors.length > 0) throw new Error(`The entry files have problems, nothing was changed:\n- ${errors.join('\n- ')}`);
   if (files.length === 0) throw new Error(`No entry file in ${dir}. A release needs at least one.`);
   const entries = files.map((name) => ({ name, text: readFileSync(join(dir, name), 'utf8') }));
   const text = foldIntoChangelog(readFileSync(changelogPath, 'utf8'), entries, version, date);
   const from = text.indexOf(`## [${version}]`);
-  const to = text.indexOf('\n## [', from + 1);
-  const release = text.slice(from, to < 0 ? undefined : to);
+  // The release ends before the next section or the link block, whichever comes first.
+  const next = /\n(## \[|\[[^\]]+\]: )/.exec(text.slice(from));
+  const release = next ? text.slice(from, from + next.index) : text.slice(from);
   if (!dryRun) {
-    writeFileSync(changelogPath, text);
-    for (const file of files) unlinkSync(join(dir, file));
+    const temp = `${changelogPath}.tmp`;
+    const deleted = [];
+    try {
+      writeFileSync(temp, text);
+      for (const entry of entries) {
+        unlink(join(dir, entry.name));
+        deleted.push(entry);
+      }
+      renameSync(temp, changelogPath);
+    } catch (error) {
+      for (const entry of deleted) writeFileSync(join(dir, entry.name), entry.text);
+      rmSync(temp, { force: true });
+      throw new Error(`The fold failed, so the script restored the entry files and left CHANGELOG.md as it was: ${error instanceof Error ? error.message : error}`);
+    }
   }
   return { text, files, release };
 }
@@ -228,7 +271,13 @@ export function main(argv, log = console.log, logError = console.error) {
   const dryRun = flag('--dry-run');
   let date;
   const d = args.indexOf('--date');
-  if (d >= 0) [, date] = args.splice(d, 2);
+  if (d >= 0) {
+    [, date] = args.splice(d, 2);
+    if (!date || date.startsWith('--')) {
+      logError('--date needs a value like 2026-10-14');
+      return 1;
+    }
+  }
   try {
     if (check) {
       const { files, errors } = checkDir();

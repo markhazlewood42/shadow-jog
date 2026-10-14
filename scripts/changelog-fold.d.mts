@@ -2,6 +2,8 @@ export const ENTRY_DIR: string;
 export const CHANGELOG: string;
 export const HEADINGS: string[];
 export const FILE_NAME: RegExp;
+export function isRealDate(date: string): boolean;
+export function localDate(now?: Date): string;
 export function parseEntry(text: string, name?: string): { sections: Record<string, string[]>; errors: string[] };
 export function validateEntry(text: string, name: string): string[];
 export function listEntryFiles(dir?: string): string[];
@@ -15,5 +17,7 @@ export function fold(options: {
   version: string;
   date?: string;
   dryRun?: boolean;
+  unlink?: (path: string) => void;
+  now?: Date;
 }): { text: string; files: string[]; release: string };
 export function main(argv: string[], log?: (message: string) => void, logError?: (message: string) => void): number;

@@ -39,11 +39,12 @@ Not allowed (the check fails):
 - A heading that is not in the table, or any heading at another level than `###`.
 - An `Unreleased` heading. `CHANGELOG.md` keeps that one.
 - Text that is not a heading, a bullet or an indented line under a bullet.
-- A file name that is not lowercase kebab-case ending in `.md`.
+- A file name that is not lowercase kebab-case ending in `.md`. Any file here other than `README.md` must follow this rule, so `Foo.MD`, `notes.txt` and `x.markdown` fail the check.
+- A heading with no space after the `###`.
 
 ## Commands
 
 - `npm run changelog:check` validates every file here (`README.md` is skipped). `npm run check` runs the same check as a unit test (`tests/changelog-fold.test.ts`).
-- `npm run changelog:fold -- <version> [--date YYYY-MM-DD] [--dry-run]` is for a release. It merges the bullets of all files by heading, inserts `## [<version>] - <date>` directly under `## [Unreleased]`, leaves `Unreleased` empty, and deletes the files. It fails and changes nothing if any file is bad or the folder is empty. Bullets still under `Unreleased` (written before this folder existed) join the new section. The date defaults to today.
+- `npm run changelog:fold -- <version> [--date YYYY-MM-DD] [--dry-run]` is for a release. It merges the bullets of all files by heading, inserts `## [<version>] - <date>` directly under `## [Unreleased]`, leaves `Unreleased` empty, and deletes the files. It fails and changes nothing if any file is bad or the folder is empty. `CHANGELOG.md` still holds some bullets under `Unreleased` from before this folder existed. Do not add to them: the fold moves them into the new section, ahead of the entry bullets. The date defaults to today in your local time zone, and it must be a real day (`2026-02-30` fails). If a delete fails part way, the script restores the files and leaves `CHANGELOG.md` as it was.
 
 Release steps: `docs/DEVELOPING.md` section 9.
