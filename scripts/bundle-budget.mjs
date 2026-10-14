@@ -89,7 +89,8 @@ const GZIP_TOTAL_MAX = 456 * 1000;
 // `src/sje/three/index.ts` now, and `tests/sje-imports.test.ts` forbids the re-export. Three more cuts kept the start path small: the data checks (`src/hack3d/checkdata.ts`) run in a DEV build only,
 // the `uniform` block of `hacks.json` is a top-level key that the shipped game never imports, and the looks of the DEV styles B and C are behind `import.meta.env.DEV`.
 // Cap = measured + 1 kB, rounded up to the next 0.1 kB. PROVISIONAL: the numbers are set again from the build that ships once Mark has picked the style (task 10 of the brief).
-const FIRST_PLAY_MAX = 395_900;
+// 2026-10-14 (M8a, Mark yes): re-set to 402.1 kB (measured 401.1 + 1 kB) after the shop and dialogue data files and the UI kit joined first play.
+const FIRST_PLAY_MAX = 402_100;
 
 /**
  * The lazy 3D chunk (Three, the 3D facade, the UnrealBloomPass, the Phase 0 test scene), gzip. Set at 160 kB on 2026-10-05 (real choice C5, accepted by Mark): the spike
