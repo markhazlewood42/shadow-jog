@@ -4,6 +4,9 @@
   "buildCommand": "VITE_HOSTED=1 vite build",
   "outputDirectory": "dist",
   "ignoreCommand": "node scripts/vercel-ignore.mjs",
+  "git": {
+    "deploymentEnabled": { "**": false, "main": true }
+  },
   "functions": {
     "api/*.js": { "maxDuration": 30 }
   },
