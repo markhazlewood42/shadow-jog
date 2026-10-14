@@ -8,8 +8,13 @@
  *
  * Tool files: every file under `src/dev` (the DEV menu, the FX lab, the animation editor, art review, art swap, the viewers, the stage editor, Battle Test),
  * and `src/sje-lab/stagelab.ts` and `lab.ts`. `src/dev/fieldshow.ts` and `src/devroutes.ts` start game scenes (`FieldScene`, `BattleScene`, `PanelScene`), so only their
- * DIRECT imports are checked: a game scene is M8's. A dynamic `import()` of a file under `src/sje` is followed like a static import. Battle Test's boundary waits for Mark's decision (see GAME_BOUNDARY): until he approves an exemption,
- * the test holds it to the brief and a Battle Test that reaches `scenes/battle.ts` fails.
+ * DIRECT imports are checked: a game scene is M8's. A dynamic `import()` of a file under `src/sje` is followed like a static import.
+ *
+ * Battle Test's exemption (Mark, 2026-10-13; docs/engine/et-brief.md pass line 2). Decision 2 B runs the game's own `BattleScene`, which uses the old engine until M8. Battle Test's own
+ * files stay engine-free. They may reach old-engine code only through a dynamic `import()` of a file on the named list `BATTLE_TEST_DYNAMIC`: `src/scenes/battle.ts` and ONE glue module
+ * (`src/dev/stageedit/battleglue.ts`), which routes `postfx` to `game.fx` and holds every other old-engine line of the test. The glue is not an entry (it is the exemption); a static import of
+ * either file from a Battle Test file fails; a dynamic import of any other old-engine file fails; a dynamic import of the two from a file that is not a Battle Test file fails. M8 deletes
+ * the list.
  *
  * The trailer is deleted, not ported (decision 3, issue #84): its files must not exist and no reference may stay in `src`, `scripts` or `docs/DEVELOPING.md`.
  *
@@ -33,6 +38,14 @@ const GAME_BOUNDARY = ['src/boot.ts', 'src/sje/boot.ts'];
 const DIRECT_ONLY = ['src/dev/fieldshow.ts', 'src/devroutes.ts'];
 /** Game files a tool may load with a dynamic `import()`. None: no current tool entry needs one. Anything under `src/dev`, `src/sje-lab` and (followed) `src/sje` is also allowed. */
 const DYNAMIC_GAME: string[] = [];
+/**
+ * The named list of pass line 2's Battle Test exemption: the two old-engine files a Battle Test file may load, with a dynamic `import()` only. The glue module is ONE file.
+ * M8 removes the list.
+ */
+const BATTLE_TEST_GLUE = 'src/dev/stageedit/battleglue.ts';
+const BATTLE_TEST_DYNAMIC = ['src/scenes/battle.ts', BATTLE_TEST_GLUE];
+/** The Battle Test files: the only files that may use the named list. */
+const isBattleTestFile = (f: string): boolean => /^src\/dev\/stageedit\/battle[a-z]*\.ts$/.test(f) && f !== BATTLE_TEST_GLUE;
 
 interface Source {
   read(file: string): string | null;
@@ -142,8 +155,12 @@ function problemsOf(src: Source, entry: string): string[] {
 
 /** A dynamic import from a tool must load another tool file, the engine glue under `src/sje`, or one of the named game files. */
 function dynamicProblems(entry: string, dynamics: Array<{ file: string; target: string }>): string[] {
-  const ok = (t: string): boolean => !GAME_BOUNDARY.includes(t) && (t.startsWith('src/dev/') || t.startsWith('src/sje/') || t.startsWith('src/sje-lab/') || DYNAMIC_GAME.includes(t));
-  return dynamics.filter((d) => !ok(d.target)).map((d) => `${entry}: ${d.file} loads ${d.target} with a dynamic import() (not a tool file, the engine glue or a named game file)`);
+  const ok = (d: { file: string; target: string }): boolean => {
+    const t = d.target;
+    if (BATTLE_TEST_DYNAMIC.includes(t)) return isBattleTestFile(d.file);
+    return !GAME_BOUNDARY.includes(t) && (t.startsWith('src/dev/') || t.startsWith('src/sje/') || t.startsWith('src/sje-lab/') || DYNAMIC_GAME.includes(t));
+  };
+  return dynamics.filter((d) => !ok(d)).map((d) => `${entry}: ${d.file} loads ${d.target} with a dynamic import() (not a tool file, the engine glue or a named game file)`);
 }
 
 const disk: Source = {
@@ -165,11 +182,12 @@ function filesUnder(dir: string, out: string[] = []): string[] {
 }
 
 /** Every tool file that exists now. A stage editor or Battle Test file is checked as soon as it exists (src/dev/stageedit/, src/dev/*). */
-const ENTRIES = [...filesUnder('src/dev'), 'src/devroutes.ts', 'src/sje-lab/stagelab.ts', 'src/sje-lab/lab.ts'].sort();
+// The Battle Test glue is the exemption itself, so it is not an entry: its old-engine lines are what the named list allows (its callers are checked).
+const ENTRIES = [...filesUnder('src/dev').filter((f) => f !== BATTLE_TEST_GLUE), 'src/devroutes.ts', 'src/sje-lab/stagelab.ts', 'src/sje-lab/lab.ts'].sort();
 
 describe('ET pass line 2: no old engine in tool code', () => {
   it('the scan sees the tools of the brief', () => {
-    for (const named of ['src/dev/devmenu.ts', 'src/dev/fxlab.ts', 'src/dev/rigedit.ts', 'src/dev/artreview.ts', 'src/dev/artswap.ts', 'src/dev/fieldshow.ts', 'src/devroutes.ts', 'src/sje-lab/stagelab.ts', 'src/sje-lab/lab.ts', 'src/dev/stageedit/stageedit.ts']) {
+    for (const named of ['src/dev/devmenu.ts', 'src/dev/fxlab.ts', 'src/dev/rigedit.ts', 'src/dev/artreview.ts', 'src/dev/artswap.ts', 'src/dev/fieldshow.ts', 'src/devroutes.ts', 'src/sje-lab/stagelab.ts', 'src/sje-lab/lab.ts', 'src/dev/stageedit/stageedit.ts', 'src/dev/stageedit/battletest.ts', 'src/dev/stageedit/battledialog.ts']) {
       expect(ENTRIES, named).toContain(named);
     }
   });
@@ -195,6 +213,26 @@ describe('ET pass line 2: no old engine in tool code', () => {
     expect(problemsOf(disk, 'src/dev/stageedit/stageedit.ts')).toEqual([]);
     // No editor file imports Phaser (it is gone from the project).
     for (const f of filesUnder('src/dev/stageedit')) expect(code(readFileSync(join(ROOT, f), 'utf8')), f).not.toMatch(/from\s*['"]phaser['"]/);
+  });
+
+  it('Battle Test: its own files are engine-free, and it loads the named glue module and nothing else of the old engine with a dynamic import()', () => {
+    const { files, dynamics, boundary } = closureOf(disk, 'src/dev/stageedit/battletest.ts');
+    expect(problemsOf(disk, 'src/dev/stageedit/battletest.ts')).toEqual([]);
+    expect(problemsOf(disk, 'src/dev/stageedit/battledialog.ts')).toEqual([]);
+    expect(problemsOf(disk, 'src/dev/stageedit/stageedit.ts')).toEqual([]);
+    // The glue and the battle scene are loaded, never imported by value.
+    expect(files.has(BATTLE_TEST_GLUE)).toBe(false);
+    expect(files.has('src/scenes/battle.ts')).toBe(false);
+    expect(boundary.size).toBe(0);
+    expect(dynamics.filter((d) => d.file === 'src/dev/stageedit/battletest.ts').map((d) => d.target)).toEqual([BATTLE_TEST_GLUE]);
+  });
+
+  it('Battle Test: the named list is exactly the battle scene and ONE glue module, and both exist', () => {
+    expect(BATTLE_TEST_DYNAMIC).toEqual(['src/scenes/battle.ts', 'src/dev/stageedit/battleglue.ts']);
+    for (const f of BATTLE_TEST_DYNAMIC) expect(existsSync(join(ROOT, f)), f).toBe(true);
+    // The glue is the one place that names the old effects: no other tool file imports `engine/postfx`.
+    const users = filesUnder('src/dev').filter((f) => /from\s*['"][^'"]*engine\/postfx['"]/.test(code(readFileSync(join(ROOT, f), 'utf8'))));
+    expect(users).toEqual([BATTLE_TEST_GLUE]);
   });
 
   it('the FX lab is a Scene of the new engine, not a LegacyShape', () => {
@@ -246,6 +284,45 @@ describe('ET pass line 2: no old engine in tool code', () => {
     const base = { 'src/scenes/battle.ts': "import { Scene } from '../engine/game';\nexport class BattleScene extends Scene {}", 'src/engine/game.ts': 'export class Scene {}' };
     expect(problemsOf(made({ ...base, 'src/dev/a.ts': "import { BattleScene } from '../scenes/battle';" }), 'src/dev/a.ts')).toEqual(['src/dev/a.ts reaches src/engine/game.ts']);
     expect(problemsOf(made({ ...base, 'src/dev/a.ts': "export const load = () => import('../scenes/battle');" }), 'src/dev/a.ts')).toEqual(["src/dev/a.ts: src/dev/a.ts loads src/scenes/battle.ts with a dynamic import() (not a tool file, the engine glue or a named game file)"]);
+  });
+
+  describe('control: the Battle Test exemption has edges', () => {
+    const old = {
+      'src/scenes/battle.ts': "import { Scene } from '../engine/game';\nexport class BattleScene extends Scene {}",
+      'src/scenes/field.ts': "import { Scene } from '../engine/game';\nexport class FieldScene extends Scene {}",
+      'src/dev/stageedit/battleglue.ts': "import { BattleScene } from '../../scenes/battle';\nimport { postfx } from '../../engine/postfx';\nexport const g = [BattleScene, postfx];",
+      'src/engine/game.ts': 'export class Scene {}',
+      'src/engine/postfx.ts': 'export const postfx = 1;',
+    };
+    const bt = 'src/dev/stageedit/battletest.ts';
+
+    it('a dynamic import of the glue, or of the battle scene, from a Battle Test file passes', () => {
+      expect(problemsOf(made({ ...old, [bt]: "export const go = () => import('./battleglue');" }), bt)).toEqual([]);
+      expect(problemsOf(made({ ...old, [bt]: "export const go = () => import('../../scenes/battle');" }), bt)).toEqual([]);
+    });
+
+    it('a STATIC import of the battle scene or of the glue from a Battle Test file fails', () => {
+      expect(problemsOf(made({ ...old, [bt]: "import { BattleScene } from '../../scenes/battle';\nexport const x = BattleScene;" }), bt)).toEqual(['src/dev/stageedit/battletest.ts reaches src/engine/game.ts']);
+      expect(problemsOf(made({ ...old, [bt]: "import { g } from './battleglue';\nexport const x = g;" }), bt).sort()).toEqual(['src/dev/stageedit/battletest.ts reaches src/engine/game.ts', 'src/dev/stageedit/battletest.ts reaches src/engine/postfx.ts'].sort());
+    });
+
+    it('a dynamic import of ANY OTHER old-engine file from a Battle Test file fails', () => {
+      const out = problemsOf(made({ ...old, [bt]: "export const go = () => import('../../scenes/field');" }), bt);
+      expect(out).toHaveLength(1);
+      expect(out[0]).toContain('src/scenes/field.ts');
+    });
+
+    it('the named files are for Battle Test files only: another tool file that loads them fails', () => {
+      const out = problemsOf(made({ ...old, 'src/dev/a.ts': "export const go = () => import('../scenes/battle');" }), 'src/dev/a.ts');
+      expect(out).toHaveLength(1);
+      expect(out[0]).toContain('src/scenes/battle.ts');
+      expect(problemsOf(made({ ...old, 'src/dev/a.ts': "export const go = () => import('./stageedit/battleglue');" }), 'src/dev/a.ts')).toHaveLength(1);
+    });
+
+    it('the glue itself is the exemption (it reaches the old engine), so it is the only file left out of the entries', () => {
+      expect(problemsOf(made(old), BATTLE_TEST_GLUE).length).toBeGreaterThan(0);
+      expect(ENTRIES).not.toContain(BATTLE_TEST_GLUE);
+    });
   });
 
   it('control: a tool that dynamically imports a src/sje file that reaches the old engine fails; a clean src/sje file passes; src/sje/boot.ts fails', () => {

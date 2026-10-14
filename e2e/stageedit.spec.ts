@@ -402,7 +402,7 @@ test('Align and Copy from n−1 re-lay a group in one undo step; the stage list 
   expect(await page.evaluate(() => window.__stagelab?.scene()?.config.id)).toBe('rooftop');
 });
 
-test('Play hides the handles, E toggles it, the Keys list matches the table (and the Battle Test button is there, switched off until ET task 6)', async ({ page }) => {
+test('Play hides the handles, E toggles it, the Keys list matches the table, and the Battle Test button opens its dialog', async ({ page }) => {
   await openEditor(page, scratch);
   await expect(page.locator('#ovsvg')).toBeVisible();
   await page.keyboard.press('e');
@@ -414,8 +414,9 @@ test('Play hides the handles, E toggles it, the Keys list matches the table (and
   await expect(page.locator('.dlg')).toContainText('Ctrl+]');
   await expect(page.locator('.dlg')).not.toContainText('F5');
   await page.keyboard.press('Escape');
-  // BATTLE TEST (ET task 6): the button is in the page and switched off; the task turns it on and puts the dialog assertion back here (the archive case opened the dialog).
-  await expect(page.locator('#b-test')).toBeDisabled();
+  await page.locator('#b-test').click();
+  await expect(page.getByRole('dialog', { name: 'Battle Test' })).toBeVisible();
+  await page.keyboard.press('Escape');
   await expect(page.locator('.dlg')).toHaveCount(0);
 });
 
@@ -827,13 +828,24 @@ test('the side panels are wide enough that labels do not wrap, the stage keeps w
   expect(await page.evaluate(() => window.__stagelab?.crisp())).toBe(true);
 });
 
-test('Revert also throws away an unsaved HUD move (the archive case also started a Battle Test with the unsaved HUD: that half is ET task 6)', async ({ page }) => {
+test('Revert also throws away an unsaved HUD move, and Battle Test fights with the HUD as it is on screen', async ({ page }) => {
   const { errors } = await openEditor(page, scratch);
   const h0 = (await resolvedOf(page)).hud.commands;
   await dragGame(page, { x: h0.x + 56, y: h0.y + 21 }, { x: h0.x + 56 + 30, y: h0.y + 21 });
   expect((await globalHud(page)).commands.x).toBe(h0.x + 30);
-  // The scene shows the unsaved HUD (BATTLE TEST, task 6, adds the fight on it).
+  // The scene shows the unsaved HUD, and so does the fight: Battle Test runs on the stage as it is on screen.
   expect(await page.evaluate(() => window.__stagelab?.scene()?.config.hud.commands.x)).toBe(h0.x + 30);
+  await page.evaluate(async () => {
+    const se = window.__stageedit;
+    if (!se) throw new Error('no editor');
+    window.__stagelab?.game?.stop();
+    const st = se.session.resolved;
+    await se.startBattle({ party: st.demo.party, roster: st.demo.rosters['3'] ?? [], setKey: '3', seed: 8, fullResources: true, speed: 1, auto: false });
+  });
+  expect(await page.evaluate(() => window.__stageedit?.battle()?.stage.hud.commands.x)).toBe(h0.x + 30);
+  await page.evaluate(() => window.__stageedit?.stopBattle());
+  await page.evaluate(() => window.__stagelab?.game?.start());
+  await flush(page);
   await page.locator('#b-revert').click();
   await expect(page.locator('.dlg')).toContainText('Throw away 1 change to the global HUD (hud-640.json, used by every battle)');
   await page.locator('.dlg button', { hasText: 'Throw away' }).click();

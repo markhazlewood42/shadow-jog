@@ -259,6 +259,8 @@
       .bt-check { display: flex; gap: 6px; align-items: center; }
       .bt-partial { color: var(--dim); font-size: 12px; margin-top: 10px; border-left: 2px solid var(--line); padding-left: 8px; }
       .bt-keys { color: var(--dim); font-size: 12px; margin-top: 10px; }
+      /* While a Battle Test runs, the fight owns the keys and the stage: the panels and the toolbar wait (Esc comes back). */
+      body.testing #left, body.testing #right, body.testing #top { pointer-events: none; opacity: 0.5; }
       button.test.on { background: #3a2a14; border-color: var(--hand); color: #fff; }
       .keys-table { border-collapse: collapse; width: 100%; font-size: 13px; }
       .keys-table th { text-align: left; color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; padding-top: 8px; }
@@ -294,7 +296,7 @@
           <button id="b-revert" type="button" title="Reload the saved file and throw away unsaved changes">Revert</button>
         </div>
         <div class="grp-tb">
-          <button id="b-test" type="button" class="test" disabled title="Battle Test: run a real fight on this stage (Ctrl+Enter). Not built yet: it is ET task 6.">Battle Test</button>
+          <button id="b-test" type="button" class="test" title="Battle Test: run a real fight on this stage, unsaved changes included (Ctrl+Enter)">Battle Test</button>
           <button id="b-keys" type="button" title="List the keyboard shortcuts">Keys</button>
           <button id="b-help" type="button" class="help" title="Help: what is a stage? (?)" aria-label="Help: what is a stage?">?</button>
         </div>

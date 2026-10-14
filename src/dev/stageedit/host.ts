@@ -384,5 +384,46 @@ export class StageHost {
   close(): void {
     this.current.close();
   }
+
+  // ---------------------------------------------------------------- Battle Test (ET task 6)
+
+  /** What the scene showed when `suspend` closed it: `resume` stands the same stage up again. */
+  private parked: { stage: StageConfig; enemies: readonly string[]; phase: Phase } | null = null;
+
+  /**
+   * Stand the editor's scene aside while a Battle Test runs: the test puts the game's own stage scene on the screen, and two stage scenes must not draw at once. The page keeps
+   * holding this object. Between `suspend` and `resume` the editor must not read `scene`, `fighters` or `boxOf` (the scene is closed).
+   */
+  suspend(): void {
+    const s = this.current;
+    this.parked = { stage: s.config, enemies: [...s.enemies], phase: s.phase };
+    s.close();
+  }
+
+  /** Stand a scene up again on the stage `suspend` parked. The page then syncs it with the session (`flush`), which may have changed meanwhile. No-op when nothing is parked. */
+  resume(): void {
+    const p = this.parked;
+    if (!p) return;
+    this.parked = null;
+    const fresh = StageHost.sceneFor(this.art, this.data, p.stage, p.enemies, p.phase);
+    void this.game.run(fresh);
+    this.current = fresh;
+  }
+
+  /** The data a `LiveStageScene` (the game's stage for a real fight) is made from: this editor's pictures and data files, the given stage, crew and enemies. */
+  liveInit(stage: StageConfig, lineup: readonly string[], enemies: readonly string[]): BattleStageInit {
+    return {
+      stages: { [stage.id]: stage },
+      stageId: stage.id,
+      metas: this.art.metas,
+      standIns: this.art.standIns,
+      lineup,
+      setKey: setKeyFor(enemies, stage),
+      enemies: [...enemies],
+      axes: this.data.axes,
+      facing: this.data.facing,
+      heroes: this.data.heroes,
+    };
+  }
 }
 

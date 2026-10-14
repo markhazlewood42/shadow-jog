@@ -11,8 +11,7 @@
  *  - an unknown `?scene=` shows the title, not a viewer;
  *  - a bad body gets 400 with a problem, and the hash of the file is the same before and after a dry run.
  *
- * Held back (`test.fixme`) until the tool exists: Battle Test (ET task 6, Builder C), listed in the commit message of the step that holds it back. The person who builds the tool
- * removes the `fixme` and adapts the element ids to the tool. The Battle Stage Editor (ET task 5) is built: its case below is a real case.
+ * Every case is real: nothing is held back any more (the Battle Stage Editor is ET task 5, Battle Test ET task 6).
  *
  * Run:  PW_PORT=3012 npx playwright test e2e/tools.spec.ts --reporter=line
  */
@@ -214,7 +213,7 @@ test('the stage lab (/sjestage.html) opens a stage at the game screen size and d
   }
 });
 
-// ---- held back until the tool exists ------------------------------------------------------------------------------------------------------------------------------
+// ---- the stage editor and Battle Test ----------------------------------------------------------------------------------------------------------------------------------
 
 test.describe('the Battle Stage Editor (/stageedit.html)', () => {
   test('opens with the stages of the 640 set, draws the stage canvas, and starts with nothing unsaved', async ({ page }) => {
@@ -254,14 +253,47 @@ test.describe('the Battle Stage Editor (/stageedit.html)', () => {
 });
 
 test.describe('Battle Test (from the Battle Stage Editor)', () => {
-  // Held back: ET task 6 (Builder C) builds it. It runs the game's own BattleScene over the editor's stage (decision 2, option B).
-  test.fixme('Start runs a fight on the unsaved stage: the slot is where the edit put it, and Esc returns to the editor', async ({ page }) => {
+  // ET task 6: the game's own BattleScene runs over the editor's stage (decision 2, option B). The full set of cases is e2e/battletest.spec.ts; this one is the tool-opens case.
+  test('Start runs a fight on the unsaved stage: the slot is where the edit put it, and Esc returns to the editor', async ({ page }) => {
+    const problems: string[] = [];
+    page.on('pageerror', (e) => problems.push(String(e)));
+    page.on('console', (m) => {
+      if (m.type() === 'error') problems.push(m.text());
+    });
+    // No `?scratch=`: the page reads `src/data`. This case presses no Save, so it writes nothing.
+    await page.setViewportSize({ width: 2100, height: 1000 });
     await page.goto('/stageedit.html');
+    await page.waitForFunction(() => (window.__stagelab?.ready === true && !!window.__stageedit) || !!window.__stagelab?.error, undefined, { timeout: 30_000 });
+    expect(await page.evaluate(() => window.__stagelab?.error ?? null)).toBeNull();
+    // The unsaved edit: the first party slot moves 40 pixels. Control: before a test the game hook has no battle stage.
+    expect(await page.evaluate(() => (window as unknown as { __SJ__?: unknown }).__SJ__ ?? null)).toBeNull();
+    const slotX = await page.evaluate(() => {
+      const e = window.__stageedit;
+      if (!e) throw new Error('no editor');
+      const before = e.session.resolved.party[0]?.x ?? 0;
+      e.session.edit('Move slot 1', (d) => {
+        const slot = d.stages[e.session.stageId]?.party[0];
+        if (slot) slot.x += 40;
+      });
+      e.flush();
+      return before;
+    });
+    expect(await page.evaluate(() => window.__stageedit?.session.dirty)).toBe(true);
     await page.getByRole('button', { name: /Battle Test/ }).click();
     await page.getByRole('button', { name: /Start/ }).click();
     expect(await waitUntil(page, '!!sj.battleStage', 30_000)).toBe(true);
+    // The first hero stands where the unsaved slot says, not where the saved file has it.
+    const hero = await sj<{ x: number; side: string } | undefined>(page, "sj.battleStage.figures.find((f) => f.side === 'party')");
+    expect(hero?.x).toBe(slotX + 40);
+    // The picture is not one flat color (the stage is drawn under the game's battle).
+    const snap = await page.evaluate(() => window.__stagelab?.snapshot() ?? Promise.reject(new Error('no hook')));
+    expect(snap.colours).toBeGreaterThan(100);
     await page.keyboard.press('Escape');
     expect(await waitUntil(page, 'sj.battleStage === null', 30_000)).toBe(true);
+    // Back in the editor with the edit still unsaved.
+    expect(await page.evaluate(() => window.__stageedit?.session.dirty)).toBe(true);
+    await expect(page.locator('#st-msg')).toContainText('Back to editing');
+    expect(problems).toEqual([]);
   });
 });
 

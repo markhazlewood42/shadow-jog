@@ -27,7 +27,8 @@
  * Undo is the session's own snapshots (`session.ts`). The scene's `snapshot` and `restore` keep its frame and its figures' state when the
  * scene has to be made again (the axes, the facing or the heroes changed: `host.ts`).
  *
- * Battle Test (the button and Ctrl+Enter) is ET task 6: the button is there and switched off, and the places the test will hook into are marked "BATTLE TEST".
+ * Battle Test (the button and Ctrl+Enter, ET task 6): the dialog (`battledialog.ts`) and the fight (`battletest.ts`), which runs the game's own battle over this page's unsaved stage. While a
+ * test runs, `testing` is set: the editor's scene is stood aside, `flush` and `redraw` wait, and the page's keys go to the game (Esc comes back).
  */
 import { BG_IDS } from '../../art/battlebg480';
 import { ENEMIES } from '../../data/enemies';
@@ -40,6 +41,8 @@ import { H, W } from '../../sje';
 import type { Phase } from '../../battlestage/demo';
 import type { Figure } from '../../battlestage/figure';
 import { bootEditor } from './boot';
+import { battleTestDialog } from './battledialog';
+import { BattleTest, type BattleTestOptions, forwardKey } from './battletest';
 import { formatJson } from './jsonfmt';
 import { devicePixelsPerGamePixel, zoomLine } from './zoom';
 import { confirmBox, infoBox, promptBox } from './dialog';
@@ -67,8 +70,14 @@ declare global {
       flush: () => void;
       save: () => Promise<boolean>;
       interact: Interact;
-      /** The stage host (the scene that is running, `fighters`, `pick`...). BATTLE TEST (task 6) adds `battle`, `startBattle` and `stopBattle` here. */
+      /** The stage host (the scene that is running, `fighters`, `pick`...). */
       host: StageHost;
+      /** Battle Test: the running test (its `status()`, `trace`, `options`), or null. */
+      battle: () => BattleTest | null;
+      /** Start a Battle Test with these options and no dialog (what the dialog's Start does). Resolves when the fight is on. */
+      startBattle: (o: BattleTestOptions) => Promise<void>;
+      /** End the running test and return to editing (what Esc does). */
+      stopBattle: () => void;
       /** Line up the selection, as the Align bar does (tests use it). */
       align: (how: AlignHow) => boolean;
       /** Every design rule broken on every stage right now (what the Warnings chip lists; tests use it). */
@@ -178,8 +187,10 @@ async function main(): Promise<void> {
       return copy;
     };
 
-    // BATTLE TEST (ET task 6): the fight takes the scene over while it runs; `flush` and `redraw` below wait for it (see `testing`).
-    const testing: null = null;
+    // BATTLE TEST (ET task 6): the fight takes the scene over while it runs; `flush` and `redraw` below wait for it.
+    let testing: BattleTest | null = null;
+    /** True from the Start click until the fight is on (a second Start in between does nothing). */
+    let starting = false;
     let scheduled = false;
     /** The stage whose slots the floor is painted for until the next sync without one: during a fighter drag, the stage as the drag began, so the puddles hold still. */
     let wantFloor: StageConfig | undefined;
@@ -195,6 +206,8 @@ async function main(): Promise<void> {
     };
     function flush(): void {
       scheduled = false;
+      // A test owns the scene: the session may change meanwhile (the panels stay live), and `endTest` flushes once the editor's scene is back.
+      if (testing || starting) return;
       const stage = previewed();
       try {
         // The axes (the foot anchors), which enemies are mirrored (the Mirror switch) and how tall and broad each hero stands (the Height and Build sliders) are fields of the scene's
@@ -343,8 +356,12 @@ async function main(): Promise<void> {
       svg.style.top = `${r.y - c.top}px`;
       svg.style.width = `${r.w}px`;
       svg.style.height = `${r.h}px`;
+      if (testing || starting) {
+        svg.style.display = 'none';
+        return;
+      }
       warnings = computeWarnings();
-      const handles = view.mode === 'edit' && !testing && r.w > 0;
+      const handles = view.mode === 'edit' && r.w > 0;
       svg.style.display = handles ? 'block' : 'none';
       if (handles) svg.innerHTML = overlayMarkup({ stage: session.resolved, figures: figures(), selection: session.selection, hover: interact.hover, hudOverridden: new Set(HUD_REGIONS.filter((r) => isOverridden(session.stage, r))), show: view.show, phase: view.phase, locked: view.locked }, scale);
       showWarnings();
@@ -511,7 +528,7 @@ async function main(): Promise<void> {
     byId('b-redo').addEventListener('click', () => doRedo());
     byId('b-save').addEventListener('click', () => void save());
     byId('b-revert').addEventListener('click', () => void revert());
-    // BATTLE TEST (ET task 6): the button is in the page and switched off (`disabled`, with a title that says why). The task turns it on and wires its click here.
+    byId('b-test').addEventListener('click', () => void battleTest());
     byId('b-keys').addEventListener('click', () => void showKeys());
     byId('j-copy').addEventListener('click', () => void copyJson());
 
@@ -552,9 +569,76 @@ async function main(): Promise<void> {
       else bar.say(label ? `Redid “${label}”.` : 'Redid the change.');
     };
 
-    // BATTLE TEST (ET task 6) goes here: the dialog, the fight on the game's own `BattleScene` over this page's unsaved stage, and Esc back to the editor.
-    // Its places in this file: `testing` (above) is the running test and the editor waits for it in `flush`, `redraw` and the keydown handler; `run.test` is the Ctrl+Enter key;
-    // `window.__stageedit` gets `battle`, `startBattle` and `stopBattle`.
+    // ---------------------------------------------------------------- Battle Test
+    /** The dialog, then the fight (Ctrl+Enter and the Battle Test button). */
+    async function battleTest(): Promise<void> {
+      if (testing || starting) return;
+      const stage = previewed();
+      const roster = stage.demo.rosters[session.setKey] ?? [];
+      const o = await battleTestDialog({ stage, setKey: session.setKey, roster, unsaved: session.dirty });
+      if (o) await startBattle(o);
+    }
+
+    /** Stand the editor's scene aside and run the fight on the stage as it is on screen. */
+    async function startBattle(o: BattleTestOptions): Promise<void> {
+      if (testing || starting) return;
+      starting = true;
+      interact.cancel();
+      const unsaved = session.dirty;
+      try {
+        testing = await BattleTest.start(game, scene, previewed(), o, unsaved);
+      } catch (e) {
+        starting = false;
+        flush();
+        bar.say(`Battle Test could not start: ${e instanceof Error ? e.message : String(e)}`, 'bad');
+        return;
+      }
+      starting = false;
+      const running = testing;
+      document.body.classList.add('testing');
+      redraw();
+      bar.say(unsaved ? 'Testing unsaved changes. Esc returns to the editor.' : 'Testing the saved stage. Esc returns to the editor.');
+      // The fight ends by itself (a win, a defeat, a flight): the editor comes back and says how it went.
+      void running.finished.then((out) => {
+        if (testing === running) endTest(out === 'win' ? 'Victory' : out === 'lose' ? 'Defeat' : 'Escaped');
+      });
+    }
+
+    /** End the test (Esc, or the fight is over): the editor's scene comes back on the session as it is now. The selection and the undo history were never touched. */
+    function endTest(how?: string): void {
+      const t = testing;
+      if (!t) return;
+      testing = null;
+      t.stop();
+      scene.resume();
+      document.body.classList.remove('testing');
+      game.scale.refit();
+      flush();
+      bar.say(how ? `Back to editing. The fight ended: ${how}.` : 'Back to editing.');
+    }
+
+    // While a test runs the page's keys go to the game's input (Esc is the editor's: it ends the test). A capturing listener, so no editor key sees them.
+    for (const type of ['keydown', 'keyup'] as const) {
+      document.addEventListener(
+        type,
+        (e) => {
+          if (!testing) return;
+          if (e.key === 'Escape') {
+            if (type === 'keydown') {
+              e.preventDefault();
+              e.stopPropagation();
+              endTest();
+            }
+            return;
+          }
+          if (forwardKey(booted.keys, e)) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        },
+        true,
+      );
+    }
 
     async function copyJson(): Promise<void> {
       try {
@@ -888,8 +972,7 @@ async function main(): Promise<void> {
         redraw();
       },
       mode: () => setMode(view.mode === 'edit' ? 'play' : 'edit'),
-      // BATTLE TEST (ET task 6): Ctrl+Enter starts it. Until then the key says so.
-      test: () => bar.say('Battle Test comes with ET task 6; it is not in this build yet.'),
+      test: () => void battleTest(),
     };
     document.addEventListener('keydown', (e) => {
       if (document.querySelector('.dlg-back')) return; // a dialog handles its own keys
@@ -966,7 +1049,7 @@ async function main(): Promise<void> {
     new ResizeObserver(redraw).observe(centre);
 
     installTips();
-    window.__stageedit = { session, view, flush, save, interact, host: scene, align: (how) => inspector.alignSelection(how), warnings: () => warnings };
+    window.__stageedit = { session, view, flush, save, interact, host: scene, battle: () => testing, startBattle, stopBattle: () => endTest(), align: (how) => inspector.alignSelection(how), warnings: () => warnings };
     inspector.build();
     flush();
     bar.say(booted.standIns ? 'Mark’s Sprite Fusion sheets are not on this machine: the crew are stand-in blocks.' : 'Click a fighter, the horizon, a row or a HUD box. Drag to move it; Ctrl+S saves; the Keys button lists the shortcuts.');

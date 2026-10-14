@@ -283,7 +283,13 @@ describe('who may import the engine', () => {
   it('ET: the DEV tools reach the engine through the size module and the facade only, and never the runtime files (Game, LegacyShape, gameapi)', () => {
     const dev = all.filter((e) => outsideEngine(e) && isDevTool(e.file));
     const allowed = ['src/sje/core/size', 'src/sje', 'src/sje/index'];
-    expect(dev.filter((e) => !allowed.includes(e.target ?? '')).map((e) => `${e.file} -> ${e.target}`)).toEqual([]);
+    // ET task 6: Battle Test's glue module (the one file that joins the game's old battle scene to the engine, tests/et-tools.test.ts) routes the old effects to `game.fx` with
+    // `routePostfx`, as `src/sje/boot.ts` does. That is the one extra edge, by file and target.
+    const glueEdge = (e: Edge): boolean => e.file === 'src/dev/stageedit/battleglue.ts' && e.target === 'src/sje/fx/route';
+    expect(dev.filter((e) => !allowed.includes(e.target ?? '') && !glueEdge(e)).map((e) => `${e.file} -> ${e.target}`)).toEqual([]);
+    // The edge exists (the exemption is not stale), and it is the only one: no other file may take it.
+    expect(dev.filter(glueEdge)).toHaveLength(1);
+    expect(dev.filter((e) => e.target === 'src/sje/fx/route').map((e) => e.file)).toEqual(['src/dev/stageedit/battleglue.ts']);
     // The scan is alive: the scene base of the viewers and the FX lab (src/dev/viewers/base.ts), and the dev routes, take the engine from the facade.
     expect(dev.some((e) => e.file === 'src/dev/viewers/base.ts' && (e.target === 'src/sje' || e.target === 'src/sje/index'))).toBe(true);
     expect(dev.some((e) => e.file === 'src/devroutes.ts' && (e.target === 'src/sje' || e.target === 'src/sje/index'))).toBe(true);
