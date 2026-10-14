@@ -143,7 +143,7 @@ export function richWorld(): { snapshot: Snapshot; live: LiveAnswer } {
     live: liveAnswer(
       'online',
       liveState({
-        sessions: [{ id: 's1', title: 'Flip the default', branch: 'engine-m6-flip', folder: 'shadow-jog', state: 'working', startedAt: day(0.1), agents: { running: 2, done: 1, names: ['reader', 'runner', 'builder'] }, yourMove: null }],
+        sessions: [{ id: 's1', title: 'Flip the default', branch: 'engine-m6-flip', folder: 'shadow-jog', state: 'working', startedAt: day(0.1), agents: { running: 2, done: 1, names: ['reader', 'runner', 'builder'] }, yourMove: { at: new Date(NOW.getTime() - 20 * 60_000).toISOString(), lines: ['Rename the required checks in the ruleset'] } }],
         worktrees: [{ path: 'C:/work/shadow-jog-m6', branch: 'engine-m6-flip', dirty: 2 }],
       }),
     ),

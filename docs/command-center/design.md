@@ -172,7 +172,14 @@ sessions --files--> local reporter --write, keys expire--> Upstash Redis <--read
 
 The page reads from top to bottom, in order of importance:
 
-1. **Your move.** Every open action for Mark in one list. The open decision issues come first (section 5.5). Then the last "Your move" box of each active session, the "Next up for Mark" list in `status.md`, and the PRs that wait for his review or merge. Each item links to its source. In hosted mode the source of "Your move" is the `next_for_mark` of the workstream files (section 5.9). `status.md` stays the local-mode source. *(Proposed: `your-move-redesign.md` replaces this with facts plus live asks. Draft, waits for Mark.)*
+1. **Your move.** (Rewritten 2026-10-13, `your-move-redesign.md`.) Only items that clear themselves. The local page and the hosted page use one shared rule (`tools/command-center/src/shared/your-move.ts`) over three sources, most blocking first:
+   - **Decision issues.** An issue is open, has the label `decision`, and `markhazlewood42` made it. It links to its decision page (section 5.5). It clears when the issue is closed.
+   - **Live asks.** The lines of the newest "Your move" box of a live session, one item per line, at most 6 lines of 160 characters. Each item shows the session title and the age of the box, and links to the session on the Agents page (`/agents#session-<id>`). A live ask hides when any one of four rules holds: (1) the session is not live (the process list of Claude Code has no such process, or the `live` key is not fresh); (2) Mark sent a message to the session after the box; (3) the box says "Your move: nothing", or a newer box replaced it; (4) the box is more than 12 hours old, or has no usable time. A newer reply without a box leaves the box as it is.
+   - **Pull requests that wait for Mark.** The `attentionOf` rule: open, not a draft, made by Mark. The action is `merge` when the checks pass, and `fix` when a check failed or a reviewer asked for changes. The text of the item is the number and the title from GitHub, never session text. It links to the PR and clears when the PR is merged or closed.
+
+   **Action rule (Mark, 2026-10-13).** Every item links to a place where Mark can act: a decision page, a PR, or a live session. An item that links only to document text is not allowed, and the shared rule leaves out an item with no such link. So the `status.md` "Next up for Mark" list, the open decisions of the engine docs and the `next_for_mark` lines of the workstream files are not sources. A line that needs Mark becomes a decision issue, a PR, or a live ask. A check names an open engine-doc decision that has no decision issue: `/docs/decisions` shows a warning, and `tests/decision-coverage.test.ts` fails on one in its fixture.
+
+   **Hosted mode.** The decisions and the PRs come from the snapshot, the live asks from the `live` key. When the key is older than 150 s (the reporter is offline), a request failed, or the reporter does not run, the list shows "Reporter offline" (or the reason) and hides ALL live asks. A failed reporter never shows old asks. The reporter sends the lines under a wider allow-list (section 11.1 and `README.md`, "What leaves this machine"): only for a live session, only when the box passes the four rules, redacted like a title, and nothing else of any message.
 2. **Running.** (Revision 2.) One row for each active session, in order of start: its title, a state word, how long it has run, and a link to its session on the Agents page (`/agents#session-<id>`). Agents and workflows show only in the diagram. A label tells how many automated runs are hidden.
 3. **Pull requests.** The open PRs, with review state and checks, and one link to the merged PRs (as built in PR #22).
 4. **Status.** (Revision 2.) A summary of five rows with links, and a milestone strip (section 5.6).
@@ -260,7 +267,7 @@ The page reads from top to bottom, in order of importance:
 
 ### 5.6 Status panel (revision 2)
 
-The panel is a summary. Each row is a label, a value and a link. It does not copy or summarize the text of `status.md`. In hosted mode the "Next up" count comes from the `next_for_mark` of the workstream files (section 5.9). `status.md` stays the local-mode source.
+The panel is a summary. Each row is a label, a value and a link. It does not copy or summarize the text of `status.md`. The "Next up" count comes from `status.md` in both modes (the snapshot carries its text).
 
 | Row | Value | Link |
 |---|---|---|
@@ -283,7 +290,7 @@ Data:
 - CI on main is new. The GitHub module reads `gh run list --workflow ci.yml --branch main --limit 1` with the PRs, every 60 seconds. This adds one exact command to the allow-list of the `gh` runner.
 - A row whose source failed shows an error label and a Retry button. The other rows stay.
 
-**Known gap (revision 3).** All sessions edit one `status.md`. The panel reads the "Next up for Mark" list under the first "Right now" heading. When a newer state sits under another heading, the panel shows the older list with no error (seen on 2026-10-11). In hosted mode the workstream files (section 5.9) replace `status.md` as the source of per-branch state and of `next_for_mark`. `status.md` stays the local-mode source. `status.md` keeps the overview and the roster. Other gaps of the local CC: it reads only the checked-out branch, the page does not show worktrees or the session `gitBranch`, no module reads `docs/roadmap/roadmap.json`, and it is local only.
+**Known gap (revision 3).** All sessions edit one `status.md`. The panel reads the "Next up for Mark" list under the first "Right now" heading. When a newer state sits under another heading, the panel shows the older list with no error (seen on 2026-10-11). In hosted mode the workstream files (section 5.9) are the source of per-branch state. `status.md` keeps the overview and the roster. Other gaps of the local CC: it reads only the checked-out branch, the page does not show worktrees or the session `gitBranch`, no module reads `docs/roadmap/roadmap.json`, and it is local only.
 
 ### 5.7 Copy and Download (revision 2)
 
@@ -328,8 +335,6 @@ title: M6 flip default
 branch: engine-m6-flip
 roadmap: M6            # id in roadmap.json
 state: review          # active | review | blocked | parked | merged
-next_for_mark:
-  - Rename the required checks in the main ruleset to e2e (1/4) to e2e (4/4)
 blocked_on: [61]       # decision issue numbers
 updated: 2026-10-11
 ---
@@ -348,8 +353,7 @@ Rules for sessions (they go into `CLAUDE.md` with the build):
 - A file that fails validation shows as a red row with its path and the error (section 7).
 
 The page:
-- A new Workstreams view: one card per workstream, grouped by roadmap lane. A card shows the branch, the PR and checks, live sessions, the worktree and `next_for_mark`.
-- "Your move" (section 5.1) also collects `next_for_mark` from every workstream.
+- A new Workstreams view: one card per workstream, grouped by roadmap lane. A card shows the branch, the PR and checks, live sessions, the worktree and the blocking decision issues. (The `next_for_mark` list was removed on 2026-10-13: nothing cleared it, and "Your move" no longer reads it.)
 - The data comes from `/api/snapshot` on Vercel (section 6). The local CC does not get this view (step 6 was dropped on 2026-10-12).
 
 ---
@@ -453,7 +457,7 @@ Steps 1 to 4 are built and merged. Step 5 is built and merged (see the status no
 - **Start rule (changed 2026-10-13).** Mark starts the reporter by hand with the tray app (`tools/command-center/scripts/command-center-tray.ps1`, a desktop shortcut). The `SessionStart` hook of the first build is no longer needed. It is still in `~/.claude/settings.json` and must be removed after Mark's tray test (README step 4). The hook missed the sessions that start in `home-base` and move into shadow-jog later (it saw only the cwd at the start), and the reporter then ended after 30 idle minutes with nothing to start it again. The tray starts the reporter launcher (`--manual`: lock, port check, pinned copy, no idle exit) and the local Command Center on port 3009 as hidden children, shows their state in one icon, and stops both on Quit or Restart (`--stop` always, then `taskkill /T` of the kept process ids, then the end of the job). All children run in a Windows job object with `KILL_ON_JOB_CLOSE`, so the system ends them if the tray dies without Quit. A second tray start finds a named mutex and exits. The lock and the port check still stop a second reporter.
 - **Previous rule (the hook).** A `SessionStart` hook started the reporter if it was not running (a lock file plus a port check). It detached at once with a 1 s budget. It acted only when the session's cwd was inside a shadow-jog checkout or worktree. The hook file stays in the repo until the settings entry is gone.
 - **It runs from a pinned copy of `origin/main`** in a git-ignored folder, rebuilt when `main` changes `tools/command-center/`. To see this, the reporter runs `git fetch` for `origin/main` every 2 minutes (the same allowance as in section 2.2, remote-tracking refs only). A branch switch in the shared checkout then cannot change its code. The fetch runs in the reporter's own pinned clone, never in the shared checkout, so the reporter cannot move `origin/main` under a session.
-- **No message text, ever.** Titles, names and counts only, as the local CC does now. The reporter sends only an allow-list of fields: session title, branch, cwd folder name, busy or idle, agent names and counts, worktree folder name (not the full path), branch and dirty count, and the frontmatter fields of the workstream schema. Never message text, never file bodies other than workstream frontmatter.
+- **No message text, except the live ask (Mark, 2026-10-13).** Titles, names and counts, as the local CC does. The reporter sends an allow-list of fields: session title, branch, cwd folder name, busy or idle, agent names and counts, worktree folder name (not the full path), branch and dirty count. The one exception is the live ask of section 5.1: per live session, at most 6 lines of the newest "Your move" box, each redacted like a title and cut to 160 characters, with the time of the box, sent only when the box passes the four rules. Nothing else of any message, never file bodies. (The first version of this rule, of 2026-10-11, allowed no message text at all.)
 - **Continuous protection check.** Every 10 minutes the reporter makes one request to `/api/live` without the login cookie. Protected: a 401, or a redirect to the Vercel login (an https address on `vercel.com` or a subdomain, with a login or SSO path or a `next`/`redirect` parameter). Public: a 200 with the JSON body of `/api/live`. If the page is public, the reporter stops publishing, deletes the `live` key, and logs the reason. A network error, a timeout or a 5xx changes nothing. The reporter logs it and checks again at the next 10-minute check.
 - **Write token**: the Upstash read-write token, in `~/.shadow-jog-cc/upstash.env`, outside every repo. The reporter writes to Upstash directly, so it does not pass through Vercel Authentication.
 - Cloud sessions send no heartbeat. Their pushes still show through `/api/snapshot`.

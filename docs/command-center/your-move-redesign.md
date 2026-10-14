@@ -4,7 +4,7 @@ title: "Command Center — Your move redesign"
 project: shadow-jog
 created: 2026-10-13
 updated: 2026-10-13
-status: draft, questions A and B answered 2026-10-13, waits for Mark's go to build. No code changed.
+status: built 2026-10-13 on branch cc-roadmap-fixes (questions A and B answered). Waits for the verifiers and for the reporter debug session.
 tags: [tooling, command-center, design]
 ---
 
@@ -83,6 +83,26 @@ Live asks depend on a working reporter. Mark reports open problems in the local 
 - **A. Answered 2026-10-13.** Mark: "It's OK to keep them IF they're actually actionable. For example, one of the decision items just links to a wall of text document segment. It doesn't link to an actual decision UI. If there's an open decision, it needs to use the GH issue decision framework + dedicated UI." Result: the action rule in section 2, and the two removals in section 5.
 - **B. Answered 2026-10-13.** Mark approved the wider reporter allow-list in section 4. The build gets an attacker verifier for that path.
 
-## 8. Not built yet
+## 8. What is built (2026-10-13, branch `cc-roadmap-fixes`)
 
-No code changed. This note is a draft. It proposes to replace section 5.1 of `design.md` (the "Your move" part) after Mark approves it.
+Built, section by section of this note:
+
+| Section | What exists | Where |
+|---|---|---|
+| 2 The model | One shared rule over the three sources (decision issues, PRs that wait for Mark, live asks). The four hide rules are `askStatus`. Every item must link to a decision page, a PR or a live session, or the rule leaves it out. | `tools/command-center/src/shared/your-move.ts` |
+| 2 Local page | `buildYourMove` reads four panels (decisions, sessions, GitHub, live agents). A live ask needs a fresh process list and a fresh session read. | `src/server/now/yourMove.ts`, `src/server/routes/now.ts` |
+| 2 Hosted page | The same rule over the snapshot and the `live` key. A key older than 150 s, a failed request, a missing key or an unreadable value hides all live asks and shows "Reporter offline" (or the reason). The page checks the age again with its own clock. | `src/web/hosted/your-move.ts` |
+| 4 Trust rule | The reporter sends `yourMove: { at, lines }` for a live session: at most 6 lines, markdown stripped, redacted like a title, cut to 160 characters, only when the box passes the four rules and only from a fresh read of the sessions module. `parseLive` holds the same caps. The protection check did not change. | `src/server/publish/map.ts`, `module.ts`, `src/shared/live.ts`; `README.md` "What leaves this machine" |
+| 5 What goes away | `next_for_mark` is gone from the validator, the five workstream files, the cards, the README and the CLAUDE.md bullet. The `status.md` list and the engine-doc decisions are not sources. | `src/shared/workstream.ts`, `docs/workstreams/` |
+| 5 The new check | An open engine-doc decision of Mark with no decision issue (matched by a link to its heading, or by its id in the issue title or question) fails a test and shows a warning on `/docs/decisions`. | `src/shared/decision-coverage.ts`, `tests/decision-coverage.test.ts` |
+| 6 Tests | `yourMove.test.ts` (one test for each rule), `hosted-your-move.test.ts`, `publish-map.test.ts` and `publish-module.test.ts` (caps, cut, redaction, "nothing else"), `hosted-*`, `workstream*.test.ts`, `engine-table-text.test.tsx`, `e2e/now.spec.ts`, `e2e/hosted/hosted.spec.ts`. | `tools/command-center/tests/`, `e2e/` |
+
+Choices made where this note was open:
+
+- A box with no usable time is hidden (rule 4 cannot be shown to hold). Real session lines always carry a time.
+- The light of a box is shown on the local page and is not sent to the hosted page.
+- A PR with no usable address is left out of the list (the action rule), where the old list showed it without a link.
+- The hosted `/api/decisions` list is answered from the snapshot so that the docs warning works there too.
+- A workstream file on another branch that still has the old key shows as a red row until that branch removes it: the validator treats it as an unknown field.
+
+Not built: the debug of the reporter itself (the dependency in section 4 still holds: until it works, the hosted page shows "Reporter offline" in place of the live asks). The attacker verifier for the allow-list path is a separate step.

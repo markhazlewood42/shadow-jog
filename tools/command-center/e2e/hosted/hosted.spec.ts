@@ -54,7 +54,7 @@ async function advance(page: Page, ms: number): Promise<void> {
 const expectNoStrayRequests = (mock: Mock) => expect(mock.unexpected).toEqual([]);
 
 test.describe('the Workstreams view', () => {
-  test('shows one card for each workstream, grouped by roadmap lane, with the PR, the checks, the live session, the worktree and the lines for Mark', async ({ page }) => {
+  test('shows one card for each workstream, grouped by roadmap lane, with the PR, the checks, the live session, the worktree and the blocking decision', async ({ page }) => {
     const mock = await mockApi(page, { snapshot: { json: world.snapshot }, live: { json: world.live } });
     await page.goto('/workstreams');
 
@@ -73,7 +73,7 @@ test.describe('the Workstreams view', () => {
     await expect(card.getByRole('list', { name: 'Live sessions' })).toContainText('working');
     await expect(card).toContainText('C:/work/shadow-jog-m6');
     await expect(card).toContainText('2 changed');
-    await expect(card).toContainText('Rename the required checks in the ruleset');
+    await expect(card).not.toContainText('Next for Mark');
     await expect(card.getByRole('link', { name: 'Decision #61' })).toHaveAttribute('href', '/decisions/61');
 
     // The lane order is the roadmap's. A card with no PR says so. The PR decides "merged": the file of this card says "active".
@@ -165,7 +165,7 @@ test.describe('the Workstreams view', () => {
 });
 
 test.describe('the Now page on the hosted data layer', () => {
-  test('fills Your move from the decisions, the lines of the workstreams and the PRs, and Running from the live sessions', async ({ page }) => {
+  test('fills Your move from the decisions, the live asks and the PRs, and Running from the live sessions', async ({ page }) => {
     const mock = await mockApi(page, { snapshot: { json: world.snapshot }, live: { json: world.live } });
     await page.goto('/');
 
@@ -173,12 +173,14 @@ test.describe('the Now page on the hosted data layer', () => {
     await expect(yourMove).toContainText(/Updated \d\d:\d\d:\d\d/);
     const list = yourMove.getByRole('list', { name: 'What waits for Mark' });
     await expect(list).toContainText('Decision #61: Who owns the ruleset?');
-    await expect(list.getByRole('link', { name: 'Rename the required checks in the ruleset (workstream: M6 flip default)' })).toHaveAttribute('href', '/workstreams#ws-engine-m6-flip');
+    await expect(list.getByRole('link', { name: 'Rename the required checks in the ruleset (session: Flip the default)' })).toHaveAttribute('href', '/agents#session-s1');
     await expect(list).toContainText('PR #41 is ready to merge: M6: flip the default');
-    // Decisions first, then the workstream lines, then the PRs.
+    // Decisions first, then the live asks, then the PRs. Every item has a link to a place to act.
     const lines = await list.getByRole('listitem').allInnerTexts();
     expect(lines[0]).toContain('Decision #61');
     expect(lines[1]).toContain('Rename the required checks');
+    expect(lines).toHaveLength(3);
+    await expect(yourMove.getByRole('note', { name: 'Incomplete list' })).toHaveCount(0);
     expect(lines[2]).toContain('PR #41');
 
     await expect(page.getByRole('region', { name: 'Running', exact: true })).toContainText('Flip the default');
@@ -190,6 +192,20 @@ test.describe('the Now page on the hosted data layer', () => {
     // The navigation has the Workstreams link in the hosted build.
     await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Workstreams' })).toHaveAttribute('href', '/workstreams');
     expectNoStrayRequests(mock);
+  });
+
+  test('hides every live ask and says "Reporter offline" when the live key is older than 150 s, and keeps the decisions and the PRs', async ({ page }) => {
+    await mockApi(page, {
+      snapshot: { json: world.snapshot },
+      live: { json: liveAnswer('offline', { ...(world.live.live as ReturnType<typeof liveState>), writtenAt: '2026-10-12T11:50:00.000Z' }) },
+    });
+    await page.goto('/');
+    const yourMove = page.getByRole('region', { name: 'Your move', exact: true });
+    const list = yourMove.getByRole('list', { name: 'What waits for Mark' });
+    await expect(list).toContainText('Decision #61: Who owns the ruleset?');
+    await expect(list).toContainText('PR #41 is ready to merge: M6: flip the default');
+    await expect(list).not.toContainText('Rename the required checks');
+    await expect(yourMove.getByRole('note', { name: 'Incomplete list' })).toContainText(/Reporter offline since \d\d:\d\d:\d\d\. Live asks are hidden\./);
   });
 
   test('shows "Reporter not running" in the Running panel and on the Agents page, never a blank box', async ({ page }) => {

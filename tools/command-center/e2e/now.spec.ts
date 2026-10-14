@@ -522,6 +522,53 @@ test.describe('the data of the panels', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Where should Burrow keep its cache?' })).toBeVisible();
   });
 
+  test('Your move holds only what clears itself: no status.md line and no engine-doc decision, and every item links to a place to act', async ({ page, request }) => {
+    await seedGithub(request);
+    writeSessions();
+    await refreshSessions(request);
+    await page.goto('/');
+    await allLoaded(page);
+    const items = panel(page, 'Your move').getByRole('list', { name: 'What waits for Mark' }).getByRole('listitem');
+    await expect(items.first()).toContainText('Decision #41');
+    // Neither the "Next up for Mark" lines of the fixture's status.md nor an open decision of the engine docs is in the list.
+    await expect(items.filter({ hasText: 'Pick the gadget color' })).toHaveCount(0);
+    await expect(panel(page, 'Your move').getByText('Engine decision')).toHaveCount(0);
+    await expect(panel(page, 'Your move').getByText('Status', { exact: true })).toHaveCount(0);
+    // Every item has a link, and the link goes to a decision page, a PR on GitHub, or a session on the Agents page.
+    const hrefs = await items.evaluateAll((rows) => rows.map((row) => row.querySelector('a')?.getAttribute('href') ?? null));
+    expect(hrefs.length).toBeGreaterThan(3);
+    for (const href of hrefs) expect(href !== null && (href.startsWith('/decisions/') || href.startsWith('/agents#session-') || href.startsWith('https://github.com/')), String(href)).toBe(true);
+  });
+
+  test('a live ask hides by each of the four rules, in the browser: not live, answered, "nothing", older than 12 hours', async ({ page, request }) => {
+    const keep: { stop: () => void }[] = [];
+    const startLive = (sessionId: string) => {
+      const live = startLiveProcess();
+      keep.push(live);
+      writeProcess(live.pid, sessionId, 'idle', 600);
+    };
+    // Five sessions, each with a box of one line. Four have a process (they are live); the fifth has none.
+    writeLines(join(WHOLE, `${ID(11)}.jsonl`), [prompt('The session that shows', 1800), reply(box('🟡', ['Show this ask']), 600)]);
+    writeLines(join(WHOLE, `${ID(12)}.jsonl`), [prompt('The session Mark answered', 1800), reply(box('🟡', ['Hide: answered']), 600), prompt('Done, thanks', 300)]);
+    writeLines(join(WHOLE, `${ID(13)}.jsonl`), [prompt('The session with nothing', 1800), reply(box('🟢', ['Hide: nothing box']).replace('### 👉 Your move', '### 👉 Your move: nothing'), 600)]);
+    writeLines(join(WHOLE, `${ID(14)}.jsonl`), [prompt('The session with an old box', 14 * 3600), reply(box('🟡', ['Hide: older than 12 hours']), 13 * 3600)]);
+    writeLines(join(WHOLE, `${ID(15)}.jsonl`), [prompt('The session that is not live', 1800), reply(box('🟡', ['Hide: not live']), 600)]);
+    for (const n of [11, 12, 13, 14]) startLive(ID(n));
+    await refreshSessions(request);
+    await refreshAgents(request);
+
+    await page.goto('/');
+    await allLoaded(page);
+    const yourMove = panel(page, 'Your move');
+    await expect(yourMove.getByRole('listitem').filter({ hasText: 'Show this ask' })).toHaveCount(1);
+    await expect(yourMove.getByRole('listitem').filter({ hasText: 'Show this ask' }).getByRole('link')).toHaveAttribute('href', `/agents#session-${ID(11)}`);
+    for (const hidden of ['Hide: answered', 'Hide: nothing box', 'Hide: older than 12 hours', 'Hide: not live']) await expect(yourMove.getByRole('listitem').filter({ hasText: hidden })).toHaveCount(0);
+
+    // The process of the live session ends: its ask goes with it (rule 1), when the server looks again and tells the open page.
+    keep[0]?.stop();
+    await expect(yourMove.getByRole('listitem').filter({ hasText: 'Show this ask' })).toHaveCount(0, { timeout: 10_000 });
+  });
+
   test('gh signed out: only the PR panel shows an error', async ({ page, request }) => {
     await seedGithub(request);
     await page.goto('/');
@@ -550,7 +597,8 @@ test.describe('the data of the panels', () => {
     await expect(notice).toContainText('Pull request:');
     await expect(notice).toContainText('Decision:');
     await expect(notice).toContainText('gh is not signed in to GitHub');
-    await expect(panel(page, 'Your move').getByRole('listitem').filter({ hasText: 'Pick the gadget color' })).toHaveCount(1); // the status items are still there
+    // The list of status.md is not a source of Your move any more (it links only to text and does not clear itself). The Status panel still counts it.
+    await expect(panel(page, 'Your move').getByRole('listitem').filter({ hasText: 'Pick the gadget color' })).toHaveCount(0);
     await expect(panel(page, 'Status').getByRole('link', { name: '3 for you' })).toBeVisible();
 
     // gh works again: Retry brings the panel back, and the notice goes with it.
@@ -1243,7 +1291,7 @@ test.describe('the Look', () => {
     await expect(page.getByText('Live: on', { exact: true })).toBeVisible();
     const items = panel(page, 'Your move').getByRole('list', { name: 'What waits for Mark' }).getByRole('listitem');
     for (const light of ['Red light', 'Yellow light', 'Green light']) await expect(items.filter({ hasText: light }).first()).toBeVisible();
-    expect(await items.count()).toBeGreaterThan(15);
+    expect(await items.count()).toBeGreaterThan(10);
 
     const colors = await tokenColors(page);
     for (const mode of NO_GPU ? (['plain'] as const) : (['glass', 'plain'] as const)) {
