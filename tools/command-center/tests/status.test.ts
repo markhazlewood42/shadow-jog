@@ -754,7 +754,7 @@ The same words again.
       expect(info.milestone.problem).toBeNull();
       expect(info.updated).not.toBeNull();
       const byId = new Map(info.milestones.map((milestone) => [milestone.id, milestone]));
-      for (const id of ['M0', 'M1', 'M1b', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8']) {
+      for (const id of ['M0', 'M1', 'M1b', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8a', 'M8b', 'M8c', 'M8d']) {
         expect(byId.get(id)?.anchor, `the heading of ${id} in docs/engine/migration.md`).toMatch(/^m[0-9a-z-]+$/);
       }
     } finally {
