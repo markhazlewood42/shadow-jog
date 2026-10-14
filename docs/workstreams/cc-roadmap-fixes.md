@@ -32,4 +32,13 @@ Built from `docs/command-center/your-move-redesign.md`: one shared rule, three s
 | Build `f076014`..`c7f8ca4` | Shared rule, live asks in the reporter, decision-coverage warning, `next_for_mark` removed | Round 1: runner PASS, reader and attacker FAIL. 4 Important: redaction gaps, future times never stale, coverage missed old answered issues, a strict reject of the old key |
 | Fix `6954882` | Wider redaction, a 60 s future limit, coverage over every issue read, the old key ignored, 7 Minor fixes | Round 2 PASS. Known limit: a secret after a word that is not a secret word ("pass") is not redacted |
 
-Next: the PR to `main`. Mark runs the manual tray test in README step 5 before he merges (headed, needs his go-ahead). After the tray works, the main session removes the `SessionStart` hook.
+## Tray manual test (2026-10-13, Mark, headed)
+
+| Step | Change | Verdict |
+|---|---|---|
+| Before the test | The tray from the worktree ran origin/main server code, which rejects `--no-idle-exit`. Fix `0f678b3`: tray `-Branch <name>` passes `--branch` to the launcher, and the README gives the pre-merge command | 1 verifier PASS, 1 Minor (a trailing newline passes the name check; not reachable from the command line) |
+| README step 5 test list | Steps 1, 2, 4 to 9 by Mark: gray, amber, green; "already runs" balloon; hosted page and logs open; Restart gives new ids; a killed local server gives amber and a balloon; `reporter:stop` leaves local up; Quit and a killed tray leave no process and free ports; the next start takes over the stale lock at once | PASS. Step 3 (30 idle minutes) deferred: live Shadow Jog sessions kept it from being a real test; a unit test covers `--no-idle-exit` |
+| Hook | The `SessionStart` entry for `reporter-hook.mjs` is removed from `~/.claude/settings.json` (Mark) | Done |
+| Fix `7a67072` | The launcher "held lock" test used a fake owner pid, so it passed only while a real reporter held port 29417. It now names the test process. The update log line names the branch, not "main" | 1 verifier PASS, 103 tests and tsc exit 0, a forced takeover fails the test |
+
+Next: PR #85 is ready for Mark to merge. After the merge, the desktop shortcut (README step 5) starts the tray without `-Branch`. More Command Center work continues on this branch (Mark, 2026-10-13): keep the worktree.
