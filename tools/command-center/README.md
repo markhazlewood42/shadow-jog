@@ -96,7 +96,9 @@ milestone: Pre-M0
 | No key, or an empty one | The label `Milestone key missing` |
 | Anything else (`m3`, an id the table does not have, a number) | The label `Unknown milestone`. The page never guesses which milestone you meant. |
 
-Set the key when a milestone starts. The loader is `parseMilestoneKey` in `src/server/status/status.ts`.
+Squares before the current one show as done, so list the table rows in the order the milestones start. Set the key when a milestone starts. A key left on `none` after work merged shows every square empty.
+
+The loader is `parseMilestoneKey` in `src/server/status/status.ts`.
 
 ## Copy and Download
 
