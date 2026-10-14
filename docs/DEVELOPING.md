@@ -484,13 +484,13 @@ The why (and the decisions behind it) is in `docs/PHASE-0.2.md`, "Versioning and
 
 **Minor or patch while 0.x.** Minor (0.2.0 to 0.3.0) is anything a player would call a different build: a battle view, an engine, a new chapter or zone, a new system, a save reshape, a new art pipeline. Patch (0.2.0 to 0.2.1) is fixes, balance numbers, copy, and art swaps that change no system. Day-to-day work on `main` carries a `-dev` suffix (`0.2.0-dev`). The major number stays 0 until Mark says 1.0.
 
-**Changelog.** `CHANGELOG.md` is Keep a Changelog 1.1.0: `Unreleased` on top, ISO dates, headings Added / Changed / Deprecated / Removed / Fixed / Security. Every feature PR adds its entry under `Unreleased`.
+**Changelog.** `CHANGELOG.md` is Keep a Changelog 1.1.0: `Unreleased` on top, ISO dates, headings Added / Changed / Deprecated / Removed / Fixed / Security. `Unreleased` stays empty on `main` between releases. A feature PR does not edit `CHANGELOG.md` (two PRs that edit the same lines conflict on every merge). It adds its entry as one file, `changelog.d/<branch-slug>.md` (the branch name with each slash turned into a hyphen), with the same headings and one bullet for each change. `npm run changelog:check` validates the files, and a unit test runs the same check in `npm run check` and CI. `.gitattributes` also sets `CHANGELOG.md merge=union` as a second guard. Rule and format: `changelog.d/README.md`.
 
 ### Cutting a release
 
 Mark's playtest and go-ahead come first. Pushing a tag and creating a GitHub Release each need his explicit yes.
 
-1. Move the `Unreleased` entries under a new `[X.Y.Z] - date` heading in `CHANGELOG.md` (the date is the day the tag is cut; if the PR merges on a later day, correct it in the follow-up bump PR) and set `"version"` in `package.json`.
+1. Fold the entry files into `CHANGELOG.md`: `npm run changelog:fold -- X.Y.Z --dry-run` shows the new section, then `npm run changelog:fold -- X.Y.Z` (add `--date YYYY-MM-DD` to set the date; the default is today) writes it under `Unreleased`, leaves `Unreleased` empty, and deletes the files in `changelog.d/`. The date is the day the tag is cut; if the PR merges on a later day, correct it in the follow-up bump PR. Set `"version"` in `package.json`.
 2. Open the PR. Mark merges it.
 3. Tag the merge commit, annotated: `git tag -a vX.Y.Z -m "Shadow Jog X.Y.Z: one-line summary" <merge-sha>`.
 4. Push the tag: `git push origin vX.Y.Z`. A pushed release tag is never moved or deleted.
