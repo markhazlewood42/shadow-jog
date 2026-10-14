@@ -1,0 +1,10 @@
+{
+  "updated": "2026-01-02",
+  "lanes": [{ "id": "engine", "title": "Engine path" }],
+  "items": [
+    { "id": "Phase 0", "kind": "milestone", "label": "Platform spike", "lane": "engine", "status": "done", "after": [], "notes": "A made-up item for the command center's tests." },
+    { "id": "M0", "kind": "milestone", "label": "Kernel", "lane": "engine", "status": "done", "after": ["Phase 0"], "notes": "Done in the fixture, so the strip has filled squares while the key says none." },
+    { "id": "M1b", "kind": "milestone", "label": "3D proof", "lane": "engine", "status": "next", "after": ["M0"], "notes": "Not done." },
+    { "id": "M2", "kind": "milestone", "label": "Stage", "lane": "engine", "status": "later", "after": ["M0"], "notes": "Not done." }
+  ]
+}

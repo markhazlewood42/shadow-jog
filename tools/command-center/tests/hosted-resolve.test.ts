@@ -91,13 +91,37 @@ describe('the panels made from the snapshot', () => {
   it('answers the Status panel from the real status.md and migration.md', async () => {
     const status = readFileSync(join(REPO_DIR, 'status.md'), 'utf8');
     const migration = readFileSync(join(REPO_DIR, 'docs', 'engine', 'migration.md'), 'utf8');
-    const { resolve } = setup({ snap: snapshot({ main: { status, roadmap: null, migration } }) });
+    const roadmap = readFileSync(join(REPO_DIR, 'docs', 'roadmap', 'roadmap.json'), 'utf8');
+    const { resolve } = setup({ snap: snapshot({ main: { status, roadmap, migration } }) });
     const panel = await resolve<StatusInfo>('/api/status');
     // A good panel, or a milestone problem that rides along with the data. Either way the milestones are read.
     const info = panel.ok ? panel.data : panel.lastGood?.data;
     expect(info?.milestones.length).toBeGreaterThan(3);
     expect(info?.milestones[0]?.id).toBe('Phase 0');
     if (!panel.ok) expect(panel.error.code).toMatch(/milestone/);
+    // The done squares are the roadmap's (the hosted page joins the same way as the local server).
+    expect(panel.ok).toBe(true);
+    const byId = new Map(info?.milestones.map((milestone) => [milestone.id, milestone.done]));
+    expect(byId.get('Phase 0')).toBe(true);
+    expect(byId.get('ET')).toBe(true);
+    expect(byId.get('M8')).toBe(false);
+  });
+
+  it('says that the roadmap is missing or unreadable, with the status riding along, when main has no usable roadmap.json', async () => {
+    const status = readFileSync(join(REPO_DIR, 'status.md'), 'utf8');
+    const migration = readFileSync(join(REPO_DIR, 'docs', 'engine', 'migration.md'), 'utf8');
+    for (const [roadmap, code] of [
+      [null, 'milestones-roadmap-missing'],
+      ['{ not json', 'milestones-roadmap-unreadable'],
+    ] as const) {
+      const { resolve } = setup({ snap: snapshot({ main: { status, roadmap, migration } }) });
+      const panel = await resolve<StatusInfo>('/api/status');
+      expect(panel.ok, code).toBe(false);
+      if (panel.ok) continue;
+      expect(panel.error.code).toBe(code);
+      expect(panel.lastGood?.data.milestones).toEqual([]);
+      expect(panel.lastGood?.data.updated).not.toBeNull();
+    }
   });
 
   it('says that status.md is missing, with its code, when main has none', async () => {

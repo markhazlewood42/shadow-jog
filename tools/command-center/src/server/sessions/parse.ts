@@ -1,4 +1,5 @@
 import type { SessionState, YourMoveBox } from '../../shared/types';
+import { sameFolder } from '../config';
 import { cwdInsideRoots } from './discover';
 
 // The line parser of the sessions module: pure functions that read what the lines of a Claude Code
@@ -97,16 +98,46 @@ export function hasConversationCwd(line: unknown): boolean {
   return isDecisive(line) && hasCwd(line);
 }
 
+/** How many different working folders a session's trail keeps. The newest ones matter; a session does not move through more than a few. */
+const TRAIL_LENGTH = 16;
+
+/** The working folders of the lines, newest first, each folder once (compared as folders: `/c/x` and `C:\x` are one). */
+export function cwdTrail(lines: readonly unknown[]): string[] {
+  const trail: string[] = [];
+  let seenLines = 0;
+  for (let i = lines.length - 1; i >= 0 && trail.length < TRAIL_LENGTH && seenLines < TRAIL_LINES; i -= 1) {
+    const line = lines[i];
+    if (!hasCwd(line)) continue;
+    seenLines += 1;
+    if (!trail.some((seen) => sameFolder(seen, line.cwd))) trail.push(line.cwd);
+  }
+  return trail;
+}
+
+/**
+ * How many of the newest lines that have a working folder the trail looks at. A live stint flips between the work folder and the folder that the shell
+ * resets to, all the time, so a folder that the session works in now is always near the end. An older folder is a past stint, and it must not keep a
+ * session that has since run only in its launch folder (then the trail holds only the launch folder, and `effectiveCwd` gives it).
+ */
+export const TRAIL_LINES = 200;
+
+/**
+ * The folder a session works in, from its trail (newest first). The shell resets its working folder to the folder that the session was
+ * launched in after tool calls, so when the launch folder is known the newest line that names it says nothing: the newest folder that
+ * differs is the answer. When every line names the launch folder, that is the answer (a session that works only there). Without a launch
+ * folder, or with an empty trail, the newest folder is the answer.
+ */
+export function effectiveCwd(trail: readonly string[], launchCwd: string | null | undefined): string | null {
+  if (launchCwd === null || launchCwd === undefined) return trail[0] ?? null;
+  return trail.find((cwd) => !sameFolder(cwd, launchCwd)) ?? trail[0] ?? null;
+}
+
 /**
  * The working folder of the newest line that has one. An idle session ends in lines that have none
- * (`last-prompt`, `cost-state`, `mode`), so the newest line is not the one to ask.
+ * (`last-prompt`, `cost-state`, `mode`), so the newest line is not the one to ask. With `launchCwd` see `effectiveCwd`.
  */
-export function newestCwd(lines: readonly unknown[]): string | null {
-  for (let i = lines.length - 1; i >= 0; i -= 1) {
-    const line = lines[i];
-    if (hasCwd(line)) return line.cwd;
-  }
-  return null;
+export function newestCwd(lines: readonly unknown[], launchCwd?: string | null): string | null {
+  return effectiveCwd(cwdTrail(lines), launchCwd);
 }
 
 /** The git branch named by the newest line that names one. An empty name is a name: the folder is not in a git repo. */
@@ -476,7 +507,11 @@ function isHumanPrompt(line: unknown): boolean {
  * The box of the last reply that has one wins, even when later replies have none (a short status line is not a
  * new box). `answered` is true when a prompt of Mark's came after it.
  */
-export function extractYourMove(lines: readonly unknown[], roots: readonly string[]): YourMoveBox | null {
+export function extractYourMove(lines: readonly unknown[], roots: readonly string[], launchCwd: string | null = null): YourMoveBox | null {
+  // When the session's own folder (the newest folder that is not the launch folder) is inside the roots, a reply that the shell reset to the launch folder
+  // is the session's too: the shell goes back there after tool calls. When the session works outside the roots, only a reply inside them counts, as before.
+  const folder = launchCwd === null ? null : effectiveCwd(cwdTrail(lines), launchCwd);
+  const sessionInside = folder !== null && cwdInsideRoots(folder, roots);
   let found: { box: Pick<YourMoveBox, 'light' | 'items' | 'nothing' | 'at'>; index: number } | null = null;
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
@@ -486,7 +521,9 @@ export function extractYourMove(lines: readonly unknown[], roots: readonly strin
     const box = text === null ? null : parseBox(text);
     if (box === null) continue;
     // The reply's own working folder: a reply that has none, or has one outside the roots, has no say.
-    if (typeof line.cwd !== 'string' || !cwdInsideRoots(line.cwd, roots)) continue;
+    if (typeof line.cwd !== 'string') continue;
+    const atLaunch = sessionInside && launchCwd !== null && sameFolder(line.cwd, launchCwd);
+    if (!cwdInsideRoots(line.cwd, roots) && !atLaunch) continue;
     found = { box: { ...box, at: timeOf(line) ?? '' }, index };
   }
   if (found === null) return null;

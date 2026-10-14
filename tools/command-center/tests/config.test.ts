@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { isInside, loadConfig } from '../src/server/config';
+import { isInside, loadConfig, msysToWindows } from '../src/server/config';
 import { PACKAGE_DIR, REPO_DIR } from './helpers';
 
 const REAL_CONFIG = join(PACKAGE_DIR, 'command-center.config.json');
@@ -224,5 +224,17 @@ describe('loadConfig', () => {
   it('rejects a file that is not JSON and a file that is missing', () => {
     expect(() => loadConfig(writeConfig('{ not json', 'broken.json'))).toThrow(/JSON/);
     expect(() => loadConfig(join(scratch, 'does-not-exist.json'))).toThrow(/does-not-exist\.json/);
+  });
+});
+
+describe('msysToWindows', () => {
+  it('turns the Git Bash form of a drive path into the Windows form, and leaves every other path as it is', () => {
+    expect(msysToWindows('/c/Users/x')).toBe('C:/Users/x');
+    expect(msysToWindows('/c')).toBe('C:/');
+    expect(msysToWindows('/C/')).toBe('C:/');
+    expect(msysToWindows('/c/')).toBe('C:/');
+    expect(msysToWindows('//c/x')).toBe('//c/x');
+    expect(msysToWindows('/cd/x')).toBe('/cd/x');
+    expect(msysToWindows('C:/x')).toBe('C:/x');
   });
 });

@@ -7,7 +7,7 @@ import { isMissing } from '../fs-errors';
 import type { Hub } from '../hub';
 import { say } from '../messages';
 import { POLL_EVERY_MS, PanelError, type PanelSource, createPanelSource } from '../source';
-import { MIGRATION_DOC_PATH, STATUS_DOC_PATH, parseMilestoneKey, parseMilestones, parseStatus } from './status';
+import { MIGRATION_DOC_PATH, ROADMAP_PATH, STATUS_DOC_PATH, parseMilestoneKey, parseMilestones, parseRoadmapDone, parseStatus } from './status';
 
 // The status module: what the Status panel of the Now page reads from status.md (its date, its "Next up
 // for Mark" list and its `milestone` key) and the engine milestones of docs/engine/migration.md, each
@@ -31,7 +31,7 @@ export type StatusModuleDeps = {
 type Loaded = { info: StatusInfo; milestonesProblem: { code: string; message: string } | null };
 
 /** The text of a doc, or a PanelError that names the doc and says that it is missing (`missing` is the message to use). */
-async function readDoc(root: string, path: string, code: string, missing: 'statusDocMissing' | 'milestonesDocMissing'): Promise<string> {
+async function readDoc(root: string, path: string, code: string, missing: 'statusDocMissing' | 'milestonesDocMissing' | 'roadmapDocMissing'): Promise<string> {
   try {
     return await readFile(join(root, path), 'utf8');
   } catch (error) {
@@ -75,8 +75,10 @@ export function createStatusSource(deps: StatusModuleDeps): PanelSource<StatusIn
       let milestonesProblem: Loaded['milestonesProblem'] = null;
       try {
         const migrationMd = await readDoc(config.repoRoot, MIGRATION_DOC_PATH, 'milestones-doc-missing', 'milestonesDocMissing');
+        // The state of a milestone is in the roadmap. If that file cannot be read, the panel fails with the reason: squares drawn without it would look like "nothing is done".
+        const roadmapJson = await readDoc(config.repoRoot, ROADMAP_PATH, 'milestones-roadmap-missing', 'roadmapDocMissing');
         // The anchors are the ids that the docs site gave the headings of the page, so the module asks the doc index for that page's outline and keeps no rule of its own.
-        milestones = parseMilestones(migrationMd, docs.get(MIGRATION_DOC_SLUG)?.headings ?? []);
+        milestones = parseMilestones(migrationMd, docs.get(MIGRATION_DOC_SLUG)?.headings ?? [], parseRoadmapDone(roadmapJson));
       } catch (error) {
         // Only the named problems of the milestone doc: any other failure is a failure of the load.
         if (!(error instanceof PanelError)) throw error;

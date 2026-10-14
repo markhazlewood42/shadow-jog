@@ -257,21 +257,24 @@ describe('nextUpLabel', () => {
 });
 
 describe('the milestone strip', () => {
-  const milestones = ['Phase 0', 'M0', 'M1', 'M1b', 'M2'].map((id) => ({ id, name: `Name of ${id}`, scope: '', anchor: null }));
+  const milestones = ['Phase 0', 'M0', 'M1', 'M1b', 'M2'].map((id) => ({ id, name: `Name of ${id}`, scope: '', anchor: null, done: false }));
   const info = (milestone: StatusInfo['milestone']) => ({ milestone, milestones });
 
-  it('squareStates fills the squares before the current one, marks the current one, and outlines the rest', () => {
-    expect(squareStates(5, 2)).toEqual(['done', 'done', 'current', 'later', 'later']);
-    expect(squareStates(5, 0)).toEqual(['current', 'later', 'later', 'later', 'later']);
-    expect(squareStates(5, 4)).toEqual(['done', 'done', 'done', 'done', 'current']);
-    // No current milestone (none, or a problem): every square is outlined.
-    expect(squareStates(5, null)).toEqual(['later', 'later', 'later', 'later', 'later']);
-    expect(squareStates(0, null)).toEqual([]);
+  it('squareStates fills the squares that are done, marks the current one, and outlines the rest', () => {
+    // The key is `none` (or has a problem): the done squares are the roadmap's, wherever they are in the row. The order of the rows plays no part.
+    expect(squareStates([true, true, false, true, false], null)).toEqual(['done', 'done', 'later', 'done', 'later']);
+    // The key names a milestone that is not done: it is current, and the done squares stay done, also those after it.
+    expect(squareStates([true, true, false, true, false], 2)).toEqual(['done', 'done', 'current', 'done', 'later']);
+    // Current wins over done: a key that was left on a finished milestone shows it as current.
+    expect(squareStates([true, true, false, true, false], 1)).toEqual(['done', 'current', 'later', 'done', 'later']);
+    // Nothing is done and nothing is current: every square is outlined. No milestones, no squares.
+    expect(squareStates([false, false, false], null)).toEqual(['later', 'later', 'later']);
+    expect(squareStates([], null)).toEqual([]);
   });
 
-  it('besideOf shows the current milestone, Not started, or the error label of the key', () => {
+  it('besideOf shows the current milestone, None active, or the error label of the key', () => {
     expect(besideOf(info({ current: 'M1b', problem: null }))).toEqual({ kind: 'current', index: 3 });
-    expect(besideOf(info({ current: null, problem: null }))).toEqual({ kind: 'not-started' });
+    expect(besideOf(info({ current: null, problem: null }))).toEqual({ kind: 'none-active' });
     expect(besideOf(info({ current: null, problem: 'missing' }))).toEqual({ kind: 'error', label: 'Milestone key missing' });
     expect(besideOf(info({ current: null, problem: 'unknown' }))).toEqual({ kind: 'error', label: 'Unknown milestone' });
     // A problem wins over any value, and an id that the list does not have is as unknown as one that the server flagged.

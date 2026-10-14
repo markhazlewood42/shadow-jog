@@ -37,12 +37,12 @@ function freshFolder(): string {
   return folder;
 }
 
-/** The text of a process file as Claude Code writes it: four keys that the reader uses and some that it must leave alone. */
+/** The text of a process file as Claude Code writes it: five keys that the reader uses and some that it must leave alone. */
 function processFile(pid: number, sessionId: string, status: string, startedAt: number | string = 1_790_000_000_000): string {
   return JSON.stringify({
     pid,
     sessionId,
-    cwd: '/fixture/repo',
+    cwd: REPO,
     startedAt,
     procStart: '134000000000000000',
     version: '0.0.0-fixture',
@@ -57,6 +57,8 @@ function processFile(pid: number, sessionId: string, status: string, startedAt: 
 
 const write = (folder: string, name: string, text: string) => writeFileSync(join(folder, name), text);
 
+/** The launch folder that every fixture process file names. */
+const REPO = '/fixture/repo';
 const S1 = 'aaaaaaaa-0000-4000-8000-000000000001';
 const S2 = 'bbbbbbbb-0000-4000-8000-000000000002';
 const S3 = 'cccccccc-0000-4000-8000-000000000003';
@@ -71,7 +73,7 @@ describe('the process list', () => {
     const list = await readProcessList(folder, () => true, pause);
 
     expect(pause).toHaveBeenCalledTimes(1);
-    expect(list).toEqual({ ok: true, entries: [{ sessionId: S1, startedAtMs: 1_790_000_000_000, status: 'busy' }] });
+    expect(list).toEqual({ ok: true, entries: [{ sessionId: S1, startedAtMs: 1_790_000_000_000, status: 'busy', cwd: REPO }] });
   });
 
   it('C1: a process file that stays broken is skipped after one retry', async () => {
@@ -84,7 +86,7 @@ describe('the process list', () => {
 
     // One retry for the broken file, none for the good one. The good one is kept and the broken one is skipped.
     expect(pause).toHaveBeenCalledTimes(1);
-    expect(list).toEqual({ ok: true, entries: [{ sessionId: S2, startedAtMs: 1_790_000_000_000, status: 'idle' }] });
+    expect(list).toEqual({ ok: true, entries: [{ sessionId: S2, startedAtMs: 1_790_000_000_000, status: 'idle', cwd: REPO }] });
   });
 
   it('C1: a process file with valid JSON and the wrong shape is skipped without a retry', async () => {
@@ -96,7 +98,7 @@ describe('the process list', () => {
     const list = await readProcessList(folder, () => true, pause);
 
     expect(pause).not.toHaveBeenCalled();
-    expect(list).toEqual({ ok: true, entries: [{ sessionId: S2, startedAtMs: 1_790_000_000_000, status: 'idle' }] });
+    expect(list).toEqual({ ok: true, entries: [{ sessionId: S2, startedAtMs: 1_790_000_000_000, status: 'idle', cwd: REPO }] });
   });
 
   it('C1: a process file that throws on the first read is read again and counted', async () => {
@@ -109,7 +111,7 @@ describe('the process list', () => {
     const list = await readProcessList(folder, () => true, pause);
 
     expect(pause).toHaveBeenCalledTimes(1);
-    expect(list).toEqual({ ok: true, entries: [{ sessionId: S1, startedAtMs: 1_790_000_000_000, status: 'busy' }] });
+    expect(list).toEqual({ ok: true, entries: [{ sessionId: S1, startedAtMs: 1_790_000_000_000, status: 'busy', cwd: REPO }] });
   });
 
   it('C1: a process file that throws on both reads is skipped', async () => {
@@ -124,7 +126,7 @@ describe('the process list', () => {
     const list = await readProcessList(folder, () => true, pause);
 
     expect(pause).toHaveBeenCalledTimes(1);
-    expect(list).toEqual({ ok: true, entries: [{ sessionId: S2, startedAtMs: 1_790_000_000_000, status: 'idle' }] });
+    expect(list).toEqual({ ok: true, entries: [{ sessionId: S2, startedAtMs: 1_790_000_000_000, status: 'idle', cwd: REPO }] });
   });
 
   it('C1: ten broken files cost one pause, not ten', async () => {
@@ -136,7 +138,7 @@ describe('the process list', () => {
     const list = await readProcessList(folder, () => true, pause);
 
     expect(pause).toHaveBeenCalledTimes(1);
-    expect(list).toEqual({ ok: true, entries: [{ sessionId: S1, startedAtMs: 1_790_000_000_000, status: 'busy' }] });
+    expect(list).toEqual({ ok: true, entries: [{ sessionId: S1, startedAtMs: 1_790_000_000_000, status: 'busy', cwd: REPO }] });
   });
 
   it('C1: no pause when every file is good', async () => {
@@ -177,13 +179,13 @@ describe('the process list', () => {
     expect(list).toEqual({
       ok: true,
       entries: [
-        { sessionId: S1, startedAtMs: 1_790_000_000_000, status: 'busy' },
-        { sessionId: S2, startedAtMs: 1_790_000_100_000, status: 'idle' },
+        { sessionId: S1, startedAtMs: 1_790_000_000_000, status: 'busy', cwd: REPO },
+        { sessionId: S2, startedAtMs: 1_790_000_100_000, status: 'idle', cwd: REPO },
       ],
     });
     // The injected check decided: it was asked about each pid, once.
     expect(alive.mock.calls.map((call) => call[0]).sort()).toEqual([7710011, 7710012, 7710013]);
-    for (const entry of list.ok ? list.entries : []) expect(Object.keys(entry).sort()).toEqual(['sessionId', 'startedAtMs', 'status']);
+    for (const entry of list.ok ? list.entries : []) expect(Object.keys(entry).sort()).toEqual(['cwd', 'sessionId', 'startedAtMs', 'status']);
   });
 
   it('process list survives a malformed file, an unknown shape and a missing folder', async () => {
@@ -213,7 +215,7 @@ describe('the process list', () => {
 
     const list = await readProcessList(folder, alive);
 
-    expect(list).toEqual({ ok: true, entries: [{ sessionId: S1, startedAtMs: 1_790_000_000_000, status: 'busy' }] });
+    expect(list).toEqual({ ok: true, entries: [{ sessionId: S1, startedAtMs: 1_790_000_000_000, status: 'busy', cwd: REPO }] });
     // The check ran for the good file only: not for pid 0 or a negative one (the system would read them as groups of processes), and not for a bad shape.
     expect(alive.mock.calls).toEqual([[7710021]]);
 
@@ -248,9 +250,9 @@ describe('the process list', () => {
     expect(list).toEqual({
       ok: true,
       entries: [
-        { sessionId: S1, startedAtMs: 1_790_000_000_123, status: 'busy' },
-        { sessionId: S2, startedAtMs: null, status: 'busy' },
-        { sessionId: S3, startedAtMs: null, status: 'idle' },
+        { sessionId: S1, startedAtMs: 1_790_000_000_123, status: 'busy', cwd: REPO },
+        { sessionId: S2, startedAtMs: null, status: 'busy', cwd: REPO },
+        { sessionId: S3, startedAtMs: null, status: 'idle', cwd: null },
       ],
     });
   });
@@ -258,19 +260,19 @@ describe('the process list', () => {
   it('a session in shell status is live and busy', async () => {
     const folder = freshFolder();
     write(folder, '7710091.json', processFile(7710091, S1, 'shell')); // it waits for a background shell command
-    expect(await readProcessList(folder, () => true)).toEqual({ ok: true, entries: [{ sessionId: S1, startedAtMs: 1_790_000_000_000, status: 'busy' }] });
+    expect(await readProcessList(folder, () => true)).toEqual({ ok: true, entries: [{ sessionId: S1, startedAtMs: 1_790_000_000_000, status: 'busy', cwd: REPO }] });
   });
 
   it('a session in waiting status is live and idle', async () => {
     const folder = freshFolder();
     write(folder, '7710092.json', processFile(7710092, S1, 'waiting')); // it waits for the user
-    expect(await readProcessList(folder, () => true)).toEqual({ ok: true, entries: [{ sessionId: S1, startedAtMs: 1_790_000_000_000, status: 'idle' }] });
+    expect(await readProcessList(folder, () => true)).toEqual({ ok: true, entries: [{ sessionId: S1, startedAtMs: 1_790_000_000_000, status: 'idle', cwd: REPO }] });
   });
 
   it('a session with an unknown status word is live and idle', async () => {
     const folder = freshFolder();
     write(folder, '7710093.json', processFile(7710093, S1, 'sleeping'));
-    expect(await readProcessList(folder, () => true)).toEqual({ ok: true, entries: [{ sessionId: S1, startedAtMs: 1_790_000_000_000, status: 'idle' }] });
+    expect(await readProcessList(folder, () => true)).toEqual({ ok: true, entries: [{ sessionId: S1, startedAtMs: 1_790_000_000_000, status: 'idle', cwd: REPO }] });
   });
 
   it('a session with a missing or non-string status is live and idle', async () => {
@@ -280,8 +282,8 @@ describe('the process list', () => {
     expect(await readProcessList(folder, () => true)).toEqual({
       ok: true,
       entries: [
-        { sessionId: S1, startedAtMs: 1_790_000_000_000, status: 'idle' },
-        { sessionId: S2, startedAtMs: 1_790_000_000_000, status: 'idle' },
+        { sessionId: S1, startedAtMs: 1_790_000_000_000, status: 'idle', cwd: null },
+        { sessionId: S2, startedAtMs: 1_790_000_000_000, status: 'idle', cwd: null },
       ],
     });
   });
@@ -296,10 +298,19 @@ describe('the process list', () => {
     expect(list).toEqual({
       ok: true,
       entries: [
-        { sessionId: S1, startedAtMs: 1_790_000_000_000, status: 'busy' },
-        { sessionId: S2, startedAtMs: 1_790_000_100_000, status: 'idle' },
+        { sessionId: S1, startedAtMs: 1_790_000_000_000, status: 'busy', cwd: REPO },
+        { sessionId: S2, startedAtMs: 1_790_000_100_000, status: 'idle', cwd: REPO },
       ],
     });
+  });
+
+  it('keeps the launch folder as text, and null for an empty or non-text one', async () => {
+    const folder = freshFolder();
+    write(folder, '7710096.json', JSON.stringify({ pid: 7710096, sessionId: S1, cwd: 'C:\\Users\\x\\home-base', status: 'idle' }));
+    write(folder, '7710097.json', JSON.stringify({ pid: 7710097, sessionId: S2, cwd: '', status: 'idle' }));
+    write(folder, '7710098.json', JSON.stringify({ pid: 7710098, sessionId: S3, cwd: 7, status: 'idle' }));
+    const list = await readProcessList(folder, () => true);
+    expect(list.ok && list.entries.map((entry) => entry.cwd)).toEqual(['C:\\Users\\x\\home-base', null, null]);
   });
 });
 
@@ -343,7 +354,7 @@ describe('the default pid check', () => {
       throw Object.assign(new Error('simulated ESRCH'), { code: 'ESRCH' });
     }) as typeof process.kill);
     const list = await readProcessList(folder);
-    expect(list).toEqual({ ok: true, entries: [{ sessionId: S1, startedAtMs: 1_790_000_000_000, status: 'busy' }] });
+    expect(list).toEqual({ ok: true, entries: [{ sessionId: S1, startedAtMs: 1_790_000_000_000, status: 'busy', cwd: REPO }] });
     expect(kill.mock.calls.every((call) => call[1] === 0)).toBe(true);
   });
 });
