@@ -27,3 +27,6 @@ tests/fixtures/defaultpath/gpu/
 
 # The local reporter (tools/command-center/scripts/reporter-launch.mjs): its pinned copy of origin/main, lock, log and generated config. No secrets.
 .cc-reporter/
+
+# The Battle Stage Editor save endpoint's test seam (?scratch=<name>, src/dev/stageedit/serve.ts): private copies of the stage files, made by the specs and deleted by them.
+tests/fixtures/stagedata/.scratch/

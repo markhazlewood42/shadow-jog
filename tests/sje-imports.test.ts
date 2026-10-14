@@ -345,6 +345,8 @@ describe('who may import the engine', () => {
 });
 
 describe('the battle stage (src/battlestage, M3)', () => {
+  /** The files that may import the stage. */
+  const STAGE_IMPORTERS = /^(src\/sje-lab\/|src\/dev\/stageedit\/|src\/sje\/boot\.ts$|tests\/|e2e\/|scripts\/)/;
   // The stage is game code that runs ON the engine: it takes the engine from the facade only, and it is not part of the shipped game's default path.
   // Nothing outside it, the lab, the tests and the engine's boot glue may import it (the boot glue loads it behind the flag, M3 task 11).
   const toEngine = (e: Edge) => e.target !== null && (e.target === 'src/sje' || e.target.startsWith('src/sje/'));
@@ -356,9 +358,16 @@ describe('the battle stage (src/battlestage, M3)', () => {
     expect(stage.length).toBeGreaterThan(0);
   });
 
-  it('is imported only by itself, the lab, the engine boot glue and the tests (not by the default path of the game)', () => {
+  it('is imported only by itself, the lab, the Battle Stage Editor, the engine boot glue and the tests (not by the default path of the game)', () => {
     const into = all.filter((e) => e.target !== null && (e.target === 'src/battlestage' || e.target.startsWith('src/battlestage/')) && !e.file.startsWith('src/battlestage/'));
-    expect(into.filter((e) => !/^(src\/sje-lab\/|src\/sje\/boot\.ts$|tests\/|e2e\/|scripts\/)/.test(e.file)).map((e) => `${e.file} imports ${e.spec}`)).toEqual([]);
+    // ET: the Battle Stage Editor (src/dev/stageedit/, a dev-only tool page) edits the stage files and runs the stage scene. It is the only folder of src/dev that may import the stage.
+    expect(into.filter((e) => !STAGE_IMPORTERS.test(e.file)).map((e) => `${e.file} imports ${e.spec}`)).toEqual([]);
+  });
+
+  it('control: a dev tool outside src/dev/stageedit that imports the stage is refused by the same rule', () => {
+    expect(STAGE_IMPORTERS.test('src/dev/stageedit/save.ts')).toBe(true);
+    expect(STAGE_IMPORTERS.test('src/dev/fxlab.ts')).toBe(false);
+    expect(STAGE_IMPORTERS.test('src/scenes/battle.ts')).toBe(false);
   });
 
   it('holds no Pixi and no Three (they come through the facade)', () => {

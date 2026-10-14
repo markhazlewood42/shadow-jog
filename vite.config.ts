@@ -3,31 +3,15 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Plugin } from 'vite';
+import { sameOrigin } from './src/dev/sameorigin';
+import { stageHandlers } from './src/dev/stageedit/serve';
 import { DEV_TOOLS } from './src/dev/tools';
 import { defineConfig } from 'vitest/config';
 
 const FX_FILE = resolve(import.meta.dirname, 'src/data/fx.json');
 type FxDataModule = typeof import('./src/sje/fx/fxdata');
 type RigCheckModule = typeof import('./src/art/rig2/check');
-
-/**
- * Whether a request to one of the dev server's write endpoints came from the dev server's own pages
- * (the editors), not from another site open in the browser: a browser marks a cross-site request
- * (Sec-Fetch-Site) and names the page's origin (Origin), and a page elsewhere could otherwise post
- * to localhost and overwrite project files (Copilot review of main, 2026-10-02). A request with
- * neither (a script, node's fetch) is allowed: it isn't a web page.
- */
-function sameOrigin(req: import('node:http').IncomingMessage): boolean {
-  const site = req.headers['sec-fetch-site'];
-  if (site && site !== 'same-origin' && site !== 'none') return false;
-  const origin = req.headers.origin;
-  if (!origin) return true;
-  try {
-    return new URL(origin).host === req.headers.host;
-  } catch {
-    return false;
-  }
-}
+type StageSaveModule = typeof import('./src/dev/stageedit/save');
 
 /**
  * The FX lab's save endpoint (dev server only): GET /__fxlab/fx returns src/data/fx.json; POST
@@ -88,6 +72,40 @@ function fxLab(): Plugin {
           }
         });
       });
+    },
+  };
+}
+
+const STAGE_DATA_DIR = resolve(import.meta.dirname, 'src/data');
+/** The test seam of the stage editor's save endpoint: `?scratch=<name>` reads and writes a private copy under the test fixtures (src/dev/stageedit/serve.ts). Git-ignored. */
+const STAGE_SCRATCH_DIR = resolve(import.meta.dirname, 'tests/fixtures/stagedata/.scratch');
+
+/**
+ * The Battle Stage Editor's save endpoint (dev server only; the editor is /stageedit.html). GET /__stage/stages returns the 640 set's stage files (stages-640.json, axes.json,
+ * enemyfacing.json, heroes.json) as text, GET /__stage/hud its HUD (hud-640.json); POST /__stage/stages saves ALL the files of one Save together or none (a refused Save changes
+ * nothing), from the dev server's own pages only (403 from another site), and writes the 640 set only (ET decision 4). `?dry=1` checks and writes nothing (the tests use it).
+ * The handlers, the answers and the test seam are in src/dev/stageedit/serve.ts; the checks are `prepareSave` of src/dev/stageedit/save.ts, loaded through the dev server so they are
+ * current after any edit.
+ */
+function stageEdit(): Plugin {
+  return {
+    name: 'shadowjog-stageedit',
+    apply: 'serve',
+    configureServer(server) {
+      const load = async () => (await server.ssrLoadModule('/src/dev/stageedit/save.ts')) as StageSaveModule;
+      // The module is loaded once per request, before the handler runs, so a request always meets the checks as they are on disk now.
+      const handle = (which: 'stages' | 'hud') => (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse) => {
+        void load().then(
+          (save) => stageHandlers({ dataDir: STAGE_DATA_DIR, scratchRoot: STAGE_SCRATCH_DIR, prepare: save.prepareSave, screen: save.SET_SCREEN })[which](req, res),
+          (e: unknown) => {
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ ok: false, problems: [`could not load the save checks: ${String(e)}`] }));
+          },
+        );
+      };
+      server.middlewares.use('/__stage/stages', handle('stages'));
+      server.middlewares.use('/__stage/hud', handle('hud'));
     },
   };
 }
@@ -299,7 +317,7 @@ export default defineConfig(({ mode }) => ({
   // `define` swaps these names for the given values wherever they appear in the source, at build time
   // (and in tests), so src/version.ts can show the version and commit without reading any file at runtime.
   define: { __APP_VERSION__: JSON.stringify(APP_VERSION), __BUILD_SHA__: JSON.stringify(buildSha()) },
-  plugins: [fxLab(), artPass(), rigEdit(), devTools()],
+  plugins: [fxLab(), artPass(), rigEdit(), stageEdit(), devTools()],
   server: { port: 3007, watch: { usePolling: true } },
   // Pixi and Three load lazily (the lab page now, the 3D mode later). Without this, the dev server finds each one on its
   // first import, optimizes it and RELOADS the page, in the middle of an e2e run (docs/engine/tooling-and-testing.md section 10).
