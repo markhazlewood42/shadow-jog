@@ -16,17 +16,16 @@ On 2026-10-13 the hosted Now page showed 16 items in "Your move". None was real.
 
 ## 2. The model
 
-"Your move" shows only items that clear themselves. Today the local page also shows the `status.md` "Next up for Mark" list and the open decisions of the engine docs. Section 5 removes both. After the change, the hosted page and the local page use the same three sources and one shared rule in `tools/command-center/src/shared/`.
+"Your move" shows only items that clear themselves. Today the local page also shows the `status.md` "Next up for Mark" list and the open decisions of the engine docs. Section 5 removes both. After the change, the hosted page and the local page use the same sources and one shared rule in `tools/command-center/src/shared/`.
 
 | Source | Shows when | Clears when |
 |---|---|---|
 | Decision issues | An issue is open, has the label `decision`, and `markhazlewood42` made it | The issue is closed |
-| Pull requests that wait for Mark | The `attentionOf` rule: open, not draft, author Mark. Action is `merge` when checks pass and `fix` when checks fail or changes are requested | The PR is merged or closed |
 | Live asks | The newest "Your move" box of a live session. One item per box line | Any one of the four rules below |
 
-The text of a PR item comes from GitHub (number and title). It never comes from session text.
+**Pull requests (changed 2026-10-13).** They are not a source. A PR that waits for Mark showed twice, in "Your move" and in the Pull requests panel, so Mark removed it from "Your move". The panel keeps the `attention` chip ("Ready to merge", "Needs a fix"). A cut or partial PR fetch no longer marks "Your move" incomplete.
 
-**Action rule (Mark, 2026-10-13).** Every item links to a place where Mark can act: a decision page, a PR, or a live session. An item that links only to document text is not allowed.
+**Action rule (Mark, 2026-10-13).** Every item links to a place where Mark can act: a decision page or a live session. An item that links only to document text is not allowed.
 
 A live ask hides when any one of these holds:
 
@@ -64,7 +63,7 @@ Live asks depend on a working reporter. Mark reports open problems in the local 
 - `next_for_mark` leaves the workstream files, the validator (`src/shared/workstream.ts`), `tools/command-center/tests/workstream-files.test.ts`, the Workstreams cards, and "Your move". Existing files lose the field.
 - `docs/workstreams/README.md` changes to match.
 - The "Workstream file" bullet in the repo `CLAUDE.md` no longer says a session makes `next_for_mark` true.
-- On the local page, the `status.md` "Next up for Mark" list leaves "Your move". It links only to text and does not clear itself. A line that needs Mark becomes a decision issue, a PR, or a live ask.
+- On the local page, the `status.md` "Next up for Mark" list leaves "Your move". It links only to text and does not clear itself. A line that needs Mark becomes a decision issue or a live ask.
 - The open decisions of the engine docs leave "Your move". A decision that needs Mark is raised as a GitHub decision issue. It then shows through source 1 with the decision page.
 - Add a check that flags an open engine-doc decision that has no decision issue. Proposal: a test in `tools/command-center/tests/` that fails on such a decision, plus a warning on the docs page.
 
@@ -89,8 +88,8 @@ Built, section by section of this note:
 
 | Section | What exists | Where |
 |---|---|---|
-| 2 The model | One shared rule over the three sources (decision issues, PRs that wait for Mark, live asks). The four hide rules are `askStatus`. Every item must link to a decision page, a PR or a live session, or the rule leaves it out. | `tools/command-center/src/shared/your-move.ts` |
-| 2 Local page | `buildYourMove` reads four panels (decisions, sessions, GitHub, live agents). A live ask needs a fresh process list and a fresh session read. | `src/server/now/yourMove.ts`, `src/server/routes/now.ts` |
+| 2 The model | One shared rule over the two sources (decision issues, live asks). The four hide rules are `askStatus`. Every item must link to a decision page or a live session, or the rule leaves it out. (Pull requests were a third source until 2026-10-13.) | `tools/command-center/src/shared/your-move.ts` |
+| 2 Local page | `buildYourMove` reads three panels (decisions, sessions, live agents). A live ask needs a fresh process list and a fresh session read. | `src/server/now/yourMove.ts`, `src/server/routes/now.ts` |
 | 2 Hosted page | The same rule over the snapshot and the `live` key. A key older than 150 s, a failed request, a missing key or an unreadable value hides all live asks and shows "Reporter offline" (or the reason). The page checks the age again with its own clock. | `src/web/hosted/your-move.ts` |
 | 4 Trust rule | The reporter sends `yourMove: { at, lines }` for a live session: at most 6 lines, markdown stripped, redacted like a title, cut to 160 characters, only when the box passes the four rules and only from a fresh read of the sessions module. `parseLive` holds the same caps. The protection check did not change. | `src/server/publish/map.ts`, `module.ts`, `src/shared/live.ts`; `README.md` "What leaves this machine" |
 | 5 What goes away | `next_for_mark` is gone from the validator, the five workstream files, the cards, the README and the CLAUDE.md bullet. The `status.md` list and the engine-doc decisions are not sources. | `src/shared/workstream.ts`, `docs/workstreams/` |
@@ -101,7 +100,6 @@ Choices made where this note was open:
 
 - A box with no usable time is hidden (rule 4 cannot be shown to hold). Real session lines always carry a time.
 - The light of a box is shown on the local page and is not sent to the hosted page.
-- A PR with no usable address is left out of the list (the action rule), where the old list showed it without a link.
 - The hosted `/api/decisions` list is answered from the snapshot so that the docs warning works there too.
 - A workstream file on another branch that still has the old key shows as a red row until that branch removes it: the validator treats it as an unknown field.
 

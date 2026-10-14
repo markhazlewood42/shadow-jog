@@ -5,7 +5,7 @@ import { FUTURE_SLACK_MS, type LiveAsk, buildYourMoveItems } from '../../shared/
 import { type LiveRead, clock } from './panels';
 
 // "Your move" on the hosted page (design.md section 5.1). The rule is the one the local page uses (src/shared/your-move.ts); this file only reads the two slots of the
-// store. The sources are the same three: the open decision issues and the pull requests of the snapshot, and the live asks of the `live` key.
+// store. The sources are the same two: the open decision issues of the snapshot, and the live asks of the `live` key.
 //
 // The live asks show only while the reporter is fresh. A `live` key older than 150 s, a request that failed, a key that is gone and a value that cannot be read all hide EVERY
 // live ask, and the list says why ("Reporter offline ..."). A failed reporter never shows old asks.
@@ -37,15 +37,15 @@ export function liveAsksOf(read: LiveRead, nowMs: number): { asks: LiveAsk[]; me
 
 export function buildHostedYourMove(snapshot: Snapshot, read: LiveRead, nowMs: number): YourMoveInfo {
   const { asks, message } = liveAsksOf(read, nowMs);
-  const items = buildYourMoveItems({ decisions: snapshot.decisions.open, prs: snapshot.github.open, asks, nowMs });
+  const items = buildYourMoveItems({ decisions: snapshot.decisions.open, asks, nowMs });
 
   const missing: YourMoveInfo['missing'] = [];
-  // A problem of the snapshot means that a source may be incomplete. The list is still made; the notice names the source that may be missing items. The code of the problem says
-  // which: `decision...` is the decision issues, anything else about pull requests or a partial answer is the pull requests. A problem about branches or workstream files
-  // does not touch this list, so it is not named here.
-  const problem = snapshot.problems.find((candidate) => /^(?:decision|pr-|open-prs|recent-prs|graphql)/.test(candidate.code));
+  // A problem of the snapshot means that a source may be incomplete. The list is still made; the notice names the source that may be missing items. Only a problem of the
+  // decision issues (`decision...`) touches this list. A problem about pull requests (a cut or partial list), branches or workstream files does not: the list holds no
+  // pull request, so it is not named here.
+  const problem = snapshot.problems.find((candidate) => candidate.code.startsWith('decision'));
   if (problem !== undefined) {
-    missing.push({ source: problem.code.startsWith('decision') ? 'decision-issue' : 'pr', message: `Snapshot incomplete: ${problem.message}` });
+    missing.push({ source: 'decision-issue', message: `Snapshot incomplete: ${problem.message}` });
   }
   if (message !== null) missing.push({ source: 'session', message });
   return { items, missing };

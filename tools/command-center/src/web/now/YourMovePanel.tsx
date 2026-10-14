@@ -1,5 +1,5 @@
 import { Chip } from '@heroui/react';
-import { CircleAlert, CircleCheck, ExternalLink, Gavel, GitPullRequest, Info, type LucideIcon, MessageSquare, TriangleAlert } from 'lucide-react';
+import { CircleAlert, CircleCheck, ExternalLink, Gavel, Info, type LucideIcon, MessageSquare, TriangleAlert } from 'lucide-react';
 import { useId } from 'react';
 import { Link } from 'react-router';
 import type { ModuleName, YourMoveInfo, YourMoveItem, YourMoveSource } from '../../shared/types';
@@ -11,20 +11,18 @@ import { Age, useNow } from './time';
 // "Your move": every open action for Mark in one list, the most blocking first (the order is made by the server: src/server/now/yourMove.ts). This is the
 // panel that the page is for, so it is the one that carries the one amber item of the page: the count of what waits.
 
-/** The list is made from four sources (the live asks read two of them), so the panel loads again when any of them says that something changed. */
-const YOUR_MOVE_MODULES: readonly ModuleName[] = ['decisions', 'sessions', 'github', 'agents'];
+/** The list is made from three sources (the live asks read two of them), so the panel loads again when any of them says that something changed. */
+const YOUR_MOVE_MODULES: readonly ModuleName[] = ['decisions', 'sessions', 'agents'];
 
 /** What each source is called in the list: next to an item (small) and in the notice for a source that could not be read. */
 const SOURCE_LABELS: Record<YourMoveSource, string> = {
   'decision-issue': 'Decision',
   session: 'Session',
-  pr: 'Pull request',
 };
 
 const SOURCE_ICONS: Record<YourMoveSource, LucideIcon> = {
   'decision-issue': Gavel,
   session: MessageSquare,
-  pr: GitPullRequest,
 };
 
 /**

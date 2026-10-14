@@ -4,7 +4,7 @@ title: Command Center roadmap fixes
 branch: cc-roadmap-fixes
 roadmap: ET
 state: active
-updated: 2026-10-13
+updated: 2026-10-14
 ---
 
 # Command Center roadmap fixes
@@ -40,6 +40,10 @@ Built from `docs/command-center/your-move-redesign.md`: one shared rule, three s
 | README step 5 test list | Steps 1, 2, 4 to 9 by Mark: gray, amber, green; "already runs" balloon; hosted page and logs open; Restart gives new ids; a killed local server gives amber and a balloon; `reporter:stop` leaves local up; Quit and a killed tray leave no process and free ports; the next start takes over the stale lock at once | PASS. Step 3 (30 idle minutes) deferred: live Shadow Jog sessions kept it from being a real test; a unit test covers `--no-idle-exit` |
 | Hook | The `SessionStart` entry for `reporter-hook.mjs` is removed from `~/.claude/settings.json` (Mark) | Done |
 | Fix `7a67072` | The launcher "held lock" test used a fake owner pid, so it passed only while a real reporter held port 29417. It now names the test process. The update log line names the branch, not "main" | 1 verifier PASS, 103 tests and tsc exit 0, a forced takeover fails the test |
+
+## PRs out of Your move, spikes hidden (2026-10-13)
+
+Mark asked for two changes. (a) A PR showed twice, in "Your move" and in "Pull requests". It is now only in "Pull requests": the shared rule (`src/shared/your-move.ts`) has no PR input, the local builder reads three panels, and a cut or partial PR fetch no longer marks "Your move" incomplete. `YourMoveSource` lost `'pr'`. (b) The "never merge" spike PRs (open draft PRs from `spike/<topic>` branches: #3, #4, #11) are hidden from the Pull requests panel, and the "Open (n)" count counts only the PRs shown. One shared predicate, `isSpikePr` in `src/shared/spike-pr.ts`, serves the local and the hosted page. The hide is display-only: the snapshot, `/api/github` and the workstream matching by branch still hold the spikes. Tests: `spike-pr.test.tsx` (predicate and list), and the Your move tests no longer expect PR items.
 
 Next: PR #85 is merged, and the desktop shortcut (README step 5) runs the tray. The branch is fast-forwarded to main. Mark picks the next round of Command Center work on this branch (keep the worktree).
 
