@@ -10,7 +10,7 @@
  *     through a dynamic `import()`, so the lab's first download holds no Three (the real game will do
  *     the same through the door in src/hack3d/door.ts, M7). The built bundle is checked too
  *     (scripts/bundle-budget.mjs).
- *  3. Dependencies point DOWN the levels: core 0, render 1, display 2, fx 2.5 (the effects), runtime 3, facade 4, three 5.
+ *  3. Dependencies point DOWN the levels: core 0, render 1, display 2, fx 2.5 (the effects), ui 2.6 (the UI kit, M8a), runtime 3, facade 4, three 5.
  *  4. Game code reaches the engine only through the facade, `src/sje/index.ts`. The exceptions are the old engine's
  *     files, which take `W` and `H` from `src/sje/core/size.ts` (M0), the `Rng` re-export (`src/engine/rng.ts`, M1), the
  *     type-only `implements GameApi` line (M1), and `src/main.ts`, which loads `src/sje/boot.ts` with a dynamic import (M1).
@@ -180,8 +180,8 @@ describe('levels: dependencies point down', () => {
   const level = (path: string): number | null => {
     const p = path.replace(/\.ts$/, '');
     if (p === 'src/sje/index') return 4;
-    const m = /^src\/sje\/(core|render|display|fx|runtime|three)\//.exec(p);
-    return m ? { core: 0, render: 1, display: 2, fx: 2.5, runtime: 3, three: 5 }[m[1] as 'core'] : null;
+    const m = /^src\/sje\/(core|render|display|fx|ui|runtime|three)\//.exec(p);
+    return m ? { core: 0, render: 1, display: 2, fx: 2.5, ui: 2.6, runtime: 3, three: 5 }[m[1] as 'core'] : null;
   };
   const sje = edges(['src/sje']);
 
@@ -245,6 +245,24 @@ describe('level 2.5 (src/sje/fx, the effects): what it may import', () => {
       expect(specs.filter((s) => isPixi(s) || isThree(s)), f).toEqual([]);
       expect(specs.filter((s) => s.startsWith('.') && !/^\.\.?\/(core\/size|particles|fxstate|fxdata)$/.test(s)), f).toEqual([]);
     }
+  });
+});
+
+describe('level 2.6 (src/sje/ui, the UI kit, M8a): what it may import', () => {
+  const ui = edges(['src/sje/ui']);
+
+  it('imports only core, display and itself: no Pixi (it builds on the display objects), no Three, no runtime, no render, no fx, nothing outside the engine', () => {
+    const bad = ui.filter((e) => e.target !== null).filter((e) => !/^src\/sje\/(core|display|ui)(\/|$)/.test(e.target ?? ''));
+    expect(bad.map((e) => `${e.file} imports ${e.spec}`)).toEqual([]);
+    expect(ui.filter((e) => isPixi(e.spec) || isThree(e.spec)).map((e) => e.file)).toEqual([]);
+    // The scan is alive: the kit really does import the display objects and the font.
+    expect(ui.some((e) => e.target?.startsWith('src/sje/display/'))).toBe(true);
+    expect(ui.length).toBeGreaterThan(10);
+  });
+
+  it('nothing at another level imports the kit (only the facade reaches it)', () => {
+    const up = edges(['src/sje']).filter((e) => !e.file.startsWith('src/sje/ui/') && e.file !== 'src/sje/index.ts' && /^src\/sje\/ui(\/|$)/.test(e.target ?? ''));
+    expect(up.map((e) => `${e.file} imports ${e.spec}`)).toEqual([]);
   });
 });
 
