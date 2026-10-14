@@ -7374,6 +7374,7 @@ var STALE_AFTER_DAYS = 14;
 var WORKSTREAM_STATES = ["active", "review", "blocked", "parked", "merged"];
 var BRANCH_NAME_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*(\/[a-z0-9]+(-[a-z0-9]+)*)*$/;
 var KNOWN_KEYS = ["type", "title", "branch", "roadmap", "state", "blocked_on", "updated"];
+var IGNORED_LEGACY_KEYS = ["next_for_mark"];
 function isValidBranchName(name) {
   return BRANCH_NAME_PATTERN.test(name);
 }
@@ -7451,7 +7452,7 @@ function parseWorkstream(path, src) {
   }
   const fields = data;
   for (const key of Object.keys(fields)) {
-    if (!KNOWN_KEYS.includes(key)) errors.push(`unknown field "${key}" (allowed: ${KNOWN_KEYS.join(", ")})`);
+    if (!KNOWN_KEYS.includes(key) && !IGNORED_LEGACY_KEYS.includes(key)) errors.push(`unknown field "${key}" (allowed: ${KNOWN_KEYS.join(", ")})`);
   }
   if (fields.type !== "workstream") errors.push(`type must be "workstream", not ${describe(fields.type)}`);
   const text4 = (key) => {
@@ -8189,6 +8190,7 @@ function isRecent(at, now) {
   return Number.isFinite(ms) && now - ms <= RECENT_MS;
 }
 function addDecision(info, issue, now) {
+  (info.covering ??= []).push({ number: issue.number, title: issue.title, question: issue.question, docs: issue.docs });
   if (issue.state === "open") info.open.push(issue);
   else if (issue.state === "answered" && issue.answer !== null && isRecent(issue.answer.at, now)) info.recent.push(issue);
 }

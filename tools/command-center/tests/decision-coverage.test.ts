@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { decisionsWithoutIssue, issueCovers } from '../src/shared/decision-coverage';
-import type { Decision, DecisionIssue } from '../src/shared/types';
+import { addDecision } from '../src/server/decisions/parse';
+import type { Decision, DecisionIssue, DecisionsInfo } from '../src/shared/types';
 
 // The check that an open decision of the engine docs has a decision issue (your-move-redesign.md section 5). "Your move" shows a decision only through its
 // GitHub issue, so an open doc decision with no issue is invisible to Mark. These tests run the check over made-up decisions and issues.
@@ -83,5 +84,28 @@ describe('decisionsWithoutIssue', () => {
     const noHeading = decision('C3', { anchor: null, source: 'engine-update', docSlug: 'engine/README' });
     expect(issueCovers(issue(89, { docs: [{ docId: 'engine/README', slug: 'engine/README', anchor: '', heading: null }] }), noHeading)).toBe(false);
     expect(issueCovers(issue(90, { title: 'Decision C3: roundPixels' }), noHeading)).toBe(true);
+  });
+});
+
+describe('the coverage list that the decisions module builds', () => {
+  const NOW = Date.parse('2026-10-13T12:00:00Z');
+
+  it('an issue answered 8 or more days ago covers its doc decision: it is on neither open nor recent, but it is on covering (the real path, addDecision)', () => {
+    const info: DecisionsInfo = { open: [], recent: [] };
+    const old = issue(91, { title: 'Decision E5: x', state: 'answered', answer: { option: 'A', note: null, at: '2026-09-20T08:00:00Z', complete: true } });
+    addDecision(info, old, NOW);
+    expect(info.open).toEqual([]);
+    expect(info.recent).toEqual([]);
+    // The check as the page runs it: `info.covering`, not open + recent.
+    expect(decisionsWithoutIssue([decision('E5')], info.covering ?? [])).toEqual([]);
+    // And the old feed (open + recent only) would have flagged it, which is the bug this guards.
+    expect(decisionsWithoutIssue([decision('E5')], [...info.open, ...info.recent]).map((entry) => entry.id)).toEqual(['E5']);
+  });
+
+  it('a closed issue that is not an answer, and an open one, are on covering too', () => {
+    const info: DecisionsInfo = { open: [], recent: [] };
+    addDecision(info, issue(92, { title: 'Decision E6: x', state: 'closed' }), NOW);
+    addDecision(info, issue(93, { title: 'Decision E7: x' }), NOW);
+    expect(decisionsWithoutIssue([decision('E6'), decision('E7'), decision('E8')], info.covering ?? []).map((entry) => entry.id)).toEqual(['E8']);
   });
 });

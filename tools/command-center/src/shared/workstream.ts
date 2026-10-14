@@ -62,6 +62,13 @@ export type BranchCheck =
 /** The fields a file may have. Any other key is an error: it is most likely a typo. */
 const KNOWN_KEYS = ['type', 'title', 'branch', 'roadmap', 'state', 'blocked_on', 'updated'];
 
+/**
+ * A key that the "Your move" redesign retired (2026-10-13). Branches that began before it still carry `next_for_mark` in their own workstream file, and this check reads each
+ * branch's file as that branch has it. So the key is accepted and ignored: it is not shown anywhere and it is not an error. Every other unknown key stays an error.
+ * Remove this when no branch carries `next_for_mark` any more: `git grep next_for_mark origin/<branch> -- docs/workstreams` finds none on any branch.
+ */
+const IGNORED_LEGACY_KEYS = ['next_for_mark'];
+
 export function isValidBranchName(name: string): boolean {
   return BRANCH_NAME_PATTERN.test(name);
 }
@@ -173,7 +180,7 @@ export function parseWorkstream(path: string, src: string): WorkstreamResult {
   const fields = data as Record<string, unknown>;
 
   for (const key of Object.keys(fields)) {
-    if (!KNOWN_KEYS.includes(key)) errors.push(`unknown field "${key}" (allowed: ${KNOWN_KEYS.join(', ')})`);
+    if (!KNOWN_KEYS.includes(key) && !IGNORED_LEGACY_KEYS.includes(key)) errors.push(`unknown field "${key}" (allowed: ${KNOWN_KEYS.join(', ')})`);
   }
 
   if (fields.type !== 'workstream') errors.push(`type must be "workstream", not ${describe(fields.type)}`);

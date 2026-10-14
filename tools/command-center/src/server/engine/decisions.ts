@@ -1,6 +1,7 @@
 import MarkdownIt, { type Token } from 'markdown-it';
 import type { Decision, DecisionStatus, DocHeading } from '../../shared/types';
 import { splitFrontmatter } from '../docs/frontmatter';
+import { collapseSpace, inlineText } from '../inline-text';
 import { say } from '../messages';
 import { PanelError } from '../source';
 
@@ -31,33 +32,8 @@ export const ENGINE_DOCS = {
  */
 export type RawDecision = Omit<Decision, 'status' | 'change'> & { text: string };
 
-/** A parser of its own: this file reads a doc's structure and the words of its cells, and never renders it. */
+/** A parser of its own: this file reads a doc's structure, and never renders it. The words of a cell come from `inlineText` (src/server/inline-text.ts). */
 const md = new MarkdownIt({ html: false, linkify: false });
-
-/** Every run of white space (spaces, tabs, line breaks of any kind) as one space, and no space at the ends. */
-export function collapseSpace(text: string): string {
-  return text.replace(/\s+/g, ' ').trim();
-}
-
-/** The words of some inline tokens: text and code, with line breaks as spaces, and the alt text of a picture. */
-function plainText(tokens: readonly Token[]): string {
-  let text = '';
-  for (const token of tokens) {
-    if (token.type === 'text' || token.type === 'code_inline') text += token.content;
-    else if (token.type === 'softbreak' || token.type === 'hardbreak') text += ' ';
-    else if (token.type === 'image') text += plainText(token.children ?? []);
-  }
-  return text;
-}
-
-/**
- * The words of a piece of inline markdown, with no markup: `code` is its text, `[a link](x.md)` is
- * "a link", and a cell with `\|` in it has a `|`. The decision list is plain text, and issue text and
- * doc text must never reach the page as html.
- */
-export function inlineText(markdown: string): string {
-  return collapseSpace(plainText(md.parseInline(markdown, {})[0]?.children ?? []));
-}
 
 // ---- reading a doc's structure ----
 

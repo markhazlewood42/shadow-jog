@@ -155,6 +155,16 @@ describe('parseWorkstream: each invalid field', () => {
     ]);
   });
 
+  it('accepts the retired key next_for_mark and ignores it, but another unknown key still fails', () => {
+    const legacy = parseWorkstream(PATH, file({ next_for_mark: '\n  - Answer decision 61' }));
+    expect(legacy.ok).toBe(true);
+    // Ignored: nothing of it is in the result.
+    if (legacy.ok) expect(JSON.stringify(legacy.workstream)).not.toContain('next_for_mark');
+    expect(errorsOf(file({ next_for_mark: '[]', next_for_me: '[]' }))).toEqual([
+      'unknown field "next_for_me" (allowed: type, title, branch, roadmap, state, blocked_on, updated)',
+    ]);
+  });
+
   it('reports every problem at once, and builds the text of the red row from the path and the errors', () => {
     const result = parseWorkstream(PATH, file({ state: 'done', updated: 'soon' }));
     expect(result.ok).toBe(false);

@@ -17,6 +17,12 @@ import { type DecisionIssue, type PullRequest, type YourMoveItem, sessionHref } 
 /** A box older than this is old news (rule 4). */
 export const ASK_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 
+/**
+ * How far in the future a time may be before it is not believed. Two clocks differ a little (the machine that wrote the time, the machine that reads it), so a few seconds
+ * ahead is normal. A time more than a minute ahead is a wrong clock or a forged value, and it would otherwise stay "fresh" for ever.
+ */
+export const FUTURE_SLACK_MS = 60 * 1000;
+
 /** The most lines of one box that are shown or sent, and the longest line (design: your-move-redesign.md section 4). */
 export const ASK_MAX_LINES = 6;
 export const ASK_MAX_CHARS = 160;
@@ -46,7 +52,8 @@ export function askStatus(box: BoxFacts | null, live: boolean, nowMs: number): A
   if (box === null || box.nothing) return 'nothing';
   if (box.answered) return 'answered';
   const at = box.at === null || box.at === '' ? Number.NaN : Date.parse(box.at);
-  if (Number.isNaN(at) || nowMs - at > ASK_MAX_AGE_MS) return 'old';
+  // A time too far in the future is not a fresh box, it is a wrong time: hidden like an old one.
+  if (Number.isNaN(at) || nowMs - at > ASK_MAX_AGE_MS || nowMs - at < -FUTURE_SLACK_MS) return 'old';
   return 'show';
 }
 

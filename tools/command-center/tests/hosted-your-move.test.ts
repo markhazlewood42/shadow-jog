@@ -99,6 +99,23 @@ describe('"Your move" on the hosted page', () => {
     expect(build(slot).items.map((item) => item.text)).toEqual(['New line (session: Title of s-new)']);
   });
 
+  it('F2: a live key written in the future is offline: asks are hidden', () => {
+    const out = build(slotOf(answerAged(-3600, [row('s-1', ask(['x']))])));
+    expect(out.items).toEqual([]);
+    expect(out.missing[0]?.message).toContain('Reporter offline');
+    // A few seconds ahead is two clocks that differ a little.
+    expect(build(slotOf(answerAged(-20, [row('s-1', ask(['x']))]))).items).toHaveLength(1);
+  });
+
+  it('M9: a snapshot problem names the source it belongs to, and a problem that does not touch the list is not named', () => {
+    const quiet = build(slotOf(answerAged(4, [])), { problems: [{ code: 'branches-truncated', message: 'branches' }] });
+    expect(quiet.missing).toEqual([]);
+    const decisions = build(slotOf(answerAged(4, [])), { problems: [{ code: 'decisions-waiting-truncated', message: 'More decision issues exist' }] });
+    expect(decisions.missing).toEqual([{ source: 'decision-issue', message: 'Snapshot incomplete: More decision issues exist' }]);
+    const prs = build(slotOf(answerAged(4, [])), { problems: [{ code: 'open-prs-truncated', message: 'More PRs exist' }] });
+    expect(prs.missing[0]?.source).toBe('pr');
+  });
+
   it('liveAsksOf names the state of the reporter in words and keeps the asks only when it is fresh', () => {
     const fresh = liveAsksOf(readLive(slotOf(answerAged(4, [row('s-1', ask(['x']))]))), NOW_MS);
     expect(fresh.message).toBeNull();

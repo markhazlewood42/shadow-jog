@@ -35,7 +35,7 @@ The text after the frontmatter is free. Keep it short.
 | `blocked_on` | list of numbers | Decision issue numbers. May be left out when empty. |
 | `updated` | date | `YYYY-MM-DD`. |
 
-Any other key is an error. This file keeps no list of what Mark must do: a list that a session writes and then leaves does not clear itself. A thing that needs Mark is a decision issue, a PR, or the "Your move" box of a live session (`docs/command-center/design.md` section 5.1). The page derives "merged" from the PR: if the PR is merged, the card shows merged, whatever `state` says.
+Any other key is an error, with one exception: `next_for_mark` is retired and ignored. Branches that began before the redesign still carry it, so the check accepts it and shows it nowhere. Do not write it in a new file. This file keeps no list of what Mark must do: a list that a session writes and then leaves does not clear itself. A thing that needs Mark is a decision issue, a PR, or the "Your move" box of a live session (`docs/command-center/design.md` section 5.1). The page derives "merged" from the PR: if the PR is merged, the card shows merged, whatever `state` says.
 
 ## Path and branch name
 

@@ -1,6 +1,6 @@
 import type { AgentsLive, DecisionsInfo, GithubInfo, Panel, SessionInfo, SessionsInfo, YourMoveInfo, YourMoveSource } from '../../shared/types';
 import { ASK_MAX_LINES, type LiveAsk, askStatus, buildYourMoveItems, cutLine } from '../../shared/your-move';
-import { inlineText } from '../engine/decisions';
+import { inlineText } from '../inline-text';
 
 // "Your move" on the local page. The rule itself is shared with the hosted page (src/shared/your-move.ts); this file only reads the panels of the sources and
 // hands the rule its input. It reads no file and runs no command: it is a plain function from four panels to a list, so a test can feed it any mix of good and failed panels.
@@ -38,6 +38,7 @@ function freshOf<T>(panel: Panel<T>): T | null {
 function askOf(session: SessionInfo, liveIds: ReadonlySet<string>, nowMs: number): LiveAsk | null {
   const box = session.yourMove;
   if (box === null || askStatus(box, liveIds.has(session.id), nowMs) !== 'show') return null;
+  // The cut-and-cap here is repeated on purpose in src/server/publish/map.ts and src/shared/live.ts: each place is a trust boundary of its own (defense in depth).
   const lines = box.items
     .map((line) => cutLine(inlineText(line)))
     .filter((line) => line !== '')

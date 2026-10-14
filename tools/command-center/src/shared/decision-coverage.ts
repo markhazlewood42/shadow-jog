@@ -1,4 +1,4 @@
-import type { Decision, DecisionIssue } from './types';
+import type { Decision, DecisionCover } from './types';
 
 // The check behind "an open decision of the engine docs must have a decision issue" (your-move-redesign.md section 5).
 //
@@ -20,15 +20,14 @@ function mentions(text: string, id: string): boolean {
  * the title or the question names the decision's id ("Decision D5: What happens to PixelLab?"). An issue in any state counts: an answered issue whose doc has not
  * been updated yet is a doc to fix, not a decision that is missing its issue.
  */
-export function issueCovers(issue: DecisionIssue, decision: Decision): boolean {
+export function issueCovers(issue: DecisionCover, decision: Decision): boolean {
   if (decision.anchor !== null && issue.docs.some((link) => link.slug === decision.docSlug && link.anchor === decision.anchor)) return true;
   return mentions(issue.title, decision.id) || mentions(issue.question, decision.id);
 }
 
 /**
- * The open decisions of the engine docs that wait for Mark and have no decision issue, in the order of the docs. `issues` is every issue the decisions module knows
- * (the open ones and the recent answers).
+ * The open decisions of the engine docs that wait for Mark and have no decision issue, in the order of the docs. `issues` is every issue the decisions module read (`DecisionsInfo.covering`: open and closed, with no age limit).
  */
-export function decisionsWithoutIssue(decisions: readonly Decision[], issues: readonly DecisionIssue[]): Decision[] {
+export function decisionsWithoutIssue(decisions: readonly Decision[], issues: readonly DecisionCover[]): Decision[] {
   return decisions.filter((decision) => decision.status === 'open' && waitsForMark(decision) && !issues.some((issue) => issueCovers(issue, decision)));
 }

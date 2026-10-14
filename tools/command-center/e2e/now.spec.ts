@@ -42,9 +42,9 @@ function watchConsole(page: Page): string[] {
   return problems;
 }
 
-/** Waits until every panel has loaded: each one says when it was updated. */
-async function allLoaded(page: Page): Promise<void> {
-  for (const name of PANELS) await expect(panel(page, name)).toContainText(/Updated \d\d:\d\d:\d\d/);
+/** Waits until every panel has loaded: each one says when it was updated. A fresh browser that compiles the glass shaders needs a longer `timeout`. */
+async function allLoaded(page: Page, timeout?: number): Promise<void> {
+  for (const name of PANELS) await expect(panel(page, name)).toContainText(/Updated \d\d:\d\d:\d\d/, timeout === undefined ? {} : { timeout });
 }
 
 /** Whether this browser can make a WebGL2 context. The glass tests need one, and say so when it cannot. */
@@ -270,7 +270,7 @@ test.describe('the panels', () => {
       const page = await browser.newPage({ viewport: { width: 1280, height: 500 } });
       await page.goto(`${ORIGIN}/`);
       expect(await hasWebGL2(page), 'this browser has no WebGL2: the glass cannot be tested in it').toBe(true);
-      await allLoaded(page);
+      await allLoaded(page, 100_000);
       const canvas = page.locator('canvas[aria-hidden="true"]');
       await expect(canvas).toHaveCount(1, { timeout: 100_000 });
       const widths = await page.evaluate(() => ({ window: window.innerWidth, page: document.documentElement.clientWidth }));

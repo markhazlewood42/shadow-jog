@@ -287,6 +287,49 @@ describe('the live ask in the allow-list mapper', () => {
     expect(redact(`Use ${token} to push`)).toBe(out?.lines[0]);
   });
 
+  it.each([
+    ['a Stripe live key', 'Do: sk_live_abcdefghijklmnop', 'sk_live_'],
+    ['a Stripe test key', 'Do: sk_test_abcdefghijklmnop', 'sk_test_'],
+    ['a Stripe restricted key', 'Do: rk_live_abcdefghijklmnop', 'rk_live_'],
+    ['a GitLab token', 'Do: glpat-abcdefghij1234', 'glpat-'],
+    ['a secret word, a space and a value', 'Do: password hunter2', 'hunter2'],
+    ['a short token after the word token', 'Do: token AXabcDEFghiJKL', 'AXabc'],
+    ['a sig query parameter', 'Open https://u@host/?sig=abcdef12345678', 'abcdef12345678'],
+    ['a signature query parameter', 'Open https://host/p?x=1&signature=abcdef12345678', 'abcdef12345678'],
+    ['a key query parameter', 'Open https://host/p?key=abcdef12345678', 'abcdef12345678'],
+    ['an auth query parameter', 'Open https://host/p?auth=abcdef12345678', 'abcdef12345678'],
+    ['a code query parameter', 'Open https://host/cb?code=abcdef12345678', 'abcdef12345678'],
+    ['an access_token query parameter', 'Open https://host/cb?access_token=abcdef12345678', 'abcdef12345678'],
+  ])('F1: the redaction of a box line catches %s, and a title gets the same', (_name, line, secret) => {
+    const out = askOfBox(box({ items: [line] }));
+    expect(JSON.stringify(out)).not.toContain(secret);
+    expect(out?.lines[0]).toContain(REDACTED);
+    // Titles use the same function, so the two are in step.
+    expect(redact(line)).not.toContain(secret);
+  });
+
+  it('F1: a plain sentence with the word key or code in it is not changed', () => {
+    expect(askOfBox(box({ items: ['Review the code and the key idea at https://example.test/a?page=2'] }))?.lines).toEqual(['Review the code and the key idea at https://example.test/a?page=2']);
+  });
+
+  it('M5: the 160 cut never halves a redaction marker', () => {
+    // A secret that starts a little before the cut: the marker would run across character 159, so a plain cut would leave "[redact…".
+    for (const pad of [140, 145, 150, 152, 155, 158]) {
+      const line = `${'a '.repeat(Math.ceil(pad / 2)).slice(0, pad)}sk-abcdefghijklmnopqrstu and more words after it`;
+      const out = askOfBox(box({ items: [line] }))?.lines[0] ?? '';
+      expect(out.length, `pad ${pad}`).toBeLessThanOrEqual(160);
+      expect(out, `pad ${pad}`).not.toMatch(/\[(?:r|re|red|reda|redac|redact|redacte)?…$/);
+      expect(out, `pad ${pad}`).not.toMatch(/\[redact(?!ed\])/);
+    }
+  });
+
+  it('F2: a box with a time in the future is not sent', () => {
+    expect(askOfBox(box({ at: new Date(NOW_MS + 9e9).toISOString() }))).toBeNull();
+    expect(askOfBox(box({ at: new Date(NOW_MS + 2 * 60_000).toISOString() }))).toBeNull();
+    // A few seconds ahead is two clocks that differ a little, and it is sent.
+    expect(askOfBox(box({ at: new Date(NOW_MS + 20_000).toISOString() }))).not.toBeNull();
+  });
+
   it('sends nothing when the box fails a rule: answered, says nothing, older than 12 hours, no time', () => {
     expect(askOfBox(box({ answered: true }))).toBeNull();
     expect(askOfBox(box({ nothing: true, items: [] }))).toBeNull();

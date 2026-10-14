@@ -266,7 +266,7 @@ function IssueCoverage({ decisions }: { decisions: readonly Decision[] }) {
       </p>
     );
   }
-  const missing = decisionsWithoutIssue(decisions, [...info.open, ...info.recent]);
+  const missing = decisionsWithoutIssue(decisions, info.covering ?? [...info.open, ...info.recent]);
   if (missing.length === 0) return null;
   const one = missing.length === 1;
   return (

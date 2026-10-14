@@ -4,6 +4,7 @@ import { createRequire as __cjsRequire } from 'node:module'; const require = __c
 
 // src/shared/your-move.ts
 var ASK_MAX_AGE_MS = 12 * 60 * 60 * 1e3;
+var FUTURE_SLACK_MS = 60 * 1e3;
 
 // src/shared/live.ts
 var LIVE_OFFLINE_AFTER_SECONDS = 150;

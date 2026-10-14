@@ -88,6 +88,9 @@ function askOf(value: unknown, where: string): { at: string; lines: string[] } |
   const { at, lines } = value;
   if (typeof at !== 'string' || Number.isNaN(Date.parse(at))) return `${where}.yourMove.at must be a time`;
   if (!(Array.isArray(lines) && lines.every((line) => typeof line === 'string'))) return `${where}.yourMove.lines must be a list of texts`;
+  // The cut-and-cap (at most 6 lines of 160 characters) repeats on purpose in three places: the mapper of the reporter (src/server/publish/map.ts), here, and the local page
+  // (src/server/now/yourMove.ts, plus askItems in src/shared/your-move.ts). Each is a trust boundary of its own and must not rely on the one before it. This one guards
+  // the value that comes back from the store, which anyone with the store key could have written.
   const kept = (lines as string[])
     .map((line) => line.trim())
     .filter((line) => line !== '')

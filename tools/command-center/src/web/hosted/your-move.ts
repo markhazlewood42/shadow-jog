@@ -1,7 +1,7 @@
 import type { Snapshot } from '../../github-api/types';
 import { LIVE_OFFLINE_AFTER_SECONDS } from '../../shared/live';
 import type { YourMoveInfo } from '../../shared/types';
-import { type LiveAsk, buildYourMoveItems } from '../../shared/your-move';
+import { FUTURE_SLACK_MS, type LiveAsk, buildYourMoveItems } from '../../shared/your-move';
 import { type LiveRead, clock } from './panels';
 
 // "Your move" on the hosted page (design.md section 5.1). The rule is the one the local page uses (src/shared/your-move.ts); this file only reads the two slots of the
@@ -24,7 +24,8 @@ export function liveAsksOf(read: LiveRead, nowMs: number): { asks: LiveAsk[]; me
   // 2. A request that failed after a good one keeps the old value in the store. It is not fresh, and neither is its box.
   if (problem !== null && status.state !== 'offline') return { asks: [], message: `Live asks are hidden: ${problem.message}` };
   // 3. The key is older than 150 s: the state of the reporter from the server, and the same check again here with this page's clock (the page may have been open for a while).
-  if (status.state === 'offline' || live === null || Number.isNaN(writtenMs) || nowMs - writtenMs > LIVE_OFFLINE_AFTER_SECONDS * 1000) {
+  //    A key written more than a minute in the future is offline too: its age is negative, so "older than 150 s" never holds, and a wrong clock would show asks for ever.
+  if (status.state === 'offline' || live === null || Number.isNaN(writtenMs) || nowMs - writtenMs > LIVE_OFFLINE_AFTER_SECONDS * 1000 || nowMs - writtenMs < -FUTURE_SLACK_MS) {
     return { asks: [], message: `Reporter offline${since}. Live asks are hidden.` };
   }
 
@@ -38,9 +39,14 @@ export function buildHostedYourMove(snapshot: Snapshot, read: LiveRead, nowMs: n
   const { asks, message } = liveAsksOf(read, nowMs);
   const items = buildYourMoveItems({ decisions: snapshot.decisions.open, prs: snapshot.github.open, asks, nowMs });
 
-  // A problem of the snapshot means that a source may be incomplete. The list is still made; the notice says what may be missing.
   const missing: YourMoveInfo['missing'] = [];
-  if (snapshot.problems.length > 0) missing.push({ source: 'pr', message: `Snapshot incomplete: ${snapshot.problems[0]?.message ?? 'a part could not be read'}` });
+  // A problem of the snapshot means that a source may be incomplete. The list is still made; the notice names the source that may be missing items. The code of the problem says
+  // which: `decision...` is the decision issues, anything else about pull requests or a partial answer is the pull requests. A problem about branches or workstream files
+  // does not touch this list, so it is not named here.
+  const problem = snapshot.problems.find((candidate) => /^(?:decision|pr-|open-prs|recent-prs|graphql)/.test(candidate.code));
+  if (problem !== undefined) {
+    missing.push({ source: problem.code.startsWith('decision') ? 'decision-issue' : 'pr', message: `Snapshot incomplete: ${problem.message}` });
+  }
   if (message !== null) missing.push({ source: 'session', message });
   return { items, missing };
 }

@@ -2,7 +2,8 @@ import type { DocHeading } from '../../shared/types';
 import { splitFrontmatter } from '../docs/frontmatter';
 import { say } from '../messages';
 import { PanelError } from '../source';
-import { ENGINE_DOCS, type RawDecision, anchorOfHeading, inlineText, sortByNumber } from './decisions';
+import { ENGINE_DOCS, type RawDecision, anchorOfHeading, sortByNumber } from './decisions';
+import { inlineText } from '../inline-text';
 
 // The decisions of docs/PHASE-0.2.md. They are not a table: each one is a line in the form
 //

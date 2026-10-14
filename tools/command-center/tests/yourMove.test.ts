@@ -301,6 +301,16 @@ describe('a live ask hides when any one of the four rules holds', () => {
     expect(askStatus({ nothing: false, answered: false, at: hoursAgo(13) }, true, NOW_MS)).toBe('old');
   });
 
+  it('rule 4: a box with a time more than a minute in the future is hidden, in askStatus and again at the shared list', () => {
+    const future = (ms: number) => new Date(NOW_MS + ms).toISOString();
+    expect(askStatus({ nothing: false, answered: false, at: future(9e9) }, true, NOW_MS)).toBe('old');
+    expect(askStatus({ nothing: false, answered: false, at: future(61_000) }, true, NOW_MS)).toBe('old');
+    expect(askStatus({ nothing: false, answered: false, at: future(30_000) }, true, NOW_MS)).toBe('show');
+    expect(askTexts([base('s-1', { at: future(3_600_000) })])).toEqual([]);
+    const ask: LiveAsk = { sessionId: 's-1', title: 'T', lines: ['A line'], at: future(9e9), light: null };
+    expect(buildYourMoveItems({ decisions: [], prs: [], asks: [ask], nowMs: NOW_MS })).toEqual([]);
+  });
+
   it('rule 4: a box with no usable time is hidden, because its age cannot be shown to be inside the limit', () => {
     expect(askTexts([base('s-1', { at: '' })])).toEqual([]);
     expect(askTexts([base('s-1', { at: 'not a time' })])).toEqual([]);
