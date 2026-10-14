@@ -11,6 +11,15 @@ import { ASK_MAX_CHARS, ASK_MAX_LINES, cutLine } from './your-move';
 /** The reporter is offline when `writtenAt` is older than this (design.md section 7). The page shows "Reporter offline" and hides every live ask. */
 export const LIVE_OFFLINE_AFTER_SECONDS = 150;
 
+/** The caps of the agent boxes of one session. The mapper of the reporter and the validator below both use them, so that they cannot drift apart. */
+export const LIVE_ITEM_LIMITS = { items: 20, label: 80, model: 12 } as const;
+
+/**
+ * One agent of a live session, for a box on the hosted Agents page (approved by Mark 2026-10-14): its description (redacted and cut like a name), running or done,
+ * the model as a family name (at most 12 characters), and its start and end times (ISO times, or null). Nothing else of the agent leaves the machine.
+ */
+export type LiveAgentItem = { label: string; state: 'running' | 'done'; model: string | null; startedAt: string | null; endedAt: string | null };
+
 /** One Claude Code session on the machine of the reporter. `title` is transcript text: a page shows it as text. */
 export type LiveSessionRow = {
   id: string;
@@ -24,7 +33,7 @@ export type LiveSessionRow = {
   /** When the process started (an ISO time), or null. */
   startedAt: string | null;
   /** Counts of the agents of the session, with their names. Names are descriptions that the agents were given, not message text. */
-  agents: { running: number; done: number; names: string[] };
+  agents: { running: number; done: number; names: string[]; /** The agents with their state, model and times, running first. Missing from an older reporter: then the page draws the names. */ items?: LiveAgentItem[] };
   /**
    * The newest "Your move" box of the session, when it passes the four rules of src/shared/your-move.ts (the session is live, Mark has not answered, the box does not say
    * "nothing", and it is less than 12 hours old), else null. `lines` are plain text, at most 6, each at most 160 characters, redacted like a title. `at` is the time of the
@@ -72,9 +81,37 @@ function sessionRow(value: unknown, index: number): LiveSessionRow | string {
   if (!isRecord(agents) || !isCount(agents.running) || !isCount(agents.done)) return `${where}.agents must have whole-number counts "running" and "done"`;
   const names = agents.names ?? [];
   if (!(Array.isArray(names) && names.every((name) => typeof name === 'string'))) return `${where}.agents.names must be a list of texts`;
+  const items = itemsOf(agents.items, `${where}.agents.items`);
+  if (typeof items === 'string') return items;
   const ask = askOf(value.yourMove, where);
   if (typeof ask === 'string') return ask;
-  return { id, title, branch, folder, state, startedAt, agents: { running: agents.running, done: agents.done, names: names as string[] }, yourMove: ask };
+  const counts = { running: agents.running, done: agents.done, names: names as string[] };
+  return { id, title, branch, folder, state, startedAt, agents: items === undefined ? counts : { ...counts, items }, yourMove: ask };
+}
+
+const isTimeOrNull = (value: unknown): value is string | null => value === null || (typeof value === 'string' && !Number.isNaN(Date.parse(value)));
+
+/**
+ * The `agents.items` field of a row. Missing (an older reporter) is fine and gives undefined. A value of the wrong shape refuses the whole value, and so does a list or a text
+ * that is over its cap: the reporter cuts them, so a longer one was not written by it. Each item is built again from the fields that the contract names.
+ */
+function itemsOf(value: unknown, where: string): LiveAgentItem[] | undefined | string {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value)) return `${where} must be a list`;
+  if (value.length > LIVE_ITEM_LIMITS.items) return `${where} has more than ${LIVE_ITEM_LIMITS.items} items`;
+  const out: LiveAgentItem[] = [];
+  for (const [index, raw] of value.entries()) {
+    const at = `${where}[${index}]`;
+    if (!isRecord(raw)) return `${at} is not an object`;
+    const { label, state, model, startedAt, endedAt } = raw;
+    if (typeof label !== 'string' || label.length > LIVE_ITEM_LIMITS.label) return `${at}.label must be a text of at most ${LIVE_ITEM_LIMITS.label} characters`;
+    if (state !== 'running' && state !== 'done') return `${at}.state must be "running" or "done"`;
+    if (!(model === null || (typeof model === 'string' && model.length <= LIVE_ITEM_LIMITS.model))) return `${at}.model must be null or a text of at most ${LIVE_ITEM_LIMITS.model} characters`;
+    if (!isTimeOrNull(startedAt)) return `${at}.startedAt must be a time or null`;
+    if (!isTimeOrNull(endedAt)) return `${at}.endedAt must be a time or null`;
+    out.push({ label, state, model, startedAt, endedAt });
+  }
+  return out;
 }
 
 /**

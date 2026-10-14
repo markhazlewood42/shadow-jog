@@ -133,7 +133,7 @@ describe('the reporter module', () => {
     const value = JSON.parse(command[2] as string);
     expect(value).toEqual({
       writtenAt: '2026-10-12T09:00:00.000Z',
-      sessions: [{ id: 's1', title: 'Build the reporter', branch: 'reporter', folder: 'shadow-jog', state: 'waiting', startedAt: '2026-10-12T08:00:00.000Z', agents: { running: 1, done: 0, names: ['Check the diff'] }, yourMove: null }],
+      sessions: [{ id: 's1', title: 'Build the reporter', branch: 'reporter', folder: 'shadow-jog', state: 'waiting', startedAt: '2026-10-12T08:00:00.000Z', agents: { running: 1, done: 0, names: ['Check the diff'], items: [{ label: 'Check the diff', state: 'running', model: 'sonnet', startedAt: null, endedAt: null }] }, yourMove: null }],
       worktrees: [{ path: 'shadow-jog', branch: 'reporter', dirty: 1 }],
     });
     expect(stored[0]).not.toContain('SECRET');

@@ -220,11 +220,31 @@ test.describe('the Now page on the hosted data layer', () => {
     await expect(page.getByRole('region', { name: 'Agents', exact: true }).getByRole('alert')).toContainText('Reporter not running');
   });
 
-  test('lists the live sessions on the Agents page, with a label that the agent boxes need the local server', async ({ page }) => {
+  test('draws the live sessions on the Agents page, with one box for each agent: label, state, model and run time', async ({ page }) => {
     await mockApi(page, { snapshot: { json: world.snapshot }, live: { json: world.live } });
     await page.goto('/agents');
-    await expect(page.getByText('Sessions only: agent boxes show on the local Command Center')).toBeVisible();
-    await expect(page.getByRole('region', { name: 'Agents', exact: true })).toContainText('Flip the default');
+    const agents = page.getByRole('region', { name: 'Agents', exact: true });
+    await expect(agents).toContainText('Flip the default');
+    // The note of the first build is gone: the boxes are drawn here too.
+    await expect(page.getByText(/Sessions only/)).toHaveCount(0);
+    const boxes = agents.locator('[data-box="agent"]');
+    await expect(boxes).toHaveCount(3);
+    const box = (label: string) => agents.locator('[data-box="agent"]').filter({ hasText: label });
+    await expect(box('runner')).toHaveAttribute('data-state', 'running');
+    await expect(box('runner')).toContainText('sonnet · 3 min');
+    await expect(box('builder')).toHaveAttribute('data-state', 'running');
+    await expect(box('builder')).toContainText('fable · 9 min');
+    await expect(box('reader')).toHaveAttribute('data-state', 'done');
+    await expect(box('reader')).toContainText('done');
+  });
+
+  test('keeps the Reporter offline error on the Agents page', async ({ page }) => {
+    await mockApi(page, {
+      snapshot: { json: world.snapshot },
+      live: { json: liveAnswer('offline', { ...(world.live.live as ReturnType<typeof liveState>), writtenAt: '2026-10-12T11:50:00.000Z' }) },
+    });
+    await page.goto('/agents');
+    await expect(page.getByRole('region', { name: 'Agents', exact: true }).getByRole('alert')).toContainText('Reporter offline');
   });
 
   test('shows the Status panel error when main has no status.md, and keeps the other rows', async ({ page }) => {

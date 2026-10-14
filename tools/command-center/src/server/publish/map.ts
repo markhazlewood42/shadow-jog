@@ -1,4 +1,4 @@
-import type { LiveSessionRow, LiveWorktree } from '../../shared/live';
+import { LIVE_ITEM_LIMITS, type LiveAgentItem, type LiveSessionRow, type LiveWorktree } from '../../shared/live';
 import type { LiveSession, SessionInfo } from '../../shared/types';
 import { ASK_MAX_CHARS, ASK_MAX_LINES, askStatus } from '../../shared/your-move';
 import { inlineText } from '../inline-text';
@@ -7,7 +7,7 @@ import { inlineText } from '../inline-text';
 //
 // Each output field is written out by hand from a named input field. There is no spread (`...session`) and no copy of a whole object, so a
 // field that a source adds later cannot get through by accident. The fields that leave:
-//   session: id, title, branch, folder name, state, start time, agent names and counts, and the "Your move" ask (below)
+//   session: id, title, branch, folder name, state, start time, agent names and counts, the agents (label, state, model family, start and end time; approved by Mark 2026-10-14), and the "Your move" ask (below)
 //   worktree: folder name (the last folder of its path, never the full path), branch, dirty count
 // The ask (your-move-redesign.md section 4, approved by Mark 2026-10-13): per LIVE session, at most 6 lines of its newest "Your move" box, each as plain text, redacted like a
 // title and then cut to 160 characters, with the time of the box. They are sent only when the box passes the four rules of src/shared/your-move.ts (the session is live,
@@ -19,7 +19,7 @@ import { inlineText } from '../inline-text';
 // contract names, so a field that this file did not intend would be dropped there too.
 
 /** Limits for text that comes from a transcript, so that one odd value cannot make a very large write. */
-export const LIMITS = { title: 120, branch: 200, folder: 100, agentName: 80, agentNames: 20, sessions: 50, worktrees: 30 } as const;
+export const LIMITS = { title: 120, branch: 200, folder: 100, agentName: LIVE_ITEM_LIMITS.label, agentNames: LIVE_ITEM_LIMITS.items, agentModel: LIVE_ITEM_LIMITS.model, sessions: 50, worktrees: 30 } as const;
 
 /**
  * Cuts a text to `max` characters with an ellipsis. A redaction marker is never cut in the middle: when the cut would fall inside "[redacted]", the text is cut before the whole
@@ -152,6 +152,24 @@ export function mapAsk(box: SessionInfo['yourMove'] | undefined, nowMs: number):
   return lines.length === 0 ? null : { at: box.at, lines };
 }
 
+/** The time of a node as an ISO text, or null when it is missing or is not a time (a bad value must not reach the validator and refuse the whole write). */
+const isoOrNull = (time: string | null): string | null => (typeof time === 'string' && !Number.isNaN(Date.parse(time)) ? time : null);
+
+/**
+ * The agents of a session for the hosted boxes: running first, then done, at most 20. Only agents (a workflow has no model and no clear start, and its name is in `names`).
+ * Each field is written out by hand from the named node field: no spread, so no path, prompt or message count can get through.
+ */
+export function mapItems(nodes: readonly LiveSession['nodes'][number][]): LiveAgentItem[] {
+  const agents = nodes.filter((node) => node.kind === 'agent');
+  return [...agents.filter((node) => node.state === 'running'), ...agents.filter((node) => node.state === 'done')].slice(0, LIMITS.agentNames).map((node) => ({
+    label: cut(redact(node.label), LIMITS.agentName),
+    state: node.state,
+    model: node.model === null ? null : cut(redactName(node.model), LIMITS.agentModel),
+    startedAt: isoOrNull(node.startedAt),
+    endedAt: isoOrNull(node.endedAt),
+  }));
+}
+
 /** One live session as the contract wants it. `facts` is the sessions module's entry for the same id, or undefined when it has not looked yet. `nowMs` is the clock of the reporter. */
 export function mapSession(live: LiveSession, facts: SessionFacts | undefined, nowMs: number): LiveSessionRow {
   const nodes = live.nodes;
@@ -167,6 +185,7 @@ export function mapSession(live: LiveSession, facts: SessionFacts | undefined, n
       done: nodes.filter((node) => node.state === 'done').length,
       // The running ones first: they are the ones Mark looks for.
       names: [...nodes.filter((node) => node.state === 'running'), ...nodes.filter((node) => node.state === 'done')].slice(0, LIMITS.agentNames).map((node) => cut(redact(node.label), LIMITS.agentName)),
+      items: mapItems(nodes),
     },
     yourMove: mapAsk(facts?.yourMove, nowMs),
   };
