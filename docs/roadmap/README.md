@@ -33,7 +33,7 @@ Now: no milestone. Next: M8a UI kit and data.
 | M6 Flip default | Engine path | 8 | done | M5, M4 | branch `engine-m6-flip`, PR #58 (merged 2026-10-11) | ?engine=sje becomes the default. The old presenter goes. M4 joins here if it is built. It is optional (dashed arrow). GPU timing check (npm run perf) once at the end, not in CI. |
 | M7 3D mode | Engine path | 9 | done | M6, M1b | branch `engine-m7-3d-mode`, PR #80 (merged 2026-10-13), review fixes #82 (merged 2026-10-13) | Needs both the 3D proof (M1b) and the default flip (M6). GPU timing check (npm run perf) once at the end, not in CI. |
 | M8a UI kit and data | Engine path | 10 | next | M7, ET | none | Waits for Mark to approve docs/engine/m8-brief.md and the shop and dialogue data format. The UI kit in src/sje/ui, then the data move. GPU timing check (npm run perf) once at the end. |
-| M8b UI scenes | Engine path | 11 | later | M8a | none | Port the 15 UI scenes to native scenes, small to big. Follows the diff rule for the GPU timing check. |
+| M8b UI scenes | Engine path | 11 | later | M8a | none | Port the 13 UI scenes to native scenes, small to big. Follows the diff rule for the GPU timing check. |
 | M8c Battle and field | Engine path | 12 | later | M8b | none | Port the battle and field scenes. Follows the diff rule for the GPU timing check. |
 | M8d Delete old engine | Engine path | 13 | later | M8c | none | Delete the old engine, LegacyScene and the exemptions. Move the kept src/engine files into src/sje. Docs and the PR #86 follow-ups. Follows the diff rule for the GPU timing check. |
 | M1b 3D proof | Side paths | 5 | done | M1 | none | Parallel with M2. A spinning cube in a Scene3D, with the hand-off, leak and loss tests. |

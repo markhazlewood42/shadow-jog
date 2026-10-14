@@ -169,7 +169,7 @@
       "after": [
         "M8a"
       ],
-      "notes": "Port the 15 UI scenes to native scenes, small to big. Follows the diff rule for the GPU timing check."
+      "notes": "Port the 13 UI scenes to native scenes, small to big. Follows the diff rule for the GPU timing check."
     },
     {
       "id": "M8c",

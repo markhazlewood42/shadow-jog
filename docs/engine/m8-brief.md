@@ -21,8 +21,8 @@ Four phases. Each is its own PR, lean loop and merge, and leaves the game playab
 | Phase | Scope | PR | Exit check |
 |---|---|---|---|
 | M8a | UI kit in `src/sje/ui` (tasks 1 to 3). Shop and dialogue data format, Mark approves it first, then the data move (tasks 2 and 5). | Own PR | Kit unit tests and the 10-cycle leak test green. Data values identical. Perf follows the diff rule. |
-| M8b | The 15 UI scenes, small to big (tasks 4, 6, 7). | Own PR, after M8a | Layout tests and the scene specs green. Pictures to Mark. Perf run once (real GPU). |
-| M8c | Battle and field scenes (tasks 8 and 9). | Own PR, after M8b | Seed 7 trace holds. Playthrough and parity specs green. |
+| M8b | The 13 UI scenes, small to big (tasks 4, 6, 7). | Own PR, after M8a | Layout tests and the scene specs green. Pictures to Mark. Perf run once (real GPU). |
+| M8c | Battle and field scenes (tasks 8 and 9). Larger than M8b: battle and field draw their own windows (`battlekit/render.ts`, 1035 lines) and need the kit. | Own PR, after M8b | Seed 7 trace holds. Playthrough and parity specs green. |
 | M8d | Delete the old engine, `LegacyScene` and the exemptions. Move the kept files into `src/sje`. Docs, the 5 PR #86 follow-ups, changelog (tasks 10 to 21). | Own PR, after M8c | `tsc`, Biome and all specs green. No deleted-file import. No `src/engine`. |
 
 Hard pass lines per phase (section 4 numbers): **M8a** 1, 6, 8, 9, 10, 12, 13, 16. **M8b** 1, 4, 6, 7, 9, 10, 12, 13. **M8c** 1, 4, 6, 9, 10, 12, 13. **M8d** 1 to 3, 5, 6, 9 to 15. Each line also carries its phase tag.
@@ -66,7 +66,7 @@ Hard pass lines per phase (section 4 numbers): **M8a** 1, 6, 8, 9, 10, 12, 13, 1
 
 ## 3. Decisions (answered 2026-10-14)
 
-1. **Phases: four (Mark, 2026-10-14).** Mark first approved a split into three PRs. On 2026-10-14 he split M8 into four phases, each its own PR, lean loop and merge. M8a = UI kit, shop and dialogue data format and the data move. M8b = the 15 UI scenes. M8c = battle and field. M8d = the deletion, the kept-file move, docs and follow-ups. Port order: kit, small scenes (card, controls, gameover, ending, placemap, saveload), options, dialog, title, shop, deck, panels, menu, battle, field, delete. Each phase leaves the game working.
+1. **Phases: four (Mark, 2026-10-14).** Mark first approved a split into three PRs. On 2026-10-14 he split M8 into four phases, each its own PR, lean loop and merge. M8a = UI kit, shop and dialogue data format and the data move. M8b = the 13 UI scenes. M8c = battle and field. M8d = the deletion, the kept-file move, docs and follow-ups. Port order: kit, small scenes (card, controls, gameover, ending, placemap, saveload), options, dialog, title, shop, deck, panels, menu, battle, field, delete. Each phase leaves the game working.
 2. **The kept `src/engine` files move into `src/sje`.** Mark: "I don't mind big diffs. I prefer not to leave cleanup for later. Clean it up while we're in here spinning up the new engine." M8 moves assert, canvas, color, errors, font, fxdata, input, particles, perf, rng and shake (table in section 2), updates every importer, and `src/engine/` no longer exists.
    - **When: M8d, as its own commit after the deletion (task 14).** Reason: the UI scenes of M8b and the scenes of M8c import these files. A move in M8a would put about 100 import edits into the kit review. After the deletion, the four deleted files need no edit, and the scenes are final, so each importer is edited once. The move is a `git mv` commit, then an import-rewrite commit, so a reader sees renames as renames. Mechanical: no logic change.
    - **Perf rule:** principle 12 names `src/sje/render`, `display` and `three`. The move puts no file in those folders (`canvas` goes to `core`). A move of non-draw files therefore must not trigger a perf run. Pass line 12 states this and checks it.
@@ -82,7 +82,7 @@ Hard pass lines per phase (section 4 numbers): **M8a** 1, 6, 8, 9, 10, 12, 13, 1
 5. *[M8d]* **The exemptions are gone.** In `tests/et-tools.test.ts`: `FORBIDDEN`, `GAME_BOUNDARY`, `DIRECT_ONLY`, `DYNAMIC_GAME`, `BATTLE_TEST_DYNAMIC`, `BATTLE_TEST_GLUE` and `BATTLE_TEST_FILES` are removed, or reduced to a check that no tool reaches a deleted path. `sje-imports.test.ts` lines 97 to 99 (`engine/input`) and the shim pins (307 to 320) match the new state. **Control:** a tool file given a dynamic import of a deleted path makes the test red.
 6. *[All phases, for the scenes the phase ports]* **Every spec for a ported scene is green:** `npx playwright test e2e/playthrough.spec.ts e2e/economy.spec.ts e2e/gameover.spec.ts e2e/gpufx.spec.ts e2e/shots.spec.ts e2e/playtest.spec.ts e2e/chaos.spec.ts e2e/default-path.spec.ts e2e/sje-battle.spec.ts e2e/sje-field.spec.ts e2e/sje-field-parity-a.spec.ts e2e/sje-field-parity-b.spec.ts e2e/sje-field-parity-c.spec.ts e2e/sje-field-parity-d.spec.ts e2e/sje-stage-parity.spec.ts e2e/battletest.spec.ts e2e/sje-canaries.spec.ts e2e/prod.spec.ts --reporter=line` exits 0 (`CI=1 PW_PORT=3012`). Task 1 fixes this list by grep. The full CI run on the PR is green.
 7. *[M8b]* **UI scenes: the layout tests hold and Mark has the pictures** (decision 4). `tests/layout.test.ts`, `tests/ui-layout.test.ts` and every other existing unit test that touches a UI scene are green and still run against the ported scenes (no test is deleted or loosened to pass). The runner writes one picture per ported scene to `media/m8-ui/` at 1280x720, and the main session sends them to Mark. The pictures are evidence for Mark's eye, not a gate the runner can pass or fail. There is no pixel comparison test.
-8. *[M8a]* **The kit exists and is tested.** `TextObject`, `NineSlice`, `ListMenu`, bar and cursor have unit tests and leave no leak in the 10-cycle scene test (`tests/sje-canaries`).
+8. *[M8a]* **The kit exists and is tested.** `TextObject`, `NineSlice`, `ListMenu`, bar and cursor have unit tests and leave no leak in the 10-cycle scene test (`tests/sje-ui-leak.test.ts`).
 9. *[All phases]* **The game plays.** `e2e/playthrough.spec.ts` and the gameover spec are green on the final commit of each phase. Title, menu, shop, save and load, options and a battle each run once in a test with the real scene.
 10. *[All phases]* **Design data and the game rules are untouched** (principle 8). `git diff --stat main...HEAD -- src/data src/battle src/field src/art src/audio src/story` prints nothing, except the named type-only edits in `src/story/newgame.ts` and `src/game/systems.ts`, and the shop and dialogue move of decision 3 (M8a: the new data files, their loader, and the TypeScript files they replace). The two named type-only edits land in M8d. `src/data/*.json` that exist on `main` have no diff at all. **Values identical (M8a):** a test loads the new data and compares it to a snapshot of the old TypeScript values taken before the move. `tests/balance.test.ts` and `tests/economy.test.ts` are green.
 11. *[M8d]* **The tool follow-ups hold.** Tasks 16 to 20 each have a test that fails without the fix. ET pass line 17 reads "passed 2026-10-14, Mark" in `et-brief.md`.
@@ -139,7 +139,7 @@ Groups are commits. M8a = tasks 1 to 3 and 5. M8b = tasks 4, 6 and 7. M8c = task
 
 ## 8. Risks
 
-- **The size.** 15 scenes (about 6,000 lines with the kits), about 60 files, plus about 100 importer edits in the move. The four phases and the groups cap the diff of each review. The move is renames plus import lines, so it reads fast.
+- **The size.** 15 scenes in all (13 UI scenes in M8b, battle and field in M8c) (about 6,000 lines with the kits), about 60 files, plus about 100 importer edits in the move. The four phases and the groups cap the diff of each review. The move is renames plus import lines, so it reads fast.
 - **Look drift.** Without pixel tests, a canvas `drawText` and a `TextObject` can differ by a pixel (rounding, blend), and a layout can shift. Only the layout tests and Mark's eye on the pictures catch it. Mark accepted this (decision 4). The pictures go to him per group, not only at the end of the PR, so a drift is found early.
 - **The data format waits for Mark.** Task 5 (the data move) cannot start until he approves task 2, and the shop and dialog scenes (task 6, M8b) read that data. Order: propose the format first, so he reads it while the kit is built.
 - **Values drift in the data move.** A typo changes a price or a line. The values-identical test and the balance and economy tests catch this.
@@ -156,4 +156,17 @@ Groups are commits. M8a = tasks 1 to 3 and 5. M8b = tasks 4, 6 and 7. M8c = task
 
 | Step | What | Result | Verdict | Fix or note |
 |---|---|---|---|---|
-| | | | | |
+| M8a task 3 | `tests/pacing.test.ts` counting rule | `proseChars` no longer counts comments and template literals of `chapter1.ts`. Story count 18,896 to 18,468. Budgets unchanged | noted | Rule change, not a budget change |
+| M8a order | Survey `b9e2eb4` after the data move `efcfe15` | Approval status `a931767` came before the survey, so pass line 16 holds | holds | |
+| M8a caps | Bundle caps raised with Mark's yes, 2026-10-14 | First play 395.9 to 402.1 kB. Total 456 to 462.5 kB. Commits `787f29e`, `162069a` | approved | |
+| M8a deferral | Data-layer items (d) `snapshot/restore` and (e) `step(n)` | Deferred to M8b, approved by Mark 2026-10-14 | approved | See `m8a-data-format.md` section 7 |
+| M8a pass line 12 | Perf | `render`, `display` and `three` diff is empty. `npm run perf` not run yet | pending, main session | |
+
+### Known gaps for M8b
+
+- `ActionMap` has no `keyName`. M8b needs it for `keyLegend`.
+- There is no `scene.add` helper. Use `sys.ui.add`.
+- The divider, the select highlight and `OVERLAY_DIM` are plain `Graphics`.
+- The `onSound` callback maps to sfx.
+- There is no `UiScene` base class yet.
+- The level table in `docs/engine/README.md` lacks level 2.6. Do this in M8d.

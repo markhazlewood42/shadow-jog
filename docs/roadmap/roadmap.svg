@@ -138,7 +138,7 @@
     <text x="946" y="333" fill="#d4e8ff" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">NEXT</text>
   </g>
   <g id="item-M8b">
-    <title>M8b UI scenes: later. Port the 15 UI scenes to native scenes, small to big. Follows the diff rule for the GPU timing check.</title>
+    <title>M8b UI scenes: later. Port the 13 UI scenes to native scenes, small to big. Follows the diff rule for the GPU timing check.</title>
     <rect x="1040" y="264" width="90" height="76" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1.2"/>
     <text x="1048" y="283" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">M8b</text>
     <text x="1048" y="301" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">UI scenes</text>

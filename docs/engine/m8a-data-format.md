@@ -105,7 +105,7 @@ Same pattern as `enemies.ts` (`checkEnemies`, `loadEnemies`) and `hack3d/data.ts
 
 ## 7. Built (M8a task 5, 2026-10-14)
 
-Files: `src/data/shops.json` (9 shops), `speakers.json` (8), `dialogue.json` (226 lines, 3 free names), the loaders `shops.ts`, `speakers.ts`, `dialogue.ts`, and the shared `contentjson.ts`. `s.line(id, slots?)` and `s.choose(id, slots?)` are on `ScriptApi`. `chapter1.ts` has no dialogue text left. Test: `tests/dialogue-data.test.ts`.
+Files: `src/data/shops.json` (9 shops), `speakers.json` (8), `dialogue.json` (226 lines, 3 free names), the loaders `shops.ts`, `speakers.ts`, `dialogue.ts`, and the shared `contentjson.ts`. `s.line(id, slots?)` and `s.choose(id, slots?)` are on `ScriptApi`. `chapter1.ts` keeps only the text in the "Not moved" list below. Test: `tests/dialogue-data.test.ts`.
 
 Where the build differs from sections 1 to 6:
 
@@ -122,3 +122,5 @@ Where the build differs from sections 1 to 6:
 | (d) `snapshot()` and `restore()`, (e) `step(n)` | **Deferred to M8b.** They are on the shop and dialog scenes, which M8b ports to native scenes (tasks 6). Adding them to the old scenes now would be thrown away | `scenes/dialog.ts` and `scenes/shop.ts` are unchanged: they read the live tables |
 
 Not moved (still in `chapter1.ts`): the tutorial cards (`s.tutorial`), `OBJ`, and `annexLog` (the log text is in the map files). Tests changed for the move: `tests/dialog-wrap.test.ts` now also reads the lines of `dialogue.json`, and `tests/pacing.test.ts` counts the prose of the file (story prose 18,896 characters before, 18,468 after).
+
+Deferred to M8b (Mark approved, 2026-10-14): data-layer items (d) `snapshot()` and `restore()`, and (e) `step(n)`. They need the dialog and shop scenes, which M8b ports.
