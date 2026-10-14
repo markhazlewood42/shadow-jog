@@ -68,6 +68,8 @@ function folderFor(url: URL, opts: StageServeOptions): string | null {
   if (name === null) return null;
   if (!opts.scratchRoot) throw new Error('scratch copies are off on this server');
   if (!/^[a-z0-9-]{1,48}$/.test(name)) throw new Error('a scratch name is letters, digits and dashes');
+  // A Windows device name (con, nul, com1 ...) would not make a folder there, so it is refused too.
+  if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/.test(name)) throw new Error('a scratch name cannot be a Windows device name');
   return join(opts.scratchRoot, name);
 }
 

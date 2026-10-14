@@ -12,7 +12,7 @@
  * only files a spec ever writes are under the test fixtures. A test that wants Mark's current files (to check an invariant of his data, never a value) passes
  * `{ data: 'current' }`: a scratch copy that was never seeded or saved reads the real files. Rule: `docs/DEVELOPING.md`, "Tests vs design data".
  */
-import { copyFileSync, existsSync, mkdirSync, rmSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Page } from '@playwright/test';
 import { H, W } from '../src/sje/core/size';
@@ -46,10 +46,30 @@ export function dropScratch(name: string): void {
   rmSync(scratchFolder(name), { recursive: true, force: true });
 }
 
+/** How old a leftover `e2e-*` scratch copy must be before the next run removes it (a run killed before its `afterEach` leaves one behind; a younger one may belong to a run in progress). */
+const STALE_MS = 30 * 60 * 1000;
+let swept = false;
+
+/** Remove the `e2e-*` scratch copies that earlier, killed runs left behind. Runs once per worker, the first time a copy is seeded. */
+function sweepStaleScratch(): void {
+  if (swept) return;
+  swept = true;
+  if (!existsSync(SCRATCH_ROOT)) return;
+  for (const name of readdirSync(SCRATCH_ROOT)) {
+    if (!name.startsWith('e2e-')) continue;
+    try {
+      if (Date.now() - statSync(scratchFolder(name)).mtimeMs > STALE_MS) dropScratch(name);
+    } catch {
+      // Gone already, or in use: leave it.
+    }
+  }
+}
+
 /**
  * Put the fixture files in a scratch copy, unless it already holds files (a test that saves and reloads must find what it saved). Every call after the first for one name does nothing.
  */
 export function seedScratch(name: string): void {
+  sweepStaleScratch();
   const dir = scratchFolder(name);
   if (existsSync(join(dir, 'stages-640.json'))) return;
   mkdirSync(dir, { recursive: true });
@@ -74,6 +94,8 @@ export const EDITOR_VIEWPORT = { width: 2100, height: 1000 };
 export async function openEditor(page: Page, scratch: string, query = '', opts: { data?: 'fixture' | 'current' } = {}): Promise<Opened> {
   if ((opts.data ?? 'fixture') === 'fixture') seedScratch(scratch);
   const errors: string[] = [];
+  // The copy goes when the page does (the specs also drop it in an `afterEach`), so a copy made here never outlives its test.
+  page.once('close', () => dropScratch(scratch));
   page.on('console', (m) => {
     if (m.type() !== 'error') return;
     if (!HAVE_SPRITES && /404/.test(m.text())) return;

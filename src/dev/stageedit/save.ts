@@ -67,9 +67,19 @@ export const HUD_FILE = 'src/data/hud-640.json';
 export const FACING_FILE = 'src/data/enemyfacing.json';
 export const HEROES_FILE = 'src/data/heroes.json';
 
-/** The stages file as it is written: stable, diff-friendly JSON. */
-export function formatStages(stages: unknown): string {
-  return formatJson(stages);
+/**
+ * How the stages file and the HUD file are written. `stages-640.json` and `hud-640.json` are made by `scripts/stage-640.mjs` with `JSON.stringify(data, null, 2)`, so a Save of the 640 set must
+ * write exactly that form ('plain'), or an unchanged Save would churn `src/data` (principle 8). The frozen 480 files are stored in `formatJson`'s compact form ('compact', the default). The axes, facing
+ * and heroes files are stored compact in both sets.
+ */
+export type FileStyle = 'compact' | 'plain';
+
+const plain = (value: unknown): string => `${JSON.stringify(value, null, 2)}
+`;
+
+/** The stages file as it is written: stable JSON, in the style of its set. */
+export function formatStages(stages: unknown, style: FileStyle = 'compact'): string {
+  return style === 'plain' ? plain(stages) : formatJson(stages);
 }
 
 /** The axes file as it is written: only sprites with a real correction are kept, so an undone nudge leaves no trace. */
@@ -89,9 +99,9 @@ export function formatHeroes(heroes: unknown): string {
   return formatJson(heroes);
 }
 
-/** The HUD file as it is written: a version and the layout. */
-export function formatHud(layout: unknown): string {
-  return formatJson({ version: 1, layout });
+/** The HUD file as it is written: a version and the layout, in the style of its set. */
+export function formatHud(layout: unknown, style: FileStyle = 'compact'): string {
+  return style === 'plain' ? plain({ version: 1, layout }) : formatJson({ version: 1, layout });
 }
 
 /**
@@ -112,6 +122,8 @@ export function formatHud(layout: unknown): string {
  */
 export function prepareSave(body: unknown, currentHudText?: string, opts: SaveOptions = {}): Prepared {
   if (typeof body !== 'object' || body === null || Array.isArray(body)) return { ok: false, problems: ['the posted body must be an object with stages and axes'] };
+  // A save that names its screen is a save of the 640 set (the editor and the dev server always do): it writes the 640 files in their own form.
+  const style: FileStyle = opts.screen ? 'plain' : 'compact';
   const { stages, axes, hud: postedHud, facing: postedFacing, heroes: postedHeroes, write: postedWrite } = body as Partial<SaveBody>;
   // `write` is a list of the five part names and nothing else: a file name, a path or any other word is refused before anything is checked, so no body can name a file of its own.
   if (postedWrite !== undefined) {
@@ -130,7 +142,7 @@ export function prepareSave(body: unknown, currentHudText?: string, opts: SaveOp
     const hudProblems = checkHudFile({ version: 1, layout: postedHud }, opts.screen);
     if (hudProblems.length) return { ok: false, problems: hudProblems.map((p) => `the HUD layout (${HUD_FILE}) is not valid: ${p}`) };
     hud = postedHud;
-    hudText = formatHud(postedHud);
+    hudText = formatHud(postedHud, style);
   } else if (currentHudText !== undefined) {
     let parsed: unknown;
     try {
@@ -155,7 +167,7 @@ export function prepareSave(body: unknown, currentHudText?: string, opts: SaveOp
   if (problems.length) return { ok: false, problems };
   const all: SavePart[] = ['stages', 'axes', ...(hudText !== undefined ? (['hud'] as const) : []), ...(postedFacing !== undefined ? (['facing'] as const) : []), ...(postedHeroes !== undefined ? (['heroes'] as const) : [])];
   const write = Array.isArray(postedWrite) ? all.filter((p) => postedWrite.includes(p)) : all;
-  return { ok: true, stagesText: formatStages(stages), axesText: formatAxes(axes ?? {}), ...(hudText !== undefined ? { hudText } : {}), ...(postedFacing !== undefined ? { facingText: formatFacing(postedFacing) } : {}), ...(postedHeroes !== undefined ? { heroesText: formatHeroes(postedHeroes) } : {}), write };
+  return { ok: true, stagesText: formatStages(stages, style), axesText: formatAxes(axes ?? {}), ...(hudText !== undefined ? { hudText } : {}), ...(postedFacing !== undefined ? { facingText: formatFacing(postedFacing) } : {}), ...(postedHeroes !== undefined ? { heroesText: formatHeroes(postedHeroes) } : {}), write };
 }
 
 /** The stages of a file that are not laid out on `screen`, as sentences. (The stages already passed `checkStages`, so each is an object.) */
@@ -172,5 +184,5 @@ export type PreparedHud = { ok: true; text: string } | { ok: false; problems: st
 export function prepareHudSave(layout: unknown, screen?: ScreenSize): PreparedHud {
   const problems = checkHudFile({ version: 1, layout }, screen);
   if (problems.length) return { ok: false, problems };
-  return { ok: true, text: formatHud(layout) };
+  return { ok: true, text: formatHud(layout, screen ? 'plain' : 'compact') };
 }

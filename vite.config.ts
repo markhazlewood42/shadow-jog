@@ -158,14 +158,25 @@ function artPass(): Plugin {
               return;
             }
             let body = '';
+            let tooBig = false;
             req.on('data', (chunk: Buffer) => {
+              // An oversize body is read to the end and answered 413 (as the stage endpoint does), never by dropping the connection.
+              if (tooBig) return;
               body += chunk.toString('utf8');
-              if (body.length > 2_000_000) req.destroy();
+              if (body.length > 2_000_000) {
+                tooBig = true;
+                body = '';
+              }
             });
             req.on('end', () => {
+              if (tooBig) {
+                reply(413, { ok: false, problem: 'the body is bigger than 2000000 characters' });
+                return;
+              }
               try {
                 const data = JSON.parse(body) as { assets?: unknown };
-                if (!data || typeof data !== 'object' || typeof data.assets !== 'object') {
+                // `assets` is a plain object: `null` and an array are refused, because a real save would write them to review.json.
+                if (!data || typeof data !== 'object' || typeof data.assets !== 'object' || data.assets === null || Array.isArray(data.assets)) {
                   reply(400, { ok: false, problem: 'expected { assets: {...} }' });
                   return;
                 }
@@ -222,11 +233,21 @@ function rigEdit(): Plugin {
           return;
         }
         let body = '';
+        let tooBig = false;
         req.on('data', (chunk: Buffer) => {
+          // An oversize body is read to the end and answered 413 (as the stage endpoint does), never by dropping the connection.
+          if (tooBig) return;
           body += chunk.toString('utf8');
-          if (body.length > 1_000_000) req.destroy();
+          if (body.length > 1_000_000) {
+            tooBig = true;
+            body = '';
+          }
         });
         req.on('end', async () => {
+          if (tooBig) {
+            reply(413, { ok: false, problem: 'the body is bigger than 1000000 characters' });
+            return;
+          }
           let data: unknown;
           try {
             data = JSON.parse(body);

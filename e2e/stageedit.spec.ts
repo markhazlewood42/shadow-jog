@@ -13,7 +13,7 @@
 import { expect, type Page, test } from '@playwright/test';
 import type { HudLayout, StageConfig, StageEntry } from '../src/battlestage/config';
 import { RULE_LIMITS } from '../src/battlestage/rules';
-import { bodyOf, canvasRect, dragGame, dropScratch, flush, openEditor, scratchName, toScreen, waitReady } from './stageeditkit';
+import { bodyOf, canvasRect, dragGame, dropScratch, EDITOR_VIEWPORT, flush, openEditor, scratchName, toScreen, waitReady } from './stageeditkit';
 
 /** The session's current stage as the file holds it (its HUD is only this stage's overrides), as plain data. */
 const stageOf = (page: Page): Promise<StageEntry> => page.evaluate(() => JSON.parse(JSON.stringify(window.__stageedit?.session.stage)) as StageEntry);
@@ -732,9 +732,15 @@ test('a "?" explains a setting in plain words: it opens on hover and on keyboard
   await expect(tip).toBeVisible();
   await expect(tip).toContainText('Fades the fighters on this row toward the sky colour');
   await expect(tip).toContainText('you will see');
-  // The bubble stays on the screen.
+  // The bubble stays on the screen: inside the viewport this test runs at (`openEditor` sets EDITOR_VIEWPORT, so the bound is that window, not a larger one).
+  const vp = page.viewportSize();
+  expect(vp).toEqual(EDITOR_VIEWPORT);
   const b = await tip.boundingBox();
-  expect((b?.x ?? -1) >= 0 && (b?.y ?? -1) >= 0 && (b?.x ?? 0) + (b?.width ?? 0) <= 2100 && (b?.y ?? 0) + (b?.height ?? 0) <= 1000).toBe(true);
+  expect(b).not.toBeNull();
+  expect(b?.x ?? -1).toBeGreaterThanOrEqual(0);
+  expect(b?.y ?? -1).toBeGreaterThanOrEqual(0);
+  expect((b?.x ?? 0) + (b?.width ?? 0)).toBeLessThanOrEqual(vp?.width ?? 0);
+  expect((b?.y ?? 0) + (b?.height ?? 0)).toBeLessThanOrEqual(vp?.height ?? 0);
   await page.mouse.move(700, 20);
   await expect(tip).toBeHidden();
   // Keyboard: focus the "?" of the shadow flatness setting.

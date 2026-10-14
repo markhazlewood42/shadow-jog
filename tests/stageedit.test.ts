@@ -31,7 +31,7 @@ import {
   stepOrder,
   uniqueId,
 } from '../src/dev/stageedit/model';
-import { formatAxes, formatHud, formatStages, prepareSave } from '../src/dev/stageedit/save';
+import { formatAxes, formatHud, formatStages, prepareSave, SET_SCREEN } from '../src/dev/stageedit/save';
 import { type EditorData, Session } from '../src/dev/stageedit/session';
 import { applyPreset } from '../src/battlestage/hudpresets';
 import { STAGE_KNOWN } from '../src/battlestage/known';
@@ -393,6 +393,25 @@ describe('what Save writes', () => {
     expect(hudOnDisk).toBe(formatHud(shippedHud()));
     const axes = readFileSync(new URL('../src/data/axes.json', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
     expect(axes).toBe(formatAxes(JSON.parse(axes)));
+  });
+
+  it('a Save of unchanged data writes bytes identical to every file of the real 640 set (no src/data churn: principle 8)', async () => {
+    const { readFileSync } = await import('node:fs');
+    const disk = (name: string): string => readFileSync(new URL(`../src/data/${name}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+    const text = { stages: disk('stages-640.json'), hud: disk('hud-640.json'), axes: disk('axes.json'), facing: disk('enemyfacing.json'), heroes: disk('heroes.json') };
+    const made = prepareSave(
+      { stages: JSON.parse(text.stages), hud: (JSON.parse(text.hud) as { layout: unknown }).layout, axes: JSON.parse(text.axes), facing: JSON.parse(text.facing), heroes: JSON.parse(text.heroes) },
+      undefined,
+      { screen: SET_SCREEN },
+    );
+    expect(made.ok).toBe(true);
+    if (!made.ok) return;
+    expect(made.write).toEqual(['stages', 'axes', 'hud', 'facing', 'heroes']);
+    expect(made.stagesText).toBe(text.stages);
+    expect(made.hudText).toBe(text.hud);
+    expect(made.axesText).toBe(text.axes);
+    expect(made.facingText).toBe(text.facing);
+    expect(made.heroesText).toBe(text.heroes);
   });
 });
 

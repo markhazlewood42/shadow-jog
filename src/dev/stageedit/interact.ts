@@ -38,7 +38,7 @@ export interface InteractHost {
   layer: HTMLElement;
   /** Draw the handles again. */
   redraw: () => void;
-  /** Put the scene in step with the data (called on every drag movement; the page batches them per frame). `floorFrom` is ignored since ET: the scene's `loadStage` has no frozen floor, so the puddles may move while a fighter is dragged. */
+  /** Put the scene in step with the data (called on every drag movement; the page batches them per frame). `floorFrom` holds the floor's puddles still while a fighter is dragged. */
   syncScene: (floorFrom?: StageConfig) => void;
   /** Pointer position for the status line. */
   onPointer: (p: { x: number; y: number } | null, hit: Item | null) => void;

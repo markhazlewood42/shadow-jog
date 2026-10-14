@@ -11,6 +11,7 @@ export function sameOrigin(req: Pick<IncomingMessage, 'headers'>): boolean {
   const site = req.headers['sec-fetch-site'];
   if (site && site !== 'same-origin' && site !== 'none') return false;
   const origin = req.headers.origin;
+  // No Origin (and no cross-site Sec-Fetch-Site): not a web page, so allowed. Main's check in vite.config.ts did the same; scripts, curl and the tests rely on it.
   if (!origin) return true;
   try {
     return new URL(origin).host === req.headers.host;

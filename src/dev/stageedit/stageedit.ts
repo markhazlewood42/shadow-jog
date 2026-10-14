@@ -181,11 +181,14 @@ async function main(): Promise<void> {
     // BATTLE TEST (ET task 6): the fight takes the scene over while it runs; `flush` and `redraw` below wait for it (see `testing`).
     const testing: null = null;
     let scheduled = false;
+    /** The stage whose slots the floor is painted for until the next sync without one: during a fighter drag, the stage as the drag began, so the puddles hold still. */
+    let wantFloor: StageConfig | undefined;
     /**
-     * Put the scene in step with the session. Batched to one per animation frame, so a fast drag costs one repaint a frame. (The spike could freeze the floor's puddles while a
-     * fighter was dragged, `floorFrom`. The scene's `loadStage` has no such thing: the puddles may move during a drag and settle when it ends.)
+     * Put the scene in step with the session. Batched to one per animation frame, so a fast drag costs one repaint a frame. `floorFrom` freezes the floor's puddles while a
+     * fighter is dragged (the spike's behavior); a sync without it, as on drop, lets them settle around where everyone ended up.
      */
-    const syncScene = (_floorFrom?: StageConfig): void => {
+    const syncScene = (floorFrom?: StageConfig): void => {
+      wantFloor = floorFrom;
       if (scheduled) return;
       scheduled = true;
       requestAnimationFrame(flush);
@@ -200,12 +203,13 @@ async function main(): Promise<void> {
         // Hot reload: the changed stage goes into the running scene. `loadStage` checks it first and throws for a stage the file would refuse, so the editor asks the same check
         // beforehand: a stage that is not valid (half edited) leaves the scene on its last good picture, the inspector's checks list what is wrong, and Save refuses it with the words
         // of `prepareSave`. Nothing is shown as an error here: it is the normal state in the middle of an edit.
-        if (checkStageConfig(stage, BG_IDS, STAGE_KNOWN).length === 0) scene.setStage(stage);
+        if (checkStageConfig(stage, BG_IDS, STAGE_KNOWN).length === 0) scene.setStage(stage, wantFloor);
         scene.setEnemies(stage.demo.rosters[session.setKey] ?? []);
         scene.setPhase(view.phase);
       } catch (e) {
         fail(e instanceof Error ? e.message : String(e));
       }
+      wantFloor = undefined;
       redraw();
     }
 

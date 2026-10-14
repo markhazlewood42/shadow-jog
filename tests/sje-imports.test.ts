@@ -350,6 +350,9 @@ describe('the battle stage (src/battlestage, M3)', () => {
   // The stage is game code that runs ON the engine: it takes the engine from the facade only, and it is not part of the shipped game's default path.
   // Nothing outside it, the lab, the tests and the engine's boot glue may import it (the boot glue loads it behind the flag, M3 task 11).
   const toEngine = (e: Edge) => e.target !== null && (e.target === 'src/sje' || e.target.startsWith('src/sje/'));
+  /** The rule itself, over any list of edges: every import of the stage from a file that is not the stage and not an allowed importer. */
+  const strayStageImports = (list: Edge[]): string[] =>
+    list.filter((e) => e.target !== null && (e.target === 'src/battlestage' || e.target.startsWith('src/battlestage/')) && !e.file.startsWith('src/battlestage/') && !STAGE_IMPORTERS.test(e.file)).map((e) => `${e.file} imports ${e.spec}`);
 
   it('imports the engine through the facade, src/sje/index.ts, and never a deeper file', () => {
     const stage = all.filter((e) => e.file.startsWith('src/battlestage/') && toEngine(e));
@@ -359,15 +362,20 @@ describe('the battle stage (src/battlestage, M3)', () => {
   });
 
   it('is imported only by itself, the lab, the Battle Stage Editor, the engine boot glue and the tests (not by the default path of the game)', () => {
-    const into = all.filter((e) => e.target !== null && (e.target === 'src/battlestage' || e.target.startsWith('src/battlestage/')) && !e.file.startsWith('src/battlestage/'));
     // ET: the Battle Stage Editor (src/dev/stageedit/, a dev-only tool page) edits the stage files and runs the stage scene. It is the only folder of src/dev that may import the stage.
-    expect(into.filter((e) => !STAGE_IMPORTERS.test(e.file)).map((e) => `${e.file} imports ${e.spec}`)).toEqual([]);
+    expect(strayStageImports(all)).toEqual([]);
+    // The scan is alive: the editor really does import the stage.
+    expect(all.some((e) => e.file.startsWith('src/dev/stageedit/') && e.target?.startsWith('src/battlestage/') === true)).toBe(true);
   });
 
-  it('control: a dev tool outside src/dev/stageedit that imports the stage is refused by the same rule', () => {
-    expect(STAGE_IMPORTERS.test('src/dev/stageedit/save.ts')).toBe(true);
-    expect(STAGE_IMPORTERS.test('src/dev/fxlab.ts')).toBe(false);
-    expect(STAGE_IMPORTERS.test('src/scenes/battle.ts')).toBe(false);
+  it('control: the same rule, run over a fixture, refuses a dev tool outside src/dev/stageedit that imports the stage', () => {
+    const fixture: Edge[] = [
+      { file: 'src/dev/stageedit/save.ts', spec: '../../battlestage/config', target: 'src/battlestage/config' },
+      { file: 'src/dev/fxlab.ts', spec: '../battlestage/config', target: 'src/battlestage/config' },
+      { file: 'src/scenes/battle.ts', spec: '../battlestage', target: 'src/battlestage' },
+      { file: 'src/battlestage/floor.ts', spec: './config', target: 'src/battlestage/config' },
+    ];
+    expect(strayStageImports(fixture)).toEqual(['src/dev/fxlab.ts imports ../battlestage/config', 'src/scenes/battle.ts imports ../battlestage']);
   });
 
   it('holds no Pixi and no Three (they come through the facade)', () => {

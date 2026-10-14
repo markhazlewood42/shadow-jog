@@ -126,6 +126,8 @@ export class BattleStageScene extends Scene<void> {
   private active: number | undefined;
   private target: number | undefined;
   private backdrop: ImageObject | null = null;
+  /** The stage whose slots the floor's puddles keep clear of, when it is not the stage in use (an editor drag holds the floor still); null otherwise. */
+  private floorFrom: StageConfig | null = null;
   private leaning: { x: number; y: number; t: number } | null = null;
   /** The screen shake: how far the stage is moved this frame (the HUD is not: it is in the `ui` layer). */
   private shakeX = 0;
@@ -183,7 +185,7 @@ export class BattleStageScene extends Scene<void> {
     const init = this.init0;
     this.crew = registerCrew(this.textures, init.metas, this.lineup, init.standIns, init.heroes ?? {});
     // The wall and the floor, baked into one 480x270 picture (floor.ts): the backdrop band of the depth table.
-    const picture = bakeStage(this.textures, this.stage);
+    const picture = bakeStage(this.textures, this.stage, this.floorFrom ?? this.stage);
     this.backdrop = this.add.image(0, 0, picture.key).setOrigin(0, 0).setDepth(DEPTH.BACKDROP);
     this.makeParty(this.lineup);
     this.makeEnemies(enemies, this.setKey);
@@ -403,13 +405,15 @@ export class BattleStageScene extends Scene<void> {
   /**
    * Swap another stage config into the running scene: the picture and every figure are rebuilt for it, standing in the same lineup and group. The config is checked
    * first, with the rules of the stage file (`checkStageConfig`); a config the file would refuse throws one readable message and the scene keeps the stage it had.
+   * `floorFrom` (an editor drag): paint the floor as for that stage's slots, so the puddles hold still while a fighter moves. Left out, the floor follows `next`.
    */
-  loadStage(next: StageConfig): void {
+  loadStage(next: StageConfig, floorFrom?: StageConfig): void {
     const problems = checkStageConfig(next, BG_IDS, STAGE_KNOWN);
     if (problems.length > 0) throw new Error(`The stage "${next.id}" is not valid, so the scene keeps "${this.stage.id}":\n - ${problems.join('\n - ')}`);
     const enemies = [...this.enemyKeys];
     this.clearStage();
     this.stage = next;
+    this.floorFrom = floorFrom ?? null;
     this.build(enemies);
   }
 
@@ -444,6 +448,7 @@ export class BattleStageScene extends Scene<void> {
     if (enemySlots(s.stage, s.setKey).length !== s.enemies.length) throw new Error(`The set "${s.setKey}" of the stage has ${enemySlots(s.stage, s.setKey).length} slots but the snapshot has ${s.enemies.length} enemies`);
     this.clearStage();
     this.stage = s.stage;
+    this.floorFrom = null;
     this.setKey = s.setKey;
     this.lineup = [...s.lineup];
     this.active = s.active ?? undefined;

@@ -339,9 +339,12 @@ export class StageHost {
 
   // ---------------------------------------------------------------- what the editor changes
 
-  /** Hot reload: swap this stage into the running scene (the hot reload of the editor contract). Bad data throws one readable message and the old stage stays. */
-  setStage(stage: StageConfig): void {
-    this.current.loadStage(stage);
+  /**
+   * Hot reload: swap this stage into the running scene (the hot reload of the editor contract). Bad data throws one readable message and the old stage stays.
+   * `floorFrom`: during a drag, the stage as it was when the drag began, so the floor's puddles hold still (they settle on drop, when it is left out).
+   */
+  setStage(stage: StageConfig, floorFrom?: StageConfig): void {
+    this.current.loadStage(stage, floorFrom);
   }
 
   /** Stand these enemies in the slots of the group their number calls for. A no-op when they already stand there. */

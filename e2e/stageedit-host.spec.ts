@@ -49,7 +49,8 @@ test('a change of the hero proportions makes a new scene on the same stage: the 
   expect(after.size?.now.h ?? 0).toBeGreaterThan(before.size?.now.h ?? 99);
   expect(after.size?.drawn).toEqual(before.size?.drawn);
   // The new scene carries on from the old one's frame (it restored the old one's snapshot), and the selection is the editor's, so it stays.
-  expect(after.frame).toBeGreaterThanOrEqual(before.frame);
+  // (The scene keeps running, so the frame has moved on from the snapshot's: strictly more than before, and not back at 0.)
+  expect(after.frame).toBeGreaterThan(before.frame);
   expect(after.selection).toEqual([0]);
   // Undo makes a new scene again, back at the old size.
   await page.keyboard.press('Control+z');
@@ -86,7 +87,7 @@ test('the Mirror switch of an enemy flips its picture in the scene, and the pick
   expect(errors).toEqual([]);
 });
 
-test('the pick looks at drawn pixels: the empty corner of a figure’s cell is not a hit, and the nearer figure wins where two overlap', async ({ page }) => {
+test('the pick looks at drawn pixels: the empty corner of a figure’s cell is not a hit, and every figure can be picked', async ({ page }) => {
   await openEditor(page, scratch);
   const out = await page.evaluate(() => {
     const host = window.__stagelab?.scene();
@@ -96,7 +97,7 @@ test('the pick looks at drawn pixels: the empty corner of a figure’s cell is n
     const b = host.boxOf(f);
     // A point well above the drawn pixels of the first hero (outside every figure) is nobody.
     const empty = host.pick(b.left + 1, Math.max(0, b.top - 40));
-    // A point on the drawn body of each figure picks a figure that stands there; the figure drawn on top (the larger depth) wins.
+    // A point on the drawn body of each figure picks that figure.
     const picks = host.fighters.map((g) => {
       const gb = host.boxOf(g);
       for (let y = Math.floor(gb.top); y <= g.y; y++) for (let x = Math.floor(gb.left); x <= gb.right; x++) if (host.pick(x + 0.5, y + 0.5) === g) return true;
@@ -106,6 +107,67 @@ test('the pick looks at drawn pixels: the empty corner of a figure’s cell is n
   });
   expect(out.empty).toBe(true);
   expect(out.picks.every(Boolean)).toBe(true);
+});
+
+test('the nearer figure wins where two overlap: two heroes stand on top of each other and the pick at a pixel both draw is the one drawn in front', async ({ page }) => {
+  await openEditor(page, scratch);
+  // Stand the second hero 4 px to the right of the first, one row farther back: their pictures overlap, and the first (on the nearer row) is drawn in front.
+  await page.evaluate(() => {
+    const se = window.__stageedit;
+    if (!se) throw new Error('no editor');
+    const id = se.session.stageId;
+    se.session.edit('Overlap two heroes', (d) => {
+      const party = (d.stages[id] as StageEntry).party;
+      const first = party[0];
+      const second = party[1];
+      if (!first || !second) throw new Error('the stage has fewer than two heroes');
+      party[1] = { ...second, x: first.x + 4, row: first.row - 1 };
+    });
+  });
+  await flush(page);
+  const out = await page.evaluate(() => {
+    const host = window.__stagelab?.scene();
+    const game = window.__stagelab?.game;
+    if (!host || !game) throw new Error('no scene');
+    const [front, back] = host.fighters;
+    if (!front || !back) throw new Error('need two figures');
+    // Which pixel of a figure's own picture is solid at a screen point (the same lookup `pick` makes, for one figure).
+    const solid = (f: typeof front, x: number, y: number): boolean => {
+      const d = f.describe();
+      const b = d.body;
+      const raw = game.textures.readPixels(b.texture, b.frame);
+      const px = Math.floor(x - (d.x + b.x) + b.originX * raw.w);
+      const py = Math.floor(y - (d.y + b.y) + b.originY * raw.h);
+      if (px < 0 || py < 0 || px >= raw.w || py >= raw.h) return false;
+      return (raw.data[(py * raw.w + (b.flipX ? raw.w - 1 - px : px)) * 4 + 3] ?? 0) > 8;
+    };
+    const fb = host.boxOf(front);
+    const bb = host.boxOf(back);
+    let both = 0;
+    let frontWins = 0;
+    let backOnly = 0;
+    let backOnlyPicksBack = 0;
+    for (let y = Math.floor(Math.max(fb.top, bb.top)); y <= Math.max(front.y, back.y); y++) {
+      for (let x = Math.floor(Math.max(fb.left, bb.left)); x <= Math.min(fb.right, bb.right); x++) {
+        const p = host.pick(x + 0.5, y + 0.5);
+        if (solid(front, x + 0.5, y + 0.5) && solid(back, x + 0.5, y + 0.5)) {
+          both++;
+          if (p === front) frontWins++;
+        } else if (solid(back, x + 0.5, y + 0.5)) {
+          backOnly++;
+          if (p === back) backOnlyPicksBack++;
+        }
+      }
+    }
+    return { frontDepth: front.describe().depth, backDepth: back.describe().depth, both, frontWins, backOnly, backOnlyPicksBack };
+  });
+  // The setup is a real overlap: the second hero is farther back, and some pixels are solid in both pictures.
+  expect(out.backDepth).toBeLessThan(out.frontDepth);
+  expect(out.both).toBeGreaterThan(0);
+  expect(out.frontWins).toBe(out.both);
+  // Where only the back figure is drawn, the pick still finds it (the front one does not hide pixels it does not cover).
+  expect(out.backOnly).toBeGreaterThan(0);
+  expect(out.backOnlyPicksBack).toBe(out.backOnly);
 });
 
 test('a save and a reload keep a proportions change and a foot anchor, and the real files are not touched', async ({ page }) => {

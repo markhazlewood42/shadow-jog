@@ -12,7 +12,7 @@
  * Record of docs/engine/et-brief.md ("Archive cases dropped"): the effects picture of the Act moment (`fx-` textures), the dotted home ring, the Phaser input hit areas of edit mode.
  */
 import { expect, type Page, test } from '@playwright/test';
-import { dropScratch, flush, openEditor, scratchName, bodyOf, dragGame } from './stageeditkit';
+import { bodyOf, dragGame, dropScratch, flush, openEditor, scratchName, toScreen } from './stageeditkit';
 
 let scratch = '';
 test.beforeEach(() => {
@@ -344,5 +344,51 @@ test('a fighter picked up with the mouse and dropped on another depth row: the s
   expect(after.depth).toBe((after.rowY ?? 0) * 1000 + closeness * 2);
   expect(after.shadowDepth).toBe(after.depth - 0.5);
   expect(after.saved).toMatchObject({ x: after.slot.x, row: 2 });
+  expect(errors).toEqual([]);
+});
+
+test('the floor holds still while a fighter is dragged (the puddles keep their places) and settles on drop', async ({ page }) => {
+  const { errors } = await openEditor(page, scratch);
+  const stagePictures = (): Promise<string[]> => page.evaluate(() => (window.__stagelab?.textureKeys() ?? []).filter((k) => k.startsWith('stage-')));
+  const key0 = await hostKey(page);
+  expect(await stagePictures()).toEqual([key0]);
+  // Press on Kit and move him to row 2, x 200, but do not let go.
+  const kit = await bodyOf(page, 'party', 0);
+  const rows = await page.evaluate(() => window.__stagelab?.scene()?.config.rows.map((r) => r.y) ?? []);
+  const to = { x: 200 + (kit.x - kit.feetX), y: (rows[2] ?? 0) + 3 + (kit.y - kit.feetY) };
+  const a = await toScreen(page, kit.x, kit.y);
+  const b = await toScreen(page, to.x, to.y);
+  await page.mouse.move(a.x, a.y);
+  await page.mouse.down();
+  await page.mouse.move(b.x, b.y, { steps: 8 });
+  await flush(page);
+  // The slot moved in the scene (a floor painted for the new slots would have another name), and the floor on screen is still the one painted before the drag.
+  expect(await page.evaluate(() => window.__stageedit?.session.inGesture ?? false)).toBe(true);
+  expect(await page.evaluate(() => window.__stagelab?.scene()?.fighters.find((x) => x.id === 'kit')?.slot.row)).toBe(2);
+  const wanted = await hostKey(page);
+  expect(wanted, 'the slots moved, so a floor painted for them has another name').not.toBe(key0);
+  expect(await stagePictures(), 'the puddles must not move during the drag').toEqual([key0]);
+  // On drop the floor settles around where everyone stands.
+  await page.mouse.up();
+  await flush(page);
+  expect(await stagePictures()).toEqual([wanted]);
+  expect(await hostKey(page)).toBe(wanted);
+  expect(errors).toEqual([]);
+});
+
+test('the bottom bar never shows a wrong count during a drag: no number while the gesture is open, the true count on release', async ({ page }) => {
+  const { errors } = await openEditor(page, scratch);
+  const kit = await bodyOf(page, 'party', 0);
+  const a = await toScreen(page, kit.x, kit.y);
+  const b = await toScreen(page, kit.x + 30, kit.y);
+  await page.mouse.move(a.x, a.y);
+  await page.mouse.down();
+  await page.mouse.move(b.x, b.y, { steps: 6 });
+  await flush(page);
+  expect(await page.evaluate(() => window.__stageedit?.session.inGesture ?? false)).toBe(true);
+  await expect(page.locator('#st-save')).toHaveText('Unsaved changes');
+  await page.mouse.up();
+  await flush(page);
+  await expect(page.locator('#st-save')).toHaveText('Unsaved changes (1)');
   expect(errors).toEqual([]);
 });

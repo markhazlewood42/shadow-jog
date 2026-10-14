@@ -243,8 +243,8 @@ describe('bad data gets 400 and writes nothing', () => {
     const stages = JSON.parse(read('stages-640.json')) as Record<string, StageEntry>;
     const evil = { ...(stages.street as StageEntry), id: '../../escape', name: '../../escape' };
     const r = await post('/__stage/stages', body({ stages: { '../../escape': evil, ...stages } }));
-    // Whether the checks accept the odd key or not, no file outside the data folder appears.
-    expect([200, 400]).toContain(r.status);
+    // The checks accept the odd key as plain text (200); no file outside the data folder appears.
+    expect(r.status).toBe(200);
     expect(existsSync(join(work, 'escape.json'))).toBe(false);
     expect(readdirSync(dataDir).sort()).toEqual(['axes.json', 'enemyfacing.json', 'heroes.json', 'hud-640.json', 'hud.json', 'stages-640.json', 'stages.json']);
   });
@@ -325,7 +325,7 @@ describe('the test seam: ?scratch=<name>', () => {
     expect(plain.body.stages).toBe(read('stages-640.json'));
   });
 
-  it.each(['../up', 'a/b', 'A', 'a b', '', 'x'.repeat(49), '%2e%2e'])('the name %j is refused (400) and makes no folder', async (name) => {
+  it.each(['../up', 'a/b', 'A', 'a b', '', 'x'.repeat(49), '%2e%2e', 'con', 'nul', 'prn', 'aux', 'com1', 'com9', 'lpt1', 'lpt9'])('the name %j is refused (400) and makes no folder', async (name) => {
     const r = await post(`/__stage/stages?scratch=${encodeURIComponent(name)}`, body());
     expect(r.status).toBe(400);
     expect(existsSync(scratchDir)).toBe(false);

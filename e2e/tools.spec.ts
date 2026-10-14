@@ -304,6 +304,17 @@ test.describe('the dry run of the animation editor save (POST /__rig/skeleton?dr
     expect(hashOf(FILE)).toBe(before);
   });
 
+  test('control: a body over the limit gets 413 (not a dropped connection), and nothing is written', async ({ request }) => {
+    const before = hashOf(FILE);
+    const big = JSON.stringify({ pad: 'x'.repeat(1_000_100) });
+    for (const url of ['/__rig/skeleton?dry=1', '/__rig/skeleton']) {
+      const r = await request.post(url, { data: big });
+      expect(r.status(), url).toBe(413);
+      expect(((await r.json()) as { ok: boolean }).ok).toBe(false);
+    }
+    expect(hashOf(FILE)).toBe(before);
+  });
+
   test('control: a cross-site post is refused (403), dry or not', async ({ request }) => {
     const before = hashOf(FILE);
     for (const url of ['/__rig/skeleton?dry=1', '/__rig/skeleton']) {
@@ -328,13 +339,25 @@ test.describe('the dry run of the art review save (POST /__artpass/review?dry=1)
   test('control: a bad body gets 400 with a problem, with and without the dry flag, and nothing is written', async ({ request }) => {
     const before = hashOf(FILE);
     for (const url of ['/__artpass/review?dry=1', '/__artpass/review']) {
-      for (const data of ['{}', JSON.stringify({ assets: 5 }), 'not json']) {
+      // `null` and an array are not "an object of assets": a real save would write them to review.json, so they are refused too.
+      for (const data of ['{}', JSON.stringify({ assets: 5 }), '{"assets":null}', JSON.stringify({ assets: [] }), JSON.stringify({ assets: [1] }), 'not json']) {
         const r = await request.post(url, { data });
         expect(r.status(), `${url} ${data}`).toBe(400);
         const j = (await r.json()) as { ok: boolean; problem: string };
         expect(j.ok).toBe(false);
         expect(j.problem.length).toBeGreaterThan(0);
       }
+    }
+    expect(hashOf(FILE)).toBe(before);
+  });
+
+  test('control: a body over the limit gets 413 (not a dropped connection), and nothing is written', async ({ request }) => {
+    const before = hashOf(FILE);
+    const big = JSON.stringify({ assets: { big: 'x'.repeat(2_000_100) } });
+    for (const url of ['/__artpass/review?dry=1', '/__artpass/review']) {
+      const r = await request.post(url, { data: big });
+      expect(r.status(), url).toBe(413);
+      expect(((await r.json()) as { ok: boolean }).ok).toBe(false);
     }
     expect(hashOf(FILE)).toBe(before);
   });

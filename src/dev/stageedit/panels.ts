@@ -273,7 +273,8 @@ export class StatusBar {
     const first = this.session.selection[0];
     this.sel.textContent = n === 0 ? 'Nothing selected' : n === 1 && first ? describe(first) : `${n} selected`;
     const dirty = this.session.dirty;
-    this.save.textContent = dirty ? `Unsaved changes (${this.session.changeCount})` : 'Saved';
+    // The count is of finished gestures, so while one is open (a drag) it would read one too few ((0) on the first drag): the count shows again on release.
+    this.save.textContent = dirty ? (this.session.inGesture ? 'Unsaved changes' : `Unsaved changes (${this.session.changeCount})`) : 'Saved';
     this.save.className = dirty ? 'unsaved' : '';
   }
 }
