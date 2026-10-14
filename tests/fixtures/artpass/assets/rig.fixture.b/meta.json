@@ -1,0 +1,8 @@
+{
+ "id": "rig.fixture.b",
+ "category": "Rig v2 · fixture",
+ "title": "Fixture two (code-drawn)",
+ "kind": "enemy",
+ "note": "A second stand-in, so the nav count is more than one.",
+ "options": []
+}

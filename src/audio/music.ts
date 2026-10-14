@@ -378,8 +378,8 @@ let pendingName: string | null = null;
 let timer: number | null = null;
 const stack: { name: string; step: number }[] = [];
 /**
- * A song held regardless of what scenes ask for (the trailer recorder, src/dev/trailer.ts: one
- * song per section rather than a jump at every cut). Null in play: nothing holds the music.
+ * A song held regardless of what scenes ask for (a video recorder, issue #84: one song per
+ * section rather than a jump at every cut). Null in play: nothing holds the music.
  */
 let held: string | null = null;
 

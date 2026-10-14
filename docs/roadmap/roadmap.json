@@ -255,11 +255,11 @@
       "kind": "milestone",
       "label": "Editor port",
       "lane": "side",
-      "status": "active",
+      "status": "done",
       "after": [
         "M6"
       ],
-      "notes": "Bring every existing editor and tool onto the new engine (FX lab with M6, Battle Stage Editor with M3, then animation editor, art review, DEV menu). Needs the editor contract of principle 11. Gone from the old engine before M8."
+      "notes": "Built 2026-10-13 on branch engine-et-editor-port. Every editor and tool moved to the new engine; the Battle Stage Editor (/stageedit.html) and Battle Test are back. The trailer is deleted (#84). Two exceptions until M8: the Battle Test glue module and the shared old Input. Record: docs/engine/et-brief.md."
     },
     {
       "id": "Editors",

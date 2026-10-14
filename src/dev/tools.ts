@@ -19,6 +19,7 @@ export const DEV_TOOLS: { group: string; tools: DevTool[] }[] = [
     group: 'Editors',
     tools: [
       { name: 'FX lab (particle effects editor)', path: '/?scene=fxlab', about: 'Tune particle presets and what plays at each battle moment; Save writes src/data/fx.json', print: true },
+      { name: 'Battle Stage Editor', path: '/stageedit.html', about: 'Place the heroes, enemies, floor and HUD boxes of each battle stage on the game’s own stage; Save writes the 640x360 set (stages-640.json, hud-640.json and three shared files)', print: true },
       { name: 'Animation editor', path: '/rigedit.html', about: 'Pose the crew’s battle arms on their skeletons; ask Claude to fix a pose', print: true },
       { name: 'Art review', path: '/artreview.html', about: 'Every version of the code-drawn art side by side; flag frames, leave notes', print: true },
     ],

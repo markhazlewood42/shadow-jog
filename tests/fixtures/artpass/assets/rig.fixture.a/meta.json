@@ -1,0 +1,8 @@
+{
+ "id": "rig.fixture.a",
+ "category": "Rig v2 · fixture",
+ "title": "Fixture one (code-drawn)",
+ "kind": "enemy",
+ "note": "A stand-in for the art review spec on a machine that has no media/art-pass (CI). It has no pictures: the page must list it and say nothing is wrong.",
+ "options": []
+}

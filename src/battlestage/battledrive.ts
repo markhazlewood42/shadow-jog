@@ -225,12 +225,12 @@ function word(key: string, name: string, hp: number, maxHp: number, tp: number, 
 }
 
 /** The engine's state of every fighter as a trace line body (party first, then the enemies in the engine's list). */
-function engineWords(battle: Battle): string {
+export function engineWords(battle: Battle): string {
   return battle.units.map((u) => word(u.key, u.name, Math.max(0, u.hp), u.base.maxHp, u.tp, u.status, u.hp <= 0)).join(' ');
 }
 
 /** What an action is called in the trace: the lead event of its declaration. */
-function headOf(events: readonly BattleEvent[]): string {
+export function headOf(events: readonly BattleEvent[]): string {
   for (const e of events) {
     if (e.t === 'act') return `act:${e.actor}:${e.id}`;
     if (e.t === 'combo') return `combo:${e.actors.join(',')}:${e.name}`;
