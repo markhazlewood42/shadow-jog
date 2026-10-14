@@ -103,9 +103,9 @@ Where each part comes from:
 - Current: the `milestone:` key. Current wins over done, so a key left on a finished milestone shows that milestone as current. Set the key to `none` when the work on a milestone ends.
 - Mark a milestone done in `docs/roadmap/roadmap.json` and run `npm run roadmap`. Then the strip fills its square.
 
-`tests/roadmap.test.ts` also requires the key to name a roadmap item with the status `active` (or `none` when no item is active). So a session that starts a milestone sets the item to `active` and the key to its id in the same change.
+`tests/roadmap.test.ts` at the repo root (not in this package) also checks the key against `docs/roadmap/roadmap.json`: the key must name a milestone item with the status `active`, or be `none` when no milestone item is active. One exception: `Pre-M0` may also be `done`. So a session that starts a milestone sets the item to `active` and the key to its id in the same change.
 
-If `docs/roadmap/roadmap.json` is missing or is not a roadmap, the strip shows `Unavailable` with the code and a Retry button, and draws no squares. The other rows stay.
+If `docs/roadmap/roadmap.json` is missing or is not a roadmap, the strip shows `Unavailable` with the code and a Retry button, and draws no squares. The other rows stay. The same happens, with the code `milestones-table-empty`, when the milestone table of `docs/engine/migration.md` has a header and no rows.
 
 The loaders are `parseMilestoneKey`, `parseMilestones` and `parseRoadmapDone` in `src/server/status/status.ts`.
 

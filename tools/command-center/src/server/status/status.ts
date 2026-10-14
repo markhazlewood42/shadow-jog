@@ -285,7 +285,8 @@ export function parseRoadmapDone(text: string): Set<string> {
  * state of a milestone, so a milestone is its id, its name, its scope, the id of its heading in the
  * page of the doc (`headings` is that page's outline, see `anchorOf`) and whether it is done (`done` is
  * the set from `parseRoadmapDone`, joined by id: a row with no item in the roadmap is not done). Throws a
- * PanelError that names the two columns when there is no such table.
+ * PanelError that names the two columns when there is no such table (`milestones-table-missing`), and one that says the table has no rows when it has a header and no
+ * milestone (`milestones-table-empty`): a blank strip with no error would look like a good answer.
  */
 export function parseMilestones(source: string, headings: readonly DocHeading[], done: ReadonlySet<string>): StatusInfo['milestones'] {
   const { body } = splitFrontmatter(source);
@@ -302,5 +303,6 @@ export function parseMilestones(source: string, headings: readonly DocHeading[],
     if (id === '') continue; // an empty row
     milestones.push({ id, name, scope: inlineText(cells[scopeAt] ?? ''), anchor: anchorOf(id, headings), done: done.has(id) });
   }
+  if (milestones.length === 0) throw new PanelError('milestones-table-empty', say('milestonesNoRows', { path: MIGRATION_DOC_PATH }));
   return milestones;
 }

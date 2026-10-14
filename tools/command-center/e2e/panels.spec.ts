@@ -49,10 +49,10 @@ test.describe('the status, git and GitHub routes', () => {
     expect(before.ok).toBe(true);
     if (!before.ok) return;
     expect(before.data.milestones).toEqual([
-      { id: 'Phase 0', name: 'Platform spike', scope: 'A spike that tests the design. Done.', anchor: null },
-      { id: 'M0', name: 'Kernel', scope: 'The loop and the first scene.', anchor: 'm0-kernel' },
-      { id: 'M1b', name: '3D proof (parallel with M2)', scope: 'A cube on a canvas.', anchor: 'm1b-3d-proof' },
-      { id: 'M2', name: 'Stage', scope: 'A battle stage.', anchor: 'm2-stage' },
+      { id: 'Phase 0', name: 'Platform spike', scope: 'A spike that tests the design. Done.', anchor: null, done: true },
+      { id: 'M0', name: 'Kernel', scope: 'The loop and the first scene.', anchor: 'm0-kernel', done: true },
+      { id: 'M1b', name: '3D proof (parallel with M2)', scope: 'A cube on a canvas.', anchor: 'm1b-3d-proof', done: false },
+      { id: 'M2', name: 'Stage', scope: 'A battle stage.', anchor: 'm2-stage', done: false },
     ]);
     // The key of the fixture's status.md is "none": no milestone has started, and that is a good key.
     expect(before.data.milestone).toEqual({ current: null, problem: null });
@@ -109,8 +109,8 @@ test.describe('the status, git and GitHub routes', () => {
         return panel.ok ? panel.data.milestones : panel.error.code;
       }, { timeout: 15_000 })
       .toEqual([
-        { id: 'Phase 0', name: 'Platform spike', scope: 'A spike. Done.', anchor: null },
-        { id: 'M1b', name: '3D proof (parallel with M2)', scope: 'A cube.', anchor: null },
+        { id: 'Phase 0', name: 'Platform spike', scope: 'A spike. Done.', anchor: null, done: true },
+        { id: 'M1b', name: '3D proof (parallel with M2)', scope: 'A cube.', anchor: null, done: false },
       ]);
   });
 

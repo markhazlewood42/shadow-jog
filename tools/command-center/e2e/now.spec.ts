@@ -1003,9 +1003,11 @@ test.describe('the status panel', () => {
       // Each links to its heading in the doc page.
       await expect(squares.nth(1)).toHaveAttribute('data-state', 'current');
       expect(await squares.evaluateAll((links) => links.map((link) => link.getAttribute('data-state')))).toEqual(['done', 'current', 'later', 'later']);
-      expect(await squares.evaluateAll((links) => links.map((link) => link.getAttribute('aria-label')))).toEqual(SQUARES.map((square) => square.name));
+      const stateNames = SQUARES.map((square, index) => `${square.name}, ${['done', 'current', 'later', 'later'][index]}`);
+      expect(await squares.evaluateAll((links) => links.map((link) => link.getAttribute('aria-label')))).toEqual(stateNames);
+      await expect(status.getByRole('link', { name: 'Phase 0 Platform spike, done' })).toHaveCount(1);
       // A square has no words, so its name is also its tooltip: a mouse finds out which milestone it is by resting on it.
-      expect(await squares.evaluateAll((links) => links.map((link) => link.getAttribute('title')))).toEqual(SQUARES.map((square) => square.name));
+      expect(await squares.evaluateAll((links) => links.map((link) => link.getAttribute('title')))).toEqual(stateNames);
       expect(await squares.evaluateAll((links) => links.map((link) => link.getAttribute('href')))).toEqual(SQUARES.map((square) => square.href));
       expect(await squares.evaluateAll((links) => links.map((link) => link.getAttribute('aria-current')))).toEqual([null, 'step', null, null]);
 
@@ -1030,7 +1032,7 @@ test.describe('the status panel', () => {
           await expect(glassSwitch(page)).toHaveAttribute('aria-pressed', 'true');
         }
         const amber = await amberItems(page);
-        expect(amber.filter((item) => item.startsWith('a[M0 Kernel]')), mode).toHaveLength(1);
+        expect(amber.filter((item) => item.startsWith('a[M0 Kernel, current]')), mode).toHaveLength(1);
         expect(amber.filter((item) => /^a\[(Phase 0|M1b|M2)/.test(item)), mode).toEqual([]);
         await expectAtMostTwoAmberItems(page);
       }

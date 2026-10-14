@@ -79,6 +79,7 @@ export const MESSAGES = {
   roadmapDocMissing: '{path} is not in the repo. Restore the file to show which milestones are done.',
   roadmapNotJson: '{path} is not valid JSON. Fix the file to show which milestones are done.',
   roadmapNoItems: '{path} has no "items" list. Fix the file to show which milestones are done.',
+  milestonesNoRows: 'The milestone table in {path} has no rows. Add one row for each milestone.',
   milestonesNoTable: '{path} has no table with the columns "Milestone" and "One-line scope". Add one.',
 
   // ---- the engine decisions ----

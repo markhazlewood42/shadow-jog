@@ -381,6 +381,13 @@ describe('parseMilestones', () => {
     }
   });
 
+  it('a milestone table with a header and no rows is an error that says so, not a blank strip', () => {
+    const error = thrown(() => parseMilestones('| Milestone | One-line scope |\n|---|---|\n', NO_HEADINGS, NO_DONE));
+    expect(error).toBeInstanceOf(PanelError);
+    expect((error as PanelError).code).toBe('milestones-table-empty');
+    expect((error as PanelError).message).toContain('no rows');
+  });
+
   it('reads the real docs/engine/migration.md: the milestones from Phase 0 to M8, each with a name and a scope', () => {
     const milestones = parseMilestones(readFileSync(join(REPO_DIR, 'docs', 'engine', 'migration.md'), 'utf8'), NO_HEADINGS, NO_DONE);
     const ids = milestones.map((milestone) => milestone.id);

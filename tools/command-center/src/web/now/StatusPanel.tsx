@@ -95,7 +95,7 @@ function failedOf(...sources: Source<unknown>[]): Failed[] {
   return sources.flatMap((source) => (source.panel.ok ? [] : [{ code: source.panel.error.code, reload: source.reload }]));
 }
 
-/** The start of the code that the status module gives to a failure of the milestone list only (`milestones-doc-missing`, `milestones-table-missing`, and the two codes of a roadmap that the list needs for its done squares). */
+/** The start of the code that the status module gives to a failure of the milestone list only (`milestones-doc-missing`, `milestones-table-missing`, `milestones-table-empty`, and the two codes of a roadmap that the list needs for its done squares). */
 const MILESTONE_FAILURE_PREFIX = 'milestones-';
 
 /**
@@ -194,6 +194,9 @@ export function besideOf(info: Pick<StatusInfo, 'milestone' | 'milestones'>): Be
   const index = info.milestones.findIndex((milestone) => milestone.id === current);
   return index === -1 ? { kind: 'error', label: 'Unknown milestone' } : { kind: 'current', index };
 }
+
+/** The accessible name and the tooltip of a square: the words of the milestone and its state (`M3 Battle stage, done`), so the state is not carried by the color alone. */
+const squareName = (milestone: StatusInfo["milestones"][number], state: SquareState): string => `${milestoneName(milestone)}, ${state}`;
 
 /** The words of a milestone: its id and its name (`M3 Battle stage`). Some rows of the table have no name. */
 const milestoneName = (milestone: StatusInfo['milestones'][number]): string => `${milestone.id} ${milestone.name}`.trim();
@@ -422,8 +425,8 @@ function MilestoneStrip({ status }: { status: Source<StatusInfo> }) {
               <li key={`${index}:${milestone.id}`}>
                 <Link
                   to={milestoneHref(milestone)}
-                  aria-label={milestoneName(milestone)}
-                  title={milestoneName(milestone)}
+                  aria-label={squareName(milestone, state)}
+                  title={squareName(milestone, state)}
                   aria-current={state === 'current' ? 'step' : undefined}
                   data-state={state}
                   className={`block size-4 rounded-xs border hover:border-cc-ink cc-focus-ring ${SQUARE_CLASS[state]}`}

@@ -277,7 +277,7 @@ The panel is a summary. Each row is a label, a value and a link. It does not cop
 | Last commit | its age | the commit on GitHub |
 
 Under the rows, a strip shows the milestones of `docs/engine/migration.md` as small squares, one for each row of its milestone table (today Phase 0, Pre-M0 and M0 to M8).
-- A square before the current milestone is filled. The current one has the accent color. Later squares are outlined.
+- The order of the squares is the order of the milestone table. A square is filled when `docs/roadmap/roadmap.json` marks its milestone item `done`. The current one, named by the key of `status.md`, has the accent color, and current wins over done. Every other square is outlined. The accessible name of a square ends with its state, for example `M3 Battle stage, done`.
 - Each square links to its heading in the doc.
 - The current milestone is a new key in the frontmatter of `status.md`: `milestone: M3`. The value is the id of a table row (today `Pre-M0`), or `none` when no milestone has started. Agents update the key at a phase break.
 - A value that names no milestone shows an error label on the strip. The page never guesses.
