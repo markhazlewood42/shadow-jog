@@ -148,9 +148,10 @@ export function runGit(args, cwd, timeout = 60_000) {
  * The lock is held when its file was touched in the last 2 minutes, or when something answers on the reporter's port (a launcher that sleeps with the
  * machine has an old lock, but its server still holds the port). Only a lock that is old AND a port that is free is taken over.
  * A fresh lock is also taken over at once when its owner is gone: `deps.processInfo(pid)` says the launcher process does not exist, or exists with
- * another start time than the lock records (the system gave the pid to another program). The port must be free too. If the check throws or the lock
+ * another start time than the lock records (the system gave the pid to another program). A null from `processInfo` counts as gone only when
+ * `deps.exists(pid)` (default `pidExists`) also says no such process exists. The port must be free too. If the check throws or the lock
  * cannot be read, the lock counts as held (it is never taken when it cannot be judged). Nothing is killed here.
- * @param {{ now: () => number, portInUse: () => Promise<boolean>, read: () => { text: string, mtimeMs: number } | null, create: (text: string) => boolean, remove: () => void, processInfo?: (pid: number) => Promise<{ start: string } | null> }} deps
+ * @param {{ now: () => number, portInUse: () => Promise<boolean>, read: () => { text: string, mtimeMs: number } | null, create: (text: string) => boolean, remove: () => void, processInfo?: (pid: number) => Promise<{ start: string } | null>, exists?: (pid: number) => boolean | null }} deps
  * @param {string} text what to write into the lock (JSON with the process ids)
  * @returns {Promise<'acquired' | 'held'>}
  */
@@ -173,10 +174,22 @@ async function ownerGone(deps, text) {
     const ids = JSON.parse(text);
     if (ids === null || typeof ids !== 'object' || !Number.isInteger(ids.launcher) || ids.launcher <= 0) return false;
     const info = await deps.processInfo(ids.launcher);
-    if (info === null) return true;
+    // processInfo also gives null when it cannot read the process (a PowerShell time out), so a null alone is not proof: the pid must also be absent.
+    if (info === null) return (deps.exists ?? pidExists)(ids.launcher) === false;
     return typeof ids.launcherStart === 'string' && typeof info.start === 'string' && info.start !== ids.launcherStart;
   } catch {
     return false;
+  }
+}
+
+/** False only when no process has this pid (ESRCH). True when one does (EPERM means it exists but is not ours). Null when the answer is unclear. */
+export function pidExists(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    const code = error && typeof error === 'object' ? error.code : undefined;
+    return code === 'ESRCH' ? false : code === 'EPERM' ? true : null;
   }
 }
 

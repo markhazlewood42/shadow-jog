@@ -18,6 +18,7 @@ import {
   needsInstall,
   pathsFor,
   portInUse,
+  pidExists,
   processInfo,
   reporterConfig,
   runCommand,
@@ -128,9 +129,14 @@ describe('the lock: a second launch does nothing', () => {
   describe('a fresh lock whose owner is gone', () => {
     const NOW = 1_000_000;
     const fresh = (launcherStart: string | null) => ({ text: JSON.stringify({ launcher: 4242, launcherStart, started: 's' }), mtimeMs: NOW - 5000 });
-    const withInfo = (lookup: (pid: number) => Promise<{ start: string } | null>, port = false, launcherStart: string | null = 'T1') => {
+    const withInfo = (
+      lookup: (pid: number) => Promise<{ start: string } | null>,
+      port = false,
+      launcherStart: string | null = 'T1',
+      exists: (pid: number) => boolean | null = () => false,
+    ) => {
       const { deps, state } = fake(NOW, fresh(launcherStart), port);
-      return { deps: { ...deps, processInfo: lookup }, state };
+      return { deps: { ...deps, processInfo: lookup, exists }, state };
     };
 
     it('takes the lock at once when the launcher process does not exist', async () => {
@@ -139,6 +145,15 @@ describe('the lock: a second launch does nothing', () => {
       expect(await acquireLock(deps, 'me')).toBe('acquired');
       expect(asked[0]).toBe(4242);
       expect(state.removed).toBe(1);
+    });
+    it('keeps the lock when processInfo gives null but the pid still exists (it could not read the process)', async () => {
+      const { deps, state } = withInfo(async () => null, false, 'T1', () => true);
+      expect(await acquireLock(deps, 'me')).toBe('held');
+      expect(state.removed).toBe(0);
+    });
+    it('keeps the lock when processInfo gives null and the pid check is unclear', async () => {
+      const { deps } = withInfo(async () => null, false, 'T1', () => null);
+      expect(await acquireLock(deps, 'me')).toBe('held');
     });
     it('takes the lock when the pid is alive but has another start time (pid reuse)', async () => {
       const { deps } = withInfo(async () => ({ start: 'T2-other' }));
@@ -727,6 +742,13 @@ describe('stopReporter: only a process that is verified as ours is killed', () =
     writeFileSync(w.paths.lock, 'not json');
     expect(await stopReporter(w.checkout, w.deps)).toContain('not readable');
     expect(w.killed).toEqual([]);
+  });
+});
+
+describe('pidExists', () => {
+  it('says true for this process and false for a pid that no process has', () => {
+    expect(pidExists(process.pid)).toBe(true);
+    expect(pidExists(2_147_483_000)).toBe(false);
   });
 });
 

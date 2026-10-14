@@ -16,6 +16,8 @@ export type LockDeps = {
   read: () => { text: string; mtimeMs: number } | null;
   create: (text: string) => boolean;
   remove: () => void;
+  processInfo?: (pid: number) => Promise<{ start: string } | null>;
+  exists?: (pid: number) => boolean | null;
 };
 export function acquireLock(deps: LockDeps, text: string): Promise<'acquired' | 'held'>;
 export function fileLock(file: string): {
@@ -36,6 +38,7 @@ export type CopyDeps = { git: GitRunner; install: Installer; log: (message: stri
 export function runCommand(command: string, args: string[], options?: { cwd?: string; timeout?: number; env?: Record<string, string | undefined> }): Promise<CommandResult>;
 export function runGit(args: string[], cwd: string, timeout?: number): Promise<CommandResult>;
 export function npmCi(cwd: string, log: (message: string) => void, options?: { command?: string; args?: string[]; timeoutMs?: number }): Promise<boolean>;
+export function pidExists(pid: number): boolean | null;
 export function lockNamesUs(text: string | null, pid: number, startedIso: string, launcherStart?: string | null): boolean;
 export function processInfo(
   pid: number,
