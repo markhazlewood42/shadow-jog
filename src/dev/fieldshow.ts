@@ -9,10 +9,10 @@
  */
 import type { Dir } from '../art/chars';
 import { getMap } from '../data/maps';
-import type { Game } from '../engine/game';
 import { applyStage } from '../game/stages';
 import { state } from '../game/state';
 import { FieldScene, invalidateMap } from '../scenes/field';
+import type { Game } from '../sje';
 
 export interface FieldShowCase {
   /** The story-flag preset: `town`, `sinkline`, `annex`, `finale` (src/game/stages.ts). */

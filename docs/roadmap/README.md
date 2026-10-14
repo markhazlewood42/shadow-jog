@@ -11,11 +11,11 @@ tags: [roadmap, planning]
 
 # Shadow Jog roadmap
 
-Now: ET Editor port.
+Now: no milestone.
 
 **Order and dependency only. Bar length is not time.** Mark wants no hour or day estimates. A column is a step in the order. Items in the same column can run in parallel.
 
-![The roadmap as a Gantt-style chart. Order and dependency only. Bar length is not time. Now: ET Editor port. The table below lists the same items.](roadmap.svg)
+![The roadmap as a Gantt-style chart. Order and dependency only. Bar length is not time. Now: no milestone. The table below lists the same items.](roadmap.svg)
 
 *Source: [roadmap.json](roadmap.json). The chart is [roadmap.svg](roadmap.svg).*
 
@@ -35,7 +35,7 @@ Now: ET Editor port.
 | M8 Remove legacy | Engine path | 10 | later | M7, ET | none | Delete the old engine files. |
 | M1b 3D proof | Side paths | 5 | done | M1 | none | Parallel with M2. A spinning cube in a Scene3D, with the hand-off, leak and loss tests. |
 | M4 UI scenes | Side paths | 7 | optional | M3 | none | Optional. A UI scene ports only when it needs a camera, a filter, a mask or a transition. |
-| ET Editor port | Side paths | 9 | active | M6 | none | Bring every existing editor and tool onto the new engine (FX lab with M6, Battle Stage Editor with M3, then animation editor, art review, DEV menu). Needs the editor contract of principle 11. Gone from the old engine before M8. |
+| ET Editor port | Side paths | 9 | done | M6 | none | Built 2026-10-13 on branch engine-et-editor-port. Every editor and tool moved to the new engine; the Battle Stage Editor (/stageedit.html) and Battle Test are back. The trailer is deleted (#84). Two exceptions until M8: the Battle Test glue module and the shared old Input. Record: docs/engine/et-brief.md. |
 | Editors Editor suite | Side paths | 10 | later | ET | none | After Chapter 1. New UI editors so Mark builds the game mostly in tools: troops, database, maps, conversations, animation composer, lights and weather. Plan: docs/TOOLING-UI.md section 4. |
 | archive-tags Archive tags | Needs Mark's go-ahead | 7 | gated | M3 | none | archive/side-battle-<date> and archive/phaser-stage-<date>, then close PRs #3 and #4. Mark approves each tag. They wait until M3 lands (status.md, Next for agents 3). |
 | release-tags Release tags | Needs Mark's go-ahead | 10 | gated | none | none | Annotated v* tags. Cut only after Mark's playtest and go-ahead. Not tied to one milestone. The column is only a place on the chart. |

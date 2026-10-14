@@ -1,16 +1,15 @@
-import { getPortrait, PORTRAIT_KEYS } from '../art/portraits';
-import type { Ctx } from '../engine/canvas';
-import { drawText } from '../engine/font';
-import { Scene } from '../engine/game';
-import { W, H } from '../sje/core/size';
+import { getPortrait, PORTRAIT_KEYS } from '../../art/portraits';
+import type { Ctx } from '../../engine/canvas';
+import { drawText } from '../../engine/font';
+import { CanvasViewScene } from './base';
+import { W, H } from '../../sje/core/size';
 
 /** Dev scene: portrait sheet (8 characters × 4 expressions). ?scene=portraits[&faces=a,b,c,d] */
-export class PortraitTestScene extends Scene {
+export class PortraitTestScene extends CanvasViewScene {
   constructor(private faces = ['neutral', 'happy', 'angry', 'sad']) {
     super();
   }
-  update(): void {}
-  render(ctx: Ctx): void {
+  protected render(ctx: Ctx): void {
     ctx.fillStyle = '#141325';
     ctx.fillRect(0, 0, W, H);
     PORTRAIT_KEYS.forEach((k, i) => {

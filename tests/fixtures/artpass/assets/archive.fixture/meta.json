@@ -1,0 +1,8 @@
+{
+ "id": "archive.fixture",
+ "category": "Crew · fixture",
+ "title": "Fixture archive asset (PixelLab, hidden by default)",
+ "kind": "enemy",
+ "note": "Not a Rig v2 asset: the review page hides it unless the archive is switched on, so it must not count in the nav.",
+ "options": []
+}

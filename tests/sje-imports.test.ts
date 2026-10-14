@@ -275,20 +275,26 @@ describe('who may import the engine', () => {
     expect(notFacade.map((e) => `${e.file} -> ${e.target}`)).toEqual([]);
   });
 
-  // The DEV tools (src/dev, loaded through src/devroutes.ts and never in a shipped build) are outside that list. The FX lab runs on the new `Game` (M6), so they may name it, as TYPES.
+  // The DEV tools (src/dev, loaded through src/devroutes.ts and never in a shipped build) are outside that list. Since ET they run on the new engine: the viewers and the FX lab
+  // are scenes of it. They reach it through the facade (src/sje/index.ts) and the size module, like game code on the engine (battlestage, fieldstage). The runtime files
+  // (Game, LegacyShape: the old allowance for TYPE imports of M6) are not on the list any more: the lab is a Scene and the tools take `Game` from the facade.
   const isDevTool = (f: string) => f.startsWith('src/dev/') || f === 'src/devroutes.ts';
 
-  it('M6: the DEV tools reach the engine through the size module, and through the new Game and the scene shape as types only', () => {
+  it('ET: the DEV tools reach the engine through the size module and the facade only, and never the runtime files (Game, LegacyShape, gameapi)', () => {
     const dev = all.filter((e) => outsideEngine(e) && isDevTool(e.file));
-    const allowed = ['src/sje/core/size', 'src/sje/runtime/game', 'src/sje/runtime/gameapi'];
-    expect(dev.filter((e) => !allowed.includes(e.target ?? '')).map((e) => `${e.file} -> ${e.target}`)).toEqual([]);
-    for (const f of new Set(dev.filter((e) => e.target !== 'src/sje/core/size').map((e) => e.file))) {
-      const text = readFileSync(join(ROOT, f), 'utf8');
-      for (const spec of dev.filter((e) => e.file === f && e.target !== 'src/sje/core/size').map((e) => e.spec)) expect(onlyTypeImports(text, spec), `${f} imports ${spec} as a value`).toBe(true);
-    }
-    // The scan is alive: the FX lab is one of them, and a value import is told apart from a type import.
-    expect(dev.some((e) => e.file === 'src/dev/fxlab.ts' && e.target === 'src/sje/runtime/game')).toBe(true);
-    expect(onlyTypeImports("import { Game } from '../sje/runtime/game';", '../sje/runtime/game')).toBe(false);
+    const allowed = ['src/sje/core/size', 'src/sje', 'src/sje/index'];
+    // ET task 6: Battle Test's glue module (the one file that joins the game's old battle scene to the engine, tests/et-tools.test.ts) routes the old effects to `game.fx` with
+    // `routePostfx`, as `src/sje/boot.ts` does. That is the one extra edge, by file and target.
+    const glueEdge = (e: Edge): boolean => e.file === 'src/dev/stageedit/battleglue.ts' && e.target === 'src/sje/fx/route';
+    expect(dev.filter((e) => !allowed.includes(e.target ?? '') && !glueEdge(e)).map((e) => `${e.file} -> ${e.target}`)).toEqual([]);
+    // The edge exists (the exemption is not stale), and it is the only one: no other file may take it.
+    expect(dev.filter(glueEdge)).toHaveLength(1);
+    expect(dev.filter((e) => e.target === 'src/sje/fx/route').map((e) => e.file)).toEqual(['src/dev/stageedit/battleglue.ts']);
+    // The scan is alive: the scene base of the viewers and the FX lab (src/dev/viewers/base.ts), and the dev routes, take the engine from the facade.
+    expect(dev.some((e) => e.file === 'src/dev/viewers/base.ts' && (e.target === 'src/sje' || e.target === 'src/sje/index'))).toBe(true);
+    expect(dev.some((e) => e.file === 'src/devroutes.ts' && (e.target === 'src/sje' || e.target === 'src/sje/index'))).toBe(true);
+    // M6's allowance is gone: the file that held the type imports of Game and LegacyShape no longer names those runtime files.
+    expect(dev.filter((e) => e.target === 'src/sje/runtime/game' || e.target === 'src/sje/runtime/gameapi')).toEqual([]);
   });
 
   // A static `import ... from './sje/boot'` (the door must be dynamic, or the engine and Pixi land in the entry chunk).
@@ -345,9 +351,14 @@ describe('who may import the engine', () => {
 });
 
 describe('the battle stage (src/battlestage, M3)', () => {
+  /** The files that may import the stage. */
+  const STAGE_IMPORTERS = /^(src\/sje-lab\/|src\/dev\/stageedit\/|src\/sje\/boot\.ts$|tests\/|e2e\/|scripts\/)/;
   // The stage is game code that runs ON the engine: it takes the engine from the facade only, and it is not part of the shipped game's default path.
   // Nothing outside it, the lab, the tests and the engine's boot glue may import it (the boot glue loads it behind the flag, M3 task 11).
   const toEngine = (e: Edge) => e.target !== null && (e.target === 'src/sje' || e.target.startsWith('src/sje/'));
+  /** The rule itself, over any list of edges: every import of the stage from a file that is not the stage and not an allowed importer. */
+  const strayStageImports = (list: Edge[]): string[] =>
+    list.filter((e) => e.target !== null && (e.target === 'src/battlestage' || e.target.startsWith('src/battlestage/')) && !e.file.startsWith('src/battlestage/') && !STAGE_IMPORTERS.test(e.file)).map((e) => `${e.file} imports ${e.spec}`);
 
   it('imports the engine through the facade, src/sje/index.ts, and never a deeper file', () => {
     const stage = all.filter((e) => e.file.startsWith('src/battlestage/') && toEngine(e));
@@ -356,9 +367,21 @@ describe('the battle stage (src/battlestage, M3)', () => {
     expect(stage.length).toBeGreaterThan(0);
   });
 
-  it('is imported only by itself, the lab, the engine boot glue and the tests (not by the default path of the game)', () => {
-    const into = all.filter((e) => e.target !== null && (e.target === 'src/battlestage' || e.target.startsWith('src/battlestage/')) && !e.file.startsWith('src/battlestage/'));
-    expect(into.filter((e) => !/^(src\/sje-lab\/|src\/sje\/boot\.ts$|tests\/|e2e\/|scripts\/)/.test(e.file)).map((e) => `${e.file} imports ${e.spec}`)).toEqual([]);
+  it('is imported only by itself, the lab, the Battle Stage Editor, the engine boot glue and the tests (not by the default path of the game)', () => {
+    // ET: the Battle Stage Editor (src/dev/stageedit/, a dev-only tool page) edits the stage files and runs the stage scene. It is the only folder of src/dev that may import the stage.
+    expect(strayStageImports(all)).toEqual([]);
+    // The scan is alive: the editor really does import the stage.
+    expect(all.some((e) => e.file.startsWith('src/dev/stageedit/') && e.target?.startsWith('src/battlestage/') === true)).toBe(true);
+  });
+
+  it('control: the same rule, run over a fixture, refuses a dev tool outside src/dev/stageedit that imports the stage', () => {
+    const fixture: Edge[] = [
+      { file: 'src/dev/stageedit/save.ts', spec: '../../battlestage/config', target: 'src/battlestage/config' },
+      { file: 'src/dev/fxlab.ts', spec: '../battlestage/config', target: 'src/battlestage/config' },
+      { file: 'src/scenes/battle.ts', spec: '../battlestage', target: 'src/battlestage' },
+      { file: 'src/battlestage/floor.ts', spec: './config', target: 'src/battlestage/config' },
+    ];
+    expect(strayStageImports(fixture)).toEqual(['src/dev/fxlab.ts imports ../battlestage/config', 'src/scenes/battle.ts imports ../battlestage']);
   });
 
   it('holds no Pixi and no Three (they come through the facade)', () => {

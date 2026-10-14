@@ -32,7 +32,7 @@ Agents build this engine and you review it. So the engine must be easy to inspec
 | FX lab (`src/dev/fxlab.ts`) | **Ported in M6** (smallest port, decision 6 of `m6-brief.md`): `FxLabScene` takes the new `Game`, uses `game.fx` and `game.scale`, plays a moment through `game.fx.playMoment`, and imports nothing from `engine/display`, `engine/game` or `engine/postfx`. It is still a legacy-shaped scene (`LegacyShape`), so it needs no change when M8 deletes the old base class. Same panels and same `fx.json` format, no new features. `e2e/fxlab.spec.ts` covers it, with an invalid-edit case. | Done (M6) |
 | Animation editor (`rigedit.html`), art review (`artreview.html`) | No change. They import art modules only and do not use `Game`. | Unchanged |
 | Battle Stage Editor, Battle Test, Stage lab | Port with the stage in M3. See section 2. | Port |
-| Trailer recorder | Captures the single canvas with `captureStream`. The `#fx ?? #screen` choice is gone (M6). | Done (M6) |
+| Trailer recorder | Deleted in ET, re-created under [#84](https://github.com/markhazlewood42/shadow-jog/issues/84). | Deleted (ET) |
 | DEV menu (`tools.ts`), `devroutes.ts` | Unchanged. `?scene=` routes stay as plain scenes. | Unchanged |
 
 **`__SJ__.tree()`** returns JSON built from `GameObject.name` and the Pixi `label`: class, position, depth, visible, texture key, filters, Pixi node type. It lets you and agents compare the two trees (see [scene-graph.md](scene-graph.md)).

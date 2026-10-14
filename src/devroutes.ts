@@ -3,27 +3,23 @@ import { hackDef, hackDevOverride, parseTicks, runHack, setHackDevOverride } fro
 import { createMember } from './game/party';
 import { applyStage } from './game/stages';
 import { state, type MemberId } from './game/state';
-import type { Game } from './engine/game';
-import type { Game as SjeGame } from './sje/runtime/game';
 import { BattleScene } from './scenes/battle';
-import { BestiaryTestScene } from './scenes/bestiarytest';
-import { CharTestScene } from './scenes/chartest';
+import { BestiaryTestScene } from './dev/viewers/bestiarytest';
+import { CharTestScene } from './dev/viewers/chartest';
 import { FieldScene } from './scenes/field';
-import { FontTestScene } from './scenes/fonttest';
-import { MapViewScene } from './scenes/mapview';
+import { FontTestScene } from './dev/viewers/fonttest';
+import { MapViewScene } from './dev/viewers/mapview';
 import { PanelScene } from './scenes/panels';
-import { PortraitTestScene } from './scenes/portraittest';
+import { PortraitTestScene } from './dev/viewers/portraittest';
+import type { Game } from './sje';
 
 /** Run the named dev scene; false if the name isn't one (the caller shows the title). */
 export function runDevScene(game: Game, scene: string, params: URLSearchParams): boolean {
   switch (scene) {
     case 'fxlab':
       // The FX lab: tune particle presets and battle moments, save them to src/data/fx.json.
-      // The lab runs on the new engine's Game (startSje hands it over typed as the old one: the seam in sje/boot.ts).
-      void import('./dev/fxlab').then(({ FxLabScene }) => {
-        const sje = game as unknown as SjeGame;
-        return sje.run(new FxLabScene(sje));
-      });
+      // The lab is a Scene of the new engine, which runs on the new Game (src/boot.ts hands it over from the glue).
+      void import('./dev/fxlab').then(({ FxLabScene }) => game.run(new FxLabScene()));
       break;
     case 'hack': {
       // The 3D test scene on its own (M7): ?scene=hack&id=test-hack&frame=canvas-copy. The outcome lands on `__SJ__.lastHack`. The ticks of the definition can be shortened with &ticks=.

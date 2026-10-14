@@ -8,7 +8,8 @@ const PORT = Number(process.env.PW_PORT ?? 3007);
 // The title and the Options screen draw the build's commit (`__BUILD_SHA__`, vite.config.ts buildSha()). Left alone, every commit would change those pixels and break the goldens
 // of e2e/default-path.spec.ts. So the servers Playwright starts get a fixed stamp. A value already in the environment (the `SJ_BUILD_SHA=<label>` of a screenshot compare, DEVELOPING.md) wins.
 // A dev server that is already running (reuseExistingServer) keeps its own stamp: stop it, or run on a spare PW_PORT, before you make or check the goldens.
-const BUILD_ENV = { SJ_BUILD_SHA: process.env.SJ_BUILD_SHA ?? 'e2e' };
+// The art review endpoint reads the committed fixture, not Mark's git-ignored media/art-pass (CI has none): vite.config.ts ART_PASS.
+const BUILD_ENV = { SJ_BUILD_SHA: process.env.SJ_BUILD_SHA ?? 'e2e', SJ_ART_PASS_DIR: 'tests/fixtures/artpass' };
 
 export default defineConfig({
   testDir: 'e2e',

@@ -14,9 +14,17 @@
 import type { Pt } from '../../battle/fx';
 import type { Element } from '../../battle/types';
 import { FX } from '../../data/fx';
-import { playMoment } from '../../engine/moments';
-import { postfx } from '../../engine/postfx';
 import { WORLD_SCALE } from './geom';
+
+/** What these functions need of an effects system. `FxSystem` (the new engine's `game.fx`) has all three members. */
+export interface MomentFx {
+  /** False when GPU effects are off: every call below then returns at once. */
+  readonly active: boolean;
+  /** Run `fn` after `frames` effect frames. */
+  later(frames: number, fn: () => void): void;
+  /** Play a moment of fx.json by name at (x, y), in screen pixels. Unknown names do nothing. */
+  playMoment(name: string, x: number, y: number, o?: { angle?: number; weight?: number }): void;
+}
 
 const deg = (from: Pt, to: Pt) => (Math.atan2(to.y - from.y, to.x - from.x) * 180) / Math.PI;
 
@@ -24,42 +32,42 @@ const deg = (from: Pt, to: Pt) => (Math.atan2(to.y - from.y, to.x - from.x) * 18
  * A blow landing on `at`. `tier` is its weight (0 a tap .. 3 a crushing hit, as playback grades
  * it); `from` is the attacker, when there is one, so debris flies the way the blow travelled.
  */
-export function gpuHit(at: Pt, from: Pt | null, el: Element, tier: number, o: { crit: boolean; weak: boolean; combo: boolean }): void {
-  if (!postfx.active) return;
+export function gpuHit(fx: MomentFx, at: Pt, from: Pt | null, el: Element, tier: number, o: { crit: boolean; weak: boolean; combo: boolean }): void {
+  if (!fx.active) return;
   const x = at.x * WORLD_SCALE, y = at.y * WORLD_SCALE;
   const opts = { ...(from ? { angle: deg(from, at) } : {}), weight: 0.6 + tier * 0.3 + (o.weak ? 0.4 : 0) };
-  playMoment(FX, `hit.${el}`, x, y, opts);
-  if (o.combo) playMoment(FX, 'combo', x, y, opts);
-  else if (o.crit) playMoment(FX, 'crit', x, y, opts);
-  else if (tier >= 2) playMoment(FX, 'hit.heavy', x, y, opts);
+  fx.playMoment(`hit.${el}`, x, y, opts);
+  if (o.combo) fx.playMoment('combo', x, y, opts);
+  else if (o.crit) fx.playMoment('crit', x, y, opts);
+  else if (tier >= 2) fx.playMoment('hit.heavy', x, y, opts);
 }
 
 /** A move winding up at `at`: its power gathering there (`cast.<fx>`; most moves have none). */
-export function gpuCast(fx: string, at: Pt): void {
-  playMoment(FX, `cast.${fx}`, at.x * WORLD_SCALE, at.y * WORLD_SCALE);
+export function gpuCast(fx: MomentFx, id: string, at: Pt): void {
+  fx.playMoment(`cast.${id}`, at.x * WORLD_SCALE, at.y * WORLD_SCALE);
 }
 
 /** A move's effect landing on each target, `impact` effect frames from now (`spell.<fx>`). */
-export function gpuSpell(fx: string, targets: Pt[], impact: number): void {
-  if (!postfx.active || !FX.moments[`spell.${fx}`]) return;
+export function gpuSpell(fx: MomentFx, id: string, targets: Pt[], impact: number): void {
+  if (!fx.active || !FX.moments[`spell.${id}`]) return;
   const land = () => {
-    for (const t of targets) playMoment(FX, `spell.${fx}`, t.x * WORLD_SCALE, t.y * WORLD_SCALE);
+    for (const t of targets) fx.playMoment(`spell.${id}`, t.x * WORLD_SCALE, t.y * WORLD_SCALE);
   };
-  if (impact > 0) postfx.later(impact, land);
+  if (impact > 0) fx.later(impact, land);
   else land();
 }
 
 /** A heal on `at` (a perfect press: its own, fuller moment). */
-export function gpuHeal(at: Pt, crit: boolean): void {
-  playMoment(FX, crit ? 'heal.perfect' : 'heal', at.x * WORLD_SCALE, at.y * WORLD_SCALE);
+export function gpuHeal(fx: MomentFx, at: Pt, crit: boolean): void {
+  fx.playMoment(crit ? 'heal.perfect' : 'heal', at.x * WORLD_SCALE, at.y * WORLD_SCALE);
 }
 
 /** An enemy going down (a boss: its own moment). */
-export function gpuDown(at: Pt, boss: boolean): void {
-  playMoment(FX, boss ? 'down.boss' : 'down', at.x * WORLD_SCALE, at.y * WORLD_SCALE);
+export function gpuDown(fx: MomentFx, at: Pt, boss: boolean): void {
+  fx.playMoment(boss ? 'down.boss' : 'down', at.x * WORLD_SCALE, at.y * WORLD_SCALE);
 }
 
 /** A boss changing form. */
-export function gpuPhase(at: Pt): void {
-  playMoment(FX, 'phase', at.x * WORLD_SCALE, at.y * WORLD_SCALE);
+export function gpuPhase(fx: MomentFx, at: Pt): void {
+  fx.playMoment('phase', at.x * WORLD_SCALE, at.y * WORLD_SCALE);
 }

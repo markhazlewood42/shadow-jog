@@ -18,6 +18,8 @@
     "lint": "biome lint",
     "budget": "vite build && vite build --mode lab && node scripts/bundle-budget.mjs",
     "roadmap": "node scripts/gen-roadmap.mjs",
+    "changelog:check": "node scripts/changelog-fold.mjs --check",
+    "changelog:fold": "node scripts/changelog-fold.mjs",
     "cc": "npm --prefix tools/command-center install --no-audit --no-fund && npm --prefix tools/command-center run cc"
   },
   "devDependencies": {

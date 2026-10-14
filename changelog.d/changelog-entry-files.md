@@ -1,0 +1,2 @@
+### Changed
+- Changelog entries (2026-10-14): a feature PR now adds `changelog.d/<branch-slug>.md` and never edits `CHANGELOG.md`, so parallel PRs no longer conflict there. `scripts/changelog-fold.mjs` (`npm run changelog:fold -- <version>`) merges the files into a new release section at release time, and `npm run changelog:check` (also a unit test, so `npm run check` and CI run it) validates them. `.gitattributes` marks `CHANGELOG.md` `merge=union` as a second guard. Rule: `changelog.d/README.md`; release steps: `docs/DEVELOPING.md` section 9.

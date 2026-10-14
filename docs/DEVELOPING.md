@@ -151,6 +151,26 @@ lists every tool below with a line on what it's for; `/?devmenu` opens the page 
 back to it. `npm run dev` prints the main ones under the server's addresses. The list is `src/dev/tools.ts`: a new
 tool, page or route goes there. The menu isn't mounted under Playwright (`navigator.webdriver`) or in a build.
 
+**The tools** (ET, 2026-10-13: every tool runs on the new engine, with two named exceptions until M8: Battle Test loads `src/dev/stageedit/battleglue.ts` and `src/scenes/battle.ts` with a dynamic `import()`, and both reach the old engine; and `src/dev/stageedit/boot.ts` shares the old `Input` of `src/engine/input`, as `src/sje/boot.ts` does, until M8 gives the new engine its own input; `tests/et-tools.test.ts` checks the first). Each tool opens in a browser test (`e2e/tools.spec.ts`, or the spec named in the last column).
+
+| Tool | Where it lives | How to open it | Test |
+|---|---|---|---|
+| DEV menu | `src/dev/devmenu.ts`, `src/dev/tools.ts` (the list) | the DEV tab on the game page, the ` key, or `/?devmenu` | `tools.spec.ts` (with the webdriver override) |
+| FX lab (particle presets and battle moments) | `src/dev/fxlab.ts`: a `Scene` of the engine that plays through `game.fx` | `/?scene=fxlab` | `fxlab.spec.ts` |
+| Animation editor (the crew's battle arms) | `src/dev/rigedit.ts`, `rigedit.html` | `/rigedit.html` | `tools.spec.ts` |
+| Art review (every version of the code-drawn art) | `src/dev/artreview.ts`, `artreview.html` | `/artreview.html` | `tools.spec.ts` |
+| Art swap (the review's picks tried in the game) | `src/dev/artswap.ts` | `?art=review[&try=asset/option,...]` on any route | `tools.spec.ts` |
+| Art viewers (five) | `src/dev/viewers/` (`mapview`, `chartest`, `portraittest`, `bestiarytest`, `fonttest`), on one scene base | `?scene=mapview`, `chars`, `portraits`, `bestiary`, `font` | `tools.spec.ts` |
+| Field show hooks (a field state fixed for the parity harness) | `src/dev/fieldshow.ts` | `window.__SJ__.fieldShow`, `fieldInfo` | `sje-field.spec.ts` |
+| Dev routes (the `?scene=` switch) | `src/devroutes.ts` | `?scene=...` (below) | `devroutes-hack.test.ts`, `devroutes-ticks.test.ts` |
+| Stage lab (the battle stage slice, the parity page) | `src/sje-lab/stagelab.ts` | `/sjestage.html` | `tools.spec.ts`, `sje-stage-parity.spec.ts` |
+| Engine lab (the canary page) | `src/sje-lab/lab.ts` and friends | `/sjelab.html` | `sje-canaries.spec.ts` |
+| 3D hack dev entry | `src/sje-lab/hackhook.ts` | `?scene=hack` | `sje-hack-a.spec.ts` to `-d` |
+| Battle Stage Editor | `src/dev/stageedit/` (the save endpoint is `serve.ts`, mounted by `vite.config.ts`) | `/stageedit.html`, or "Battle Stage Editor" in the DEV menu; `?scratch=<name>` makes it use a private copy of the data (tests) | `stageedit*.spec.ts`, `tools.spec.ts` |
+| Battle Test | `src/dev/stageedit/battle*.ts`: the dialog, the controller and one glue module for the game's old battle scene | the **Battle Test** button or Ctrl+Enter in the Battle Stage Editor; Esc returns | `battletest.spec.ts`, `tools.spec.ts` |
+
+The Battle Stage Editor writes the 640 set only (`stages-640.json`, `hud-640.json` and the shared `axes.json`, `enemyfacing.json`, `heroes.json`) through `POST /__stage/stages`; the 480 set is frozen for the parity fixtures. Battle Test runs the game's own `BattleScene` over the stage as it is on screen, saved or not, with no move animations (the shipped stage has none). Its one old-engine file is `src/dev/stageedit/battleglue.ts`, loaded with a dynamic `import()` and named on the exemption list in `tests/et-tools.test.ts`; M8 deletes it. In a spec, stop the real loop (`game.stop()`) and play the fight with `window.__stageedit.battle().advance(n)`; do not call `game.step(n)` in a loop, because the battle waits on promises that only run when the code lets go of the thread.
+
 **URL routes** (`src/devroutes.ts`):
 - `?scene=stage&stage=ID`: straight to a chapter preset (`start`, `town`, `sinkline`, `annex`, `finale`:
   `game/stages.ts`), with its party, levels, gear and flags.
@@ -256,8 +276,10 @@ including why it ended at round 12. If a future milestone brings it back:
   endpoint had the fix and another didn't). Write it in one go, or touch it afterwards, and confirm with a request.
 - **The dev server's write endpoints write real files.** `/__rig/skeleton` writes `public/art/rig/skeleton.json`
   and `/__artpass/review` writes `media/art-pass/review.json`. Before probing one, back the file up and
-  byte-compare it afterwards; the FX lab has `?dry=1`. All three refuse requests from other sites (`Origin` /
-  `Sec-Fetch-Site`); a script with neither passes.
+  byte-compare it afterwards; every write endpoint (these, the FX lab and `/__stage/stages`) has `?dry=1`: only the value `1`
+  is dry (`isDry` in `src/dev/sameorigin.ts`), so `?dry=0` writes. All of them refuse requests from other sites (`Origin` /
+  `Sec-Fetch-Site`) and requests whose `Host` is not `localhost`, `127.0.0.1` or `[::1]` (DNS rebinding); a script with no
+  `Origin` and a local `Host` passes.
 
 ---
 
@@ -323,16 +345,6 @@ Objectives go in `OBJ`. New names go in the glossary.
   `vite.config.ts` (dev server only); `tests/gpufx.test.ts` checks the file and `e2e/fxlab.spec.ts` the lab.
 - In code: `playMoment(FX, 'crit', x, y, { angle, weight })` (`engine/moments.ts`); one preset:
   `postfx.emit(FX.presets.embers, x, y)`. Screen pixels (battle world coordinates ×2).
-
-### The trailer
-- `node scripts/trailer.mjs` (with `npm run dev` running) shoots about 95 s of real gameplay, directed: title,
-  Lantern Row, Dutch, the Sprawl, the Rustyard, a staged fight (the Clean Job combo, FIRE and SHOCK, victory, a
-  level-up), the Sinkline, the Lurker, the Warden's tell and phase change, and a title-only end card. It records
-  the game's own picture and audio mix in Edge at 1920x1080, 60 fps, to `media/shadow-jog-trailer-<date>.mp4`
-  (H.264 + AAC, about 200 MB; `media/` isn't committed). `--preview` takes one still per shot instead, to check
-  framing first (`media/trailer-preview/`).
-- The shots are the script's shot list; the in-page tools (caption cards in the game font, one held song per
-  section, the recorder) are `src/dev/trailer.ts`. Re-shoot it after changing the art for a before/after pair.
 
 ### The PixelLab art pass and the review page
 Drawn art made with [PixelLab](https://www.pixellab.ai) (a paid account; its REST API, `https://api.pixellab.ai/v2`),
@@ -472,13 +484,13 @@ The why (and the decisions behind it) is in `docs/PHASE-0.2.md`, "Versioning and
 
 **Minor or patch while 0.x.** Minor (0.2.0 to 0.3.0) is anything a player would call a different build: a battle view, an engine, a new chapter or zone, a new system, a save reshape, a new art pipeline. Patch (0.2.0 to 0.2.1) is fixes, balance numbers, copy, and art swaps that change no system. Day-to-day work on `main` carries a `-dev` suffix (`0.2.0-dev`). The major number stays 0 until Mark says 1.0.
 
-**Changelog.** `CHANGELOG.md` is Keep a Changelog 1.1.0: `Unreleased` on top, ISO dates, headings Added / Changed / Deprecated / Removed / Fixed / Security. Every feature PR adds its entry under `Unreleased`.
+**Changelog.** `CHANGELOG.md` is Keep a Changelog 1.1.0: `Unreleased` on top, ISO dates, headings Added / Changed / Deprecated / Removed / Fixed / Security. New entries never go under `Unreleased` by hand: `CHANGELOG.md` still holds some bullets there from before the entry files existed, and the fold script moves them into the next release section along with the entry files. A feature PR does not edit `CHANGELOG.md` (two PRs that edit the same lines conflict on every merge). It adds its entry as one file, `changelog.d/<branch-slug>.md` (the branch name with each slash turned into a hyphen), with the same headings and one bullet for each change. `npm run changelog:check` validates the files, and a unit test runs the same check in `npm run check` and CI. `.gitattributes` also sets `CHANGELOG.md merge=union` as a second guard. Rule and format: `changelog.d/README.md`.
 
 ### Cutting a release
 
 Mark's playtest and go-ahead come first. Pushing a tag and creating a GitHub Release each need his explicit yes.
 
-1. Move the `Unreleased` entries under a new `[X.Y.Z] - date` heading in `CHANGELOG.md` (the date is the day the tag is cut; if the PR merges on a later day, correct it in the follow-up bump PR) and set `"version"` in `package.json`.
+1. Fold the entry files into `CHANGELOG.md`: `npm run changelog:fold -- X.Y.Z --dry-run` shows the new section, then `npm run changelog:fold -- X.Y.Z` (add `--date YYYY-MM-DD` to set the date; the default is today) writes it under `Unreleased`, leaves `Unreleased` empty, and deletes the files in `changelog.d/`. The date is the day the tag is cut; if the PR merges on a later day, correct it in the follow-up bump PR. Set `"version"` in `package.json`.
 2. Open the PR. Mark merges it.
 3. Tag the merge commit, annotated: `git tag -a vX.Y.Z -m "Shadow Jog X.Y.Z: one-line summary" <merge-sha>`.
 4. Push the tag: `git push origin vX.Y.Z`. A pushed release tag is never moved or deleted.
