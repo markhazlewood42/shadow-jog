@@ -713,7 +713,7 @@ async function main(): Promise<void> {
         (!written.includes('facing') || formatFacing(back.facing) === formatFacing(data.facing)) &&
         (!written.includes('heroes') || formatHeroes(back.heroes) === formatHeroes(data.heroes));
       session.markSaved(written, posted);
-      const t =new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const t = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       const where = fileNames(written);
       const many = where.includes(' and ') || where.includes(', ');
       bar.say(same ? `Saved to ${where} at ${t}. Commit ${many ? 'them' : 'it'} to ship ${many ? 'them' : 'it'}.` : `Saved to ${where} at ${t}, but the file read back differently from what the editor holds.`, same ? 'good' : 'bad');
