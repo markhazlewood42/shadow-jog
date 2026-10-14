@@ -54,7 +54,7 @@ export type ReporterDeps = {
   onExit: (code: number) => void;
   /**
    * Whether the reporter exits after 30 minutes with no live session. True by default: a reporter that nobody started by hand ends by itself.
-   * False for a reporter that a person started on purpose (the start-command-center shortcut): it then runs until it is stopped.
+   * False for a reporter that a person started on purpose (the tray app, `command-center-tray.ps1`): it then runs until it is stopped.
    * Only this rule changes. The protection check and the fail-closed rules stay.
    */
   idleExit?: boolean;

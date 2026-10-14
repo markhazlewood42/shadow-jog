@@ -114,6 +114,8 @@ const AGENTS_KEYS = ['pollMs', 'lingerSeconds', 'staleSeconds'] as const;
 
 /** Where Claude Code lists its running processes, unless the config says another. */
 const DEFAULT_SESSIONS_ROOT = '~/.claude/sessions';
+/** Claude Code names the session folder of a worktree `<project folder>--claude-worktrees-<branch>`; a session folder prefix must end like this. */
+const WORKTREE_PREFIX_END = '--claude-worktrees-';
 const DEFAULT_POLL_MS = 3000;
 const DEFAULT_LINGER_SECONDS = 300;
 const DEFAULT_STALE_SECONDS = 1800;
@@ -211,6 +213,13 @@ export function loadConfig(file: string): Config {
     });
   };
 
+  /**
+   * A session folder prefix must end in `--claude-worktrees-`. A prefix such as `...shadow-jog` would also match the sibling folder `...shadow-jog-phaser`,
+   * and a one-character prefix would pull in every folder, so only the worktree-folder shape is allowed.
+   */
+  const worktreePrefixes = (names: string[]): string[] =>
+    names.map((name, i) => (name.endsWith(WORKTREE_PREFIX_END) && name.length > WORKTREE_PREFIX_END.length ? name : fail(`claude.folderPrefixes[${i}]`, `must end in "${WORKTREE_PREFIX_END}" and start with the project folder name`)));
+
   const top = object(parsed, '', TOP_LEVEL_KEYS);
   const claude = object(need(top, 'claude', ''), 'claude', CLAUDE_KEYS);
   const agents = 'agents' in top ? object(top.agents, 'agents', AGENTS_KEYS) : {};
@@ -240,7 +249,7 @@ export function loadConfig(file: string): Config {
       sessionsRoot: toAbsolute('sessionsRoot' in claude ? text(claude, 'sessionsRoot', 'claude') : DEFAULT_SESSIONS_ROOT),
       folders: folderNames(claude, 'folders'),
       cwdMatchFolders: folderNames(claude, 'cwdMatchFolders'),
-      folderPrefixes: 'folderPrefixes' in claude ? folderNames(claude, 'folderPrefixes') : [],
+      folderPrefixes: 'folderPrefixes' in claude ? worktreePrefixes(folderNames(claude, 'folderPrefixes')) : [],
       includeSdk: flag(claude, 'includeSdk', 'claude', false),
       recentSeconds: whole(claude, 'recentSeconds', 'claude', 1, 31_536_000),
       workingSeconds: whole(claude, 'workingSeconds', 'claude', 1, 31_536_000),

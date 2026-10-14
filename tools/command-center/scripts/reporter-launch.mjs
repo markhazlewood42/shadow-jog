@@ -913,7 +913,7 @@ if (isMainModule(import.meta.url)) {
   }
   // --branch and --origin are for testing a branch before it is merged: the pinned copy then follows that branch.
   // --manual: a person started it (the tray app), so the reporter server has no idle exit.
-  runLauncher({ checkout, ...(argv.includes('--manual') ? { manual: true } : {}),...(readOption(argv, '--branch') ? { branch: readOption(argv, '--branch') } : {}), ...(readOption(argv, '--origin') ? { origin: readOption(argv, '--origin') } : {}) }).then(
+  runLauncher({ checkout, ...(argv.includes('--manual') ? { manual: true } : {}), ...(readOption(argv, '--branch') ? { branch: readOption(argv, '--branch') } : {}), ...(readOption(argv, '--origin') ? { origin: readOption(argv, '--origin') } : {}) }).then(
     (code) => process.exit(code),
     (error) => {
       console.error(`reporter-launch: ${error instanceof Error ? error.message : 'failed'}`);
