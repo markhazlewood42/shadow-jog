@@ -45,10 +45,9 @@ Built from `docs/command-center/your-move-redesign.md`: one shared rule, three s
 
 Mark asked for two changes. (a) A PR showed twice, in "Your move" and in "Pull requests". It is now only in "Pull requests": the shared rule (`src/shared/your-move.ts`) has no PR input, the local builder reads three panels, and a cut list of PRs does not mark "Your move" incomplete (a partial GraphQL read does, on the hosted page, because one query also holds the decisions). `YourMoveSource` lost `'pr'`. (b) The "never merge" spike PRs (open draft PRs from `spike/<topic>` branches: #3, #4, #11) are hidden from the Pull requests panel, and the "Open (n)" count counts only the PRs shown. One shared predicate, `isSpikePr` in `src/shared/spike-pr.ts`, serves the local and the hosted page. The hide is display-only: the snapshot, `/api/github` and the workstream matching by branch still hold the spikes. Tests: `spike-pr.test.tsx` (predicate and list), and the Your move tests no longer expect PR items.
 
-
-Candidates for the next round (seen in the tray test, not built):
+Seen in the tray test, not built (the current list is in "Closed" below):
 - A `home-base` session shows in Running only while its working folder is inside Shadow Jog, so a session that steps out for a moment drops off the list.
-- The local page reads `status.md` from the main checkout's working tree, so it shows the checked-out branch (on `engine-et-editor-port` that is `milestone: none`, shown as "Not started" with empty squares), not `main`. Between milestones, "Not started" also hides that the last milestone is done.
+- The local page reads `status.md` from the main checkout's working tree, so it shows the checked-out branch (on `engine-et-editor-port` that is `milestone: none`, shown as "Not started" with empty squares), not `main`. Between milestones, "Not started" also hides that the last milestone is done. Dropped by Mark (2026-10-14): local-only.
 
 ## One header on every page (2026-10-14)
 
