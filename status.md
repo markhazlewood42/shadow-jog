@@ -18,11 +18,15 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 - **CI:** GitHub Actions, on pushes to `main` and on pull requests: three jobs at the same time (`check`, `e2e`, `e2e-engines`), all three required on `main` by the ruleset "Main branch protection" (2026-10-06). A docs-only change skips their steps. The real-speed playtest runs in `playtest.yml` after a merge and from the Actions button.
 - **Since 2026-10-01** work goes on a branch per major feature, with a PR for the Claude Code Review Action, and Mark merges.
 
+## ET "Editor port" built (2026-10-13)
+
+Branch `engine-et-editor-port`. Brief `docs/engine/et-brief.md` (approved 2026-10-13) passed the lean loop: Builders A (tasks 1 to 3), B (tasks 4, 5) and C (tasks 6, 7), each checked by a runner and a reader, and the write paths by an attacker; every round is in the brief's Record. Every tool except the trailer runs on the new engine. The Battle Stage Editor (`/stageedit.html`) and Battle Test are back; Battle Test runs on the game's own `BattleScene` (decision 2 B). Two exceptions until M8, both named in the docs: the Battle Test glue (`src/dev/stageedit/battleglue.ts`, scope ratified by Mark) and the old `Input` the editor shares with the game. The trailer tooling is deleted; [#84](https://github.com/markhazlewood42/shadow-jog/issues/84) tracks its re-creation. Pictures: `media/et-editors/` (not in git). Next: Mark's playable checkpoint (pass line 17), the PR and its review, Mark's merge, then M8 "Remove legacy".
+
 ## M7 3D mode is merged (2026-10-13)
 
 M7 "3D mode" is merged: [PR #80](https://github.com/markhazlewood42/shadow-jog/pull/80) (merge commit 6257430, 2026-10-13 20:57 UTC). Mark's merge closes line 26, the build check. D5 is the glitch style, 2 s each way. [Issue #81](https://github.com/markhazlewood42/shadow-jog/issues/81) (the fourth and fifth reviews, 14 findings) is handled by [PR #82](https://github.com/markhazlewood42/shadow-jog/pull/82) (merge commit f1c2bda, 2026-10-13 22:23 UTC). It fixed or tested 11 findings. The other 3 were not real or were already flagged. Two Claude reviews of PR #82 were triaged. The second needed no code change. Record: `docs/engine/m7-brief.md` section 9.
 
-**Next is ET "Editor port"** (`docs/engine/migration.md` "Editors and tools" track 1): write the ET brief with pass lines first, then M8 "Remove legacy". Mark chose this order on 2026-10-13. Mark approves the ET brief when it is ready.
+**ET "Editor port" came next** (see above), then M8 "Remove legacy". Mark chose this order on 2026-10-13.
 
 ## M7 "3D mode" started (2026-10-12)
 
@@ -325,7 +329,7 @@ Branch `spike/engine-platform` (draft PR #11). Record: `docs/spikes/engine-platf
   splashes, lamp flicker into the bloom); per-place colour grading.
 - **Trailer, "before" record (2026-09-30):** `media/shadow-jog-trailer-2026-09-30.mp4` (94.7 s, 1080p60, game audio;
   not in git) records the game as it stands with everything made in code, before any AI-generated art. Shot by
-  `node scripts/trailer.mjs`; re-shoot after the art changes for the "after".
+  `node scripts/trailer.mjs`, which ET deleted on 2026-10-13 (it stays in git history); [#84](https://github.com/markhazlewood42/shadow-jog/issues/84) tracks the re-creation on the new engine.
 - **Mark's review of the code-drawn art (2026-10-01): every asset marked Best.** His three notes are done (new
   versions on the review page): Sable's staff was half gone in his down view (the tracer took a thin dark staff for
   outline; it now keeps thin dark lines with nothing behind them, which also restored Hex's antenna and a few
