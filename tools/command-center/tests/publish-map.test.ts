@@ -1,9 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { parseLive } from '../src/shared/live';
 import type { LiveSession, SessionInfo } from '../src/shared/types';
-import { LIMITS, REDACTED, buildLiveBody, folderName, mapWorktree, redact } from '../src/server/publish/map';
+import { LIMITS, REDACTED, buildLiveBody, folderName, mapAsk, mapWorktree, redact } from '../src/server/publish/map';
+import type { YourMoveBox } from '../src/shared/types';
+import { ASK_MAX_AGE_MS } from '../src/shared/your-move';
 
 // The allow-list mapper: only the named fields leave, in the shape of the contract (src/shared/live.ts).
+
+const NOW_MS = Date.parse('2026-10-12T12:00:00.000Z');
+const hoursAgo = (hours: number) => new Date(NOW_MS - hours * 3_600_000).toISOString();
+
+/** The mapper with the clock of the tests. */
+const build = (input: Omit<Parameters<typeof buildLiveBody>[0], 'nowMs'>) => buildLiveBody({ ...input, nowMs: NOW_MS });
 
 const SECRETS = ['SECRET PROMPT TEXT', 'SECRET RESULT', 'C:\\Users\\markh\\private-folder', 'SECRET-FILE-BODY', 'ghp_SECRETTOKEN'];
 
@@ -32,12 +40,12 @@ function info(): Pick<SessionInfo, 'id' | 'branch' | 'cwd'> {
 
 describe('the allow-list mapper', () => {
   it('lets through the allowed fields and nothing else, however many extra fields a session carries', () => {
-    const out = buildLiveBody({
+    const out = build({
       sessions: [liveSession()],
       facts: [info()],
       worktrees: [{ path: 'C:/Users/markh/home-base/projects/shadow-jog', branch: 'reporter', dirty: 3, ...({ fileBody: 'SECRET-FILE-BODY' } as object) }],
     });
-    expect(Object.keys(out.sessions[0] as object).sort()).toEqual(['agents', 'branch', 'folder', 'id', 'startedAt', 'state', 'title']);
+    expect(Object.keys(out.sessions[0] as object).sort()).toEqual(['agents', 'branch', 'folder', 'id', 'startedAt', 'state', 'title', 'yourMove']);
     expect(Object.keys((out.sessions[0] as { agents: object }).agents).sort()).toEqual(['done', 'names', 'running']);
     expect(Object.keys(out.worktrees[0] as object).sort()).toEqual(['branch', 'dirty', 'path']);
     const text = JSON.stringify(out);
@@ -50,6 +58,8 @@ describe('the allow-list mapper', () => {
       state: 'working',
       startedAt: '2026-10-12T08:00:00.000Z',
       agents: { running: 1, done: 1, names: ['Check the diff', 'Read the docs'] },
+      // The box in the facts above is not a box (a careless copy would have carried its text): no ask leaves.
+      yourMove: null,
     });
   });
 
@@ -61,14 +71,14 @@ describe('the allow-list mapper', () => {
   });
 
   it('uses empty branch and folder when the sessions module has not seen the session yet', () => {
-    const out = buildLiveBody({ sessions: [liveSession()], facts: [], worktrees: [] });
+    const out = build({ sessions: [liveSession()], facts: [], worktrees: [] });
     expect(out.sessions[0]).toMatchObject({ branch: '', folder: '' });
   });
 
   it('puts running agents first in the name list and keeps the list short', () => {
     const many = liveSession();
     many.nodes = Array.from({ length: 40 }, (_, i) => ({ id: `n${i}`, parentId: 'sess-1', kind: 'agent', label: `agent ${i}`, model: null, state: i === 39 ? 'running' : 'done', startedAt: null, endedAt: null, filePath: null, messages: { count: 0, approximate: false } }) as never);
-    const out = buildLiveBody({ sessions: [many], facts: [], worktrees: [] });
+    const out = build({ sessions: [many], facts: [], worktrees: [] });
     const agents = (out.sessions[0] as { agents: { running: number; done: number; names: string[] } }).agents;
     expect(agents.names[0]).toBe('agent 39');
     expect(agents.names).toHaveLength(LIMITS.agentNames);
@@ -78,7 +88,7 @@ describe('the allow-list mapper', () => {
   it('cuts long text from a transcript, and the number of rows', () => {
     const long = liveSession();
     long.title = 'ab '.repeat(2000);
-    const out = buildLiveBody({ sessions: Array.from({ length: 80 }, (_, i) => ({ ...long, id: `s${i}` })), facts: [], worktrees: [] });
+    const out = build({ sessions: Array.from({ length: 80 }, (_, i) => ({ ...long, id: `s${i}` })), facts: [], worktrees: [] });
     expect(out.sessions).toHaveLength(LIMITS.sessions);
     expect((out.sessions[0] as { title: string }).title.length).toBe(LIMITS.title);
   });
@@ -90,7 +100,7 @@ describe('the allow-list mapper', () => {
   it('F1: a worktree leaves as the NAME of its last folder, never the full path, for either kind of slash', () => {
     expect(mapWorktree({ path: 'C:/Users/markh/home-base/projects/shadow-jog-engine', branch: 'engine', dirty: 0 }).path).toBe('shadow-jog-engine');
     expect(mapWorktree({ path: 'C:\\Users\\markh\\home-base\\projects\\shadow-jog\\', branch: 'main', dirty: 0 }).path).toBe('shadow-jog');
-    const out = buildLiveBody({ sessions: [], facts: [], worktrees: [{ path: '/home/mark/secret-layout/shadow-jog', branch: 'main', dirty: 1 }] });
+    const out = build({ sessions: [], facts: [], worktrees: [{ path: '/home/mark/secret-layout/shadow-jog', branch: 'main', dirty: 1 }] });
     expect(JSON.stringify(out)).not.toMatch(/markh|home\/mark|secret-layout|Users/);
   });
 
@@ -105,14 +115,14 @@ describe('the allow-list mapper', () => {
     // The same name must come out for a session and for its worktree, or the hosted page cannot join them. 36 characters with a digit, and it passes.
     const branch = 'command-center-step-5-local-reporter';
     expect(mapWorktree({ path: 'C:/w', branch, dirty: 0 }).branch).toBe(branch);
-    const session = buildLiveBody({ sessions: [liveSession()], facts: [{ ...info(), branch }], worktrees: [] }).sessions[0];
+    const session = build({ sessions: [liveSession()], facts: [{ ...info(), branch }], worktrees: [] }).sessions[0];
     expect(session?.branch).toBe(branch);
     // A random key as a branch name is redacted.
     expect(mapWorktree({ path: 'C:/w', branch: 'Zm9vYmFyMTIzNDU2Nzg5MGFiY2RlZg', dirty: 0 }).branch).toBe(REDACTED);
   });
 
   it('gives a value that parseLive accepts', () => {
-    const body = buildLiveBody({ sessions: [liveSession()], facts: [info()], worktrees: [{ path: 'C:/w', branch: 'main', dirty: 0 }] });
+    const body = build({ sessions: [liveSession()], facts: [info()], worktrees: [{ path: 'C:/w', branch: 'main', dirty: 0 }] });
     expect(parseLive({ writtenAt: new Date().toISOString(), ...body }).ok).toBe(true);
   });
 });
@@ -121,7 +131,7 @@ describe('redaction of secret-shaped text in titles', () => {
   const titleOf = (title: string) => {
     const session = liveSession();
     session.title = title;
-    return (buildLiveBody({ sessions: [session], facts: [], worktrees: [] }).sessions[0] as { title: string }).title;
+    return (build({ sessions: [session], facts: [], worktrees: [] }).sessions[0] as { title: string }).title;
   };
 
   it.each([
@@ -208,7 +218,114 @@ describe('redaction of secret-shaped text in titles', () => {
   it('redacts agent names too', () => {
     const session = liveSession();
     session.nodes = [{ id: 'n1', parentId: 'sess-1', kind: 'agent', label: 'check with ghp_abcdefghijklmnopqrstuvwxyz0123456789', model: null, state: 'running', startedAt: null, endedAt: null, filePath: null, messages: { count: 0, approximate: false } } as never];
-    const out = buildLiveBody({ sessions: [session], facts: [], worktrees: [] });
+    const out = build({ sessions: [session], facts: [], worktrees: [] });
     expect((out.sessions[0] as { agents: { names: string[] } }).agents.names[0]).toBe(`check with ${REDACTED}`);
+  });
+});
+
+// ---- the live ask (your-move-redesign.md section 4, approved by Mark 2026-10-13) ----
+// The one place where a few words of a message leave the machine. Per live session: at most 6 lines of the newest "Your move" box, each redacted like a title and cut
+// to 160 characters, and only when the box passes the four rules. Nothing else of any message.
+
+function box(extra: Partial<YourMoveBox> = {}): YourMoveBox {
+  return { light: 'yellow', items: ['Review the diff'], nothing: false, at: hoursAgo(0.5), answered: false, ...extra };
+}
+
+/** The ask that one session sends, for a box. */
+function askOfBox(yourMove: YourMoveBox | null) {
+  return build({ sessions: [liveSession()], facts: [{ ...info(), yourMove }], worktrees: [] }).sessions[0]?.yourMove;
+}
+
+describe('the live ask in the allow-list mapper', () => {
+  it('sends the lines of a box that passes the four rules, with the time of the box and nothing else of it', () => {
+    const out = askOfBox(box({ light: 'red', items: ['Review the diff', 'Tell me to commit'] }));
+    // The light is not sent. Only `at` and `lines`.
+    expect(out).toEqual({ at: hoursAgo(0.5), lines: ['Review the diff', 'Tell me to commit'] });
+    expect(Object.keys(out as object).sort()).toEqual(['at', 'lines']);
+  });
+
+  it('sends at most 6 lines', () => {
+    const out = askOfBox(box({ items: Array.from({ length: 10 }, (_, i) => `Line ${i + 1}`) }));
+    expect(out?.lines).toEqual(['Line 1', 'Line 2', 'Line 3', 'Line 4', 'Line 5', 'Line 6']);
+  });
+
+  it('cuts each line to 160 characters', () => {
+    // Words, not one long run: a run of 24 or more letters would be redacted as a key. The lines are 500, 160 and 161 characters, and none ends in a space.
+    const words = 'ab '.repeat(200);
+    const out = askOfBox(box({ items: [words.slice(0, 500), words.slice(0, 160), words.slice(0, 161)] }));
+    expect(out?.lines.map((line) => line.length)).toEqual([160, 160, 160]);
+    expect(out?.lines[0]?.endsWith('…')).toBe(true);
+    // A line of exactly 160 characters is not cut.
+    expect(out?.lines[1]).toBe(words.slice(0, 160));
+    expect(out?.lines[2]?.endsWith('…')).toBe(true);
+  });
+
+  it('strips markdown the same way as the local list: the lines are plain text', () => {
+    expect(askOfBox(box({ items: ['Run `npm test` and read **the** [log](http://example.test/x)'] }))?.lines).toEqual(['Run npm test and read the log']);
+  });
+
+  it('runs every line through the same redaction as a title, before the cut', () => {
+    const token = 'ghp_abcdefghijklmnopqrstuvwxyz0123456789';
+    const out = askOfBox(
+      box({
+        items: [
+          `Use ${token} to push`,
+          'Set API_KEY=hunter2hunter2 and rerun',
+          'Header: Authorization: Bearer abcDEF123456xyz',
+          'password: hunter2',
+          'sk-ant-api03-AbCdEfGhIjKlMnOpQrSt is the key',
+          `${'a '.repeat(75)}${token}`,
+          `a token inside **bold ${token}** marks`,
+        ],
+      }),
+    );
+    const text = JSON.stringify(out);
+    for (const secret of ['ghp_', 'hunter2', 'abcDEF123456xyz', 'sk-ant', 'abcdefghijklmnopqrstuvwxyz0123456789']) expect(text).not.toContain(secret);
+    expect(out?.lines[0]).toBe(`Use ${REDACTED} to push`);
+    expect(out?.lines.every((line) => line.length <= 160)).toBe(true);
+    // The same function the titles use: the first line equals what `redact` gives.
+    expect(redact(`Use ${token} to push`)).toBe(out?.lines[0]);
+  });
+
+  it('sends nothing when the box fails a rule: answered, says nothing, older than 12 hours, no time', () => {
+    expect(askOfBox(box({ answered: true }))).toBeNull();
+    expect(askOfBox(box({ nothing: true, items: [] }))).toBeNull();
+    expect(askOfBox(box({ nothing: true, items: ['A line that must not leave'] }))).toBeNull();
+    expect(askOfBox(box({ at: hoursAgo(12.1) }))).toBeNull();
+    expect(askOfBox(box({ at: '' }))).toBeNull();
+    expect(askOfBox(box({ at: hoursAgo(11.9) }))).not.toBeNull();
+    expect(ASK_MAX_AGE_MS).toBe(12 * 3_600_000);
+    // No box, no facts, and a box with no usable line.
+    expect(askOfBox(null)).toBeNull();
+    expect(build({ sessions: [liveSession()], facts: [], worktrees: [] }).sessions[0]?.yourMove).toBeNull();
+    expect(askOfBox(box({ items: ['   ', ''] }))).toBeNull();
+  });
+
+  it('sends nothing else of any message: the allow-list of the session row and of the ask is exact, and no other text of the box or the session gets through', () => {
+    const facts = {
+      ...info(),
+      yourMove: { ...box({ items: ['Review the diff'] }), lastMessage: 'SECRET RESULT', prompt: 'SECRET PROMPT TEXT', text: 'SECRET-FILE-BODY' } as YourMoveBox,
+    };
+    const out = build({ sessions: [liveSession()], facts: [facts], worktrees: [] });
+    const row = out.sessions[0];
+    expect(Object.keys(row as object).sort()).toEqual(['agents', 'branch', 'folder', 'id', 'startedAt', 'state', 'title', 'yourMove']);
+    expect(Object.keys(row?.yourMove as object).sort()).toEqual(['at', 'lines']);
+    const text = JSON.stringify(out);
+    for (const secret of SECRETS) expect(text).not.toContain(secret);
+    // The one line is the only message text in the whole value.
+    expect(text).toContain('Review the diff');
+  });
+
+  it('only a live session sends an ask: the mapper is called for the sessions of the process list, so a session with a box that is not in it sends none', () => {
+    const out = build({ sessions: [], facts: [{ ...info(), yourMove: box() }], worktrees: [] });
+    expect(out.sessions).toEqual([]);
+    expect(JSON.stringify(out)).not.toContain('Review the diff');
+  });
+
+  it('the value passes parseLive, and parseLive holds even a careless value to the same caps', () => {
+    const body = build({ sessions: [liveSession()], facts: [{ ...info(), yourMove: box({ items: ['A', 'B'] }) }], worktrees: [] });
+    const parsed = parseLive({ writtenAt: new Date(NOW_MS).toISOString(), ...body });
+    expect(parsed.ok && parsed.live.sessions[0]?.yourMove).toEqual({ at: hoursAgo(0.5), lines: ['A', 'B'] });
+    expect(mapAsk(undefined, NOW_MS)).toBeNull();
   });
 });

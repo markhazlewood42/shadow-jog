@@ -2,6 +2,12 @@
 // After editing functions/ or src/, run: node scripts/build-functions.mjs   and commit api/*.js (Vercel finds functions in the uploaded source, before any build).
 import { createRequire as __cjsRequire } from 'node:module'; const require = __cjsRequire(import.meta.url);
 
+// src/shared/your-move.ts
+var ASK_MAX_AGE_MS = 12 * 60 * 60 * 1e3;
+
+// src/shared/live.ts
+var LIVE_OFFLINE_AFTER_SECONDS = 150;
+
 // src/hosted/env.ts
 var UPSTASH_URL_VAR = "KV_REST_API_URL";
 var UPSTASH_READ_ONLY_TOKEN_VAR = "KV_REST_API_READ_ONLY_TOKEN";
@@ -47,7 +53,7 @@ var notConfigured = () => errorResponse(500, "not configured", "not-configured")
 
 // src/hosted/live.ts
 var LIVE_KEY = "live";
-var OFFLINE_AFTER_SECONDS = 150;
+var OFFLINE_AFTER_SECONDS = LIVE_OFFLINE_AFTER_SECONDS;
 var TIMEOUT_MS = 1e4;
 function reporterOf(live, now) {
   if (live === null || live === void 0) return { state: "not-running", writtenAt: null, ageSeconds: null, offlineAfterSeconds: OFFLINE_AFTER_SECONDS };

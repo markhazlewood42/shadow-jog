@@ -44,7 +44,7 @@ export function fakeStore(): LiveStore & { sets: string[]; deletes: number; fail
 }
 
 export function row(overrides: Partial<LiveSessionRow> = {}): LiveSessionRow {
-  return { id: 's1', title: 'A session', branch: 'reporter', folder: 'shadow-jog', state: 'working', startedAt: '2026-10-12T08:00:00.000Z', agents: { running: 0, done: 0, names: [] }, ...overrides };
+  return { id: 's1', title: 'A session', branch: 'reporter', folder: 'shadow-jog', state: 'working', startedAt: '2026-10-12T08:00:00.000Z', agents: { running: 0, done: 0, names: [] }, yourMove: null, ...overrides };
 }
 
 export const body = (sessions: LiveSessionRow[] = [row()]): LiveBody => ({ sessions, worktrees: [{ path: 'C:/work/shadow-jog', branch: 'main', dirty: 0 }] });

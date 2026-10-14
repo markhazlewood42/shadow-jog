@@ -1,13 +1,18 @@
-import type { LiveSession, SessionInfo } from '../../shared/types';
 import type { LiveSessionRow, LiveWorktree } from '../../shared/live';
+import type { LiveSession, SessionInfo } from '../../shared/types';
+import { ASK_MAX_CHARS, ASK_MAX_LINES, askStatus } from '../../shared/your-move';
+import { inlineText } from '../engine/decisions';
 
 // The allow-list mapper (design.md section 11.1). It is the only code that decides what leaves this machine.
 //
 // Each output field is written out by hand from a named input field. There is no spread (`...session`) and no copy of a whole object, so a
 // field that a source adds later cannot get through by accident. The fields that leave:
-//   session: id, title, branch, folder name, state, start time, agent names and counts
+//   session: id, title, branch, folder name, state, start time, agent names and counts, and the "Your move" ask (below)
 //   worktree: folder name (the last folder of its path, never the full path), branch, dirty count
-// Never a message, a prompt, a result, a file body, the path of a session file, or a working folder (only the NAME of its last folder).
+// The ask (your-move-redesign.md section 4, approved by Mark 2026-10-13): per LIVE session, at most 6 lines of its newest "Your move" box, each as plain text, redacted like a
+// title and then cut to 160 characters, with the time of the box. They are sent only when the box passes the four rules of src/shared/your-move.ts (the session is live,
+// Mark has not answered, the box does not say "nothing", it is less than 12 hours old). Nothing else of any message.
+// Never a prompt, a result, a file body, the path of a session file, or a working folder (only the NAME of its last folder), and no other part of a message.
 // The hosted page joins a worktree to its workstream by BRANCH, so the name is only a label there.
 //
 // The result is checked once more with `parseLive` before every write (reporter.ts), and `parseLive` builds new objects from the fields that the
@@ -103,10 +108,25 @@ export function folderName(cwd: string | null): string {
 }
 
 /** What the mapper reads from the sessions module for one session: the branch and the working folder. */
-export type SessionFacts = Pick<SessionInfo, 'id' | 'branch' | 'cwd'>;
+export type SessionFacts = Pick<SessionInfo, 'id' | 'branch' | 'cwd'> & { yourMove?: SessionInfo['yourMove'] };
 
-/** One live session as the contract wants it. `facts` is the sessions module's entry for the same id, or undefined when it has not looked yet. */
-export function mapSession(live: LiveSession, facts: SessionFacts | undefined): LiveSessionRow {
+/**
+ * The ask of one live session: the lines of its box, or null when the box fails a rule. Each line goes through the markdown strip of the local list, then the SAME redaction
+ * as a title (before the strip and after it, so that a mark inside a token cannot hide it), and then the cut. The cut comes last, so that it cannot leave the start of a token.
+ * `nowMs` is the clock of the reporter. The session is live by construction: the mapper is called only for the sessions that the process list has.
+ */
+export function mapAsk(box: SessionInfo['yourMove'] | undefined, nowMs: number): LiveSessionRow['yourMove'] {
+  // `Array.isArray` guards a value that is not a box at all (the facts come from another module): it sends nothing rather than throw.
+  if (box === undefined || box === null || !Array.isArray(box.items) || askStatus(box, true, nowMs) !== 'show') return null;
+  const lines = box.items
+    .map((line) => cut(redact(inlineText(redact(line))).trim(), ASK_MAX_CHARS))
+    .filter((line) => line !== '')
+    .slice(0, ASK_MAX_LINES);
+  return lines.length === 0 ? null : { at: box.at, lines };
+}
+
+/** One live session as the contract wants it. `facts` is the sessions module's entry for the same id, or undefined when it has not looked yet. `nowMs` is the clock of the reporter. */
+export function mapSession(live: LiveSession, facts: SessionFacts | undefined, nowMs: number): LiveSessionRow {
   const nodes = live.nodes;
   return {
     id: live.id,
@@ -121,6 +141,7 @@ export function mapSession(live: LiveSession, facts: SessionFacts | undefined): 
       // The running ones first: they are the ones Mark looks for.
       names: [...nodes.filter((node) => node.state === 'running'), ...nodes.filter((node) => node.state === 'done')].slice(0, LIMITS.agentNames).map((node) => cut(redact(node.label), LIMITS.agentName)),
     },
+    yourMove: mapAsk(facts?.yourMove, nowMs),
   };
 }
 
@@ -145,10 +166,10 @@ const UNNAMED_FOLDER = '(unnamed)';
 /** The whole `live` value except `writtenAt`, which the reporter stamps when it writes. */
 export type LiveBody = { sessions: LiveSessionRow[]; worktrees: LiveWorktree[] };
 
-export function buildLiveBody(input: { sessions: readonly LiveSession[]; facts: readonly SessionFacts[]; worktrees: readonly WorktreeFacts[] }): LiveBody {
+export function buildLiveBody(input: { sessions: readonly LiveSession[]; facts: readonly SessionFacts[]; worktrees: readonly WorktreeFacts[]; nowMs: number }): LiveBody {
   const byId = new Map(input.facts.map((facts) => [facts.id, facts] as const));
   return {
-    sessions: input.sessions.slice(0, LIMITS.sessions).map((session) => mapSession(session, byId.get(session.id))),
+    sessions: input.sessions.slice(0, LIMITS.sessions).map((session) => mapSession(session, byId.get(session.id), input.nowMs)),
     worktrees: input.worktrees.slice(0, LIMITS.worktrees).map(mapWorktree),
   };
 }

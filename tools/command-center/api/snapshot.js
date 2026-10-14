@@ -7373,7 +7373,7 @@ var WORKSTREAM_DIR = "docs/workstreams";
 var STALE_AFTER_DAYS = 14;
 var WORKSTREAM_STATES = ["active", "review", "blocked", "parked", "merged"];
 var BRANCH_NAME_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*(\/[a-z0-9]+(-[a-z0-9]+)*)*$/;
-var KNOWN_KEYS = ["type", "title", "branch", "roadmap", "state", "next_for_mark", "blocked_on", "updated"];
+var KNOWN_KEYS = ["type", "title", "branch", "roadmap", "state", "blocked_on", "updated"];
 function isValidBranchName(name) {
   return BRANCH_NAME_PATTERN.test(name);
 }
@@ -7473,8 +7473,6 @@ function parseWorkstream(path, src) {
   if (!(typeof state === "string" && WORKSTREAM_STATES.includes(state))) errors.push(`state must be one of ${WORKSTREAM_STATES.join(", ")}, not ${describe(state)}`);
   const updated = fields.updated;
   if (!(typeof updated === "string" && isCalendarDate(updated))) errors.push(`updated must be a date written YYYY-MM-DD, not ${describe(updated)}`);
-  const nextForMark = fields.next_for_mark ?? [];
-  if (!(Array.isArray(nextForMark) && nextForMark.every((x) => typeof x === "string" && x.trim() !== ""))) errors.push('next_for_mark must be a list of non-empty texts, one "- " line each');
   const blockedOn = fields.blocked_on ?? [];
   if (!(Array.isArray(blockedOn) && blockedOn.every((x) => Number.isInteger(x) && x > 0))) errors.push("blocked_on must be a list of issue numbers (whole numbers), for example [61]");
   if (errors.length > 0) return fail2();
@@ -7487,7 +7485,6 @@ function parseWorkstream(path, src) {
       branch,
       roadmap,
       state,
-      next_for_mark: nextForMark,
       blocked_on: blockedOn,
       updated
     }
@@ -7608,15 +7605,12 @@ var MESSAGES = {
   navNoReadingOrder: '{where}: {path} has no "Reading order" list.',
   navReadingOrderItem: '{path}: the reading order item "{label}" does not link to a doc of the repo.',
   navReadingOrderName: '{path}: the reading order names "{label}" ({docPath}), which is not a doc of the repo.',
-  // ---- the decisions: a body that is not the template, the answer route, the "Your move" lines ----
+  // ---- the decisions: a body that is not the template, the answer route ----
   problemNotTemplate: "The issue body does not follow the decision template. Edit it on GitHub.",
   problemBlankTemplate: "The issue body is still the blank decision template. Edit it on GitHub.",
   problemNoQuestion: "The issue has no question. Add one on GitHub.",
   problemNoOptions: "The issue lists no options. Add them on GitHub.",
   problemRepeatedOption: "The issue lists the option {option} twice. The page shows the first one.",
-  yourMoveUnreadable: "Decision #{number} is unreadable: {problem}",
-  yourMovePrMerge: "PR #{number} is ready to merge: {title}",
-  yourMovePrFix: "PR #{number} needs a fix: {title}",
   labelMissing: 'The label "{name}" does not exist in {repo}. Create it on GitHub.',
   decisionNotFound: "No decision of Mark has this number.",
   decisionAnswered: "Decision #{number} is already answered. Reload the page to see the answer.",
