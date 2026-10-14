@@ -50,8 +50,8 @@ The seconds below are from the run `38442567319` (one worker, the `list` reporte
 | `e2e (4/8)` | `sje-hack-a` 261, `sje-field-parity-a` 205, `chaos` 63, `sje-scene3d` 50 (run 38446058442: about 1,230 s with B, so B moved to 6/8) | 579 |
 | `e2e (5/8)` | `sje-field-parity-c` 320, `sje-field-parity-d` 259, `playthrough` 108, `sje-fx` 63 | 750 |
 | `e2e (6/8)` | `sje-battle` 190, `sje-draws` 157, `sje-field-parity-b` 163 | 510 |
-| `e2e (7/8)` | `default-path` 159, `sje-field` 152, `tools`, and the Battle Stage Editor specs (`stageedit`, `stageeditpolish2`, `stageeditpolish3`, `stageeditround4`, `stageedit-scene`, `stageedit-host`: 70 + 10 + 4 tests, about 100 s on a local run; not measured on CI) | 311 + 100 or more |
-| `e2e (8/8)` | `prod` 121, `economy` 138, `sje-stage-parity` 77, `fxlab` 19 | 355 |
+| `e2e (7/8)` | `default-path` 159, `sje-field` 152, `stageedit` 31, `stageeditpolish2` 21, `tools` 16, `stageedit-scene` 9, `stageedit-host` 5 (the last five: one local run on 2026-10-13, Edge with a GPU; not yet measured on CI) | 392 |
+| `e2e (8/8)` | `prod` 121, `economy` 138, `sje-stage-parity` 77, `fxlab` 19, `battletest` 17, `stageeditpolish3` 13, `stageeditround4` 6 (the last three: local run, as above) | 391 |
 
 The layout above (2026-10-13, after the 2 s jack) replaces the one measured on run `38341695742`, which the paragraph below describes.
 
