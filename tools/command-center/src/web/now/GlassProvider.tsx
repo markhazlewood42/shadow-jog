@@ -101,6 +101,27 @@ function RendererWatch({ onFailed }: { onFailed: () => void }) {
 const PANEL_TINT_STRENGTH = 0.75;
 
 /**
+ * The width of the window in pixels, scroll bar included, kept up to date. PlasmaUI draws on a region of this width (see the canvas in GlassProvider). A CSS `100vw` is not it:
+ * with `scrollbar-gutter: stable` on the page (theme.css), `100vw` leaves out the room of the scroll bar, and the canvas would be that much narrower than the region.
+ */
+function useWindowWidth(): number {
+  const [width, setWidth] = useState(() => window.innerWidth);
+  useEffect(() => {
+    const update = () => setWidth(window.innerWidth);
+    window.addEventListener('resize', update);
+    update();
+    return () => window.removeEventListener('resize', update);
+  }, []);
+  return width;
+}
+
+/** The canvas of the glass, as wide as the window and as tall as it. It is a component of its own so that a resize draws this and not the whole provider. */
+function WindowCanvas() {
+  const width = useWindowWidth();
+  return <PlasmaCanvas style={{ width: `${width}px`, height: '100vh' }} />;
+}
+
+/**
  * The provider of the glass, for the Now page. It always renders PlasmaUI's provider, so the panels under it keep their place in the tree when the glass is
  * switched: only the canvas (and with it the WebGL context and the work of the GPU) comes and goes. With the glass off no canvas exists, so nothing is drawn.
  *
@@ -154,10 +175,10 @@ export function GlassProvider({ children }: { children: ReactNode }) {
         {/*
           The canvas is drawn here, and not by the provider, for its size. PlasmaUI 0.7.0 draws on a region of the window size (`innerWidth` by `innerHeight`), but its own
           canvas is `width: 100%` and `height: 100%`, which is the width of the page without the vertical scrollbar (15 to 17 pixels narrower). The browser then squeezes
-          the picture toward the left, and the frames of the panels stop matching the panels (the "Updated" time touches the right rim). `100vw` and `100vh` include the
-          scrollbar, so the canvas is as wide as the region that PlasmaUI draws. (e2e/now.spec.ts: "glass canvas spans the window width, scrollbar included".)
+          the picture toward the left, and the frames of the panels stop matching the panels (the "Updated" time touches the right rim). `100vh` is the height of the window, and
+          the width is `window.innerWidth` in pixels (WindowCanvas), because `100vw` leaves out the scroll bar now that the page keeps room for it. (e2e/now.spec.ts: "glass canvas spans the window width, scrollbar included".)
         */}
-        {glass && painted && <PlasmaCanvas style={{ width: '100vw', height: '100vh' }} />}
+        {glass && painted && <WindowCanvas />}
         {glass && painted && <RendererWatch onFailed={markFailed} />}
         {children}
       </PlasmaProvider>

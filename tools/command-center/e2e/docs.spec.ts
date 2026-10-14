@@ -100,7 +100,7 @@ test.describe('the docs site', () => {
       await tree.getByRole('button', { name: (sectionOf.get(doc.slug) as NavSection).title, exact: true }).click();
       await link.click();
       await expect(page).toHaveURL(`/docs/${doc.slug}`);
-      await expect(documentOf(page).getByRole('heading', { level: 1 }).first()).toBeVisible();
+      await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
       await expect(page).toHaveTitle(new RegExp(`^${doc.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
     }
   });
@@ -111,7 +111,7 @@ test.describe('the docs site', () => {
     await page.goto('/docs/guides/setup');
 
     const article = documentOf(page);
-    await expect(article.getByRole('heading', { level: 1, name: 'Setup guide' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Setup guide' })).toBeVisible();
     await expect(article).toContainText(/Updated \d\d:\d\d:\d\d/); // the panel's own time of the last update
 
     const details = page.getByLabel('Document details');
@@ -176,7 +176,7 @@ test.describe('the docs site', () => {
   test('an internal link navigates without a page load', async ({ page }) => {
     const problems = watchConsole(page);
     await page.goto('/docs/no-frontmatter');
-    await expect(documentOf(page).getByRole('heading', { level: 1, name: 'A plain doc' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'A plain doc' })).toBeVisible();
     // A mark on the window: a real page load would wipe it.
     await page.evaluate(() => {
       (window as unknown as Record<string, unknown>).__ccStillHere = true;
@@ -184,14 +184,14 @@ test.describe('the docs site', () => {
 
     await documentOf(page).getByRole('link', { name: 'The tables doc' }).click();
     await expect(page).toHaveURL(/\/docs\/tables#alignment$/);
-    await expect(documentOf(page).getByRole('heading', { level: 1, name: 'Tables' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Tables' })).toBeVisible();
     await expect(page).toHaveTitle(/^Tables/);
     expect(await page.evaluate(() => (window as unknown as Record<string, unknown>).__ccStillHere)).toBe(true);
 
     // The browser's Back button works across the two docs, again with no load.
     await page.goBack();
     await expect(page).toHaveURL(/\/docs\/no-frontmatter$/);
-    await expect(documentOf(page).getByRole('heading', { level: 1, name: 'A plain doc' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'A plain doc' })).toBeVisible();
     expect(await page.evaluate(() => (window as unknown as Record<string, unknown>).__ccStillHere)).toBe(true);
 
     expect(problems).toEqual([]);
@@ -261,7 +261,7 @@ test.describe('the docs site', () => {
     });
     await page.goto('/docs/hostile');
     const body = documentOf(page).locator('.doc-html');
-    await expect(body.getByRole('heading', { level: 1, name: 'A doc with hostile text' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'A doc with hostile text' })).toBeVisible();
 
     // The tags are words on the page.
     await expect(body).toContainText("<script>window.__ccHostile = 'a script ran'</script>");
@@ -336,7 +336,7 @@ test.describe('the docs site', () => {
 
     await box.press('Enter');
     await expect(page).toHaveURL(/\/docs\/guides\/setup$/);
-    await expect(documentOf(page).getByRole('heading', { level: 1, name: 'Setup guide' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Setup guide' })).toBeVisible();
     await expect(page.getByRole('listbox')).toBeHidden();
 
     // The search is on every doc page, finds a heading too, and the arrow keys choose a hit.
@@ -384,7 +384,7 @@ test.describe('the docs site', () => {
     await box.fill('wombat');
     await box.press('Enter');
     await expect(page).toHaveURL(/\/docs\/guides\/setup$/);
-    await expect(documentOf(page).getByRole('heading', { level: 1, name: 'Setup guide' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Setup guide' })).toBeVisible();
 
     // Enter after the pause, while the slow answer is on its way.
     await page.goto('/docs');
@@ -433,7 +433,7 @@ test.describe('the docs site', () => {
     const movedTo = join(REPO, 'docs', 'live-edit', 'old', 'moving.md');
     try {
       await page.goto('/docs/live-edit/moving');
-      await expect(documentOf(page).getByRole('heading', { level: 1, name: 'A doc that tests move around' })).toBeVisible();
+      await expect(page.getByRole('heading', { level: 1, name: 'A doc that tests move around' })).toBeVisible();
 
       mkdirSync(join(REPO, 'docs', 'live-edit', 'old'), { recursive: true });
       renameSync(MOVING_DOC, movedTo);
@@ -448,7 +448,7 @@ test.describe('the docs site', () => {
 
       await suggestion.click();
       await expect(page).toHaveURL(/\/docs\/live-edit\/old\/moving$/);
-      await expect(documentOf(page).getByRole('heading', { level: 1, name: 'A doc that tests move around' })).toBeVisible();
+      await expect(page.getByRole('heading', { level: 1, name: 'A doc that tests move around' })).toBeVisible();
     } finally {
       mkdirSync(join(REPO, 'docs', 'live-edit'), { recursive: true });
       try {
@@ -460,7 +460,7 @@ test.describe('the docs site', () => {
     }
     // The old address shows the doc again once the file is back.
     await page.goto('/docs/live-edit/moving');
-    await expect(documentOf(page).getByRole('heading', { level: 1, name: 'A doc that tests move around' })).toBeVisible({ timeout: 8000 });
+    await expect(page.getByRole('heading', { level: 1, name: 'A doc that tests move around' })).toBeVisible({ timeout: 8000 });
   });
 
   test('an unreachable server shows an error state with Retry', async ({ page }) => {
@@ -490,7 +490,7 @@ test.describe('the docs site', () => {
     await expect(page.getByRole('navigation', { name: 'Docs sections' })).toBeVisible();
     await page.unroute('**/api/docs/guides/setup');
     await article.getByRole('button', { name: 'Retry' }).click();
-    await expect(article.getByRole('heading', { level: 1, name: 'Setup guide' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Setup guide' })).toBeVisible();
   });
 });
 
@@ -544,7 +544,7 @@ test.describe('the text of the doc pages', () => {
 
     // A doc with a broken link and no headings: the count of broken links is a label, and an empty outline is a label.
     await page.goto('/docs/broken-link');
-    await expect(documentOf(page).getByRole('heading', { level: 1, name: 'Links that do not work' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Links that do not work' })).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Outline' })).toContainText('No headings');
     await expect(documentOf(page).getByRole('note')).toContainText(/^\d+ broken links?: /);
     await expect(documentOf(page).getByRole('note')).not.toContainText('in this doc');

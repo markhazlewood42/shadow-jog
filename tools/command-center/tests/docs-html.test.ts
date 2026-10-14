@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { type HtmlPart, hasHeadingLevel1, placeBanners } from '../src/web/docs/html';
+import { type HtmlPart, hasHeadingLevel1, placeBanners, splitLeadingTitle } from '../src/web/docs/html';
 
 // A doc is html from the server. A banner (Task 9: "a decision is open on this section") sits in
 // front of the heading that it names. placeBanners cuts the html there, so each piece can be put
@@ -84,5 +84,21 @@ describe('hasHeadingLevel1', () => {
     expect(hasHeadingLevel1('<p>x</p>\n<h1>B</h1>')).toBe(true);
     expect(hasHeadingLevel1('<h2 id="a">A</h2><p>h1</p>')).toBe(false);
     expect(hasHeadingLevel1('')).toBe(false);
+  });
+});
+
+describe('splitLeadingTitle', () => {
+  it('cuts the h1 that opens the doc, with its id and its inner tags, and keeps the rest as it is', () => {
+    const out = splitLeadingTitle(HTML);
+    expect(out.title).toBe('<h1 id="title">Title</h1>');
+    expect(`${out.title}${out.rest}`).toBe(HTML);
+    expect(out.rest.startsWith('\n<p>Intro.</p>')).toBe(true);
+    expect(splitLeadingTitle('\n <h1 id="t">A <code>b</code></h1><p>x</p>')).toEqual({ title: '<h1 id="t">A <code>b</code></h1>', rest: '<p>x</p>' });
+  });
+
+  it('cuts nothing from a doc that does not open with an h1', () => {
+    for (const html of ['<p>Lead.</p><h1 id="t">T</h1>', '<h2 id="a">A</h2>', '', '<h10>not a title</h10>']) {
+      expect(splitLeadingTitle(html), html).toEqual({ title: null, rest: html });
+    }
   });
 });

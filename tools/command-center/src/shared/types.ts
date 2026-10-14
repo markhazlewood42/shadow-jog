@@ -280,7 +280,7 @@ export type PullRequest = {
   /**
    * What waits for Mark. `fix`: an open pull request of Mark's (not a draft) whose check failed, or that a reviewer asked changes of.
    * `merge`: one whose checks all pass and that nobody asked changes of. Null for every other pull request, always for one of another
-   * account (the repo is public, and the agents work through Mark's login): it shows in the list and never in "Your move".
+   * account (the repo is public, and the agents work through Mark's login). Only the Pull requests panel shows it (as a chip); "Your move" lists no pull request.
    */
   attention: 'merge' | 'fix' | null;
 };
@@ -598,7 +598,7 @@ export type AnswerErrorBody = ApiErrorBody & { step?: AnswerStep };
 // must show them as text.
 
 /** Where an item of "Your move" comes from. The page names the source in the notice for a source that could not be read. */
-export type YourMoveSource = 'decision-issue' | 'session' | 'pr';
+export type YourMoveSource = 'decision-issue' | 'session';
 
 /**
  * One thing that waits for Mark. `text` is plain words. `href` is where its source is: an address of this site (it starts with `/`), an

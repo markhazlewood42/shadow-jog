@@ -207,7 +207,7 @@ test.describe('the panels', () => {
   test('five panels show in plain mode', async ({ page }) => {
     const problems = watchConsole(page);
     await page.goto('/');
-    await expect(page.getByRole('heading', { level: 1, name: 'Shadow Jog Command Center' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Now', exact: true })).toBeVisible();
 
     // The switch turns the glass off: the same five panels, as plain boxes, and no canvas for the GPU to draw.
     // On CI the glass is off from the start (see playwright.config.ts), so there is nothing to switch.
@@ -422,7 +422,7 @@ test.describe('a page that cannot be shown', () => {
     // The file is there again, and Reload loads the page.
     await page.unroute('**/assets/NowPage-*.js');
     await alert.getByRole('button', { name: 'Reload' }).click();
-    await expect(page.getByRole('heading', { level: 1, name: 'Shadow Jog Command Center' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Now', exact: true })).toBeVisible();
     await allLoaded(page);
     await expect(page.getByRole('alert')).toHaveCount(0);
   });
@@ -594,7 +594,8 @@ test.describe('the data of the panels', () => {
     const notice = panel(page, 'Your move').getByRole('note', { name: 'Incomplete list' });
     await expect(notice.getByText('Incomplete list', { exact: true })).toBeVisible();
     await expect(notice).not.toContainText('may be incomplete');
-    await expect(notice).toContainText('Pull request:');
+    // A pull request is not a source of Your move, so a failed PR fetch adds no line to the notice.
+    await expect(notice).not.toContainText('Pull request:');
     await expect(notice).toContainText('Decision:');
     await expect(notice).toContainText('gh is not signed in to GitHub');
     // The list of status.md is not a source of Your move any more (it links only to text and does not clear itself). The Status panel still counts it.
@@ -615,16 +616,17 @@ test.describe('the data of the panels', () => {
     await allLoaded(page);
     const prs = panel(page, 'Pull requests');
 
-    // The five open pull requests of the fixture are rows.
-    await expect(prs).toContainText('Open (5)');
-    for (const title of ['the widget is ready to merge', 'the gadget breaks a test', 'a draft that is not ready', 'checks are still running', 'no checks yet']) {
+    // The five open pull requests of the fixture are four rows: the draft from a `spike/` branch ("a draft that is not ready") is hidden, and the count leaves it out.
+    await expect(prs).toContainText('Open (4)');
+    for (const title of ['the widget is ready to merge', 'the gadget breaks a test', 'checks are still running', 'no checks yet']) {
       await expect(prs.getByRole('link', { name: new RegExp(title) })).toBeVisible();
     }
+    await expect(prs).not.toContainText('a draft that is not ready');
 
     // The merged ones (and the closed one) are not listed: no group, no row, no count. The server still sends them (see the panels spec).
     await expect(prs).not.toContainText('Merged in the last 7 days');
     for (const title of ['merged yesterday', 'merged earlier this week', 'merged last week', 'closed without a merge']) await expect(prs).not.toContainText(title);
-    await expect(prs.getByRole('listitem')).toHaveCount(5);
+    await expect(prs.getByRole('listitem')).toHaveCount(4);
 
     // One link for them, to the filtered view of the repository, in a new tab like the other links that leave the site.
     const merged = prs.getByRole('link', { name: 'Merged pull requests' });
@@ -1408,7 +1410,7 @@ test.describe('the build', () => {
     expect(downloaded.length).toBeGreaterThan(0);
     expect(downloaded.filter((name) => hasPlasma(join('assets', name)))).toEqual([]);
     await page.goto('/');
-    await expect(page.getByRole('heading', { level: 1, name: 'Shadow Jog Command Center' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Now', exact: true })).toBeVisible();
     await expect(panel(page, 'Links')).toBeVisible();
     expect(downloaded.filter((name) => hasPlasma(join('assets', name)))).toEqual([now.file.replace(/^assets\//, '')]);
   });

@@ -31,7 +31,7 @@ function answerAged(ageSeconds: number, sessions: LiveSessionRow[]): LiveAnswer 
 const build = (slot: Slot<LiveAnswer>, extra: Parameters<typeof snapshot>[0] = {}, nowMs = NOW_MS) => buildHostedYourMove(snapshot(extra), readLive(slot), nowMs);
 
 describe('"Your move" on the hosted page', () => {
-  it('lists the open decisions first, then the live asks, then the PRs that wait for Mark, from the same rule as the local page', () => {
+  it('lists the open decisions first, then the live asks, and no pull request, from the same rule as the local page', () => {
     const slot = slotOf(answerAged(4, [row('s-1', ask(['Look at the picture', 'Tell me to commit'])), row('s-2', null)]));
     const result = build(slot, {
       decisions: { open: [decision(12)], recent: [] },
@@ -42,7 +42,6 @@ describe('"Your move" on the hosted page', () => {
       ['decision-issue', 'Decision #12: question 12', '/decisions/12'],
       ['session', 'Look at the picture (session: Title of s-1)', '/agents#session-s-1'],
       ['session', 'Tell me to commit (session: Title of s-1)', '/agents#session-s-1'],
-      ['pr', 'PR #30 is ready to merge: Title of PR 30', 'https://github.com/fixture-owner/fixture-repo/pull/30'],
     ]);
   });
 
@@ -112,8 +111,13 @@ describe('"Your move" on the hosted page', () => {
     expect(quiet.missing).toEqual([]);
     const decisions = build(slotOf(answerAged(4, [])), { problems: [{ code: 'decisions-waiting-truncated', message: 'More decision issues exist' }] });
     expect(decisions.missing).toEqual([{ source: 'decision-issue', message: 'Snapshot incomplete: More decision issues exist' }]);
-    const prs = build(slotOf(answerAged(4, [])), { problems: [{ code: 'open-prs-truncated', message: 'More PRs exist' }] });
-    expect(prs.missing[0]?.source).toBe('pr');
+    // A partial GraphQL read can drop a decision node (one query holds branches, pull requests and decisions), so it marks the decision source incomplete.
+    const partial = build(slotOf(answerAged(4, [])), { problems: [{ code: 'graphql-partial', message: 'Partial GraphQL answer' }] });
+    expect(partial.missing).toEqual([{ source: 'decision-issue', message: 'Snapshot incomplete: Partial GraphQL answer' }]);
+    // A cut list of pull requests does not mark the list incomplete: it holds no pull request.
+    for (const code of ['open-prs-truncated', 'recent-prs-truncated', 'pr-checks-truncated', 'pr-reviews-truncated', 'pr-files-truncated']) {
+      expect(build(slotOf(answerAged(4, [])), { problems: [{ code, message: 'About PRs' }] }).missing, code).toEqual([]);
+    }
   });
 
   it('liveAsksOf names the state of the reporter in words and keeps the asks only when it is fresh', () => {

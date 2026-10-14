@@ -1,24 +1,23 @@
-import type { AgentsLive, DecisionsInfo, GithubInfo, Panel, SessionInfo, SessionsInfo, YourMoveInfo, YourMoveSource } from '../../shared/types';
+import type { AgentsLive, DecisionsInfo, Panel, SessionInfo, SessionsInfo, YourMoveInfo, YourMoveSource } from '../../shared/types';
 import { ASK_MAX_LINES, type LiveAsk, askStatus, buildYourMoveItems, cutLine } from '../../shared/your-move';
 import { inlineText } from '../inline-text';
 
 // "Your move" on the local page. The rule itself is shared with the hosted page (src/shared/your-move.ts); this file only reads the panels of the sources and
-// hands the rule its input. It reads no file and runs no command: it is a plain function from four panels to a list, so a test can feed it any mix of good and failed panels.
+// hands the rule its input. It reads no file and runs no command: it is a plain function from three panels to a list, so a test can feed it any mix of good and failed panels.
 //
-// Three sources (design.md section 5.1): the open decision issues, the pull requests that wait for Mark, and the live asks (the newest "Your move" box of a live session).
+// Two sources (design.md section 5.1): the open decision issues and the live asks (the newest "Your move" box of a live session). Pull requests are not a source: the Pull requests panel lists them.
 // The "Next up for Mark" list of status.md and the open decisions of the engine docs are not sources any more: they link only to text and do not clear themselves.
 
-/** The four panels that the list is made from. */
+/** The three panels that the list is made from. */
 export type YourMoveSources = {
   decisionIssues: Panel<DecisionsInfo>;
   sessions: Panel<SessionsInfo>;
-  github: Panel<GithubInfo>;
   /** The live sessions: the process list of Claude Code. Rule 1 of a live ask reads it. */
   agents: Panel<AgentsLive>;
 };
 
 /**
- * The data of a panel, or null when there is none. A failed panel still carries the last data that did load (`lastGood`). The decisions and the pull requests read it:
+ * The data of a panel, or null when there is none. A failed panel still carries the last data that did load (`lastGood`). The decisions read it:
  * a list that is a little old is still the list of what waits for Mark, and the notice names the source that failed.
  */
 function dataOf<T>(panel: Panel<T>): T | null {
@@ -49,7 +48,6 @@ function askOf(session: SessionInfo, liveIds: ReadonlySet<string>, nowMs: number
 /** The list for Mark, and the sources that could not be read in full. It never throws: a failed panel is named in `missing` and the other sources go on. */
 export function buildYourMove(sources: YourMoveSources, nowMs: number = Date.now()): YourMoveInfo {
   const decisionIssues = dataOf(sources.decisionIssues);
-  const github = dataOf(sources.github);
   const live = freshOf(sources.agents);
   const sessions = freshOf(sources.sessions);
 
@@ -60,7 +58,7 @@ export function buildYourMove(sources: YourMoveSources, nowMs: number = Date.now
     return ask === null ? [] : [ask];
   });
 
-  const items = buildYourMoveItems({ decisions: decisionIssues?.open ?? [], prs: github?.open ?? [], asks, nowMs });
+  const items = buildYourMoveItems({ decisions: decisionIssues?.open ?? [], asks, nowMs });
 
   // Every failed source is named, also when it still gave items from its last good data: that data may be old (gh is signed out). The message is the source's own sentence.
   // The live asks need two sources, and both are named when they fail.
@@ -68,7 +66,6 @@ export function buildYourMove(sources: YourMoveSources, nowMs: number = Date.now
     ['decision-issue', sources.decisionIssues],
     ['session', sources.sessions],
     ['session', sources.agents],
-    ['pr', sources.github],
   ];
   const missing = named.flatMap(([source, panel]) => (panel.ok ? [] : [{ source, message: panel.error.message }]));
 

@@ -6,6 +6,7 @@ import { AgentsPage } from './agents/AgentsPage';
 import { DecisionRoute } from './decisions/DecisionPage';
 import { DocsRoutes } from './docs/DocsRoutes';
 import { WORKSTREAMS_PATH } from './hosted/mode';
+import { SiteHeader } from './SiteHeader';
 import { LocalWorkstreams } from './workstreams/LocalWorkstreams';
 
 // The Now page is loaded when it is first asked for, and not with the rest of the app. It is the one page that draws glass (PlasmaUI, which brings a WebGL
@@ -75,38 +76,42 @@ export class PageErrorBoundary extends Component<{ children: ReactNode; resetKey
 export function App() {
   const { pathname } = useLocation();
   return (
-    <PageErrorBoundary resetKey={pathname}>
+    <>
       {/* Hosted build only: the banner for a lost login (design 7). */}
       {HostedBanner !== null && (
         <Suspense fallback={null}>
           <HostedBanner />
         </Suspense>
       )}
-      <Routes>
-        <Route path="/docs/*" element={<DocsRoutes />} />
-        <Route path="/decisions/:number" element={<DecisionRoute />} />
-        <Route path="/agents" element={<AgentsPage />} />
-        <Route
-          path={WORKSTREAMS_PATH}
-          element={
-            WorkstreamsPage === null ? (
-              <LocalWorkstreams />
-            ) : (
+      {/* The one header of every page. It sits outside the error boundary, so a page that cannot be drawn still has its links. */}
+      <SiteHeader />
+      <PageErrorBoundary resetKey={pathname}>
+        <Routes>
+          <Route path="/docs/*" element={<DocsRoutes />} />
+          <Route path="/decisions/:number" element={<DecisionRoute />} />
+          <Route path="/agents" element={<AgentsPage />} />
+          <Route
+            path={WORKSTREAMS_PATH}
+            element={
+              WorkstreamsPage === null ? (
+                <LocalWorkstreams />
+              ) : (
+                <Suspense fallback={<NowLoading />}>
+                  <WorkstreamsPage />
+                </Suspense>
+              )
+            }
+          />
+          <Route
+            path="*"
+            element={
               <Suspense fallback={<NowLoading />}>
-                <WorkstreamsPage />
+                <NowPage />
               </Suspense>
-            )
-          }
-        />
-        <Route
-          path="*"
-          element={
-            <Suspense fallback={<NowLoading />}>
-              <NowPage />
-            </Suspense>
-          }
-        />
-      </Routes>
-    </PageErrorBoundary>
+            }
+          />
+        </Routes>
+      </PageErrorBoundary>
+    </>
   );
 }

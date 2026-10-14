@@ -1,18 +1,16 @@
-import { type DecisionIssue, type PullRequest, type YourMoveItem, sessionHref } from './types';
+import { type DecisionIssue, type YourMoveItem, sessionHref } from './types';
 
 // "Your move" (design.md section 5.1, your-move-redesign.md): the one rule that decides what waits for Mark. The local page (src/server/now/yourMove.ts)
 // and the hosted page (src/web/hosted/your-move.ts) both call it, so the two pages cannot drift apart. It is pure: no file, no command, no clock of its own.
 //
-// Three sources, and every item of them clears itself:
+// Two sources, and every item of them clears itself:
 //   1. Decision issues: open, with the label `decision`, made by `markhazlewood42`. The two modules that read them (src/server/decisions/module.ts, src/github-api/queries.ts)
 //      ask GitHub for exactly those issues, so a `DecisionIssue` in `open` has passed the label and the author check. This file keeps the open ones.
 //      Clears when the issue is closed.
-//   2. Pull requests that wait for him: open, not a draft, made by Mark. `PullRequest.attention` is that rule (`attentionOf` in src/server/github/github.ts): `merge` when the
-//      checks pass, `fix` when a check failed or a reviewer asked for changes. Clears when the PR is merged or closed.
-//   3. Live asks: the lines of the newest "Your move" box of a live session. Clears by any one of the four rules in `askStatus`.
+//   2. Live asks: the lines of the newest "Your move" box of a live session. Clears by any one of the four rules in `askStatus`.
 //
-// The text of a PR item comes from GitHub (the number and the title) and never from session text. Every item links to a place where Mark can act: a decision page,
-// a pull request, or a live session.
+// Pull requests are not a source (Mark, 2026-10-13): the Pull requests panel already lists them with their review and checks, and a PR in both panels showed twice.
+// Every item links to a place where Mark can act: a decision page or a live session.
 
 /** A box older than this is old news (rule 4). */
 export const ASK_MAX_AGE_MS = 12 * 60 * 60 * 1000;
@@ -71,8 +69,6 @@ export type LiveAsk = {
 export type YourMoveInput = {
   /** The open decision issues. */
   decisions: readonly DecisionIssue[];
-  /** The open pull requests (a merged or closed one waits for nothing). */
-  prs: readonly PullRequest[];
   /** The asks that have already passed `askStatus` for their session. This function re-checks `at` against `nowMs` so a stale list cannot show an old ask. */
   asks: readonly LiveAsk[];
   nowMs: number;
@@ -96,12 +92,6 @@ function decisionItem(issue: DecisionIssue): YourMoveItem {
   return { source: 'decision-issue', text: `Decision #${issue.number}: ${questionOf(issue.title)}`, href: `/decisions/${issue.number}`, light: null, at };
 }
 
-function prItem(pr: PullRequest): YourMoveItem {
-  // Only the number and the title, both from GitHub.
-  const text = pr.attention === 'merge' ? `PR #${pr.number} is ready to merge: ${pr.title}` : `PR #${pr.number} needs a fix: ${pr.title}`;
-  return { source: 'pr', text, href: orNull(pr.url), light: null, at: orNull(pr.updatedAt) };
-}
-
 function askItems(ask: LiveAsk, nowMs: number): YourMoveItem[] {
   // The same age rule as `askStatus`, applied again to the list that reaches this file: a list that was made long ago must not show a box that has grown old since.
   if (askStatus({ nothing: false, answered: false, at: ask.at }, true, nowMs) !== 'show') return [];
@@ -113,19 +103,18 @@ function askItems(ask: LiveAsk, nowMs: number): YourMoveItem[] {
 }
 
 /**
- * The list, most blocking first: the open decision issues (a decision stops work, and only Mark can answer it), the live asks, then the pull requests that wait for him.
+ * The list, most blocking first: the open decision issues (a decision stops work, and only Mark can answer it), then the live asks.
  */
 export function buildYourMoveItems(input: YourMoveInput): YourMoveItem[] {
   return [
     ...input.decisions.filter((issue) => issue.state === 'open').map(decisionItem),
     ...input.asks.flatMap((ask) => askItems(ask, input.nowMs)),
-    ...input.prs.filter((pr) => pr.state === 'OPEN' && !pr.isDraft && pr.attention !== null).map(prItem),
   ].filter(hasActionPlace);
 }
 
 /**
- * The action rule (Mark, 2026-10-13): every item links to a place where he can act. An item whose link is missing or is not an address of this site or of GitHub (a pull request
- * with no usable address, an issue with no address) has no such place and is left out. A link to text of a doc is not one of the three kinds, so no source makes one.
+ * The action rule (Mark, 2026-10-13): every item links to a place where he can act. An item whose link is missing or is not an address of this site or of GitHub (an issue
+ * with no address) has no such place and is left out. A link to text of a doc is not one of the kinds, so no source makes one.
  */
 function hasActionPlace(item: YourMoveItem): boolean {
   return item.href !== null && (item.href.startsWith('/decisions/') || item.href.startsWith('/agents#session-') || item.href.startsWith('https://github.com/'));

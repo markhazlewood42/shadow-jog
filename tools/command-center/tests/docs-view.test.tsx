@@ -99,12 +99,28 @@ describe('DocView', () => {
 
   it('shows a banner whose heading is not in the doc above the doc, so it does not disappear', () => {
     const markup = render(<DocView doc={makeDoc()} banners={[{ anchor: 'renamed-heading', node: <aside>BANNER-LOST</aside> }]} />);
-    expect(after(markup, 'BANNER-LOST', '<h1 id="the-x-doc">')).toBe(true);
+    // The title (the h1 that opens the doc) is on the row of the search box, above the details, so the banner is above the text of the doc and below the title.
+    expect(after(markup, '<h1 id="the-x-doc">', 'BANNER-LOST')).toBe(true);
+    expect(after(markup, 'BANNER-LOST', 'Intro text.')).toBe(true);
+  });
+
+  it('draws the h1 that opens a doc first, above the details and the text, and once', () => {
+    const markup = render(<DocView doc={makeDoc()} />);
+    expect(after(markup, '<h1 id="the-x-doc">The X doc</h1>', 'aria-label="Document details"')).toBe(true);
+    expect(after(markup, 'aria-label="Document details"', 'Intro text.')).toBe(true);
+    expect(markup.match(/<h1[\s>]/g)).toHaveLength(1);
+  });
+
+  it('keeps an h1 that does not open the doc where the doc put it, and adds no second title', () => {
+    const markup = render(<DocView doc={makeDoc({ html: '<p>Lead text.</p>\n<h1 id="late">Late title</h1>' })} />);
+    expect(markup.match(/<h1[\s>]/g)).toHaveLength(1);
+    expect(after(markup, 'Lead text.', '<h1 id="late">')).toBe(true);
+    expect(after(markup, 'aria-label="Document details"', '<h1 id="late">')).toBe(true);
   });
 
   it('gives a doc that has no h1 its title as the h1, and adds none to a doc that has one', () => {
     const without = render(<DocView doc={makeDoc({ html: '<p>Only text.</p>' })} />);
-    expect(without).toContain('<h1>The X doc</h1>');
+    expect(without).toContain('<h1 class="text-3xl font-semibold tracking-tight">The X doc</h1>');
     const withOne = render(<DocView doc={makeDoc()} />);
     expect(withOne.match(/<h1[\s>]/g)).toHaveLength(1);
   });
@@ -112,7 +128,9 @@ describe('DocView', () => {
   it('puts the html in as it is, with every link and heading id the server wrote', () => {
     const html = '<h1 id="t">T</h1>\n<p><a href="/docs/other#part">go</a> <span class="broken-link" title="the file does not exist in the repo">gone</span></p>';
     const markup = render(<DocView doc={makeDoc({ html })} />);
-    expect(markup).toContain(html);
+    // The h1 that opens the doc is drawn on its own (the title row), and the rest of the html is put in as it is.
+    expect(markup).toContain('<h1 id="t">T</h1>');
+    expect(markup).toContain(html.slice(html.indexOf('</h1>') + '</h1>'.length));
   });
 });
 

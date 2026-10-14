@@ -108,12 +108,16 @@ export type WorstText = { ratio: number; text: string; color: string; x: number;
  * a text on the glass cannot be read from a style (the glass is drawn by WebGL, behind the page, and shows through the panel), so this looks at the picture:
  * it lists the text of the page (each line of each text node, with its color), hides all of it, takes a picture of what is left, and for each line finds the brightest
  * pixel in its box. The ratio is that of the text's color to the brightest pixel behind it, the strictest reading for light text on a dark ground. Text that a screen
- * reader reads and no one sees (`sr-only`) is left out. Nothing is changed on the page when this returns.
+ * reader reads and no one sees (`sr-only`), and text that a scroll has moved wholly under the opaque sticky site header, are left out. Nothing is changed on the page when this returns.
  */
 export async function worstTextContrast(page: Page): Promise<WorstText> {
   type Box = { x: number; y: number; w: number; h: number; color: string; text: string };
   const boxes = await page.evaluate((): Box[] => {
     const found: Box[] = [];
+    // The site header sticks to the top and is opaque, so a text that a scroll has moved wholly under it is not on the screen for a person: it is left out. A text that is only
+    // partly under it is measured (its visible part is on the glass), and so is the header's own text.
+    const stickyHeader = document.querySelector('header');
+    const coveredTo = stickyHeader !== null && getComputedStyle(stickyHeader).position === 'sticky' ? stickyHeader.getBoundingClientRect().bottom : 0;
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
       const element = node.parentElement;
@@ -124,6 +128,7 @@ export async function worstTextContrast(page: Page): Promise<WorstText> {
       range.selectNodeContents(node);
       for (const rect of range.getClientRects()) {
         if (rect.width < 2 || rect.height < 2 || rect.bottom <= 0 || rect.top >= innerHeight) continue;
+        if (rect.bottom <= coveredTo && stickyHeader?.contains(element) !== true) continue;
         found.push({ x: rect.left, y: rect.top, w: rect.width, h: rect.height, color: style.color, text: (node.textContent ?? '').trim().slice(0, 40) });
       }
     }

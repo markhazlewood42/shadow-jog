@@ -113,7 +113,7 @@ function summarize(checks: readonly PullRequestCheck[]): PullRequest['checksSumm
  *
  * 1. A pull request that is not open, or is a draft, waits for nothing.
  * 2. Neither does a pull request of another account. The repo is public, so anyone can open a pull
- *    request, and a stranger's must never reach Mark's "Your move" as "merge" or "fix" (it still shows in
+ *    request, and a stranger's must never show the "merge" or "fix" chip of the Pull requests panel (it still shows in
  *    the list of pull requests). The agents work through Mark's login, so their pull requests are Mark's.
  * 3. `fix`: a check failed, or a reviewer asked for changes (whatever the checks say: it is not ready).
  * 4. `merge`: every check passes (and, by 3, nobody asked for changes).
