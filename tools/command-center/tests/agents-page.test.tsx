@@ -75,8 +75,9 @@ describe('the Agents page', () => {
     // The page has no paragraph: the heading, the panel's own header and the diagram are all that it holds while the sources are good.
     const paragraphs = [...container.querySelectorAll('p')].map((paragraph) => paragraph.textContent?.replace(/\s+/g, ' ').trim() ?? '');
     expect(paragraphs.filter((text) => !text.startsWith('Updated '))).toEqual([]);
-    // The top bar leads to the other pages, and marks this one.
-    expect(container.querySelector('nav a[aria-current="page"]')?.textContent).toBe('Agents');
+    // The page draws no header of its own: the header of the site (SiteHeader, in App) is the same on every page. tests/site-header.test.tsx checks it.
+    expect(container.querySelector('header.sticky')).toBeNull();
+    expect(container.querySelector('nav[aria-label="Main"]')).toBeNull();
   });
 
   it('moves the run times on every 15 seconds, between two loads of the data, and asks the server for nothing', async () => {

@@ -5,6 +5,7 @@ import type { DocsListing, NavItem, NavSection } from '../../shared/types';
 import { PanelFrame } from '../PanelFrame';
 import { visibleNav } from '../hosted/mode';
 import type { PanelResult } from '../usePanel';
+import { DocTitle } from './DocTitle';
 import { docPath } from './paths';
 import { useDocumentTitle } from './useDocumentTitle';
 
@@ -107,7 +108,9 @@ export function Overview({ listing }: { listing: PanelResult<DocsListing> }) {
   useDocumentTitle('Docs');
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-3xl font-semibold tracking-tight">Docs</h1>
+      <DocTitle>
+        <h1 className="text-3xl font-semibold tracking-tight">Docs</h1>
+      </DocTitle>
       <PanelFrame title="Overview" result={listing}>
         {(data) => <Cards listing={data} />}
       </PanelFrame>

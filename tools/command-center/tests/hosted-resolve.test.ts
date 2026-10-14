@@ -153,13 +153,19 @@ describe('the Workstreams view and "Your move"', () => {
     expect(view.live).toEqual({ state: 'not-running' });
   });
 
-  it('builds "Your move" from the decisions and the PRs of the snapshot and the asks of the live key (the shared rule; see hosted-your-move.test.ts)', async () => {
+  it('serves the spike PRs in /api/github unchanged: the hide is in the panel, not in the data', async () => {
+    const spike = pr(3, 'spike/side-battle', { isDraft: true });
+    const { resolve } = setup({ snap: snapshot({ github: { open: [spike, pr(30, 'alpha')], merged: [] } }) });
+    expect(dataOf(await resolve<{ open: { number: number }[] }>('/api/github')).open.map((entry) => entry.number)).toEqual([3, 30]);
+  });
+
+  it('builds "Your move" from the decisions and the asks of the live key, with no PR item (the shared rule; see hosted-your-move.test.ts)', async () => {
     const live = liveState({
       sessions: [{ id: 's1', title: 'Flip it', branch: 'alpha', folder: 'f', state: 'waiting', startedAt: null, agents: { running: 0, done: 0, names: [] }, yourMove: { at: NOW_ISO, lines: ['Look at the picture'] } }],
     });
     const { resolve } = setup({ snap: snapshot({ github: { open: [pr(30, 'alpha', { attention: 'merge' })], merged: [] }, decisions: { open: [decision(5)], recent: [] } }), live: liveAnswer('online', live) });
     const info = dataOf(await resolve<YourMoveInfo>('/api/now/your-move'));
-    expect(info.items.map((item) => item.source)).toEqual(['decision-issue', 'session', 'pr']);
+    expect(info.items.map((item) => item.source)).toEqual(['decision-issue', 'session']);
     expect(info.missing).toEqual([]);
   });
 });

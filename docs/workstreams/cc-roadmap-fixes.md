@@ -4,7 +4,7 @@ title: Command Center roadmap fixes
 branch: cc-roadmap-fixes
 roadmap: ET
 state: active
-updated: 2026-10-13
+updated: 2026-10-14
 ---
 
 # Command Center roadmap fixes
@@ -41,8 +41,34 @@ Built from `docs/command-center/your-move-redesign.md`: one shared rule, three s
 | Hook | The `SessionStart` entry for `reporter-hook.mjs` is removed from `~/.claude/settings.json` (Mark) | Done |
 | Fix `7a67072` | The launcher "held lock" test used a fake owner pid, so it passed only while a real reporter held port 29417. It now names the test process. The update log line names the branch, not "main" | 1 verifier PASS, 103 tests and tsc exit 0, a forced takeover fails the test |
 
-Next: PR #85 is ready for Mark to merge. After the merge, the desktop shortcut (README step 5) starts the tray without `-Branch`. More Command Center work continues on this branch (Mark, 2026-10-13): keep the worktree.
+## PRs out of Your move, spikes hidden (2026-10-13)
+
+Mark asked for two changes. (a) A PR showed twice, in "Your move" and in "Pull requests". It is now only in "Pull requests": the shared rule (`src/shared/your-move.ts`) has no PR input, the local builder reads three panels, and a cut list of PRs does not mark "Your move" incomplete (a partial GraphQL read does, on the hosted page, because one query also holds the decisions). `YourMoveSource` lost `'pr'`. (b) The "never merge" spike PRs (open draft PRs from `spike/<topic>` branches: #3, #4, #11) are hidden from the Pull requests panel, and the "Open (n)" count counts only the PRs shown. One shared predicate, `isSpikePr` in `src/shared/spike-pr.ts`, serves the local and the hosted page. The hide is display-only: the snapshot, `/api/github` and the workstream matching by branch still hold the spikes. Tests: `spike-pr.test.tsx` (predicate and list), and the Your move tests no longer expect PR items.
+
+Next: PR #85 is merged, and the desktop shortcut (README step 5) runs the tray. The branch is fast-forwarded to main. Mark picks the next round of Command Center work on this branch (keep the worktree).
 
 Candidates for the next round (seen in the tray test, not built):
 - A `home-base` session shows in Running only while its working folder is inside Shadow Jog, so a session that steps out for a moment drops off the list.
 - The local page reads `status.md` from the main checkout's working tree, so it shows the checked-out branch (on `engine-et-editor-port` that is `milestone: none`, shown as "Not started" with empty squares), not `main`. Between milestones, "Not started" also hides that the last milestone is done.
+
+## One header on every page (2026-10-14)
+
+Mark asked for a header that does not move: "The nav jumps between pages." Each page built its own header (large title and unmarked nav on Now, nav beside the title and the search on Docs). Now one component, `SiteHeader` (`src/web/SiteHeader.tsx`), is drawn once by `App` above every page, outside the error boundary. It is the compact, sticky style: the small title, the links at the right edge, `Now`, `Roadmap`, `Docs`, `Agents` (and `Workstreams` in the hosted build). The page name is a heading in the page body (the Now page has `Now`). The Docs search box moved to a row at the top of the Docs body, at the right. The page keeps room for its scroll bar (`scrollbar-gutter: stable`), so a short page and a long page put the links at the same x. Measured at 1280 px on Now, Roadmap, Docs and Agents: nav at x 1024.4, width 216.6, header height 49 on all four.
+
+| Step | Change | Verdict |
+|---|---|---|
+| Build | `SiteHeader`, four page headers removed, `scrollbar-gutter`, search row. `tests/site-header.test.tsx` (every route, local and hosted, a scan that no other file holds the Main nav). `e2e/site-header.spec.ts` (pixel match at 1280, phone fit, search only on Docs) | Unit tests, tsc and biome lint exit 0. Touched Playwright specs pass, headless |
+
+## Header round fixes and Docs title row (2026-10-14)
+
+Fix round for the verifier findings on the PR and spike change and on the shared header. The Docs page now has the title (the h1) and the search box on one row, so the side nav and the text start higher (Mark's ask).
+
+| Step | Change | Verdict |
+|---|---|---|
+| F1 | Hosted Your move: a `graphql*` snapshot problem (not only `decision*`) marks the decision source incomplete, because one query holds branches, PRs and decisions. Test: `graphql-partial` flags it, PR-only codes do not | Unit tests pass |
+| F2 | `your-move-redesign.md` and this file say the same: a cut PR list does not mark it, a partial GraphQL read does | Done |
+| F3 | `hosted.spec.ts`, `now.spec.ts`: no PR in Your move, no `Pull request:` line, `Open (4)`, the spike PR is not in the panel | Pass |
+| F4 | The header rule is `border-cc-rule` (the panels' line). A text that a scroll leaves half under the header no longer has the bright rule behind it. `e2e/look.ts` skips a text that is wholly under the sticky header (a person cannot see it) | `now.spec.ts` contrast test passes, spec unchanged |
+| F5 | The glass canvas is `window.innerWidth` px wide (`WindowCanvas`): `100vw` leaves out the scroll bar room now that `scrollbar-gutter: stable` is on. Steady nav kept | `now.spec.ts` canvas test passes, spec unchanged |
+| F6 | `tests/docs-search-row.test.tsx` (real `DocsRoutes`): the search box is on the Docs pages and on no other page | Pass |
+| Docs row | `DocTitle` portals the h1 into the row in `DocsRoutes`. `DocView` draws the h1 that opens a doc there, above the details. Specs that looked for the h1 inside the Document region now look on the page | Pass |

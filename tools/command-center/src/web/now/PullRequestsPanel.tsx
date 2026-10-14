@@ -1,6 +1,7 @@
 import { Chip } from '@heroui/react';
 import { CircleCheck, CircleDashed, CircleX, Clock, ExternalLink, GitPullRequest, GitPullRequestDraft, type LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { shownOpenPrs } from '../../shared/spike-pr';
 import type { GithubInfo, ModuleName, PullRequest } from '../../shared/types';
 import { loadHealthPanel } from '../api';
 import { PanelContent } from '../PanelFrame';
@@ -115,16 +116,18 @@ function MergedLink({ repo, failed }: { repo: string | null; failed: boolean }) 
   );
 }
 
-function PullRequestList({ info, now, repo, repoFailed }: { info: GithubInfo; now: number; repo: string | null; repoFailed: boolean }) {
+/** The list of the panel. The spike pull requests (draft, from a `spike/` branch, never merged) are left out of the list and of its count. The data is not changed. */
+export function PullRequestList({ info, now, repo, repoFailed }: { info: GithubInfo; now: number; repo: string | null; repoFailed: boolean }) {
+  const shown = shownOpenPrs(info.open);
   return (
     <div className="flex flex-col gap-5">
       <section aria-label="Open pull requests">
-        <GroupLabel>Open ({info.open.length})</GroupLabel>
-        {info.open.length === 0 ? (
+        <GroupLabel>Open ({shown.length})</GroupLabel>
+        {shown.length === 0 ? (
           <p className="mt-2 text-cc-muted">No open PRs</p>
         ) : (
           <ul className="mt-1 divide-y divide-cc-rule">
-            {info.open.map((pr) => (
+            {shown.map((pr) => (
               <OpenRow key={pr.number} pr={pr} now={now} />
             ))}
           </ul>
