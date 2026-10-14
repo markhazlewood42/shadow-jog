@@ -43,11 +43,11 @@ function fxLab(): Plugin {
           reply(403, { ok: false, problems: ['writes only from the dev server’s own pages'] });
           return;
         }
-        // An oversize body is read to the end and answered 413, a failure of the handler (fxdata.ts with a syntax error mid-edit makes ssrLoadModule reject) is answered 500: see withBody.
+        // An oversize body is answered 413 at once and no more of it is read, a failure of the handler (fxdata.ts with a syntax error mid-edit makes ssrLoadModule reject) is answered 500: see withBody.
         withBody(req, res, {
           max: 1_000_000,
           reply,
-          tooBig: { ok: false, problems: ['the body is bigger than 1000000 characters'] },
+          tooBig: { ok: false, problems: ['the body is bigger than 1000000 bytes'] },
           failed: (message) => ({ ok: false, problems: [`could not check the fx data: ${message}`] }),
           handle: async (body) => {
             // The checks and the file format, through the dev server (the same code the game and the
@@ -98,13 +98,22 @@ function stageEdit(): Plugin {
       const load = async () => (await server.ssrLoadModule('/src/dev/stageedit/save.ts')) as StageSaveModule;
       // The module is loaded once per request, before the handler runs, so a request always meets the checks as they are on disk now.
       const handle = (which: 'stages' | 'hud') => (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse) => {
+        // A failure of the load and a throw inside the handler (for example a malformed `req.url`) are both answered 500: the throw must not become an unhandled rejection (PR 86 review, round 4, finding 5).
+        const fail = (what: string, e: unknown): void => {
+          if (res.headersSent) return;
+          res.statusCode = 500;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ ok: false, problems: [`${what}: ${String(e)}`] }));
+        };
         void load().then(
-          (save) => stageHandlers({ dataDir: STAGE_DATA_DIR, scratchRoot: STAGE_SCRATCH_DIR, prepare: save.prepareSave, screen: save.SET_SCREEN })[which](req, res),
-          (e: unknown) => {
-            res.statusCode = 500;
-            res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({ ok: false, problems: [`could not load the save checks: ${String(e)}`] }));
+          (save) => {
+            try {
+              stageHandlers({ dataDir: STAGE_DATA_DIR, scratchRoot: STAGE_SCRATCH_DIR, prepare: save.prepareSave, screen: save.SET_SCREEN })[which](req, res);
+            } catch (e) {
+              fail('the stage endpoint failed', e);
+            }
           },
+          (e: unknown) => fail('could not load the save checks', e),
         );
       };
       server.middlewares.use('/__stage/stages', handle('stages'));
@@ -161,38 +170,30 @@ function artPass(): Plugin {
               reply(403, { ok: false, problem: 'writes only from the dev server’s own pages' });
               return;
             }
-            let body = '';
-            let tooBig = false;
-            req.on('data', (chunk: Buffer) => {
-              // An oversize body is read to the end and answered 413 (as the stage endpoint does), never by dropping the connection.
-              if (tooBig) return;
-              body += chunk.toString('utf8');
-              if (body.length > 2_000_000) {
-                tooBig = true;
-                body = '';
-              }
-            });
-            req.on('end', () => {
-              if (tooBig) {
-                reply(413, { ok: false, problem: 'the body is bigger than 2000000 characters' });
-                return;
-              }
-              try {
-                const data = JSON.parse(body) as { assets?: unknown };
-                // `assets` is a plain object: `null` and an array are refused, because a real save would write them to review.json.
-                if (!data || typeof data !== 'object' || typeof data.assets !== 'object' || data.assets === null || Array.isArray(data.assets)) {
-                  reply(400, { ok: false, problem: 'expected { assets: {...} }' });
-                  return;
+            // An oversize body is answered 413 at once and no more of it is read; a failure of the handler is answered 500: see withBody.
+            withBody(req, res, {
+              max: 2_000_000,
+              reply,
+              tooBig: { ok: false, problem: 'the body is bigger than 2000000 bytes' },
+              failed: (message) => ({ ok: false, problem: `couldn't save: ${message}` }),
+              handle: (body) => {
+                try {
+                  const data = JSON.parse(body) as { assets?: unknown };
+                  // `assets` is a plain object: `null` and an array are refused, because a real save would write them to review.json.
+                  if (!data || typeof data !== 'object' || typeof data.assets !== 'object' || data.assets === null || Array.isArray(data.assets)) {
+                    reply(400, { ok: false, problem: 'expected { assets: {...} }' });
+                    return;
+                  }
+                  if (isDry(req.url)) {
+                    reply(200, { ok: true, dry: true });
+                    return;
+                  }
+                  writeFileSync(`${ART_PASS}/review.json`, `${JSON.stringify({ ...data, saved: new Date().toISOString() }, null, 1)}\n`);
+                  reply(200, { ok: true });
+                } catch (e) {
+                  reply(400, { ok: false, problem: `couldn't save: ${String(e)}` });
                 }
-                if (isDry(req.url)) {
-                  reply(200, { ok: true, dry: true });
-                  return;
-                }
-                writeFileSync(`${ART_PASS}/review.json`, `${JSON.stringify({ ...data, saved: new Date().toISOString() }, null, 1)}\n`);
-                reply(200, { ok: true });
-              } catch (e) {
-                reply(400, { ok: false, problem: `couldn't save: ${String(e)}` });
-              }
+              },
             });
             return;
           }
@@ -236,11 +237,11 @@ function rigEdit(): Plugin {
           reply(403, { ok: false, problem: 'writes only from the dev server’s own pages' });
           return;
         }
-        // An oversize body is read to the end and answered 413 (as the stage endpoint does), never by dropping the connection; a failure of the handler is answered 500: see withBody.
+        // An oversize body is answered 413 at once and no more of it is read; a failure of the handler is answered 500: see withBody.
         withBody(req, res, {
           max: 1_000_000,
           reply,
-          tooBig: { ok: false, problem: 'the body is bigger than 1000000 characters' },
+          tooBig: { ok: false, problem: 'the body is bigger than 1000000 bytes' },
           failed: (message) => ({ ok: false, problem: `could not check the skeletons: ${message}` }),
           handle: async (body) => {
             let data: unknown;

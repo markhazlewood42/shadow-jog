@@ -349,9 +349,13 @@ export class Session {
 
   // ---------------------------------------------------------------- saving
 
-  /** These files were written to disk (all of them by default): they are now the reference for "unsaved" and "back to the saved value". */
-  markSaved(parts: readonly Part[] = PARTS): void {
-    const now = partTexts(this.data);
+  /**
+   * These files were written to disk (all of them by default): they are now the reference for "unsaved" and "back to the saved value".
+   * `written` is the data that was really written, a copy taken when the request went out (default: the data now). A save that waits for the server passes it, so an edit made
+   * while the request was in flight is not marked saved and stays unsaved (PR 86 review, round 4, finding 1).
+   */
+  markSaved(parts: readonly Part[] = PARTS, written: EditorData = this.data): void {
+    const now = partTexts(written);
     for (const p of parts) {
       this.savedParts[p] = now[p];
       (this.savedData as unknown as Record<Part, unknown>)[p] = JSON.parse(now[p]);

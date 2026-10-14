@@ -88,4 +88,49 @@ describe('withBody', () => {
     expect(r.status).toBe(500);
     expect(r.body.problem).toBe('could not check: boom');
   });
+
+  it('a multibyte character split across two chunks stays whole (the chunks are decoded once, not one by one)', async () => {
+    seen.length = 0;
+    handle = () => {};
+    const bytes = Buffer.from('{"t":"it’s"}', 'utf8'); // a curly apostrophe is 3 bytes
+    const cut = bytes.indexOf(0xe2) + 1; // inside the character
+    const r = await new Promise<number>((done, fail) => {
+      const req = request({ host: '127.0.0.1', port, method: 'POST', path: '/' }, (res) => {
+        res.resume();
+        res.on('end', () => done(res.statusCode ?? 0));
+      });
+      req.on('error', fail);
+      req.write(bytes.subarray(0, cut));
+      setTimeout(() => req.end(bytes.subarray(cut)), 50);
+    });
+    expect(r).toBe(200);
+    expect(seen).toEqual(['{"t":"it’s"}']);
+  });
+
+  it('the limit counts bytes, not characters', async () => {
+    seen.length = 0;
+    handle = () => {};
+    const text = '€'.repeat(400); // 400 characters, 1,200 bytes
+    expect(text.length).toBeLessThan(MAX);
+    expect((await post(text)).status).toBe(413);
+    expect(seen).toEqual([]);
+  });
+
+  it('past the limit the answer goes out at once, with Connection: close, while the client is still sending', async () => {
+    seen.length = 0;
+    handle = () => {};
+    const got = await new Promise<{ status: number; connection: string | undefined }>((done, fail) => {
+      const req = request({ host: '127.0.0.1', port, method: 'POST', path: '/' }, (res) => {
+        res.resume();
+        done({ status: res.statusCode ?? 0, connection: res.headers.connection });
+        req.destroy();
+      });
+      req.on('error', () => {}); // destroyed on purpose once the answer is in
+      // The request is never ended: only an answer given before the end of the body can arrive.
+      req.write('z'.repeat(MAX + 1));
+      setTimeout(() => fail(new Error('no answer while the body was still being sent')), 4000).unref();
+    });
+    expect(got).toEqual({ status: 413, connection: 'close' });
+    expect(seen).toEqual([]);
+  });
 });

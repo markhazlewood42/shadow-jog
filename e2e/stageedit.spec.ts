@@ -854,3 +854,50 @@ test('Revert also throws away an unsaved HUD move, and Battle Test fights with t
   expect((await saved(page)).dirty).toBe(false);
   expect(errors).toEqual([]);
 });
+
+/** The stage editor's save endpoint, with or without its `?scratch=` query. */
+const STAGES_URL = /\/__stage\/stages/;
+
+test('an edit made while a save is in flight stays unsaved: the save marks only what it wrote (PR 86 review, round 4, finding 1)', async ({ page }) => {
+  const { errors } = await openEditor(page, scratch);
+  const edit = (y: number) =>
+    page.evaluate((horizonY) => {
+      window.__stageedit?.session.edit('horizon', (d) => {
+        const s = d.stages.street;
+        if (!s) return;
+        s.backdrop.horizonY = horizonY;
+        s.floor.y0 = horizonY; // the floor starts at the horizon, or the checks refuse the file
+      });
+    }, y);
+  await edit(141);
+  // Hold the POST at the dev server's door, so the page is still waiting for the answer while the user keeps editing.
+  let arrived!: () => void;
+  const gotPost = new Promise<void>((done) => (arrived = done));
+  let release!: () => void;
+  const gate = new Promise<void>((done) => (release = done));
+  await page.route(STAGES_URL, async (route) => {
+    if (route.request().method() !== 'POST') return route.continue();
+    arrived();
+    await gate;
+    return route.continue();
+  });
+  const saving = page.evaluate(() => window.__stageedit?.save());
+  await gotPost;
+  await edit(137); // made after the request went out: it is not in the file
+  release();
+  expect(await saving).toBe(true);
+  // The file holds 141, the editor holds 137: the editor must still say it has an unsaved change (the dot, the Save button, the close-tab prompt all read this).
+  expect(await page.evaluate(() => window.__stageedit?.session.dirtyParts)).toEqual(['stages']);
+  expect((await saved(page)).dirty).toBe(true);
+  await expect(page.locator('#b-save')).toBeEnabled();
+  expect((await stageOf(page)).backdrop.horizonY).toBe(137);
+  // The next save writes the later edit, and then nothing is left.
+  await page.unroute(STAGES_URL);
+  await page.keyboard.press('Control+s');
+  await expect(page.locator('#b-save')).toBeDisabled(); // the first save's message is already on the status line, so wait on the button
+  expect((await saved(page)).dirty).toBe(false);
+  await page.reload();
+  await waitReady(page);
+  expect((await stageOf(page)).backdrop.horizonY).toBe(137);
+  expect(errors).toEqual([]);
+});

@@ -51,7 +51,7 @@ import { byId, h, hideTips, installTips, isTyping } from './dom';
 import { type AlignHow, Inspector, setLabel } from './inspector';
 import { Interact } from './interact';
 import { KEYS, matchKey, MOUSE, shown } from './keys';
-import { deleteStage, duplicateStage, hudNow, isOverridden, newStage, nudgeSlots, renameStage, setFloorBottom, setHorizon, setHudBox, setRowY, stepOrder } from './model';
+import { cloneStage, deleteStage, duplicateStage, hudNow, isOverridden, newStage, nudgeSlots, renameStage, setFloorBottom, setHorizon, setHudBox, setRowY, stepOrder } from './model';
 import { type OverlayFigure, overlayMarkup } from './overlay';
 import { JsonPane, Palette, setButtons, StageList, StatusBar } from './panels';
 import { AXES_FILE, FACING_FILE, formatFacing, formatHeroes, formatHud, HEROES_FILE, HUD_FILE, prepareSave, SET_SCREEN, STAGES_FILE } from './save';
@@ -685,21 +685,23 @@ async function main(): Promise<void> {
         refreshPanels();
         return true;
       }
+      // What goes out is copied now: the editor stays live while the request and the read-back are in flight, and an edit made then must stay unsaved (PR 86 review, round 4, finding 1).
+      const posted = cloneStage({ stages: body.stages, axes: body.axes, hud: body.hud, facing: body.facing, heroes: body.heroes });
       const why = await post(ENDPOINT, body);
       if (why) {
         bar.say(`Not saved: ${why}${why.endsWith('.') ? '' : '.'} No file was changed.`, 'bad');
         return false;
       }
       const written: Part[] = dirty;
-      const data = body;
-      const hud = session.data.hud;
+      const data = posted;
+      const hud = posted.hud;
       // Load it back through the game's own loaders: the files on disk must be what the editor holds.
       let back: EditorData;
       try {
         back = await loadFiles();
       } catch (e) {
         // The files ARE on disk (the POST succeeded), so this is a warning about the check, not a failed save: the dirty dot clears and save() answers true (PR 86 review, R2-3).
-        session.markSaved(written);
+        session.markSaved(written, posted);
         bar.say(`Saved to ${fileNames(written)}, but reading it back to check failed: ${e instanceof Error ? e.message : String(e)}`, 'warn');
         refreshPanels();
         return true;
@@ -710,8 +712,8 @@ async function main(): Promise<void> {
         (!written.includes('hud') || formatHud(back.hud) === formatHud(hud)) &&
         (!written.includes('facing') || formatFacing(back.facing) === formatFacing(data.facing)) &&
         (!written.includes('heroes') || formatHeroes(back.heroes) === formatHeroes(data.heroes));
-      session.markSaved(written);
-      const t = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      session.markSaved(written, posted);
+      const t =new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       const where = fileNames(written);
       const many = where.includes(' and ') || where.includes(', ');
       bar.say(same ? `Saved to ${where} at ${t}. Commit ${many ? 'them' : 'it'} to ship ${many ? 'them' : 'it'}.` : `Saved to ${where} at ${t}, but the file read back differently from what the editor holds.`, same ? 'good' : 'bad');

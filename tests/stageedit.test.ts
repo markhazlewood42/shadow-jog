@@ -326,6 +326,20 @@ describe('the editing session: gestures, undo and the unsaved state', () => {
     expect(se2.savedStage?.backdrop.horizonY).toBe(96);
   });
 
+  it('markSaved(parts, written) marks only the data that was written: an edit made after the copy was taken stays unsaved (PR 86 review, round 4, finding 1)', () => {
+    const se = make();
+    se.edit('first', horizon(se, 96));
+    const written = cloneStage(se.data); // the copy a save takes when its request goes out
+    se.edit('made while the request is in flight', horizon(se, 92));
+    se.markSaved(['stages'], written);
+    expect(se.dirtyParts).toEqual(['stages']);
+    expect(se.dirty).toBe(true);
+    expect(se.savedStage?.backdrop.horizonY).toBe(96);
+    se.markSaved(['stages']); // the next save writes the present
+    expect(se.dirty).toBe(false);
+    expect(se.savedStage?.backdrop.horizonY).toBe(92);
+  });
+
   it('Esc during a drag puts everything back; the last change records what a gesture changed in the stage text', () => {
     const se = make();
     se.live(horizon(se, 90));
