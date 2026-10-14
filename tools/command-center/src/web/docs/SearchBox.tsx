@@ -74,7 +74,7 @@ function HitList({ hits, query, listId, active, onActive, onOpen }: HitListProps
 }
 
 /**
- * The search box at the top of every docs page (under the header of the site, at the right). It looks at the titles, the headings and the
+ * The search box at the top of every docs page (on the row of the page title, at the right). It looks at the titles, the headings and the
  * text of every doc (the server does the searching). The results open under the box as you type;
  * the arrow keys choose one and Enter opens it: the chosen one, or the best one when Enter comes
  * before the answer does (one Enter is always enough). Esc empties the box and closes the list.

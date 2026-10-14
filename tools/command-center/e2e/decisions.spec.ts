@@ -336,7 +336,7 @@ test.describe('the banner on a doc', () => {
   test('E2E: a doc shows the banner above the linked heading', async ({ page }) => {
     await page.goto('/docs/guides/setup');
     const docRegion = page.getByRole('region', { name: 'Document' });
-    await expect(docRegion.getByRole('heading', { level: 1, name: 'Setup guide' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Setup guide' })).toBeVisible();
 
     // Decision 41 links to "Storage": its banner is right above that heading. No heading comes between them.
     const storage = docRegion.locator('h2#storage');
@@ -384,7 +384,7 @@ test.describe('the banner on a doc', () => {
 
   test('a doc that no decision links to has no banner', async ({ page }) => {
     await page.goto('/docs/reference/glossary');
-    await expect(page.getByRole('region', { name: 'Document' }).getByRole('heading', { level: 1 }).first()).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
     await expect(page.getByRole('complementary', { name: /Open decision/ })).toHaveCount(0);
   });
 

@@ -5,9 +5,10 @@ import { DecisionBanner } from '../decisions/DecisionBanner';
 import { Notice } from '../decisions/DecisionCard';
 import { Backlinks } from './Backlinks';
 import { DiagramZoom, type ZoomTarget } from './DiagramZoom';
+import { DocTitle } from './DocTitle';
 import { DocToolbar } from './DocToolbar';
 import { FrontmatterHeader } from './FrontmatterHeader';
-import { type Banner, hasHeadingLevel1, placeBanners } from './html';
+import { type Banner, hasHeadingLevel1, placeBanners, splitLeadingTitle } from './html';
 import { Outline } from './Outline';
 import { decodeOrKeep } from './paths';
 import { useDocumentTitle } from './useDocumentTitle';
@@ -108,10 +109,12 @@ export function DocView({ doc, footer, banners = NO_BANNERS }: DocViewProps) {
     [doc.decisions],
   );
   const allBanners = useMemo<readonly PlacedBanner[]>(() => (banners.length === 0 ? decisionBanners : [...decisionBanners, ...banners]), [decisionBanners, banners]);
-  const parts = useMemo(() => placeBanners(doc.html, allBanners), [doc.html, allBanners]);
+  // The title of the doc, its h1, stands on the row of the search box (see DocTitle), above the details. It is cut from the html for that, so the banners are placed in the rest.
+  const { title, rest } = useMemo(() => splitLeadingTitle(doc.html), [doc.html]);
+  const parts = useMemo(() => placeBanners(rest, allBanners), [rest, allBanners]);
   // The first decision banner in the order of the page is the amber one, wherever it came from in the list of the decisions.
   const leadPart = parts.findIndex((part) => part.kind === 'banner' && typeof part.banner.node === 'function');
-  // A doc with no heading of its own still needs a title on the page.
+  // A doc with no heading of its own still needs a title on the page. (A doc whose h1 does not open it keeps that h1 in its text, and the row has no title.)
   const needsTitle = !hasHeadingLevel1(doc.html);
 
   // A picture that can be zoomed is a button for the keyboard and for a screen reader: it can be
@@ -176,6 +179,17 @@ export function DocView({ doc, footer, banners = NO_BANNERS }: DocViewProps) {
   return (
     <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_15rem]">
       <article className="min-w-0">
+        {(title !== null || needsTitle) && (
+          <DocTitle>
+            {/* The html is the server's own output for this doc, as in the text below. */}
+            {title !== null ? (
+              // The h1 of the doc, with its own id. It has the size of the other page titles, which a doc's h1 gets from `.doc-html` in the text.
+              <div className="[&>h1]:text-3xl [&>h1]:font-semibold [&>h1]:tracking-tight" dangerouslySetInnerHTML={{ __html: title }} />
+            ) : (
+              <h1 className="text-3xl font-semibold tracking-tight">{doc.title}</h1>
+            )}
+          </DocTitle>
+        )}
         <FrontmatterHeader doc={doc} />
         {/* Copy and Download, under the header and above the notices and the text (design 5.7). */}
         <div className="mt-3">
@@ -188,7 +202,6 @@ export function DocView({ doc, footer, banners = NO_BANNERS }: DocViewProps) {
         )}
         {/* The handlers sit on the container and read where the event came from: the html is one string, with no React element in it to hang a handler on. */}
         <div ref={bodyRef} className="doc-html mt-6" onClick={onBodyClick} onKeyDown={onBodyKeyDown}>
-          {needsTitle && <h1>{doc.title}</h1>}
           {parts.map((part, i) =>
             part.kind === 'html' ? (
               // The html is the server's own output for this doc (see the comment above this component),

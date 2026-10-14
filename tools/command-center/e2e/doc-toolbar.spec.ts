@@ -29,7 +29,7 @@ const statusOf = (page: Page) => documentOf(page).locator('[role="status"][aria-
 
 async function openDoc(page: Page, slug = SETUP.slug, heading = SETUP.title): Promise<void> {
   await page.goto(`/docs/${slug}`);
-  await expect(documentOf(page).getByRole('heading', { level: 1, name: heading })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: heading })).toBeVisible();
 }
 
 /** The expected header of the copied text for a doc of the fixture repo. */
@@ -51,13 +51,15 @@ test.describe('Copy and Download on a doc page', () => {
     const [mainBox, moreBox] = await Promise.all([main.boundingBox(), more.boundingBox()]);
     expect(Math.abs((mainBox?.x ?? 0) + (mainBox?.width ?? 0) - (moreBox?.x ?? 0))).toBeLessThanOrEqual(2);
 
-    // It sits under the header of the doc and above its text.
+    // The title (the h1) is on the row of the search box, above everything. The buttons sit under the details of the doc and above its text.
     const bottomOf = async (locator: ReturnType<Page['locator']>) => (await locator.boundingBox())?.y ?? NaN;
     const headerY = await bottomOf(page.getByLabel('Document details'));
-    const headingY = await bottomOf(documentOf(page).getByRole('heading', { level: 1, name: SETUP.title }));
+    const headingY = await bottomOf(page.getByRole('heading', { level: 1, name: SETUP.title }));
+    const textY = await bottomOf(documentOf(page).locator('.doc-html'));
     const mainY = (mainBox?.y ?? NaN) + (mainBox?.height ?? NaN);
+    expect(headingY).toBeLessThan(headerY);
     expect(mainBox?.y ?? NaN).toBeGreaterThan(headerY);
-    expect(mainY).toBeLessThan(headingY);
+    expect(mainY).toBeLessThan(textY);
 
     // The arrow opens a menu with two entries, each with its icon.
     await more.click();

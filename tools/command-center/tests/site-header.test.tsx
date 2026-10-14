@@ -116,9 +116,14 @@ describe('the header of the site (local build)', () => {
     for (const other of others) expect(other).toEqual(first);
   });
 
-  it('shows no search box: the search belongs to the body of the Docs page', async () => {
-    await renderAt('/docs');
-    expect(container.querySelector('header [role="combobox"], header input')).toBeNull();
+  it('holds no input at all: the search box belongs to the body of the Docs page', async () => {
+    // DocsRoutes is a stand-in here, so this checks only the header. That the search box is on the Docs pages and on no other page is tests/docs-search-row.test.tsx, with the real DocsRoutes.
+    for (const [path] of ROUTES) {
+      await renderAt(path);
+      expect(container.querySelector('header input, header [role="combobox"], header [role="searchbox"]'), path).toBeNull();
+      act(() => root.unmount());
+      root = createRoot(container);
+    }
   });
 
   it('does not offer Workstreams in the local build', async () => {

@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { Route, Routes, useLocation } from 'react-router';
 import type { DocPageData, DocsListing, ModuleName } from '../../shared/types';
 import { PanelFrame } from '../PanelFrame';
 import { usePanel } from '../usePanel';
 import { visibleNav } from '../hosted/mode';
 import { Decisions } from './Decisions';
+import { TitleSlotProvider } from './DocTitle';
 import { DocView } from './DocView';
 import { Gone, missingDocOf } from './Gone';
 import { Overview } from './Overview';
@@ -38,8 +40,8 @@ function DocRoute({ slug }: { slug: string }) {
 }
 
 /**
- * The docs site, mounted at /docs and everything under it: the search, the section
- * tree on the left, and the page that the address names (the overview at /docs, a doc below it).
+ * The docs site, mounted at /docs and everything under it: the section tree on the left, and on the right the page that the address names (the overview at /docs, a doc below it)
+ * under one row that holds the title of the page (its h1, at the left) and the search (at the right). A page puts its title in the row with <DocTitle>.
  *
  * The list of docs and the nav are loaded once here and shared by the tree and the overview, so the
  * two never disagree. Each of them still shows its own error state and its own time of update.
@@ -48,13 +50,11 @@ export function DocsRoutes() {
   const location = useLocation();
   const listing = usePanel<DocsListing>('/api/docs', DOCS_MODULES);
   const slug = slugFromPath(location.pathname);
+  // The element that holds the title of the page (see DocTitle). It is state and not a ref, so the page draws its title in it as soon as it exists.
+  const [titleSlot, setTitleSlot] = useState<HTMLDivElement | null>(null);
 
   return (
     <div className="min-h-screen">
-      {/* The row under the header of the site: the search sits at the right, where the docs header had it. The name of the page is the h1 of each doc. */}
-      <div className="mx-auto flex max-w-[96rem] justify-end px-4 pt-4 sm:px-6">
-        <SearchBox />
-      </div>
       <div className="mx-auto grid max-w-[96rem] items-start gap-6 px-4 pt-4 pb-6 sm:px-6 md:grid-cols-[15rem_minmax(0,1fr)] lg:grid-cols-[17rem_minmax(0,1fr)]">
         <div className="md:sticky md:top-20 md:max-h-[calc(100vh-6rem)] md:overflow-y-auto">
           <PanelFrame title="Sections" result={listing}>
@@ -62,13 +62,22 @@ export function DocsRoutes() {
           </PanelFrame>
         </div>
         <main className="min-w-0">
+          {/* The title of the page at the left and the search at the right. On a phone the search wraps under the title. A page with no title leaves the left side empty (it takes no room), and the search stays at the right. */}
+          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div ref={setTitleSlot} className="min-w-0 empty:hidden" />
+            <div className="w-full sm:ml-auto sm:w-80 sm:shrink-0">
+              <SearchBox />
+            </div>
+          </div>
           {/* Another page of the docs site is one more <Route> here, above the one for a doc. */}
-          <Routes>
-            <Route index element={<Overview listing={listing} />} />
-            <Route path="decisions" element={<Decisions />} />
-            {/* A key makes each doc start fresh: its own panel, with no trace of the doc before it. */}
-            <Route path="*" element={slug === null ? <Overview listing={listing} /> : <DocRoute key={slug} slug={slug} />} />
-          </Routes>
+          <TitleSlotProvider value={titleSlot}>
+            <Routes>
+              <Route index element={<Overview listing={listing} />} />
+              <Route path="decisions" element={<Decisions />} />
+              {/* A key makes each doc start fresh: its own panel, with no trace of the doc before it. */}
+              <Route path="*" element={slug === null ? <Overview listing={listing} /> : <DocRoute key={slug} slug={slug} />} />
+            </Routes>
+          </TitleSlotProvider>
         </main>
       </div>
     </div>

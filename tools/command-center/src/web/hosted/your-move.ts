@@ -40,10 +40,10 @@ export function buildHostedYourMove(snapshot: Snapshot, read: LiveRead, nowMs: n
   const items = buildYourMoveItems({ decisions: snapshot.decisions.open, asks, nowMs });
 
   const missing: YourMoveInfo['missing'] = [];
-  // A problem of the snapshot means that a source may be incomplete. The list is still made; the notice names the source that may be missing items. Only a problem of the
-  // decision issues (`decision...`) touches this list. A problem about pull requests (a cut or partial list), branches or workstream files does not: the list holds no
-  // pull request, so it is not named here.
-  const problem = snapshot.problems.find((candidate) => candidate.code.startsWith('decision'));
+  // A problem of the snapshot means that a source may be incomplete. The list is still made; the notice names the source that may be missing items. A problem of the
+  // decision issues (`decision...`) touches this list. So does a GraphQL read problem (`graphql...`): call 1 fetches branches, pull requests AND decisions in one query,
+  // so a partial answer can drop a decision node. A problem about only pull requests (a cut list), branches or workstream files does not: the list holds no pull request.
+  const problem = snapshot.problems.find((candidate) => candidate.code.startsWith('decision') || candidate.code.startsWith('graphql'));
   if (problem !== undefined) {
     missing.push({ source: 'decision-issue', message: `Snapshot incomplete: ${problem.message}` });
   }

@@ -7,6 +7,9 @@ import { WorkstreamsNavLink } from './workstreams/WorkstreamsNavLink';
 // same on every page (Mark, 2026-10-14: "The nav jumps between pages"). A page names itself with a heading in its body. The Docs search box lives in the body of the Docs page.
 // The header does not change height or width from page to page. The links stay at the right edge, and the right edge is the same on every page because the page keeps room
 // for its scroll bar at all times (`scrollbar-gutter` in theme.css).
+// The header is opaque and above the page (z-30; the glass canvas is at -1 and the panels have no z-index), so a page scrolls under it. Its rule is the soft line (`border-cc-rule`),
+// the line that the panels use: a text that a scroll leaves half under the header would otherwise have the bright lavender rule behind it, and could not keep the 4.5 to 1 floor
+// of the Look (e2e/now.spec.ts, "the text on the glass keeps the 4.5 to 1 floor").
 
 const isRoadmap = (path: string) => path === '/docs/roadmap' || path.startsWith('/docs/roadmap/');
 const isDocs = (path: string) => path === '/docs' || path.startsWith('/docs/');
@@ -27,7 +30,7 @@ export function SiteHeader() {
   // A trailing slash names the same page.
   const path = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
   return (
-    <header className="sticky top-0 z-30 border-b border-cc-rule-solid bg-cc-paper">
+    <header className="sticky top-0 z-30 border-b border-cc-rule bg-cc-paper">
       {/* On a phone the links may wrap under the title. `ml-auto` keeps them at the right edge, beside the title or on a row of their own. */}
       <div className="mx-auto flex max-w-[96rem] flex-wrap items-center gap-x-6 gap-y-1 px-4 py-3 sm:px-6">
         <Link to="/" className="font-semibold tracking-tight cc-focus-ring">

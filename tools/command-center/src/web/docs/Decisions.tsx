@@ -6,6 +6,7 @@ import { decisionsWithoutIssue } from '../../shared/decision-coverage';
 import type { Decision, DecisionSource, DecisionStatus, DecisionsInfo, ModuleName } from '../../shared/types';
 import { PanelFrame } from '../PanelFrame';
 import { usePanel } from '../usePanel';
+import { DocTitle } from './DocTitle';
 import { docPath } from './paths';
 import { useDocumentTitle } from './useDocumentTitle';
 
@@ -291,7 +292,9 @@ export function Decisions() {
   return (
     <div className="flex flex-col gap-6">
       {/* The heading stands alone (design 5.8): the page does not explain the three statuses. The design doc does, and the status chips say them in a word. */}
-      <h1 className="text-3xl font-semibold tracking-tight">Decisions</h1>
+      <DocTitle>
+        <h1 className="text-3xl font-semibold tracking-tight">Decisions</h1>
+      </DocTitle>
       <PanelFrame title="Decisions" result={result}>
         {(decisions) => (
           <div className="flex flex-col gap-4">

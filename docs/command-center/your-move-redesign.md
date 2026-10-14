@@ -23,7 +23,7 @@ On 2026-10-13 the hosted Now page showed 16 items in "Your move". None was real.
 | Decision issues | An issue is open, has the label `decision`, and `markhazlewood42` made it | The issue is closed |
 | Live asks | The newest "Your move" box of a live session. One item per box line | Any one of the four rules below |
 
-**Pull requests (changed 2026-10-13).** They are not a source. A PR that waits for Mark showed twice, in "Your move" and in the Pull requests panel, so Mark removed it from "Your move". The panel keeps the `attention` chip ("Ready to merge", "Needs a fix"). A cut or partial PR fetch no longer marks "Your move" incomplete.
+**Pull requests (changed 2026-10-13).** They are not a source. A PR that waits for Mark showed twice, in "Your move" and in the Pull requests panel, so Mark removed it from "Your move". The panel keeps the `attention` chip ("Ready to merge", "Needs a fix"). A cut list of PRs does not mark "Your move" incomplete. A partial GraphQL read (`graphql-partial`) does, because one query holds the branches, the PRs and the decisions, and a decision node can drop out.
 
 **Action rule (Mark, 2026-10-13).** Every item links to a place where Mark can act: a decision page or a live session. An item that links only to document text is not allowed.
 

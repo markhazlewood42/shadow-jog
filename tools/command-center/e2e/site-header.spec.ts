@@ -72,6 +72,37 @@ test.describe('the header of the site', () => {
     }
   });
 
+  test('on a Docs page the title and the search box share one row, and the side nav and the text start under it', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    for (const [path, title] of [['/docs', 'Docs'], ['/docs/guides/setup', 'Setup guide']] as const) {
+      await page.goto(path);
+      const h1 = page.getByRole('heading', { level: 1, name: title });
+      const search = page.getByRole('combobox', { name: 'Search docs' });
+      await expect(h1).toBeVisible();
+      const [h, s, header] = await Promise.all([h1.boundingBox(), search.boundingBox(), page.locator('header').first().boundingBox()]);
+      if (h === null || s === null || header === null) throw new Error('no box');
+      // Title at the left, search at the right, on the same line: their vertical ranges overlap.
+      expect(h.x + h.width, path).toBeLessThan(s.x);
+      expect(Math.min(h.y + h.height, s.y + s.height) - Math.max(h.y, s.y), path).toBeGreaterThan(0);
+      // No row of the search alone above them: the title is within 40 px of the header, and the side nav starts beside the row, not under it.
+      expect(h.y - (header.y + header.height), path).toBeLessThan(40);
+      const nav = await page.getByRole('region', { name: 'Sections', exact: true }).boundingBox();
+      expect(nav?.y ?? Number.NaN, path).toBeLessThan(Math.min(h.y + h.height, s.y + s.height));
+    }
+  });
+
+  test('on a phone the search box wraps under the title, and the Docs page does not scroll sideways', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 800 });
+    for (const path of ['/docs', '/docs/guides/setup']) {
+      await page.goto(path);
+      await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
+      const { scrollWidth, clientWidth } = await page.evaluate(() => ({ scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth }));
+      expect(scrollWidth, path).toBeLessThanOrEqual(clientWidth);
+      const [h, s] = await Promise.all([page.getByRole('heading', { level: 1 }).first().boundingBox(), page.getByRole('combobox', { name: 'Search docs' }).boundingBox()]);
+      expect((s?.y ?? Number.NaN) - ((h?.y ?? 0) + (h?.height ?? 0)), path).toBeGreaterThanOrEqual(0);
+    }
+  });
+
   test('fits a phone: no sideways scroll on any page, and the title and links are all in the window', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 800 });
     const heights = new Set<number>();

@@ -77,6 +77,16 @@ export function placeBanners<N>(html: string, banners: readonly Banner<N>[]): Ht
   return parts;
 }
 
+/**
+ * The h1 that opens a doc, cut from the html. `title` is the h1 element as the server wrote it (with its id), and `rest` is the html after it. A doc whose html does not begin
+ * with an h1 has no title to cut: `title` is null and `rest` is the html as it is. (The h1 of such a doc stays where the doc put it.)
+ */
+export function splitLeadingTitle(html: string): { title: string | null; rest: string } {
+  const match = /^\s*(<h1[\s>][\s\S]*?<\/h1>)/i.exec(html);
+  if (match === null) return { title: null, rest: html };
+  return { title: match[1] ?? null, rest: html.slice(match[0].length) };
+}
+
 /** Whether the doc has a top heading of its own. A doc with none gets its title as the h1 (see DocView). */
 export function hasHeadingLevel1(html: string): boolean {
   return /<h1[\s>]/i.test(html);

@@ -111,8 +111,11 @@ describe('"Your move" on the hosted page', () => {
     expect(quiet.missing).toEqual([]);
     const decisions = build(slotOf(answerAged(4, [])), { problems: [{ code: 'decisions-waiting-truncated', message: 'More decision issues exist' }] });
     expect(decisions.missing).toEqual([{ source: 'decision-issue', message: 'Snapshot incomplete: More decision issues exist' }]);
-    // A cut or partial list of pull requests does not mark the list incomplete: it holds no pull request.
-    for (const code of ['open-prs-truncated', 'recent-prs-truncated', 'pr-checks-truncated', 'pr-reviews-truncated', 'graphql-partial']) {
+    // A partial GraphQL read can drop a decision node (one query holds branches, pull requests and decisions), so it marks the decision source incomplete.
+    const partial = build(slotOf(answerAged(4, [])), { problems: [{ code: 'graphql-partial', message: 'Partial GraphQL answer' }] });
+    expect(partial.missing).toEqual([{ source: 'decision-issue', message: 'Snapshot incomplete: Partial GraphQL answer' }]);
+    // A cut list of pull requests does not mark the list incomplete: it holds no pull request.
+    for (const code of ['open-prs-truncated', 'recent-prs-truncated', 'pr-checks-truncated', 'pr-reviews-truncated', 'pr-files-truncated']) {
       expect(build(slotOf(answerAged(4, [])), { problems: [{ code, message: 'About PRs' }] }).missing, code).toEqual([]);
     }
   });
