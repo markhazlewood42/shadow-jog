@@ -300,3 +300,13 @@ Groups are commits. M8a = tasks 1 to 3 and 5. M8b = tasks 4, 6 and 7. M8c = task
 | 6 review 2 enemies Map never drops entries | Real | A box of an enemy that is not live is destroyed and its key deleted | db0b8d7 |
 | 8 review 2 dead `done` field, order key | Real for `done`; key left | `done` removed from the order entries. The `JSON.stringify` order key stays: caching by list identity needs `roundOrder` and `turnOrder` to return stable arrays, which they do not | db0b8d7 |
 | 10 review 2 `targetNotes` key collides at 10 | Real | The key is a `|` joined string | db0b8d7 |
+| 1 review 3 `panels.ts` level-up index after a skipped id | Real (from review-1 #6) | Each entry keeps its list index `j`; `update` loops the entries. New test with an unknown id before a known one fails on the old mapping | 116c29b |
+| 2 review 3 dead `ab?.kind` | Real | Optional chain removed | 116c29b |
+| 3 review 3 `early` flag stuck | Real | `FieldHud.create` clears it on the game's `prerender` event, which starts every drawn frame (the draw count can differ from the tick count, so a frame number would not do) | 116c29b |
+| 4 review 3 plate and text on different paths | Not real in play | The text shows when `plate` is set, and the plate paints whenever the stage or the field canvas paints. Only a dev editor `restore` (`held`) hides the screen layer | none |
+| 5 review 3 objective color after a rebuild | Not real | A rebuild takes the color from the current ops; `setStyle` runs only when the key is unchanged | none |
+| 6 review 3 banner alpha twice | Real | `bannerAlpha(t)` in `fieldkit/hud.ts`, used by `syncBanner` and `renderBanner` | 116c29b |
+| 7 review 3 `canvasDirty` after a throw | Not real | `canvasDirty` is true before `render` and the `finally` uploads, so a throw leaves it true and the next frame clears and uploads | none |
+| 8 review 3 paint sync without `!closed` | Not real | `prerenderVisible` skips closed scenes and `paint` returns when `image` is null (cleared on shutdown) | none |
+| 9 review 3 cut-in built once | Not real | Nothing assigns `fromLeft`, `row` or `line` after `v.cutin(...)` creates the object | none |
+| 10 review 3 budget comment | Real | Comment says 475.1 kB (first play 411.3 kB) | 116c29b |
