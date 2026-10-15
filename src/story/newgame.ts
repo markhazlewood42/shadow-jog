@@ -1,5 +1,5 @@
 /** New game setup and the opening sequence. */
-import type { Game } from '../engine/game';
+import type { Game } from '../sje';
 import { freshGame } from '../game/newgame';
 import { resetSaveBaseline } from '../game/save';
 import { FieldScene } from '../scenes/field';

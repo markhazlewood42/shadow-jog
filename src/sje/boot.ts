@@ -20,12 +20,9 @@
  *   4. In a DEV build only, add the engine's members to `window.__SJ__` (`src/sje-lab/devhook.ts`, interfaces.md section 14). A shipped build
  *      never loads that file (the import sits behind `import.meta.env.DEV`).
  */
-import type { Display as OldDisplay } from '../engine/display';
 import { currentNotice, notice, reportError } from '../engine/errors';
-import { SHAKE_PIXEL_GAIN, type Game as OldGame } from '../engine/game';
 import { Input } from '../engine/input';
 import { perf } from '../engine/perf';
-import { postfx } from '../engine/postfx';
 import { shakeOffset } from '../engine/shake';
 import { FX } from '../data/fx';
 import { showGpuNoticeOnce } from '../game/gpunotice';
@@ -34,10 +31,11 @@ import { drawNotice } from '../noticeoverlay';
 import { lazyStageProvider, setBattleStageProvider } from '../scenes/battlekit/stageseam';
 import { fieldStages, lazyFieldStageProvider, setFieldStageProvider } from '../scenes/fieldkit/fieldseam';
 import type { FxRequest } from './fx/fxsystem';
-import { routePostfx } from './fx/route';
 import { SOFTWARE_GL } from './render/glcontext';
 import { pageSeed } from './runtime/devseed';
 import { Game } from './runtime/game';
+import type { PageDisplay } from './runtime/display';
+import { SHAKE_PIXEL_GAIN } from './runtime/screenfx';
 
 /**
  * `?fx=full|lite|none` forces the effects level (tests, and a look at what a software renderer gets). Anything else leaves the setting alone.
@@ -61,17 +59,6 @@ function forcedSeed(): number | undefined {
 function seedOption(): { seed?: number } {
   const seed = forcedSeed();
   return seed === undefined ? {} : { seed };
-}
-
-/** The part of the old `Display` that `src/boot.ts` and the dev routes call, over the new `Display`. */
-interface DisplayAdapter {
-  /** Always `integer`. `boot()` assigns `settings.scale` (also `integer`) to it. */
-  mode: 'integer';
-  resize(): void;
-  setGpu(on: boolean): boolean;
-  readonly fxLevel: 'full' | 'lite' | 'none';
-  toGame(clientX: number, clientY: number): { x: number; y: number };
-  readonly element: HTMLCanvasElement;
 }
 
 export async function startSje(markStarted: () => void): Promise<void> {
@@ -106,7 +93,7 @@ export async function startSje(markStarted: () => void): Promise<void> {
     document.getElementById('screen')?.remove();
     const canvas = stage.querySelector('canvas');
     if (!canvas) throw new Error('The new engine made no canvas');
-    const display: DisplayAdapter = {
+    const display: PageDisplay = {
       mode: 'integer',
       resize: () => game.scale.refit(),
       // Switches the effects (M2). On means the level the ?fx= override (dev and test only) or the player asked for; `auto` there can still end up as `lite` on a software renderer.
@@ -123,7 +110,6 @@ export async function startSje(markStarted: () => void): Promise<void> {
     // The effects: `postfx` becomes `game.fx`, and `game.fx` gets the data. `src/boot.ts` sets the comfort settings and calls `postfx.update()` once a tick.
     const problems = game.fx.loadData(FX);
     if (problems.length > 0) throw new Error(`src/data/fx.json is not valid: ${problems.join('; ')}`);
-    routePostfx(postfx, () => game.fx);
     // The battle stage: loaded when the first battle asks for it (src/scenes/battlekit/stageseam.ts).
     // A failed load is a notice and the legacy renderer, never a fight that does not start (battlekit/stageseam.ts).
     setBattleStageProvider(lazyStageProvider(async () => (await import('../battlestage/liveopen')).liveProvider));
@@ -136,7 +122,7 @@ export async function startSje(markStarted: () => void): Promise<void> {
     // The notice bar is the one overlay: a legacy scene that draws nothing of its own (the staged field) paints its canvas only while a notice shows.
     game.overlayWanted = () => currentNotice() !== null;
     const { boot: bootGame } = await gameBoot;
-    bootGame(game as unknown as OldGame, display as unknown as OldDisplay);
+    bootGame(game, display);
     dev?.attach(game);
     const bootEl = document.getElementById('boot');
     if (bootEl) bootEl.style.display = 'none';

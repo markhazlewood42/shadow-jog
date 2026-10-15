@@ -129,3 +129,22 @@ export class Display {
     this.listeners.length = 0;
   }
 }
+
+/**
+ * What the game's boot (`src/boot.ts`) and the dev routes call on the display: a small view over the real `Display` and the effects, made by `src/sje/boot.ts`.
+ * It is the only shape the game code sees of the page's canvas.
+ */
+export interface PageDisplay {
+  /** Always `integer`. `boot()` assigns `settings.scale` (also `integer`) to it. */
+  mode: 'integer';
+  /** Fit the picture to the window again. */
+  resize(): void;
+  /** Turn GPU effects on or off. Returns whether they are on (they stay off on a level of `none`). */
+  setGpu(on: boolean): boolean;
+  /** The effects level that is drawn now: `lite` is what `auto` picks on software graphics. */
+  readonly fxLevel: 'full' | 'lite' | 'none';
+  /** Convert a page-space point to game coordinates (0..W, 0..H). */
+  toGame(clientX: number, clientY: number): { x: number; y: number };
+  /** The canvas the player sees (it takes the pointer events). */
+  readonly element: HTMLCanvasElement;
+}

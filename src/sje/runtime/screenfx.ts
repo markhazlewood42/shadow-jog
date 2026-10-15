@@ -19,6 +19,13 @@ import { parseColor } from '../display/cameraeffects';
 import type { Graphics } from '../display/graphics';
 import type { ShakeDirection } from './gameapi';
 
+/**
+ * Shake strengths are authored in game pixels (callers pass 1 to 5), and they were tuned when the screen was 480 pixels wide. A game pixel is now 3/4 as wide on the
+ * player's screen, so every strength is multiplied by 4/3 to keep the same size on screen (D10 of docs/PIVOT-640.md). Glow and haze are tied to the art, not the screen,
+ * so they are not scaled. `src/sje/boot.ts` passes it as `compat.shakeGain`.
+ */
+export const SHAKE_PIXEL_GAIN = 4 / 3;
+
 /** What the legacy code supplies. The new `Game` has a default for each, so a test or a lab needs none. */
 export interface LegacyCompat {
   /** Show an error as the on-screen notice. Default: `console.error`. */
