@@ -18,7 +18,7 @@ import { surface, type Ctx, type Surface } from '../engine/canvas';
 import { shade } from '../engine/color';
 import { drawText, fitText, measure } from '../engine/font';
 import { getPortrait } from '../art/portraits';
-import { Scene } from '../engine/game';
+import { CanvasImage, Scene } from '../sje';
 import { W, H } from '../sje/core/size';
 import { Rng, streams } from '../engine/rng';
 import { equipRegen, grantXp, levelProgress, type GrowthStat, type LevelUp } from '../game/party';
@@ -34,9 +34,6 @@ import { BattleRenderer } from './battlekit/render';
 import type { BattleStage } from './battlekit/stageseam';
 import { BHT, BW, DECK_CUT_LIFE, ENEMY_MID_AT, FIELD_MID, floaterStart, HUD, MENU_X, PANEL_Y, PARTY_BOTTOM, PARTY_MID, partyX, placeEnemies, type EnemyBox } from './battlekit/geom';
 import { CRACK, INTRO_T } from './battlekit/intro';
-import { postfx } from '../engine/postfx';
-import { playMoment } from '../engine/moments';
-import { FX } from '../data/fx';
 import type { Disp, Floater } from './battlekit/types';
 import { autoOrders, choiceItems, comboActors, comboHint, commandItems, mostHurt, repeatOrders } from './battlekit/orders';
 import { RIM, artTop, drawBig } from './battlekit/sprites';
@@ -155,8 +152,32 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     return this.hitstop > 0;
   }
 
+  /**
+   * One frame of this scene's own canvas: the whole picture when there is no stage, else the old UI over the stage (battlekit/render.ts). The canvas of
+   * `image` starts clear every frame, as a legacy scene above the base did. The effects layer `game.fx` takes the UI and the glow when it is on.
+   */
   render(ctx: Ctx): void {
     this.renderer.render(ctx);
+  }
+
+  /** The `prerender` handler: paint `render` into the scene's canvas image and upload it. A throw still uploads the (clear) canvas, then reaches the engine's guard. */
+  private paint(): void {
+    const image = this.image;
+    if (!image) return;
+    const ctx = image.ctx;
+    ctx.clearRect(0, 0, W, H);
+    ctx.save();
+    try {
+      this.render(ctx);
+    } finally {
+      ctx.restore();
+      image.refresh();
+    }
+  }
+
+  /** A picture of this scene for the screen snapshot (`Game.ctx`): its canvas as last painted. A scene made of one canvas has no objects to describe. */
+  override paintSnapshot(ctx: CanvasRenderingContext2D): void {
+    if (this.image?.visible) ctx.drawImage(this.image.canvas, 0, 0);
   }
 
   constructor(setup: BattleSetup) {
@@ -169,9 +190,6 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     // party, effects and numbers onto a clear world layer in front of them (battlekit/render.ts).
     this.enemyLayer = surface(W, H);
     this.front = surface(BW, BHT);
-    // GPU particles stay on the battlefield: above the status cards.
-    postfx.clear();
-    postfx.clip = { x: 0, y: 0, w: W, h: PANEL_Y };
     const party = state.party.map((id, i) => partyCombatant(state.members[id]!, i, i));
     const group = setup.enemies ?? pickGroup(setup.encounter);
     const enemies = enemyParty(group);
@@ -216,12 +234,21 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     return this.layoutVersion;
   }
 
-  /** However the fight ends (won, lost, fled, or abandoned after a fault), its effects end with it. */
-  override exit(): void {
-    postfx.clear();
-  }
+  /** This scene's canvas (the old UI, or the whole picture when there is no stage). Null before `create` and after the scene is gone. */
+  private image: CanvasImage | null = null;
 
-  override enter(): void {
+  override create(): void {
+    const fx = this.game.fx;
+    // GPU particles stay on the battlefield: above the status cards.
+    fx.clear();
+    fx.clip = { x: 0, y: 0, w: W, h: PANEL_Y };
+    this.image = this.add.canvasImage(0, 0, W, H);
+    this.events.on('prerender', this.paint, this);
+    this.events.once('shutdown', () => {
+      // However the fight ends (won, lost, fled, or abandoned after a fault), its effects end with it.
+      this.image = null;
+      fx.clear();
+    });
     music(this.setup.music ?? (this.setup.boss ? 'boss' : 'battle'), 0);
     this.flow(this.intro());
   }
@@ -278,7 +305,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       this.introT = Math.floor(t);
       for (const e of this.battle.enemies) this.d(e.uid).alpha = Math.min(1, Math.max(0, (t - INTRO_T * 0.35) / (INTRO_T * 0.5)));
       // The glass breaks: the air ripples out from the middle of the screen (GPU effects).
-      if (t < CRACK && t + this.speed() >= CRACK) playMoment(FX, 'intro', W / 2, H / 2);
+      if (t < CRACK && t + this.speed() >= CRACK) this.game.fx.playMoment('intro', W / 2, H / 2);
       await this.game.wait(1);
     }
     this.introT = 999;
@@ -437,12 +464,12 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   }
 
   // ------------------------------------------------------------------ update
-  update(): void {
+  fixedUpdate(): void {
     if (this.flowError) throw this.flowError;
     this.frame++;
     this.fx.rate = this.animRate();
     // GPU particles and shockwaves run on the battle's animation clock too, and hold in a hit pause.
-    postfx.rate = this.hitstop > 0 ? 0 : this.fx.rate;
+    this.game.fx.rate = this.hitstop > 0 ? 0 : this.fx.rate;
     if (this.timing.isOpen && !this.timing.result) {
       // A registered driver (a test harness) presses on the beat by itself.
       const auto = battleDriver()?.timing() ?? null;

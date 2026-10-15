@@ -301,13 +301,13 @@ describe('who may import the engine', () => {
   it('ET: the DEV tools reach the engine through the size module and the facade only, and never the runtime files (Game, LegacyShape, gameapi)', () => {
     const dev = all.filter((e) => outsideEngine(e) && isDevTool(e.file));
     const allowed = ['src/sje/core/size', 'src/sje', 'src/sje/index'];
-    // ET task 6: Battle Test's glue module (the one file that joins the game's old battle scene to the engine, tests/et-tools.test.ts) routes the old effects to `game.fx` with
-    // `routePostfx`, as `src/sje/boot.ts` does. That is the one extra edge, by file and target.
-    const glueEdge = (e: Edge): boolean => e.file === 'src/dev/stageedit/battleglue.ts' && e.target === 'src/sje/fx/route';
-    expect(dev.filter((e) => !allowed.includes(e.target ?? '') && !glueEdge(e)).map((e) => `${e.file} -> ${e.target}`)).toEqual([]);
-    // The edge exists (the exemption is not stale), and it is the only one: no other file may take it.
-    expect(dev.filter(glueEdge)).toHaveLength(1);
-    expect(dev.filter((e) => e.target === 'src/sje/fx/route').map((e) => e.file)).toEqual(['src/dev/stageedit/battleglue.ts']);
+    // ET task 6 let Battle Test's glue module take one extra edge, `routePostfx` (src/sje/fx/route), to route the old effects to `game.fx`. M8c ported the battle scene to `game.fx`, so the
+    // allowance is gone: no tool file takes the route.
+    expect(dev.filter((e) => !allowed.includes(e.target ?? '')).map((e) => `${e.file} -> ${e.target}`)).toEqual([]);
+    expect(dev.filter((e) => e.target === 'src/sje/fx/route').map((e) => e.file)).toEqual([]);
+    // Control: the check can fail. The same scan finds the route in a made-up edge.
+    const route: Edge = { file: 'src/dev/stageedit/battleglue.ts', spec: '../../sje/fx/route', target: 'src/sje/fx/route' };
+    expect([route].filter((e) => !allowed.includes(e.target ?? '')).map((e) => e.file)).toEqual(['src/dev/stageedit/battleglue.ts']);
     // The scan is alive: the scene base of the viewers and the FX lab (src/dev/viewers/base.ts), and the dev routes, take the engine from the facade.
     expect(dev.some((e) => e.file === 'src/dev/viewers/base.ts' && (e.target === 'src/sje' || e.target === 'src/sje/index'))).toBe(true);
     expect(dev.some((e) => e.file === 'src/devroutes.ts' && (e.target === 'src/sje' || e.target === 'src/sje/index'))).toBe(true);
@@ -316,7 +316,7 @@ describe('who may import the engine', () => {
   });
 
   /** The UI scenes that are native `sje` scenes (M8b) and so import the facade. */
-  const M8B_FACADE_USERS = ['src/scenes/card.ts', 'src/scenes/controls.ts', 'src/scenes/deck.ts', 'src/scenes/dialog.ts', 'src/scenes/ending.ts', 'src/scenes/gameover.ts', 'src/scenes/menu.ts', 'src/scenes/options.ts', 'src/scenes/panels.ts', 'src/scenes/placemap.ts', 'src/scenes/saveload.ts', 'src/scenes/shop.ts', 'src/scenes/title.ts', 'src/scenes/uiscene.ts', 'src/scenes/uisound.ts', 'src/scenes/uiview.ts'];
+  const M8B_FACADE_USERS = ['src/game/systems.ts', 'src/scenes/battle.ts', 'src/scenes/battlekit/playback.ts', 'src/scenes/battlekit/stageseam.ts', 'src/scenes/card.ts', 'src/scenes/controls.ts', 'src/scenes/deck.ts', 'src/scenes/dialog.ts', 'src/scenes/ending.ts', 'src/scenes/gameover.ts', 'src/scenes/menu.ts', 'src/scenes/options.ts', 'src/scenes/panels.ts', 'src/scenes/placemap.ts', 'src/scenes/saveload.ts', 'src/scenes/shop.ts', 'src/scenes/title.ts', 'src/scenes/uiscene.ts', 'src/scenes/uisound.ts', 'src/scenes/uiview.ts'];
 
   // A static `import ... from './sje/boot'` (the door must be dynamic, or the engine and Pixi land in the entry chunk).
   const STATIC_DOOR = /^[ \t]*import\b[^(]*\bfrom\s*['"]\.\/sje\/boot['"]/m;
@@ -324,7 +324,7 @@ describe('who may import the engine', () => {
   it('the shipped game reaches the engine through nine doors only: the size module, the Rng module, the game font (M3), the effects state, the effects data checks and the particle simulation (all plain code: no Pixi, no Three), a types-only file, the boot door, and (M8b) the facade for the ported UI scenes', () => {
     const shipped = all.filter((e) => outsideEngine(e) && !e.file.startsWith('src/sje-lab/') && !isDevTool(e.file));
     expect([...new Set(shipped.map((e) => e.target))].sort()).toEqual(['src/sje', 'src/sje/boot', 'src/sje/core/rng', 'src/sje/core/size', 'src/sje/display/font', 'src/sje/fx/fxdata', 'src/sje/fx/fxstate', 'src/sje/fx/particles', 'src/sje/runtime/gameapi']);
-    // M8b: the UI scenes ported to native scenes take the kit and the scene base from the facade. The list grows with each M8b phase (the other UI scenes), and holds nothing else.
+    // M8b: the UI scenes ported to native scenes take the kit and the scene base from the facade. M8c adds the battle scene and its kit (`Scene`, `CanvasImage`, and the `Game` type for `PlaybackView` and the stage seam; `game/systems.ts` names the `Game` type for its cast until M8d). The list holds nothing else.
     expect([...new Set(shipped.filter((e) => e.target === 'src/sje').map((e) => e.file))].sort()).toEqual(M8B_FACADE_USERS);
     // M2: the old PostFx extends the shared state, the old particle module re-exports the shared simulation. (M6 deleted the old presenter, the one file that took SOFTWARE_GL from the GL module.)
     expect([...new Set(shipped.filter((e) => e.target === 'src/sje/fx/fxstate').map((e) => e.file))]).toEqual(['src/engine/postfx.ts']);

@@ -11,7 +11,6 @@
  * It answers null when anything goes wrong (a hero with no sheet, a group the stage has no slots for, a failed load), and the battle then draws itself as it does without the
  * flag: a stage that cannot be made must not cost the player the fight.
  */
-import type { Game as OldGame } from '../engine/game';
 import { notice } from '../engine/errors';
 import type { BattleScene } from '../scenes/battle';
 import { STAGE_FAILED_NOTICE, type BattleStage, type BattleStageProvider } from '../scenes/battlekit/stageseam';
@@ -82,9 +81,7 @@ export function initFor(data: StageData, choice: SpriteChoice, scene: BattleScen
 }
 
 export const liveProvider: BattleStageProvider = {
-  async open(old: OldGame, scene: BattleScene): Promise<BattleStage | null> {
-    // The scene stack and the textures are the new engine's: the glue passes the new `Game` in the old `Game`'s clothes (the one unchecked seam of the migration, src/sje/boot.ts).
-    const game = old as unknown as Game;
+  async open(game: Game, scene: BattleScene): Promise<BattleStage | null> {
     try {
       const { data, choice } = await load(game, stageSetFromSearch(typeof location === 'undefined' ? '' : location.search));
       const stage = new LiveStageScene(initFor(data, choice, scene), scene);

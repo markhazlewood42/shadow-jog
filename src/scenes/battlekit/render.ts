@@ -13,7 +13,6 @@ import { ENEMIES, FAMILY_WEAK } from '../../data/enemies';
 import { ITEMS } from '../../data/items';
 import { MEMBERS } from '../../data/party';
 import { surface, type Ctx, type Surface } from '../../engine/canvas';
-import { postfx } from '../../engine/postfx';
 import { drawParagraph, drawText, fitText, measure, wrap } from '../../engine/font';
 import { H, W } from '../../sje/core/size';
 import { state, type MemberId } from '../../game/state';
@@ -176,12 +175,13 @@ export class BattleRenderer {
     // its own layer, laid over after bloom and shockwaves so it never smears.
     // No light through the impact frame's blackout; the defeat drain dims it with the rest.
     const dark = (this.s.setup.intro && this.s.introT < INTRO_T) || (this.s.impactT > 0 && !!this.s.impactOn);
-    const glow = dark ? null : postfx.glowLayer();
+    const fx = this.s.game.fx;
+    const glow = dark ? null : fx.glowLayer();
     if (glow) {
-      postfx.bloom = 0.7 * (1 - Math.min(0.62, this.s.defeatT / 70));
+      fx.bloom = 0.7 * (1 - Math.min(0.62, this.s.defeatT / 70));
       this.renderGlow(glow, shx, shy);
     }
-    this.renderUi(postfx.active && postfx.ui ? postfx.ui : ctx);
+    this.renderUi(fx.active && fx.ui ? fx.ui : ctx);
   }
 
   /**
@@ -199,12 +199,13 @@ export class BattleRenderer {
       this.shatter.draw(ctx, this.s.introT);
     }
     const dark = (this.s.setup.intro && this.s.introT < INTRO_T) || (this.s.impactT > 0 && !!this.s.impactOn);
-    const glow = dark ? null : postfx.glowLayer();
+    const fx = this.s.game.fx;
+    const glow = dark ? null : fx.glowLayer();
     if (glow) {
-      postfx.bloom = 0.7 * (1 - Math.min(0.62, this.s.defeatT / 70));
+      fx.bloom = 0.7 * (1 - Math.min(0.62, this.s.defeatT / 70));
       this.renderGlow(glow, shx, shy);
     }
-    this.renderUi(postfx.active && postfx.ui ? postfx.ui : ctx);
+    this.renderUi(fx.active && fx.ui ? fx.ui : ctx);
   }
 
   /**

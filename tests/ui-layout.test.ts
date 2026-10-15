@@ -21,9 +21,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { EQUIP_STATS_H, EQUIP_STATS_W, SHOP_DETAIL_X } from '../src/ui/layout';
 import {
-  drive,
   FakeInput,
-  fakeGame,
   installCanvasStub,
   Layout,
   listsNotFollowingHeight,
@@ -99,7 +97,7 @@ async function drawAll(size: { W: number; H: number } | null): Promise<{ shots: 
   const shots: Shot[] = [];
   const ctx = recordingContext();
   const input = new FakeInput();
-  /** Bind a scene to the fake game, run its first update if asked, and draw it once. */
+  /** Draw a scene's `render(ctx)` once onto the recorder (the battle scene paints its canvas through it). */
   const take = (name: string, scene: AnyScene): void => {
     const layout = new Layout();
     setLayout(layout);
@@ -109,10 +107,6 @@ async function drawAll(size: { W: number; H: number } | null): Promise<{ shots: 
       setLayout(null);
     }
     shots.push({ name, layout });
-  };
-  const bind = <T>(scene: unknown): T & AnyScene => {
-    (scene as unknown as AnyScene).game = fakeGame(input);
-    return scene as T & AnyScene;
   };
 
   // The ported scenes are native: they run on a real `Game` (no renderer), and their display objects are read into the same record (tests/nativelayout.ts).
@@ -217,9 +211,16 @@ async function drawAll(size: { W: number; H: number } | null): Promise<{ shots: 
   // ---- the battle (WP6): the menus, the turn strip, the cut-ins and the banners, over a street fight
   {
     const { BattleScene } = await import('../src/scenes/battle');
+    // The battle scene is native (M8c): it runs on the real `Game` and the keys go through `nativeKeys`. Its `render(ctx)` is what its canvas image paints each frame
+    // (the old UI, and the whole picture when no stage is under it), so the recorder reads that, as it did before. The shatter intro is not what this draws: it is turned off.
+    (BattleScene.prototype as unknown as { intro: () => Promise<void> }).intro = async () => undefined;
+    let current: AnyScene | null = null;
     /** A fresh fight: the shatter is over (introT 999), the enemies are in (alpha 1), and the round menu is up. */
     const fight = (enemies: string[], boss = false): AnyScene => {
-      const b = bind<AnyScene>(new BattleScene({ encounter: 'street', enemies, bg: 'street', canRun: !boss, boss }));
+      // The last fight leaves the stack, so only the new one ticks.
+      if (current) nativeClose(current as unknown as { close(r?: unknown): void });
+      const b = nativeOpen(new BattleScene({ encounter: 'street', enemies, bg: 'street', canRun: !boss, boss })) as unknown as AnyScene;
+      current = b;
       b.introT = 999;
       const battle = b.battle as { enemies: { uid: number }[] };
       for (const e of battle.enemies) (b.d as (uid: number) => { alpha: number })(e.uid).alpha = 1;
@@ -232,7 +233,7 @@ async function drawAll(size: { W: number; H: number } | null): Promise<{ shots: 
       take('battle: round menu, four enemies', b);
       (b.nextActor as () => void)();
       take('battle: command menu', b);
-      drive(b, input, ['down', 'confirm']);
+      nativeKeys(['down', 'confirm']);
       take('battle: a list open (the second command)', b);
     }
     {
@@ -240,9 +241,9 @@ async function drawAll(size: { W: number; H: number } | null): Promise<{ shots: 
       (b.nextActor as () => void)();
       const cmd = b.cmdMenu as { items: { label: string }[]; index: number };
       cmd.index = Math.max(0, cmd.items.findIndex((it) => it.label === 'Item'));
-      drive(b, input, ['confirm']);
+      nativeKeys(['confirm']);
       take('battle: the item list', b);
-      drive(b, input, ['confirm']);
+      nativeKeys(['confirm']);
       take('battle: the target box', b);
     }
     {
@@ -261,6 +262,7 @@ async function drawAll(size: { W: number; H: number } | null): Promise<{ shots: 
       const b = fight(['warden'], true);
       take('battle: a boss fight, round menu', b);
     }
+    if (current) nativeClose(current as unknown as { close(r?: unknown): void });
   }
 
   // ---- the shop

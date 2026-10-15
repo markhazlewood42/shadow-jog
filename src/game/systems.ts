@@ -12,6 +12,7 @@ import { MEMBERS } from '../data/party';
 import { surface } from '../engine/canvas';
 import { streams } from '../engine/rng';
 import type { Game } from '../engine/game';
+import type { Game as SjeGame } from '../sje';
 import { TS } from '../field/tiles';
 import { battleStages } from '../scenes/battlekit/stageseam';
 import { CardScene } from '../scenes/card';
@@ -362,8 +363,9 @@ export async function runBattle(
     game.flash('#ffffff', 12);
     const [{ BattleScene }] = await Promise.all([loadBattle(), game.wait(18)]);
     const scene = new BattleScene({ encounter: enc, bg: opts.bg, canRun: opts.canRun, boss: opts.boss, music: opts.music, intro });
-    // Under `?engine=sje` a stage scene is put under the battle and draws it (battlekit/stageseam.ts); without the flag there is none and the battle draws itself.
-    const stage = await battleStages.open(game, scene);
+    // A stage scene is put under the battle and draws it (battlekit/stageseam.ts); if it cannot be made, the battle draws itself.
+    // The object behind `game` is the sje `Game`, which the stage seam is typed against. This cast goes when this file takes the sje `Game` type (M8d task 10).
+    const stage = await battleStages.open(game as unknown as SjeGame, scene);
     if (stage) scene.attachStage(stage);
     let result: BattleResult;
     try {

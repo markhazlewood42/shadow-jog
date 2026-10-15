@@ -1,16 +1,16 @@
 /**
  * Battle Test's glue (ET task 6; docs/engine/et-brief.md decision 2, option B, and the Battle Test exemption of pass line 2).
  *
- * Battle Test runs the game's OWN `BattleScene` (`src/scenes/battle.ts`) over the stage the editor shows, unsaved edits included. That scene still uses the old engine until M8
- * converts it, so every line that touches the old engine is in this ONE file. `tests/et-tools.test.ts` names it (and `scenes/battle.ts`) as the only old-engine files a Battle Test
- * file may reach, and only through a dynamic `import()` (`battletest.ts` makes it). M8 deletes this file's old-engine half together with the exemption.
+ * Battle Test runs the game's OWN `BattleScene` (`src/scenes/battle.ts`) over the stage the editor shows, unsaved edits included. Since M8c that scene is a native `sje` scene and sends its
+ * effects to `game.fx` itself, so this file no longer routes the old `postfx`. `tests/et-tools.test.ts` still names it (and `scenes/battle.ts`) as the only game files a Battle Test file may
+ * load, and only through a dynamic `import()` (`battletest.ts` makes it). M8d task 11 removes that exemption list.
  *
  * What it does, in order (the same steps the shipped battle takes in `game/systems.ts` `runBattle`, and the probe of `et-survey.md` section 9.1):
- *   1. route the old effects (`postfx`) to the new engine's (`game.fx`), as `src/sje/boot.ts` does for the game;
+ *   1. load the effects data (`fx.json`) into `game.fx`, as `src/sje/boot.ts` does for the game;
  *   2. set the party the game's battle reads (`state.party`, `state.members`), the story flags the loadouts name, the inventory, and a fixed seed for the battle's random numbers;
  *   3. make the `BattleScene`, then the game's `LiveStageScene` over the editor's stage (made from the unsaved data, so what the fight shows is what the editor showed), and run both;
  *   4. record a status trace as the fight goes: one line per action, the engine's state of every fighter (the same lines `legacyTrace` writes), so a seed gives a checkable fight;
- *   5. on the way out, put everything back (state, settings, flags, driver, music, the effects routing) and drop every scene and timer so no half-finished round can run on.
+ *   5. on the way out, put everything back (state, settings, flags, driver, music, the effects) and drop every scene and timer so no half-finished round can run on.
  */
 import { battleTrace, engineWords, headOf, setupFor } from '../../battlestage/battledrive';
 import { type DemoMember, stageOf } from '../../battlestage/config';
@@ -20,14 +20,12 @@ import type { BattleEvent } from '../../battle/types';
 import { music } from '../../audio/music';
 import { FX } from '../../data/fx';
 import { streams } from '../../engine/rng';
-import { postfx } from '../../engine/postfx';
 import { createMember, memberStats, restoreUses } from '../../game/party';
 import { settings } from '../../game/settings';
 import { flags, state } from '../../game/state';
 import type { MemberId } from '../../game/state';
 import { BattleScene } from '../../scenes/battle';
 import { setBattleDriver } from '../../scenes/battlekit/driver';
-import { routePostfx } from '../../sje/fx/route';
 import type { Game } from '../../sje';
 
 /** Everything a fight needs, as plain data (the editor's Battle Test file builds it from the dialog and the unsaved stage). */
@@ -92,7 +90,6 @@ export async function startFight(game: Game, plan: FightPlan): Promise<Fight> {
   // ---- 1. the effects
   const problems = game.fx.loadData(FX);
   if (problems.length > 0) throw new Error(`src/data/fx.json is not valid: ${problems.join('; ')}`);
-  const unroute = routePostfx(postfx, () => game.fx);
 
   // ---- 2. the game's state, kept to put back
   const saved = { party: state.party, members: state.members, inventory: state.inventory, lastOrders: state.lastOrders, timing: settings.timing, speed: game.speed };
@@ -114,8 +111,7 @@ export async function startFight(game: Game, plan: FightPlan): Promise<Fight> {
     state.lastOrders = saved.lastOrders;
     settings.timing = saved.timing;
     game.speed = saved.speed;
-    postfx.clear();
-    unroute();
+    game.fx.clear();
   };
 
   try {

@@ -10,9 +10,9 @@
  * and `src/sje-lab/stagelab.ts` and `lab.ts`. `src/dev/fieldshow.ts` and `src/devroutes.ts` start game scenes (`FieldScene`, `BattleScene`, `PanelScene`), so only their
  * DIRECT imports are checked: a game scene is M8's. A dynamic `import()` of a file under `src/sje` is followed like a static import.
  *
- * Battle Test's exemption (Mark, 2026-10-13; docs/engine/et-brief.md pass line 2). Decision 2 B runs the game's own `BattleScene`, which uses the old engine until M8. Battle Test's own
+ * Battle Test's exemption (Mark, 2026-10-13; docs/engine/et-brief.md pass line 2). Decision 2 B runs the game's own `BattleScene` (a native scene since M8c; the exemption list stays until M8d). Battle Test's own
  * files stay engine-free. They may reach old-engine code only through a dynamic `import()` of a file on the named list `BATTLE_TEST_DYNAMIC`: `src/scenes/battle.ts` and ONE glue module
- * (`src/dev/stageedit/battleglue.ts`), which routes `postfx` to `game.fx` and holds every other old-engine line of the test. The glue is not an entry (it is the exemption); a static import of
+ * (`src/dev/stageedit/battleglue.ts`), which loads the effects data and holds every other game-side line of the test. The glue is not an entry (it is the exemption); a static import of
  * either file from a Battle Test file fails; a dynamic import of any other old-engine file fails; a dynamic import of the two from a file that is not a Battle Test file fails. M8 deletes
  * the list.
  *
@@ -231,9 +231,12 @@ describe('ET pass line 2: no old engine in tool code', () => {
   it('Battle Test: the named list is exactly the battle scene and ONE glue module, and both exist', () => {
     expect(BATTLE_TEST_DYNAMIC).toEqual(['src/scenes/battle.ts', 'src/dev/stageedit/battleglue.ts']);
     for (const f of BATTLE_TEST_DYNAMIC) expect(existsSync(join(ROOT, f)), f).toBe(true);
-    // The glue is the one place that names the old effects: no other tool file imports `engine/postfx`.
-    const users = filesUnder('src/dev').filter((f) => /from\s*['"][^'"]*engine\/postfx['"]/.test(code(readFileSync(join(ROOT, f), 'utf8'))));
-    expect(users).toEqual([BATTLE_TEST_GLUE]);
+    // M8c: the battle scene sends its effects to `game.fx`, so no tool file, the glue included, imports `engine/postfx` any more.
+    const importsPostfx = /from\s*['"][^'"]*engine\/postfx['"]/;
+    const users = filesUnder('src/dev').filter((f) => importsPostfx.test(code(readFileSync(join(ROOT, f), 'utf8'))));
+    expect(users).toEqual([]);
+    // Control: the scan finds an import of it.
+    expect(importsPostfx.test("import { postfx } from '../../engine/postfx';")).toBe(true);
   });
 
   it('the FX lab is a Scene of the new engine, not a LegacyShape', () => {

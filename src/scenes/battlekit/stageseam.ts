@@ -15,7 +15,7 @@
  */
 import type { Pt } from '../../battle/fx';
 import { notice } from '../../engine/errors';
-import type { Game } from '../../engine/game';
+import type { Game } from '../../sje';
 import type { BattleScene } from '../battle';
 
 /** What the battle scene asks of the stage that draws it. */
