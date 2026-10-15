@@ -90,8 +90,8 @@ const GZIP_TOTAL_MAX = 475.5 * 1000; // 2026-10-15 (M8c, Mark yes): measured 475
 // the `uniform` block of `hacks.json` is a top-level key that the shipped game never imports, and the looks of the DEV styles B and C are behind `import.meta.env.DEV`.
 // Cap = measured + 1 kB, rounded up to the next 0.1 kB. PROVISIONAL: the numbers are set again from the build that ships once Mark has picked the style (task 10 of the brief).
 // 2026-10-14 (M8a, Mark yes): re-set to 402.1 kB (measured 401.1 + 1 kB) after the shop and dialogue data files and the UI kit joined first play.
-// 2026-10-14 (M8b phase 1, Mark yes): raised to 408 kB (measured 407.4); the old scenes leave in M8d.
-// 2026-10-14 (M8b, Mark yes): raised again to 412 kB (measured 410.8); the old scenes leave in M8d.
+// 2026-10-14 (M8b phase 1, Mark yes): raised to 408 kB (measured 407.4); the old scenes left in M8d.
+// 2026-10-14 (M8b, Mark yes): raised again to 412 kB (measured 410.8); the old scenes left in M8d.
 const FIRST_PLAY_MAX = 412_000;
 
 /**
