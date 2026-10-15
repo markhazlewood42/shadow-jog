@@ -1,11 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1354 788" width="1354" height="788" role="img" aria-labelledby="roadmap-title roadmap-desc">
   <title id="roadmap-title">Shadow Jog roadmap</title>
-  <desc id="roadmap-desc">Order and dependency only. Bar length is not time. Now: M8b UI scenes. Next: M8a UI kit and data. Items in the same column can run in parallel. Foundations: Phase 0 Platform spike (done), Pre-M0 640x360 move (done), M0 Prepare (done). Engine path: M1 Shell (done), M2 Effects (done), M3 Battle stage (done), M5 Field (done), M6 Flip default (done), M7 3D mode (done), M8a UI kit and data (next), M8b UI scenes (active), M8c Battle and field (later), M8d Delete old engine (later). Side paths: M1b 3D proof (done), M4 UI scenes (optional), ET Editor port (done), Editors Editor suite (later). Needs Mark's go-ahead: archive-tags Archive tags (gated), release-tags Release tags (gated), deploy Deploy site (gated). Other open items (no order): playthrough-notes Playthrough notes edit (next), pixellab-end PixelLab end date (next), sprite-fusion Sprite credits (optional), cc-followups CC follow-ups (optional), plasma-bug plasma-ui bug report (optional).</desc>
+  <desc id="roadmap-desc">Order and dependency only. Bar length is not time. Now: M8c Battle and field. Next: M8a UI kit and data. Items in the same column can run in parallel. Foundations: Phase 0 Platform spike (done), Pre-M0 640x360 move (done), M0 Prepare (done). Engine path: M1 Shell (done), M2 Effects (done), M3 Battle stage (done), M5 Field (done), M6 Flip default (done), M7 3D mode (done), M8a UI kit and data (next), M8b UI scenes (done), M8c Battle and field (active), M8d Delete old engine (later). Side paths: M1b 3D proof (done), M4 UI scenes (optional), ET Editor port (done), Editors Editor suite (later). Needs Mark's go-ahead: archive-tags Archive tags (gated), release-tags Release tags (gated), deploy Deploy site (gated). Other open items (no order): playthrough-notes Playthrough notes edit (next), pixellab-end PixelLab end date (next), sprite-fusion Sprite credits (optional), cc-followups CC follow-ups (optional), plasma-bug plasma-ui bug report (optional).</desc>
   <defs>
     <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse"><polygon points="0 0, 8 3, 0 6" fill="#bfc3e4"/></marker>
   </defs>
   <rect width="1354" height="788" fill="#0d0c1f"/>
-  <text x="20" y="46" fill="#f4f1ff" font-size="26" font-style="italic" font-family="'Instrument Serif', Georgia, 'Times New Roman', serif">Now: M8b UI scenes. Next: M8a UI kit and data.</text>
+  <text x="20" y="46" fill="#f4f1ff" font-size="26" font-style="italic" font-family="'Instrument Serif', Georgia, 'Times New Roman', serif">Now: M8c Battle and field. Next: M8a UI kit and data.</text>
   <text x="20" y="72" fill="#ffcc3d" font-size="14" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">Order and dependency only. Bar length is not time.</text>
   <text x="20" y="92" fill="#8f94bd" font-size="11" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.06em">READ LEFT TO RIGHT. A COLUMN IS A STEP IN THE ORDER. ITEMS IN ONE COLUMN CAN RUN IN PARALLEL. DATA UPDATED 2026-10-14.</text>
   <rect x="14" y="126" width="102" height="570" fill="#ffffff" fill-opacity="0.025"/>
@@ -138,19 +138,19 @@
     <text x="946" y="333" fill="#d4e8ff" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">NEXT</text>
   </g>
   <g id="item-M8b">
-    <title>M8b UI scenes: active. Port the 13 UI scenes to native scenes, small to big. All 13 are native on branch engine-m8b-ui-scenes; the verifier gate and Mark's look at the pictures are next. Follows the diff rule for the GPU timing check.</title>
-    <rect x="1040" y="264" width="90" height="76" rx="6" fill="#ffcc3d" stroke="#ffcc3d" stroke-width="2"/>
-    <text x="1048" y="283" fill="#1a1500" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">M8b</text>
-    <text x="1048" y="301" fill="#1a1500" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">UI scenes</text>
-    <text x="1048" y="333" fill="#1a1500" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">ACTIVE</text>
+    <title>M8b UI scenes: done. Port the 13 UI scenes to native scenes, small to big. All 13 are native. Merged in PR #95 (2026-10-15). Follows the diff rule for the GPU timing check.</title>
+    <rect x="1040" y="264" width="90" height="76" rx="6" fill="#14382e" stroke="#4cc38a" stroke-width="1.2"/>
+    <text x="1048" y="283" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">M8b</text>
+    <text x="1048" y="301" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">UI scenes</text>
+    <text x="1048" y="333" fill="#cfeee0" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">DONE</text>
   </g>
   <g id="item-M8c">
-    <title>M8c Battle and field: later. Port the battle and field scenes. Follows the diff rule for the GPU timing check.</title>
-    <rect x="1142" y="264" width="90" height="76" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1.2"/>
-    <text x="1150" y="283" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">M8c</text>
-    <text x="1150" y="301" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">Battle and</text>
-    <text x="1150" y="315" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">field</text>
-    <text x="1150" y="333" fill="#bfc3e4" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">LATER</text>
+    <title>M8c Battle and field: active. Port the battle and field scenes. Active on branch engine-m8c-battle-field. Follows the diff rule for the GPU timing check.</title>
+    <rect x="1142" y="264" width="90" height="76" rx="6" fill="#ffcc3d" stroke="#ffcc3d" stroke-width="2"/>
+    <text x="1150" y="283" fill="#1a1500" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">M8c</text>
+    <text x="1150" y="301" fill="#1a1500" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">Battle and</text>
+    <text x="1150" y="315" fill="#1a1500" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">field</text>
+    <text x="1150" y="333" fill="#1a1500" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">ACTIVE</text>
   </g>
   <g id="item-M8d">
     <title>M8d Delete old engine: later. Delete the old engine, LegacyScene and the exemptions. Move the kept src/engine files into src/sje. Docs and the PR #86 follow-ups. Follows the diff rule for the GPU timing check.</title>

@@ -165,22 +165,22 @@
       "kind": "milestone",
       "label": "UI scenes",
       "lane": "engine",
-      "status": "active",
+      "status": "done",
       "after": [
         "M8a"
       ],
-      "notes": "Port the 13 UI scenes to native scenes, small to big. All 13 are native on branch engine-m8b-ui-scenes; the verifier gate and Mark's look at the pictures are next. Follows the diff rule for the GPU timing check."
+      "notes": "Port the 13 UI scenes to native scenes, small to big. All 13 are native. Merged in PR #95 (2026-10-15). Follows the diff rule for the GPU timing check."
     },
     {
       "id": "M8c",
       "kind": "milestone",
       "label": "Battle and field",
       "lane": "engine",
-      "status": "later",
+      "status": "active",
       "after": [
         "M8b"
       ],
-      "notes": "Port the battle and field scenes. Follows the diff rule for the GPU timing check."
+      "notes": "Port the battle and field scenes. Active on branch engine-m8c-battle-field. Follows the diff rule for the GPU timing check."
     },
     {
       "id": "M8d",
