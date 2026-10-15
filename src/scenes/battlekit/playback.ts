@@ -10,7 +10,7 @@ import { MEMBERS } from '../../data/party';
 import { learn, state, type MemberId } from '../../game/state';
 import { ENEMY_POSE_T } from './sprites';
 import { COMBO_STING, ELEMENT_TAG, STATUS_LABEL, STATUS_SFX, STATUS_WORD, actionPose, elementMark, enemyMotion, fxSound, statusName } from './tables';
-import type { Game } from '../../engine/game';
+import type { Game } from '../../sje';
 import type { Battle } from '../../battle/engine';
 import type { BattleEvent, Combatant, Element } from '../../battle/types';
 import type { FxLayer, Pt } from '../../battle/fx';
@@ -19,21 +19,9 @@ import type { Disp, Floater } from './types';
 import { WINDOWS } from './timing';
 import { PARTY_POSE_T } from './motion';
 import { direction } from '../../engine/shake';
-import { gpuCast, gpuDown, gpuHeal, gpuHit, gpuPhase, gpuSpell, type MomentFx } from './gpufx';
-import { playMoment } from '../../engine/moments';
-import { postfx } from '../../engine/postfx';
-import { FX } from '../../data/fx';
+import { gpuCast, gpuDown, gpuHeal, gpuHit, gpuPhase, gpuSpell } from './gpufx';
 
 import type { TimingProfile } from '../../battle/engine';
-
-/** The effects the battle plays on: the routed `postfx` singleton and the moments of fx.json (M8: `game.fx` takes this place). The FX lab passes `game.fx` to the same functions. */
-const battleFx: MomentFx = {
-  get active() {
-    return postfx.active;
-  },
-  later: (frames, fn) => postfx.later(frames, fn),
-  playMoment: (name, x, y, o) => playMoment(FX, name, x, y, o),
-};
 
 /** What playback may do to the scene. */
 /** A face sliding in over a big moment; `line` is what they say, `row` stacks a third above. */
@@ -98,7 +86,7 @@ export interface PlaybackView {
  */
 async function windupAndHit(v: PlaybackView, fx: string, from: Pt, to: Pt[], windup: number, color?: string): Promise<void> {
   // The power gathers at the caster through the windup (GPU effects; most moves have no cast).
-  gpuCast(battleFx, fx, from);
+  gpuCast(v.game.fx, fx, from);
   const profile = v.timingArmed();
   if (profile) {
     const impact = v.anim(v.fx.impactOf(fx, from, to, color));
@@ -106,14 +94,14 @@ async function windupAndHit(v: PlaybackView, fx: string, from: Pt, to: Pt[], win
     v.openTiming(lead);
     await v.game.wait(lead - impact);
     const t = v.fx.play(fx, from, to, color);
-    gpuSpell(battleFx, fx, to, t.impact);
+    gpuSpell(v.game.fx, fx, to, t.impact);
     sfx(fxSound(fx));
     await v.game.wait(impact);
     return;
   }
   await v.game.wait(v.anim(windup));
   const timing = v.fx.play(fx, from, to, color);
-  gpuSpell(battleFx, fx, to, timing.impact);
+  gpuSpell(v.game.fx, fx, to, timing.impact);
   sfx(fxSound(fx));
   await v.game.wait(v.anim(timing.impact));
 }
@@ -224,7 +212,7 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
       const from = v.lastActor && v.lastActor.uid !== e.target ? v.pos(v.lastActor.uid) : null;
       if (tier) v.game.shake(6 + tier * 3, tier + 1 + (e.crit ? 1 : 0), from ? direction(from, v.pos(e.target)) : undefined);
       // GPU effects (when on): the damage type's burst, and for the big ones a shockwave.
-      if (e.amount > 0) gpuHit(battleFx, v.pos(e.target), from, e.element, tier, { crit: !!e.crit, weak: !!e.weak, combo: comboAction && tier >= 2 && actionStops === 0 });
+      if (e.amount > 0) gpuHit(v.game.fx, v.pos(e.target), from, e.element, tier, { crit: !!e.crit, weak: !!e.weak, combo: comboAction && tier >= 2 && actionStops === 0 });
       if (tier >= 2 && actionStops === 0) {
         actionStops++;
         // A critical or a combo landing is a different kind of moment: push in, cut to the impact.
@@ -249,7 +237,7 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
       v.d(e.target).hp = e.hp;
       // A perfect press on a healing skill: a brighter number, and a chime on top of the heal.
       v.floatOn(e.target, `+${e.amount}`, e.crit ? '#d8ffc8' : '#86f08c', 'hit');
-      gpuHeal(battleFx, v.pos(e.target), !!e.crit);
+      gpuHeal(v.game.fx, v.pos(e.target), !!e.crit);
       sfx('heal');
       if (e.crit) {
         v.d(e.target).flash = 10;
@@ -281,7 +269,7 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
         dd.flash = 10;
         dd.dying = 1;
         sfx('enemy_die');
-        gpuDown(battleFx, v.pos(e.target), !!u.boss);
+        gpuDown(v.game.fx, v.pos(e.target), !!u.boss);
         v.markDead(u.uid);
         state.bestiary[u.key] = (state.bestiary[u.key] ?? 0) + 1;
       } else {
@@ -350,7 +338,7 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
       v.relayout();
       const dd = v.d(e.target);
       sfx('phase');
-      gpuPhase(battleFx, v.pos(e.target));
+      gpuPhase(v.game.fx, v.pos(e.target));
       v.game.flash('#ffffff', 20);
       v.game.shake(30, 4);
       v.showBanner(`${e.name}!`, '#b89aff', true);

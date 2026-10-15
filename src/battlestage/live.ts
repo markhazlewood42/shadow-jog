@@ -12,7 +12,7 @@
  *   `scene.banner` (the small one), the party, the foes, the order   ->  the `Hud` (a view from `liveview.ts`)
  *   `scene.push`, `game.shakeX/Y`, `scene.defeatT`                  ->  the push camera, the camera's shake, the wash over the stage
  *
- * The battle scene sits above this one and draws only the old UI (menus, panels, cut-ins, the intro) on a clear canvas, and passes updates down (`passUpdate`), so this scene's
+ * The battle scene sits above this one and shows its windows as kit parts (menus, panels, cut-ins: battlekit/hud.ts), draws the impact frame and the intro on a clear canvas, and passes updates down (`passUpdate`), so this scene's
  * `fixedUpdate` runs after the battle's own. Positions the battle needs (`pos`, `headPos`, `footX`) are answered here, converted to WORLD pixels (the numbers the battle and `FxLayer` use);
  * the stage works in its own screen pixels, `k` of them per world pixel, and that division is the only conversion.
  *

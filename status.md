@@ -3,8 +3,8 @@ type: status
 title: Shadow Jog — Project Status
 project: shadow-jog
 created: 2026-09-27
-updated: 2026-10-13
-milestone: M8b
+updated: 2026-10-15
+milestone: M8c
 tags: [status]
 ---
 
@@ -17,6 +17,10 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 **GitHub:** [markhazlewood42/shadow-jog](https://github.com/markhazlewood42/shadow-jog) (public).
 - **CI:** GitHub Actions, on pushes to `main` and on pull requests: three jobs at the same time (`check`, `e2e`, `e2e-engines`), all three required on `main` by the ruleset "Main branch protection" (2026-10-06). A docs-only change skips their steps. The real-speed playtest runs in `playtest.yml` after a merge and from the Actions button.
 - **Since 2026-10-01** work goes on a branch per major feature, with a PR for the Claude Code Review Action, and Mark merges.
+
+## M8c "Battle and field" started (2026-10-15)
+
+M8a ([PR #94](https://github.com/markhazlewood42/shadow-jog/pull/94)) and M8b ([PR #95](https://github.com/markhazlewood42/shadow-jog/pull/95), merge f78f307) are merged: all 13 UI scenes are native `sje` scenes. M8c ports the battle and field scenes on branch `engine-m8c-battle-field`. Plan and pass lines: `docs/engine/m8-brief.md` tasks 8 and 9. Bundle caps until M8d: first play 412 kB, total 475.5 kB (Mark yes, 2026-10-15, after the battle and field kit port). Built and verified at the 8.5/10 gate (record in the brief); [PR #96](https://github.com/markhazlewood42/shadow-jog/pull/96) is open. Next: triage the review findings, CI green, then Mark merges.
 
 ## ET "Editor port" built (2026-10-13)
 

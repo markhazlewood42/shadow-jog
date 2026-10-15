@@ -1,44 +1,25 @@
 /**
- * Battle rendering: the backdrop, fighters, effects, floaters and every panel and menu, drawn
- * from the scene's state. The scene (scenes/battle.ts) owns state and flow (command entry, the
- * round, playback); this owns pixels. It reads the scene, and never changes game state.
+ * Battle rendering: the backdrop, fighters, effects and floaters, drawn from the scene's state into the scene's canvas. The scene (scenes/battle.ts) owns state and
+ * flow (command entry, the round, playback); this owns the ART pixels. It reads the scene, and never changes game state. Every window, text, bar and menu of the
+ * battle is a kit part in the scene's ui layer (battlekit/hud.ts and panels.ts, M8c group G), so none is painted here.
  */
 import type { Pose } from '../../art/battlers';
 import { enemyArt } from '../../art/enemies';
-import { getPortrait } from '../../art/portraits';
-import type { Combatant, Command, Element } from '../../battle/types';
-import { ABILITIES } from '../../data/abilities';
-import { PARTY_POSE_T, swingBeat } from './motion';
-import { ENEMIES, FAMILY_WEAK } from '../../data/enemies';
-import { ITEMS } from '../../data/items';
+import type { Combatant } from '../../battle/types';
+import { ENEMIES } from '../../data/enemies';
 import { MEMBERS } from '../../data/party';
 import { surface, type Ctx, type Surface } from '../../engine/canvas';
-import { postfx } from '../../engine/postfx';
-import { drawParagraph, drawText, fitText, measure, wrap } from '../../engine/font';
+import { drawText } from '../../engine/font';
 import { H, W } from '../../sje/core/size';
-import { state, type MemberId } from '../../game/state';
-import { bandGradient, drawBar, drawWindow, hpColor, UI } from '../../ui/draw';
-import { TARGET_INFO_W } from '../../ui/layout';
+import type { MemberId } from '../../game/state';
 import type { BattleScene } from '../battle';
-import { drawVictoryBanner } from './banner';
-import { BANNER_H, BHT, BW, CARD_H, CARD_RAISE, CARD_W, CMD_W, DECK_CUT_LIFE, floaterMotion, HUD, IMPACT_LINE_REACH, listWindowW, MENU_ABOVE_PANEL, MENU_X, ORDER_BOTTOM, ORDER_FACE, ORDER_LABEL_ABOVE, ORDER_LEFT, ORDER_RIGHT, ORDER_STEP_OUT, ORDER_THUMB, ORDER_TOP, PANEL_Y, PARTY_BOTTOM, ROUND_MENU_H, WORLD_SCALE, orderStripLayout } from './geom';
+import { BHT, BW, floaterMotion, IMPACT_LINE_REACH, PARTY_BOTTOM, WORLD_SCALE } from './geom';
+import { ACTIVE, AIMING } from './hud';
 import { INTRO_T, ShatterIntro } from './intro';
-import { drawMiniDeck } from '../../art/deck';
-import { DISSOLVE_STEPS, ENEMY_POSE_T, artTop, dissolved, drawBig, drawLag, enemyThumb, marked, mirrored, rimOf, silhouetteCache, variant } from './sprites';
-import { AFTERIMAGES, ELEMENTS, ELEMENT_COLOR, ELEMENT_ICON, ELEMENT_TAG, STATUS_LABEL, elementMark, markElements, statusName } from './tables';
-
-/**
- * Who is acting: one bright colour for the bouncing arrow, their status card and their turn-order
- * entry, so the three read as one signal (made louder after Mark's first playthrough, 2026-09-29).
- * Picking a target uses the menu cursor's cyan instead: acting and aiming never look alike.
- */
-const ACTIVE = '#fff04a';
-/** An enemy's tell: amber, the colour of a warning. */
-const TELL_COLOR = '#ffb23a';
-const AIMING = '#6ff3ff';
+import { PARTY_POSE_T, swingBeat } from './motion';
+import { DISSOLVE_STEPS, ENEMY_POSE_T, dissolved, marked, mirrored, rimOf, silhouetteCache, variant } from './sprites';
+import { AFTERIMAGES } from './tables';
 import { drawRing } from './timing';
-
-let bigBandGrad: CanvasGradient | null = null;
 
 /** Glyph effects (spell runes, numbers) don't glow: the glow pass skips them. */
 const NO_GLYPH = (): void => undefined;
@@ -58,9 +39,6 @@ const CONDUITS: readonly (readonly [number, number, number, number, number])[] =
   [-14, 44, BW + 6, 62, 6],
 ];
 
-/** How the street names each kind of enemy (the target box's hint line). */
-const FAMILY_NAME: Record<string, string> = { human: 'Chromed', machine: 'Machine', beast: 'Beast', spirit: 'Spirit', ghoul: 'Ghoul' };
-
 /** Draw an enemy-art canvas at its battle-world size (its art may be finer than the world). */
 function putArt(g: Ctx, c: HTMLCanvasElement, x: number, y: number, res: number): void {
   g.drawImage(c, x, y, c.width / res, c.height / res);
@@ -69,17 +47,9 @@ function putArt(g: Ctx, c: HTMLCanvasElement, x: number, y: number, res: number)
 export class BattleRenderer {
   constructor(private readonly s: BattleScene) {}
 
-  /** Wrapped top-line text, rebuilt only when the text changes. */
-  private topKey = '';
-
-  private topLines: { l: string; c: string }[] = [];
-
-  private topW = 0;
-
-  render(ctx: Ctx): void {
+  render(ctx: Ctx): boolean {
     if (this.s.stage) {
-      this.renderOverStage(ctx);
-      return;
+      return this.renderOverStage(ctx);
     }
     // Three layers: the backdrop (world scale), the enemies (screen resolution, drawn through a
     // 2x transform so world coordinates still place them), then the party, effects and numbers
@@ -176,35 +146,42 @@ export class BattleRenderer {
     // its own layer, laid over after bloom and shockwaves so it never smears.
     // No light through the impact frame's blackout; the defeat drain dims it with the rest.
     const dark = (this.s.setup.intro && this.s.introT < INTRO_T) || (this.s.impactT > 0 && !!this.s.impactOn);
-    const glow = dark ? null : postfx.glowLayer();
+    const fx = this.s.game.fx;
+    const glow = dark ? null : fx.glowLayer();
     if (glow) {
-      postfx.bloom = 0.7 * (1 - Math.min(0.62, this.s.defeatT / 70));
+      fx.bloom = 0.7 * (1 - Math.min(0.62, this.s.defeatT / 70));
       this.renderGlow(glow, shx, shy);
     }
-    this.renderUi(postfx.active && postfx.ui ? postfx.ui : ctx);
+    return true;
   }
 
   /**
    * The battle under a stage (battlekit/stageseam.ts): the stage scene below draws the backdrop, the figures, the effects, the HUD and the numbers, so this draws only what is
-   * still the old UI, on a canvas that starts clear every frame: the impact frame, the intro's shattering glass, the bloom's light, then the menus, panels and cut-ins (`renderUi`).
+   * still the old UI, on a canvas that starts clear every frame: the impact frame, the intro's shattering glass, the bloom's light (the menus, panels and cut-ins are kit parts: battlekit/hud.ts).
    */
-  private renderOverStage(ctx: Ctx): void {
+  private renderOverStage(ctx: Ctx): boolean {
     ctx.imageSmoothingEnabled = false;
     const shx = this.s.game.shakeX, shy = this.s.game.shakeY;
-    if (this.s.impactT > 0 && this.s.impactOn) this.renderImpact(ctx, shx, shy);
+    let drew = false;
+    if (this.s.impactT > 0 && this.s.impactOn) {
+      this.renderImpact(ctx, shx, shy);
+      drew = true;
+    }
     // The killing blow drains the frame toward red-black: the stage draws the wash from this count, which only this draw advances (as in the old picture).
     if (this.s.defeatT > 0) this.s.defeatT++;
     if (this.s.setup.intro && this.s.introT < INTRO_T) {
       if (!this.shatter) this.shatter = new ShatterIntro(this.s.setup.intro);
       this.shatter.draw(ctx, this.s.introT);
+      drew = true;
     }
     const dark = (this.s.setup.intro && this.s.introT < INTRO_T) || (this.s.impactT > 0 && !!this.s.impactOn);
-    const glow = dark ? null : postfx.glowLayer();
+    const fx = this.s.game.fx;
+    const glow = dark ? null : fx.glowLayer();
     if (glow) {
-      postfx.bloom = 0.7 * (1 - Math.min(0.62, this.s.defeatT / 70));
+      fx.bloom = 0.7 * (1 - Math.min(0.62, this.s.defeatT / 70));
       this.renderGlow(glow, shx, shy);
     }
-    this.renderUi(postfx.active && postfx.ui ? postfx.ui : ctx);
+    return drew;
   }
 
   /**
@@ -505,531 +482,4 @@ export class BattleRenderer {
       g.fillRect(x - 3, top, 7, 1);
     }
   }
-
-  /**
-   * Over each enemy, stacked upward from the head: an HP bar (always shown), active status
-   * chips, and any weaknesses the crew has found (by Analyze or by landing a weak hit).
-   */
-  private renderEnemyStatus(ctx: Ctx): void {
-    for (const e of this.s.battle.enemies) {
-      if (e.hp <= 0) continue;
-      const dd = this.s.d(e.uid);
-      if (dd.dying > 0 || dd.alpha < 0.5) continue;
-      const { x, y, art } = this.s.enemyPos(e);
-      const cx0 = Math.round((x + art.w / 2) * WORLD_SCALE);
-      let row = Math.max(HUD.statusTop, (y + artTop(art)) * WORLD_SCALE - 6);
-      // HP bar (bosses get a wider one).
-      const bw = e.boss ? 72 : 30;
-      const ratio = Math.max(0, dd.shownHp / e.base.maxHp);
-      // A solid dark plate and a 3px bar, so it holds up over bright signage.
-      ctx.fillStyle = '#0a0913';
-      ctx.fillRect(cx0 - bw / 2 - 2, row - 2, bw + 4, 7);
-      ctx.fillStyle = '#2a2838';
-      ctx.fillRect(cx0 - bw / 2, row, bw, 3);
-      ctx.fillStyle = hpColor(ratio);
-      ctx.fillRect(cx0 - bw / 2, row, Math.round(bw * ratio), 3);
-      ctx.fillStyle = 'rgba(255,255,255,0.35)';
-      ctx.fillRect(cx0 - bw / 2, row, Math.round(bw * ratio), 1);
-      drawLag(ctx, cx0 - bw / 2, row, bw, 3, ratio, dd.lagHp / e.base.maxHp);
-      row -= 11;
-      // While numbers are rising off this enemy, its chips and WEAK tag step aside (the HP bar
-      // stays): the two text systems share the rows above its head.
-      let floating = false;
-      for (const f of this.s.floaters) if (f.uid === e.uid && f.t < 50) floating = true;
-      if (floating) continue;
-      // Status chips: measure, then draw (two passes, nothing allocated per frame).
-      let count = 0, total = 0;
-      for (const s of e.status) {
-        const l = STATUS_LABEL[s.id];
-        if (!l || s.id === 'guard') continue;
-        if (count < 3) total += measure(l[0]) + 5;
-        count++;
-      }
-      if (count) {
-        const more = count - Math.min(count, 3);
-        if (more) total += measure(`+${more}`) + 3;
-        let cx = Math.round(cx0 - total / 2);
-        let drawn = 0;
-        for (const s of e.status) {
-          const l = STATUS_LABEL[s.id];
-          if (!l || s.id === 'guard' || drawn === 3) continue;
-          const w = measure(l[0]) + 4;
-          ctx.fillStyle = '#0a0913';
-          ctx.fillRect(cx, row, w, 9);
-          ctx.fillStyle = l[1];
-          ctx.fillRect(cx, row + 8, w, 1);
-          drawText(ctx, l[0], cx + 2, row + 1, { color: l[1], shadow: false });
-          cx += w + 1;
-          drawn++;
-        }
-        if (more) drawText(ctx, `+${more}`, cx + 1, row + 1, { color: UI.dim });
-        row -= 11;
-      }
-      // Known weaknesses.
-      const seen = state.weakSeen[e.key];
-      let n = 0, width = measure('WEAK') + 2;
-      for (const el of ELEMENTS) {
-        if (e.analyzed ? (e.weak?.[el] ?? 1) > 1 : seen?.includes(el)) {
-          width += measure(ELEMENT_ICON[el]) + 3;
-          n++;
-        }
-      }
-      if (!n) continue;
-      let wx = Math.round(cx0 - width / 2);
-      ctx.fillStyle = '#0a0913';
-      ctx.fillRect(wx - 2, row, width + 4, 9);
-      drawText(ctx, 'WEAK', wx, row + 1, { color: UI.amber, shadow: false });
-      wx += measure('WEAK') + 4;
-      for (const el of ELEMENTS) {
-        if (!(e.analyzed ? (e.weak?.[el] ?? 1) > 1 : seen?.includes(el))) continue;
-        // The same symbols as the battle menus, so "weak to this" matches "this move is".
-        drawText(ctx, ELEMENT_ICON[el], wx, row + 1, { color: ELEMENT_COLOR[el], shadow: false });
-        wx += measure(ELEMENT_ICON[el]) + 3;
-      }
-    }
-  }
-
-  /** Top of the top-line strip: under a pinned tell when there is one. */
-  private topY(): number {
-    // Under a stage the top lines start below the stage HUD's top boxes (`topClear`); without one, at the frame's top as ever.
-    const base = this.s.stage ? this.s.stage.topClear : HUD.topY;
-    return this.s.tell ? base + (HUD.topYUnderTell - HUD.topY) : base;
-  }
-
-  /** A pinned enemy tell: an amber box across the top, with a warning mark, flashing as it arrives. */
-  private renderTell(ctx: Ctx): void {
-    const t = this.s.tell;
-    if (!t) return;
-    const fr = HUD.frame, y = this.s.stage ? this.s.stage.topClear : HUD.topY;
-    const text = fitText(t.text, fr.w - 56);
-    const tw = measure(text) + 34;
-    const x = Math.round(fr.x + (fr.w - tw) / 2);
-    const flash = t.t < 24 && (t.t >> 2) % 2 === 0;
-    drawWindow(ctx, x, y, tw, 17, { plain: true, accent: flash ? '#ffffff' : TELL_COLOR });
-    ctx.fillStyle = TELL_COLOR;
-    ctx.fillRect(x + 8, y + 3, 9, 11);
-    drawText(ctx, '!', x + 11, y + 4, { color: '#1a1020', shadow: false });
-    drawText(ctx, text, x + 22, y + 4, { color: '#ffe2a8' });
-  }
-
-  private renderUi(ctx: Ctx): void {
-    // Under a stage the HUD (the party table, the foe box and bars, the turn timeline, the small banner) is the stage's own: the old cards and strips are not drawn.
-    const staged = !!this.s.stage;
-    if (!staged) {
-      if (this.s.mode !== 'intro') this.renderEnemyStatus(ctx);
-      this.renderPanel(ctx);
-    }
-    this.renderTell(ctx);
-    const top = this.topY();
-    const fr = HUD.frame, cx = fr.x + fr.w / 2;
-    // Top line: action banner or message
-    // A small banner is the stage HUD's too; the big one (a band across the frame) is still drawn here.
-    const banner = staged && this.s.banner && !this.s.banner.big ? null : this.s.banner;
-    if (banner) {
-      const b = banner;
-      const a = b.t < 6 ? b.t / 6 : b.t > (b.big ? 60 : 50) ? Math.max(0, 1 - (b.t - (b.big ? 60 : 50)) / 10) : 1;
-      ctx.globalAlpha = a;
-      if (b.big) {
-        // The big banner: a band across the HUD frame, with a rule 40 px in from each side.
-        const y = HUD.actionBannerY;
-        bigBandGrad ??= bandGradient(ctx, fr.x, fr.w, 0.15, 0.9);
-        ctx.fillStyle = bigBandGrad;
-        ctx.fillRect(fr.x, y, fr.w, BANNER_H);
-        ctx.fillStyle = b.color;
-        ctx.fillRect(fr.x + 40, y, fr.w - 80, 1);
-        ctx.fillRect(fr.x + 40, y + BANNER_H - 1, fr.w - 80, 1);
-        drawBig(ctx, b.text, cx, y + 4, b.color);
-        if (b.sub) drawText(ctx, b.sub, cx, y + 22, { align: 'center', color: '#ffffff' });
-      } else {
-        const tw = measure(b.text) + 24;
-        drawWindow(ctx, cx - tw / 2, top, tw, 17, { plain: true, accent: b.color });
-        drawText(ctx, b.text, cx, top + 4, { align: 'center', color: b.color });
-      }
-      ctx.globalAlpha = 1;
-    } else if (this.s.message) {
-      const tw = Math.min(fr.w - 20, measure(this.s.message.text) + 24);
-      drawWindow(ctx, cx - tw / 2, top, tw, 17, { plain: true });
-      drawText(ctx, this.s.message.text, cx, top + 4, { align: 'center' });
-    }
-    if (this.s.message && banner && !banner.big) {
-      const tw = Math.min(fr.w - 20, measure(this.s.message.text) + 24);
-      drawWindow(ctx, cx - tw / 2, top + 20, tw, 17, { plain: true });
-      drawText(ctx, this.s.message.text, cx, top + 24, { align: 'center' });
-    }
-    switch (this.s.mode) {
-      case 'round':
-        this.renderRoundMenu(ctx);
-        break;
-      case 'command':
-        this.renderCmdMenu(ctx);
-        break;
-      case 'list':
-        this.renderCmdMenu(ctx, false);
-        this.renderList(ctx);
-        break;
-      case 'target':
-        this.renderTargetInfo(ctx);
-        break;
-    }
-    if (!staged && (this.s.mode === 'round' || this.s.mode === 'command' || this.s.mode === 'list' || this.s.mode === 'target' || this.s.mode === 'play')) this.renderOrder(ctx);
-    this.renderCutins(ctx);
-    if (this.s.bannerStart >= 0) drawVictoryBanner(ctx, this.s.frame - this.s.bannerStart);
-    if (this.s.endPanel) this.s.endPanel(ctx);
-  }
-
-  /** The coming round's turn order, cached against the orders given so far. */
-  private order: { key: number; list: number[][] } | null = null;
-
-  /** Turn order as it stands: orders given so far, everyone else assumed to attack. */
-  private turnOrder(): readonly number[][] {
-    const key = this.s.battle.round * 100 + this.s.cmds.length;
-    if (this.order?.key === key) return this.order.list;
-    const given = new Set(this.s.cmds.map((c) => c.actor));
-    const rest: Command[] = this.s.actors().filter((p) => !given.has(p.uid)).map((p) => ({ actor: p.uid, type: 'attack', target: -1 }));
-    const list = this.s.battle.previewOrder([...this.s.cmds, ...rest]);
-    this.order = { key, list };
-    return list;
-  }
-
-  /**
-   * The turn-order strip, down the right edge (the menus keep the left): who acts when this
-   * round, as faces. While orders are given it updates as they go in (Guard goes first, items
-   * early, a combo as one) and outlines the member giving orders and the enemy being aimed at.
-   * While the round plays it is the real queue: the entry acting now stands out, the ones done
-   * fade back.
-   */
-  private renderOrder(ctx: Ctx): void {
-    const playing = this.s.mode === 'play';
-    const list = playing ? this.s.battle.roundOrder : this.turnOrder();
-    if (!list.length) return;
-    const at = playing ? this.s.battle.roundAt : -1;
-    const side = 'right';
-    // Laid out once per change of order or side (orderStripLayout), like the list itself.
-    if (this.orderRects.source !== list || this.orderRects.side !== side) {
-      const faces: number[] = [];
-      for (const acts of list) faces.push(acts.length);
-      this.orderRects = { source: list, side, rects: orderStripLayout(faces, side) };
-    }
-    const rects = this.orderRects.rects;
-    const edgeX = side === 'right' ? ORDER_RIGHT : ORDER_LEFT;
-    drawText(ctx, 'TURN', edgeX, ORDER_TOP - ORDER_LABEL_ABOVE, { color: UI.dim, align: side });
-    const acting = this.s.mode === 'round' || playing ? undefined : this.s.actor?.uid;
-    const aimed = this.s.mode === 'target' ? this.s.targetList[this.s.targetIdx] : undefined;
-    const pulse = 0.6 + 0.4 * Math.sin(this.s.frame * 0.18);
-    for (let k = 0; k < rects.length; k++) {
-      const actors = list[k]!, rr = rects[k]!;
-      const lead = this.s.battle.unit(actors[0]!);
-      if (!lead) continue;
-      const now = playing ? k === at : actors.includes(acting ?? -1);
-      const hot = now || actors.includes(aimed ?? -1);
-      const done = playing && k < at;
-      // The entry acting now steps out toward the field, so the eye finds it without reading faces.
-      const r = now ? { x: rr.x - ORDER_STEP_OUT, y: rr.y, w: rr.w, h: rr.h } : rr;
-      if (done) ctx.globalAlpha = 0.35;
-      const edge = actors.length > 1 ? '#ffe07a' : lead.side === 'party' ? MEMBERS[lead.key as MemberId].color : '#ff6a6a';
-      if (now) {
-        // A two-pixel frame in the acting colour, breathing.
-        ctx.fillStyle = '#0a0913';
-        ctx.fillRect(r.x - 3, r.y - 3, r.w + 6, r.h + 6);
-        ctx.globalAlpha = pulse;
-        ctx.fillStyle = ACTIVE;
-        ctx.fillRect(r.x - 2, r.y - 2, r.w + 4, r.h + 4);
-        ctx.globalAlpha = 1;
-      } else {
-        ctx.fillStyle = hot ? AIMING : edge;
-        ctx.fillRect(r.x - 1, r.y - 1, r.w + 2, r.h + 2);
-      }
-      ctx.fillStyle = '#0a0913';
-      ctx.fillRect(r.x, r.y, r.w, r.h);
-      for (let i = 0; i < actors.length; i++) {
-        const u = this.s.battle.unit(actors[i]!);
-        if (!u) continue;
-        const eart = u.side === 'party' ? null : enemyArt(ENEMIES[u.key]!.sprite);
-        const img = eart ? enemyThumb(eart.canvas, eart.res) : getPortrait(u.key, 'neutral');
-        if (img) ctx.drawImage(img, r.x + 1 + i * ORDER_FACE, r.y + 1, ORDER_THUMB, ORDER_THUMB);
-        // Two of a kind: which one, by the letter in its name (Glowrat A, Glowrat B).
-        if (u.side === 'enemy' && this.s.twins(u)) {
-          const lx = r.x + i * ORDER_FACE + 8, ly = r.y + 6;
-          ctx.fillStyle = '#0a0913';
-          ctx.fillRect(lx - 1, ly - 1, 7, 9);
-          drawText(ctx, String.fromCharCode(65 + this.s.dupIndex(u)), lx, ly, { color: '#ffffff', shadow: false });
-        }
-      }
-      if (hot) {
-        // A pointer on the inside edge, toward the field.
-        ctx.fillStyle = now ? ACTIVE : AIMING;
-        const px = r.x - 6;
-        ctx.fillRect(px, r.y + 4, 3, 7);
-        ctx.fillRect(px - 1, r.y + 5, 1, 5);
-        ctx.fillRect(px - 2, r.y + 6, 1, 3);
-      }
-      ctx.globalAlpha = 1;
-    }
-    if (rects.length < list.length) drawText(ctx, `+${list.length - rects.length}`, edgeX, ORDER_BOTTOM - 2, { color: UI.dim, align: side });
-  }
-  /** The strip's rects for the current order (recomputed only when the order changes). */
-  private orderRects: { source: readonly number[][] | null; side: 'left' | 'right'; rects: { x: number; y: number; w: number; h: number }[] } = { source: null, side: 'right', rects: [] };
-
-
-  /** Hex's deck, up over their card while a program runs: slides up, scrolls code, slides away. */
-  private renderDeckCutin(ctx: Ctx): void {
-    const t = this.s.deckT;
-    const i = this.s.battle.party.findIndex((p) => p.key === 'hex');
-    if (t < 0 || i < 0) return;
-    const inK = Math.min(1, t / 8), outK = Math.max(0, (t - (DECK_CUT_LIFE - 8)) / 8);
-    const k = (1 - (1 - inK) ** 3) * (1 - outK);
-    const x = this.s.boxX(i) + CARD_W - 80, y = Math.round(PANEL_Y - 4 - k * 44);
-    ctx.fillStyle = 'rgba(10,9,19,0.9)';
-    ctx.fillRect(x - 4, y - 4, 80, 48);
-    ctx.fillStyle = '#c3a0ff';
-    ctx.fillRect(x - 4, y - 4, 80, 1);
-    drawMiniDeck(ctx, x, y, t);
-  }
-
-  private renderCutins(ctx: Ctx): void {
-    this.renderDeckCutin(ctx);
-    for (const c of this.s.cutins) {
-      if (c.t > c.life) continue;
-      const m = MEMBERS[c.key as MemberId];
-      const port = getPortrait(c.key, c.face);
-      if (!m || !port) continue;
-      // Slide in fast, hold, slide back out.
-      const inK = Math.min(1, c.t / 8), outK = Math.max(0, (c.t - (c.life - 10)) / 10);
-      const k = (1 - (1 - inK) ** 3) * (1 - outK);
-      // It rests where the HUD layout says (above the cards, clear of the turn strip) and slides in from the screen's edge.
-      const rest = HUD.cutinRect(c.fromLeft, c.row ?? 0, !!c.line);
-      const { w, h, y } = rest;
-      const x = c.fromLeft ? Math.round(-w + k * (rest.x + w)) : Math.round(W - k * (W - rest.x));
-      ctx.fillStyle = 'rgba(10,9,19,0.92)';
-      ctx.fillRect(x, y, w, h);
-      ctx.fillStyle = m.color;
-      ctx.fillRect(x, y, w, 2);
-      ctx.fillRect(x, y + h - 2, w, 2);
-      ctx.fillRect(c.fromLeft ? x + w - 3 : x, y, 3, h);
-      const px = c.fromLeft ? x + w - 58 : x + 8;
-      ctx.fillStyle = UI.outline;
-      ctx.fillRect(px - 1, y + 4, 50, 50);
-      ctx.drawImage(port, px, y + 5, 48, 48);
-      const tx = c.fromLeft ? x + 10 : x + 62;
-      if (c.line) {
-        drawText(ctx, m.name.toUpperCase(), tx, y + 10, { color: m.color });
-        drawParagraph(ctx, `“${c.line}”`, tx, y + 23, w - 72, { color: UI.text, lineH: 11 });
-      } else drawText(ctx, m.name.toUpperCase(), tx, y + 22, { color: m.color });
-    }
-  }
-
-  private renderPanel(ctx: Ctx): void {
-    const party = this.s.battle.party;
-    party.forEach((p, i) => {
-      const dd = this.s.d(p.uid);
-      const m = MEMBERS[p.key as MemberId];
-      const active = (this.s.mode === 'command' || this.s.mode === 'list' || this.s.mode === 'target') && this.s.actor?.uid === p.uid;
-      const targeted = this.s.mode === 'target' && this.s.targetList[this.s.targetIdx] === p.uid;
-      const x = this.s.boxX(i) + (dd.shake > 0 ? (dd.shake % 4 < 2 ? 1 : -1) : 0);
-      const y = PANEL_Y - (active ? CARD_RAISE : 0);
-      drawWindow(ctx, x, y, CARD_W, CARD_H, { accent: active || targeted ? m.color : '#3a3f6e', plain: !(active || targeted), alpha: 0.94 });
-      if (active || targeted) {
-        // The card of whoever is giving orders (or being aimed at): a two-pixel frame outside the
-        // window in the acting colour, breathing, so it reads from across the room.
-        ctx.globalAlpha = 0.6 + 0.4 * Math.sin(this.s.frame * 0.18);
-        ctx.fillStyle = targeted ? AIMING : ACTIVE;
-        ctx.fillRect(x - 2, y - 2, CARD_W + 4, 2);
-        ctx.fillRect(x - 2, y + CARD_H, CARD_W + 4, 2);
-        ctx.fillRect(x - 2, y, 2, CARD_H);
-        ctx.fillRect(x + CARD_W, y, 2, CARD_H);
-        ctx.globalAlpha = 1;
-      }
-      const down = dd.hp <= 0;
-      const ratio = dd.hp / p.base.maxHp;
-      // Portrait: the member's face reacts to the fight.
-      const face = down || (dd.poseT > 0 && dd.pose === 'hurt') || ratio < 0.3 ? 'hurt' : dd.poseT > 0 && dd.pose === 'victory' ? 'happy' : 'neutral';
-      const port = getPortrait(p.key, face);
-      ctx.fillStyle = UI.outline;
-      ctx.fillRect(x + 4, y + 4, 26, 26);
-      if (port) {
-        if (down) ctx.globalAlpha = 0.35;
-        ctx.drawImage(port, x + 5, y + 5, 24, 24);
-        ctx.globalAlpha = 1;
-      }
-      drawText(ctx, m.name, x + 34, y + 5, { color: down ? UI.disabled : m.color });
-      drawText(ctx, down ? 'DOWN' : `Lv${p.level}`, x + 110, y + 5, { color: down ? UI.red : UI.dim, align: 'right' });
-      // Queued command mark on the portrait's corner.
-      const queued = this.s.cmds.find((c) => c.actor === p.uid);
-      if (queued && (this.s.mode === 'command' || this.s.mode === 'list' || this.s.mode === 'target')) {
-        const inCombo = this.s.comboActors.has(p.uid);
-        drawText(ctx, inCombo ? '★' : '•', x + 24, y + 3, { color: inCombo ? UI.amber : UI.green });
-      }
-      drawText(ctx, 'HP', x + 34, y + 17, { color: UI.dim });
-      const shown = Math.max(0, dd.shownHp) / p.base.maxHp;
-      drawText(ctx, `${Math.max(0, Math.round(dd.shownHp))}/${p.base.maxHp}`, x + 110, y + 17, { align: 'right', color: ratio < 0.25 && !down ? UI.red : UI.text });
-      drawBar(ctx, x + 34, y + 28, 75, 2, shown, hpColor(shown));
-      drawLag(ctx, x + 34, y + 28, 75, 2, shown, dd.lagHp / p.base.maxHp);
-      if (p.base.maxTp > 0) {
-        drawText(ctx, m.tpLabel, x + 7, y + 33, { color: UI.dim });
-        drawText(ctx, `${Math.round(dd.shownTp)}/${p.base.maxTp}`, x + 110, y + 33, { align: 'right' });
-        drawBar(ctx, x + 7, y + 44, 102, 2, dd.shownTp / p.base.maxTp, UI.cyan);
-      } else {
-        // Rook: skill charges instead of TP, with the same bar (charges left of the full set).
-        let total = 0, full = 0;
-        for (const id in p.maxUses) {
-          total += p.uses[id] ?? 0;
-          full += p.maxUses[id] ?? 0;
-        }
-        drawText(ctx, 'SKILL', x + 7, y + 33, { color: UI.dim });
-        drawText(ctx, `${total}/${full} uses`, x + 110, y + 33, { align: 'right' });
-        drawBar(ctx, x + 7, y + 44, 102, 2, full ? total / full : 0, UI.amber);
-      }
-      // Status: the first ailment tagged on the portrait's lower edge, plus a count.
-      let tags = 0;
-      for (const st of p.status) {
-        const lab = STATUS_LABEL[st.id];
-        if (!lab || st.id === 'guard' || st.id === 'cover') continue;
-        if (tags++ === 0) {
-          ctx.fillStyle = 'rgba(10,9,19,0.85)';
-          ctx.fillRect(x + 5, y + 21, measure(lab[0]) + 3, 8);
-          drawText(ctx, lab[0], x + 6, y + 21, { color: lab[1], shadow: false });
-        }
-      }
-      if (tags > 1) drawText(ctx, `+${tags - 1}`, x + 8 + measure('WWW'), y + 21, { color: UI.dim, shadow: false });
-    });
-  }
-
-  /** One or two centred lines in the top slot, where action banners play during a round. */
-  private topLine(ctx: Ctx, text: string, color: string = UI.dim, second?: { text: string; color: string }): void {
-    // Text wider than the screen wraps onto a second line instead of running off the window.
-    const key = `${text}|${second?.text ?? ''}|${color}`;
-    const fr = HUD.frame;
-    if (key !== this.topKey) {
-      const maxW = fr.w - 44;
-      const lines = wrap(text, maxW).map((l) => ({ l, c: color }));
-      const extra = second ? wrap(second.text, maxW).map((l) => ({ l, c: second.color })) : [];
-      this.topKey = key;
-      this.topLines = [...lines, ...extra];
-      this.topW = Math.min(fr.w - 20, Math.max(...this.topLines.map((a) => measure(a.l))) + 24);
-    }
-    const all = this.topLines, tw = this.topW, y = this.topY(), cx = fr.x + fr.w / 2;
-    drawWindow(ctx, cx - tw / 2, y, tw, 6 + all.length * 11, { plain: true, accent: second ? second.color : UI.cyan });
-    all.forEach((a, i) => {
-      drawText(ctx, a.l, cx, y + 4 + i * 11, { align: 'center', color: a.c });
-    });
-  }
-
-  private renderRoundMenu(ctx: Ctx): void {
-    const x = MENU_X, y = PANEL_Y - ROUND_MENU_H - MENU_ABOVE_PANEL;
-    drawWindow(ctx, x, y, CMD_W, ROUND_MENU_H, { title: `ROUND ${this.s.battle.round + 1}` });
-    this.s.roundMenu.render(ctx, x + 8, y + 8, CMD_W - 12);
-    const help: Record<string, string> = {
-      fight: 'Give each crew member orders.',
-      repeat: this.s.telegraphed()
-        ? 'Something big is coming. Give fresh orders.'
-        : this.s.roundMenu.items[1]?.enabled === false ? 'No orders to repeat yet.' : 'Repeat last round’s orders.',
-      auto: this.s.setup.boss ? 'Not against a boss. Give orders.' : 'Everyone attacks.',
-      run: this.s.battle.canRun && !this.s.setup.boss ? 'Try to escape.' : 'You can’t run from this fight.',
-    };
-    const h = help[this.s.roundMenu.current?.value ?? ''];
-    if (h && !this.s.banner && !this.s.message) this.topLine(ctx, h);
-  }
-
-  /** The command window's height: 11 px a row, and 12 for its border, title and padding. The list window stacks above it. */
-  private cmdMenuH(): number {
-    return this.s.cmdMenu.items.length * 11 + 12;
-  }
-
-  private renderCmdMenu(ctx: Ctx, active = true): void {
-    const a = this.s.actor;
-    if (!a) return;
-    const h = this.cmdMenuH();
-    const x = this.s.menuX(a, CMD_W), y = PANEL_Y - h - MENU_ABOVE_PANEL;
-    drawWindow(ctx, x, y, CMD_W, h, { accent: MEMBERS[a.key as MemberId].color, title: a.name.toUpperCase(), alpha: active ? 1 : 0.85 });
-    this.s.cmdMenu.render(ctx, x + 7, y + 7, CMD_W - 8, active);
-  }
-
-  private renderList(ctx: Ctx): void {
-    const a = this.s.actor;
-    if (!a) return;
-    // Stacked above the command window, and above the party's heads, so the field stays readable.
-    const items = this.s.listMenu.items;
-    let widest = measure('Nothing to use.');
-    for (const it of items) widest = Math.max(widest, measure(it.label) + (it.icon ? measure(it.icon) + 3 : 0) + (it.right ? measure(it.right) + 12 : 0));
-    // Cursor and margins (the list draws labels 9px in, and the window has 8px either side).
-    const w = listWindowW(widest);
-    const h = Math.min(this.s.listMenu.rows, Math.max(1, items.length)) * 11 + 14;
-    const cmdTop = PANEL_Y - this.cmdMenuH() - MENU_ABOVE_PANEL;
-    const x = this.s.menuX(a, w), y = cmdTop - h - 4;
-    const kind = this.s.listKind === 'item' ? 'Items' : this.s.listKind === 'skill' ? 'Skills' : this.s.cmdMenu.items.find((i) => i.value === 'tech')?.label ?? 'Techs';
-    drawWindow(ctx, x, y, w, h, { title: `${a.name} · ${kind}`.toUpperCase(), accent: MEMBERS[a.key as MemberId].color });
-    this.s.listMenu.render(ctx, x + 8, y + 8, w - 14, true, 'Nothing to use.');
-    const cur = this.s.listMenu.current;
-    if (!cur) return;
-    const desc = this.s.listKind === 'item' ? ITEMS[cur.value]!.desc : ABILITIES[cur.value]!.desc;
-    // Combo hint: would this choice pair with an order already given?
-    const hint = this.s.listKind === 'item' ? '' : this.s.comboHint(cur.value);
-    this.topLine(ctx, markElements(desc), '#d8d6ec', hint ? { text: hint, color: UI.amber } : undefined);
-  }
-
-  /**
-   * What the target box says about an enemy, worked out when the target or the crew's notes change
-   * (not every frame): its weaknesses as far as they're known, its resistances and immunities, and
-   * before anything is known, the street wisdom about its kind ("likely weak", with a question mark).
-   */
-  private targetNotes(u: Combatant): { weak: string; guess: string; notes: [string, string][] } {
-    const seenW = state.weakSeen[u.key]?.length ?? 0, seenR = state.resistSeen[u.key]?.length ?? 0, seenI = state.immuneSeen[u.key]?.length ?? 0;
-    const key = u.uid * 10000 + (u.analyzed ? 5000 : 0) + seenW * 100 + seenR * 10 + seenI;
-    if (this.targetCache?.key === key) return this.targetCache.value;
-    // Analyzed: the whole chart. Otherwise what the crew has learned the hard way.
-    const weak = u.analyzed ? Object.entries(u.weak ?? {}).filter(([, v]) => (v ?? 1) > 1).map(([k]) => k) : (state.weakSeen[u.key] ?? []);
-    const res = u.analyzed ? Object.entries(u.weak ?? {}).filter(([, v]) => (v ?? 1) < 1).map(([k]) => k) : (state.resistSeen[u.key] ?? []);
-    const imm = u.analyzed ? (u.immune ?? []) : (state.immuneSeen[u.key] ?? []);
-    const notes: [string, string][] = [];
-    // Element names as the chips over the enemies write them (ELEMENT_TAG), everywhere.
-    if (res.length) notes.push([`RESISTS ${res.map((el) => `${elementMark(el as Element)}${ELEMENT_TAG[el as Element]}`).join(' ')}`, '#b8bcd0']);
-    if (imm.length) notes.push([`IMMUNE ${imm.map(statusName).join(' ')}`, '#c9b8ff']);
-    // Nothing learned yet: what everyone on the street knows about its kind.
-    let guess = '';
-    if (!weak.length && u.family) {
-      const own = ENEMIES[u.key]?.weak;
-      const fam = Object.entries(FAMILY_WEAK[u.family] ?? {}).filter(([k, v]) => (v ?? 1) > 1 && (own?.[k as Element] ?? 2) > 1).map(([k]) => `${elementMark(k as Element)}${ELEMENT_TAG[k as Element]}`);
-      if (fam.length) guess = `${FAMILY_NAME[u.family]}: likely weak to ${fam.join(' ')}?`;
-    }
-    const value = { weak: weak.length ? `WEAK ${weak.map((el) => `${elementMark(el as Element)}${ELEMENT_TAG[el as Element]}`).join(' ')}` : '', guess, notes };
-    if (guess) value.notes.unshift([guess, '#b89a66']);
-    this.targetCache = { key, value };
-    return value;
-  }
-  private targetCache: { key: number; value: { weak: string; guess: string; notes: [string, string][] } } | null = null;
-
-  private renderTargetInfo(ctx: Ctx): void {
-    const uid = this.s.targetList[this.s.targetIdx];
-    const u = uid !== undefined ? this.s.battle.unit(uid) : undefined;
-    if (!u) return;
-    // The box sits on the far side of the screen from its target (clear of the turn-order strip
-    // on the right), so it never covers the target or the arrow over it.
-    const w = TARGET_INFO_W, y = HUD.targetY, fr = HUD.frame;
-    const tx = this.s.pos(u.uid).x * WORLD_SCALE;
-    const x = HUD.targetBoxX(tx < fr.x + fr.w / 2, w);
-    const name = this.s.label(u);
-    if (u.side === 'enemy') {
-      const { weak, notes } = this.targetNotes(u);
-      drawWindow(ctx, x, y, w, 19 + (u.analyzed ? 11 : 0) + notes.length * 10, { plain: true, accent: UI.amber });
-      drawText(ctx, name, x + 8, y + 5, { color: '#ffd0d0' });
-      const bestiary = state.bestiary[u.key] ?? 0;
-      if (weak) drawText(ctx, fitText(weak, w - 24 - measure(name)), x + w - 8, y + 5, { align: 'right', color: UI.amber });
-      else if (!u.analyzed) drawText(ctx, bestiary ? `Defeated ×${bestiary}` : 'Unknown', x + w - 8, y + 5, { align: 'right', color: UI.dim });
-      let ny = y + 15;
-      if (u.analyzed) {
-        drawBar(ctx, x + 8, y + 19, w - 70, 3, u.hp / u.base.maxHp, hpColor(u.hp / u.base.maxHp));
-        drawText(ctx, `${u.hp}/${u.base.maxHp}`, x + w - 8, y + 15, { align: 'right', color: UI.dim });
-        ny += 11;
-      }
-      for (const [text, color] of notes) {
-        drawText(ctx, fitText(text, w - 16), x + 8, ny, { color });
-        ny += 10;
-      }
-    } else {
-      drawWindow(ctx, x, y, w, 19, { plain: true, accent: UI.amber });
-      drawText(ctx, name, x + 8, y + 5, { color: MEMBERS[u.key as MemberId]?.color ?? UI.text });
-      drawText(ctx, `${u.hp}/${u.base.maxHp}`, x + w - 8, y + 5, { align: 'right', color: UI.dim });
-    }
-  }
-
 }

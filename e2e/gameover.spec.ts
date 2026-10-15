@@ -187,7 +187,7 @@ test('Title: Continue skips a damaged newest save, and Load marks it instead of 
 test('A scene that throws every frame recovers to the title instead of freezing', async ({ page }) => {
   await stage(page, 'town');
   expect(await sj<boolean>(page, 'sj.save(1)')).toBe(true);
-  await sj(page, "(sj.game.top.update = () => { throw new Error('boom'); }, true)");
+  await sj(page, "(sj.game.top.fixedUpdate = () => { throw new Error('boom'); }, true)");
   await waitFor(page, "sj.top() === 'TitleScene'", 'title after fault');
   const n = await sj<{ text: string; tone: string } | null>(page, 'sj.notice()');
   expect(n?.tone).toBe('warn');

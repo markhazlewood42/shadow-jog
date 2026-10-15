@@ -103,6 +103,30 @@ describe('Bar paints the rectangles the old drawBar fills', () => {
     expect(bar.destroyed).toBe(true);
     clear.mockRestore();
   });
+
+  it('a ghost (M8c: the damage trail of a battle bar, the gained part of a level-up bar) is one more rectangle past the fill, repainted only when it changes', () => {
+    // 100 px wide, fill 40, ghost to 70: the extra rectangle runs from 40 to 70, in the ghost's color, after the fill and its shine.
+    const plain = barRects(100, 4, 0.4, UI.green);
+    const ghosted = barRects(100, 4, 0.4, UI.green, undefined, { ratio: 0.7, color: '#ffd7c0' });
+    expect(ghosted).toEqual([...plain, { x: 40, y: 0, w: 30, h: 4, color: '#ffd7c0', alpha: 1 }]);
+    // Control: a ghost that does not reach past the fill adds nothing, and a ghost past 1 stops at the track's end.
+    expect(barRects(100, 4, 0.4, UI.green, undefined, { ratio: 0.4, color: '#ffd7c0' })).toEqual(plain);
+    expect(barRects(100, 4, 0.4, UI.green, undefined, { ratio: 0.2, color: '#ffd7c0' })).toEqual(plain);
+    expect(barRects(100, 4, 0.4, UI.green, undefined, { ratio: 3, color: '#ffd7c0' }).at(-1)).toMatchObject({ x: 40, w: 60 });
+    const clear = vi.spyOn(Graphics.prototype, 'clear');
+    const bar = new Bar(fakeHost(), 0, 0, 100, 4, UI.green, 0.4);
+    const painted = clear.mock.calls.length;
+    bar.setGhost({ ratio: 0.7, color: '#ffd7c0' });
+    expect(clear.mock.calls.length).toBe(painted + 1);
+    bar.setGhost({ ratio: 0.7, color: '#ffd7c0' });
+    expect(clear.mock.calls.length).toBe(painted + 1);
+    bar.setGhost(null);
+    expect(clear.mock.calls.length).toBe(painted + 2);
+    bar.setGhost(null);
+    expect(clear.mock.calls.length).toBe(painted + 2);
+    bar.destroy();
+    clear.mockRestore();
+  });
 });
 
 describe('Cursor moves and blinks as the old drawCursor and drawMore did', () => {

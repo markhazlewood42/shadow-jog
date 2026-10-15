@@ -6,7 +6,7 @@
  *   the surround behind a small map                               ->  a pinned `CanvasImage`, painted by the old painter only when it changes
  *   the animations (`AnimFx`)                                     ->  two pinned `CanvasImage`s (lit: before the light map; unlit: after)
  *   the light map and the haze                                    ->  `LightRig`: `Lights` painting a pinned `CanvasImage`, shown with a multiply blend, and an additive one for the haze
- *   dust, weather, curtains, emotes, cue, banner, objective      ->  one pinned `CanvasImage`, painted by the field's own painters (`FieldStageSource.paintScreen`)
+ *   dust, weather, curtains, emotes, cue, the banner's scrim (the banner's text and the objective are kit parts of the field scene, M8c)  ->  one pinned `CanvasImage`, painted by the field's own painters (`FieldStageSource.paintScreen`)
  *   the camera                                                    ->  `cameras.main.setScroll` to the field's camera (the field owns the camera RULE: `cameraOrigin`, the pan easing, the pop-in boxes)
  *
  * HOW IT FITS. The scene is a pure view. `fieldopen.ts` puts it on the scene stack UNDER the field scene (`Game.runBeneath`); the field makes itself non-opaque so the
@@ -21,7 +21,6 @@
  * while a snapshot is shown); `release()` goes back to the live view. What stays in code on purpose, because it is the form and not the tuning: the layer order, the sort
  * rule (`Container.ySort`), the lighting formula (`Lights`), the shadow shape.
  */
-import { postfx } from '../engine/postfx';
 import { blit, inView } from '../scenes/fieldkit/draw';
 import { drawSurround, surroundFor, type SurroundView, voidShows } from '../scenes/fieldkit/surround';
 import { FIELD_LOOK } from '../data/fieldlook';
@@ -483,9 +482,9 @@ export class FieldStageScene extends Scene<void> implements FieldStage {
     // GPU effects: the same light into the glow layer, so neon, lamps and lit windows bloom for real (the props add theirs below). Towns glow harder than rooms.
     // A held snapshot feeds the glow layer like a live frame: `restore(snapshot())` must give the same picture, and with GPU effects on the bloom is part of the picture.
     // (The glow layer is cleared and drawn again each frame, so a held frame leaves nothing behind. The battle intro's still, `paintSnapshot`, is another path and feeds none.)
-    const glow = postfx.glowLayer();
+    const glow = this.game.fx.glowLayer();
     if (glow) {
-      postfx.bloom = interior ? FIELD_LOOK.glow.interior : FIELD_LOOK.glow.outdoors;
+      this.game.fx.bloom = interior ? FIELD_LOOK.glow.interior : FIELD_LOOK.glow.outdoors;
       blit(glow, map.emit, cx, cy);
     }
     this.unlitAnimsOn = this.paintAnims(this.unlitAnims, false, this.unlitAnimsOn, v);

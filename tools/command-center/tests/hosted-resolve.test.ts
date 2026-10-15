@@ -104,7 +104,9 @@ describe('the panels made from the snapshot', () => {
     const byId = new Map(info?.milestones.map((milestone) => [milestone.id, milestone.done]));
     expect(byId.get('Phase 0')).toBe(true);
     expect(byId.get('ET')).toBe(true);
-    expect(byId.get('M8a')).toBe(false);
+    expect(byId.get('M8a')).toBe(true);
+    expect(byId.get('M8b')).toBe(true);
+    expect(byId.get('M8c')).toBe(false);
   });
 
   it('says that the roadmap is missing or unreadable, with the status riding along, when main has no usable roadmap.json', async () => {

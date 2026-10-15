@@ -17,8 +17,12 @@ import type { Disp } from '../src/scenes/battlekit/types';
 
 const IMPACT = 7;
 
-/** A view that records what playback asked for, on a clock of waited frames. */
-function recorder(armed = false) {
+/**
+ * A view that records what playback asked for, on a clock of waited frames. `gpu` says whether the effects layer (`game.fx`) is on: playback asks it for the battle's moments
+ * only then (M8c: the moments go to `game.fx`, no longer to the `postfx` singleton). Its calls go in the log as `moment:<name>@<clock>`, `later:<frames>@<clock>`,
+ * `shake:<frames>,<strength>@<clock>` and `flash:<color>,<frames>@<clock>`.
+ */
+function recorder(armed = false, gpu = false) {
   const party: Combatant[] = [partyCombatant(createMember('kit', 5), 0, 0), partyCombatant(createMember('rook', 5), 1, 1)];
   const battle = new Battle(party, enemyParty(['glowrat', 'glowrat', 'glowrat']), new Rng(1));
   const log: string[] = [];
@@ -46,7 +50,20 @@ function recorder(armed = false) {
       },
       impactOf: () => IMPACT,
     } as unknown as PlaybackView['fx'],
-    game: { wait, shake: () => undefined, flash: () => undefined, frame: 0 } as unknown as PlaybackView['game'],
+    game: {
+      wait,
+      shake: (frames: number, strength: number) => log.push(`shake:${frames},${strength}@${clock}`),
+      flash: (color: string, frames: number) => log.push(`flash:${color},${frames}@${clock}`),
+      frame: 0,
+      fx: {
+        active: gpu,
+        later: (frames: number, fn: () => void) => {
+          log.push(`later:${frames}@${clock}`);
+          fn();
+        },
+        playMoment: (name: string, x: number, y: number, o?: { angle?: number; weight?: number }) => log.push(`moment:${name}@${clock}:${x},${y}:${JSON.stringify(o ?? {})}`),
+      },
+    } as unknown as PlaybackView['game'],
     lastActor: null,
     d,
     pos: (): Pt => ({ x: 0, y: 0 }),
@@ -82,10 +99,43 @@ function recorder(armed = false) {
   return { view, battle, log, clock: () => clock };
 }
 
-const act = (actor: number, targets: number[], kind: 'attack' | 'tech' = 'attack'): BattleEvent => ({ t: 'act', actor, id: 'attack', name: 'Attack', kind, fx: 'slash', targets });
+const act = (actor: number, targets: number[], kind: 'attack' | 'tech' = 'attack', fx = 'slash'): BattleEvent => ({ t: 'act', actor, id: 'attack', name: 'Attack', kind, fx, targets });
 const hit = (target: number, amount: number, hp: number, crit = false): BattleEvent => ({ t: 'damage', target, amount, crit, element: 'phys', weak: false, resist: false, hp });
 
 describe('battle playback', () => {
+  it('the effects go to game.fx: a critical hit plays its moments, shakes and holds, in this order (M8c)', async () => {
+    const r = recorder(false, true);
+    const kit = r.battle.party[0]!.uid, rat = r.battle.enemies[0]!;
+    // An action first: it opens the one hit stop that an action gets.
+    await playEvent(r.view, act(kit, [rat.uid]));
+    const from = r.log.length, at = r.clock();
+    await playEvent(r.view, hit(rat.uid, 44, 0, true));
+    const calls = r.log.slice(from).filter((l) => /^(moment|shake|hitstop)/.test(l));
+    // The camera shake of a tier 3 blow (6 + 3 * 3 frames, strength 3 + 1 + 1), the damage type's burst, then the critical's (screen pixels, here 0,0; the weight is 0.6 + 3 * 0.3 = 1.5),
+    // then the 5 frames of hit stop. The shake comes from the game, the moments from game.fx. The blow travelled from the actor, so the aimed layers get its angle (0 here).
+    const opts = '{"angle":0,"weight":1.5}';
+    expect(calls).toEqual([`shake:15,5@${at}`, `moment:hit.phys@${at}:0,0:${opts}`, `moment:crit@${at}:0,0:${opts}`, 'hitstop:5']);
+  });
+
+  it('control: with game.fx off, no moment is asked for, but the shake and the hit stop stay', async () => {
+    const r = recorder(false, false);
+    const kit = r.battle.party[0]!.uid, rat = r.battle.enemies[0]!;
+    await playEvent(r.view, act(kit, [rat.uid]));
+    const from = r.log.length;
+    await playEvent(r.view, hit(rat.uid, 44, 0, true));
+    // Nothing of the hit asks for a moment (the cast of an action is not gated here: the real effects layer ignores it when it is off).
+    expect(r.log.slice(from).filter((l) => l.startsWith('moment') || l.startsWith('later'))).toEqual([]);
+    expect(r.log.filter((l) => /^(shake|hitstop)/.test(l)).map((l) => l.replace(/@.*$/, ''))).toEqual(['shake:15,5', 'hitstop:5']);
+  });
+
+  it('a move gathers at the caster, then lands on its target after the impact frames on the effect clock (cast, effect, delay, spell)', async () => {
+    const r = recorder(false, true);
+    await playEvent(r.view, act(r.battle.party[0]!.uid, [r.battle.enemies[0]!.uid], 'attack', 'fire'));
+    const order = r.log.filter((l) => /^(moment|later|fx:)/.test(l)).map((l) => l.replace(/@.*$/, ''));
+    // The cast moment comes before the effect starts. The spell moment waits the effect's impact frames (the stub's IMPACT, 7) on game.fx, not on the game's clock.
+    expect(order).toEqual(['moment:cast.fire', 'fx:fire', 'later:7', 'moment:spell.fire']);
+  });
+
   it('a timed press: the ring opens with a readable lead and closes as the effect lands', async () => {
     const r = recorder(true);
     const kit = r.battle.party[0]!.uid, rat = r.battle.enemies[0]!.uid;

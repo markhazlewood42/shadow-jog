@@ -8,6 +8,7 @@ import { TitleScene } from './scenes/title';
 import { loadSave, slotStatus, unsavedFrames, writeSave } from './game/save';
 import { newGame } from './story/newgame';
 import type { Game as GameT } from './engine/game';
+import type { Game as SjeGame } from './sje';
 import { flashScale, gpuWanted, saveSettings, settings, shakeScale } from './game/settings';
 import { debug, debugBattleDriver } from './game/debug';
 import { setBattleDriver } from './scenes/battlekit/driver';
@@ -43,7 +44,9 @@ declare global {
 
 export function boot(game: Game, display: Display): void {
   const params = new URLSearchParams(location.search);
-  const field = () => game.stack.find((s): s is FieldScene => s instanceof FieldScene) ?? null;
+  // The field is a native sje scene, so it is not in the old `game.stack`. The object behind `game` is the sje `Game`; this cast goes when this file takes that type (M8d task 10).
+  const sje = game as unknown as SjeGame;
+  const field = () => sje.scene.scenes.find((s): s is FieldScene => s instanceof FieldScene) ?? null;
   // Debug/test hook: dev server only (E2E and screenshot tooling), never in a production build.
   // Test harness hooks exist only in DEV builds: a shipped build's battles have no driver.
   if (import.meta.env.DEV) setBattleDriver(debugBattleDriver);
@@ -60,10 +63,10 @@ export function boot(game: Game, display: Display): void {
       return stateMod.state;
     },
     field,
-    top: () => game.top?.constructor.name ?? null,
+    top: () => sje.top?.constructor.name ?? null,
     idle: () => {
       const f = field();
-      return !!f && game.top === f && f.busy === 0 && !f.leader.moving;
+      return !!f && sje.top === f && f.busy === 0 && !f.leader.moving;
     },
     tp: (map: string, x: number, y: number, dir: 'up' | 'down' | 'left' | 'right' = 'down') => field()?.warp(map, x, y, dir, false),
     newGame: () => newGame(game),
@@ -145,7 +148,7 @@ export function boot(game: Game, display: Display): void {
     }
     audio.suspend();
     // Tabbing away (or a phone locking) is the moment progress is most at risk: save if it's safe.
-    const f = game.top;
+    const f = sje.top;
     if (f instanceof FieldScene && f.busy === 0 && game.countPlayTime && unsavedFrames(game.playFrames) > 60 * 20) autosave(game);
   });
   // Closing the tab with unsaved progress asks first. (Not under ?debug: the test harness

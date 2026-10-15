@@ -14,7 +14,7 @@
  * Coordinates in this file are map pixels (0,0 is the top-left of the map; `FieldStageView.cx, cy` is where the camera's top-left corner is in them).
  */
 import { notice } from '../../engine/errors';
-import type { Game } from '../../engine/game';
+import type { Game } from '../../sje';
 import type { AnimFx, BakedLight, SortedSprite } from '../../field/bake';
 import type { Rect } from '../../field/overrects';
 import type { FieldScene } from '../field';

@@ -153,34 +153,36 @@
       "kind": "milestone",
       "label": "UI kit and data",
       "lane": "engine",
-      "status": "next",
+      "status": "done",
       "after": [
         "M7",
         "ET"
       ],
-      "notes": "Waits for Mark to approve docs/engine/m8-brief.md and the shop and dialogue data format. The UI kit in src/sje/ui, then the data move. GPU timing check (npm run perf) once at the end."
+      "notes": "Merged 2026-10-14 (PR #94). The UI kit is in src/sje/ui (TextObject, NineSlice, ListMenu, bar, cursor), and the shop and dialogue content moved to data files. Mark ran the GPU timing check (npm run perf) on 2026-10-14: it passed. Record: docs/engine/m8-brief.md.",
+      "branch": "engine-m8a-ui-kit",
+      "pr": "#94 (merged 2026-10-14)"
     },
     {
       "id": "M8b",
       "kind": "milestone",
       "label": "UI scenes",
       "lane": "engine",
-      "status": "active",
+      "status": "done",
       "after": [
         "M8a"
       ],
-      "notes": "Port the 13 UI scenes to native scenes, small to big. All 13 are native on branch engine-m8b-ui-scenes; the verifier gate and Mark's look at the pictures are next. Follows the diff rule for the GPU timing check."
+      "notes": "Port the 13 UI scenes to native scenes, small to big. All 13 are native. Merged in PR #95 (2026-10-15). Follows the diff rule for the GPU timing check."
     },
     {
       "id": "M8c",
       "kind": "milestone",
       "label": "Battle and field",
       "lane": "engine",
-      "status": "later",
+      "status": "active",
       "after": [
         "M8b"
       ],
-      "notes": "Port the battle and field scenes. Follows the diff rule for the GPU timing check."
+      "notes": "Port the battle and field scenes. Active on branch engine-m8c-battle-field. Follows the diff rule for the GPU timing check."
     },
     {
       "id": "M8d",

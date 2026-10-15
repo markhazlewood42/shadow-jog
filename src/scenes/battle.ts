@@ -12,35 +12,27 @@ import { ABILITIES, COMBOS } from '../data/abilities';
 import { ENEMIES } from '../data/enemies';
 import { ITEMS } from '../data/items';
 import { LOOKS } from '../data/looks';
-import { MEMBERS } from '../data/party';
 import { must } from '../engine/assert';
 import { surface, type Ctx, type Surface } from '../engine/canvas';
-import { shade } from '../engine/color';
-import { drawText, fitText, measure } from '../engine/font';
-import { getPortrait } from '../art/portraits';
-import { Scene } from '../engine/game';
+import { type CanvasImage, type ListMenu, Scene } from '../sje';
 import { W, H } from '../sje/core/size';
 import { Rng, streams } from '../engine/rng';
-import { equipRegen, grantXp, levelProgress, type GrowthStat, type LevelUp } from '../game/party';
+import { equipRegen, grantXp, levelProgress, type LevelUp } from '../game/party';
 import { battleSpeed, settings } from '../game/settings';
 import { flags, removeItem, state, type MemberId } from '../game/state';
-import { drawBar, drawWindow, UI } from '../ui/draw';
-import { ListMenu } from '../ui/list';
-import { LEVELUP_TEXT_W } from '../ui/layout';
 import { battleDriver } from './battlekit/driver';
 import { TimingWindow, timingWord } from './battlekit/timing';
 import { playEvent, type Cutin, type PlaybackView } from './battlekit/playback';
+import { BattleHud } from './battlekit/hud';
+import { type BattlePanel, LevelUpPanel, levelUpBeats, VictoryPanel } from './battlekit/panels';
 import { BattleRenderer } from './battlekit/render';
 import type { BattleStage } from './battlekit/stageseam';
 import { BHT, BW, DECK_CUT_LIFE, ENEMY_MID_AT, FIELD_MID, floaterStart, HUD, MENU_X, PANEL_Y, PARTY_BOTTOM, PARTY_MID, partyX, placeEnemies, type EnemyBox } from './battlekit/geom';
 import { CRACK, INTRO_T } from './battlekit/intro';
-import { postfx } from '../engine/postfx';
-import { playMoment } from '../engine/moments';
-import { FX } from '../data/fx';
 import type { Disp, Floater } from './battlekit/types';
 import { autoOrders, choiceItems, comboActors, comboHint, commandItems, mostHurt, repeatOrders } from './battlekit/orders';
-import { RIM, artTop, drawBig } from './battlekit/sprites';
-import { abilityLabel, groupNames, pickGroup, summarize } from './battlekit/tables';
+import { RIM, artTop } from './battlekit/sprites';
+import { groupNames, pickGroup, summarize } from './battlekit/tables';
 
 export interface BattleSetup {
   encounter: string;
@@ -62,9 +54,6 @@ type Mode = 'intro' | 'round' | 'command' | 'list' | 'target' | 'play' | 'end';
  * frames) and holds TURN_GAP frames before the next one steps up.
  */
 const FX_PACE = 0.65, LINGER_MAX = 50, TURN_GAP = 22;
-/** The level-up panel's stats, in the order they count up, and the frames between them. */
-const LEVEL_STATS: readonly (readonly [GrowthStat, string])[] = [['hp', 'HP'], ['tp', 'TP'], ['atk', 'ATK'], ['def', 'DEF'], ['mnd', 'MND'], ['agi', 'AGI']];
-const LEVEL_ROW_T = 9;
 /** An enemy's memory flags that mean it's winding up a telegraphed move (its tell still stands). */
 const WINDUPS = ['breath', 'charging', 'spin', 'surge'] as const;
 /** The least time a tell stays up (real frames): two seconds, plus about 30 characters a second. */
@@ -92,9 +81,10 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   // Command entry
   cmds: Command[] = [];
   private actorIdx = 0;
-  roundMenu = new ListMenu<string>([], 4);
-  cmdMenu = new ListMenu<string>([], 5);
-  listMenu = new ListMenu<string>([], 5);
+  /** The three menus are kit lists, made in `create` by the HUD (a display object needs the running scene). */
+  roundMenu!: ListMenu<string>;
+  cmdMenu!: ListMenu<string>;
+  listMenu!: ListMenu<string>;
   listKind: 'tech' | 'skill' | 'item' = 'tech';
   private pending: { type: Command['type']; id?: string | undefined; ability: Ability } | null = null;
   targetList: number[] = [];
@@ -112,7 +102,8 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   introT = 0;
   /** Effect frames into Hex's deck cut-in (-1: not showing). */
   deckT = -1;
-  endPanel: ((ctx: Ctx) => void) | null = null;
+  /** The open results panel (battlekit/panels.ts), or null. */
+  endPanel: BattlePanel | null = null;
   private waitingConfirm: (() => void) | null = null;
   /** The open results panel's finish-first hooks (see panel()). */
   private panelFinish: { done: () => boolean; skip: () => void } | null = null;
@@ -129,12 +120,15 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   partyArt = new Map<number, Battler>();
   private dead = new Set<number>();
 
-  /** Everything the scene draws (battlekit/render.ts); the scene keeps state and flow. */
+  /** The art the scene draws into its canvas (battlekit/render.ts); the scene keeps state and flow. */
   private readonly renderer = new BattleRenderer(this);
+
+  /** Every window, text, bar and menu of the battle, as kit parts in the ui layer (battlekit/hud.ts). */
+  private readonly hud = new BattleHud(this);
 
   /**
    * The stage that draws the battle under `?engine=sje` (battlekit/stageseam.ts), or null: the renderer then draws everything, as it always did. With a stage the
-   * renderer draws only the old UI (menus, panels, cut-ins, the intro) on a clear canvas, so this scene lets the stage show through and the stage scene below keep running.
+   * renderer draws only the effects of the old picture (the impact frame, the intro, the bloom's light) on a clear canvas, and the windows are kit parts (battlekit/hud.ts), so this scene lets the stage show through and the stage scene below keep running.
    */
   stage: BattleStage | null = null;
 
@@ -155,8 +149,40 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     return this.hitstop > 0;
   }
 
+  /**
+   * One frame of this scene's own canvas: the whole picture when there is no stage, else the art that the stage cannot draw (battlekit/render.ts). The canvas of
+   * `image` starts clear every frame, as a legacy scene above the base did. The effects layer `game.fx` takes the glow when it is on. The windows are not in this canvas: they are kit parts in the ui layer.
+   */
   render(ctx: Ctx): void {
     this.renderer.render(ctx);
+  }
+
+  /** True when this scene's canvas holds a picture (so the next frame must clear and upload it). Starts true: the first frame uploads. */
+  private canvasDirty = true;
+
+  /** The `prerender` handler: paint `render` into the scene's canvas image and upload it. A throw still uploads the (clear) canvas, then reaches the engine's guard. */
+  private paint(): void {
+    const image = this.image;
+    if (!image) return;
+    const ctx = image.ctx;
+    // Under a stage most frames draw nothing here: skip the clear and the upload when the last frame drew nothing either (the canvas is still clear).
+    const was = this.canvasDirty;
+    this.canvasDirty = true;
+    if (was) ctx.clearRect(0, 0, W, H);
+    ctx.save();
+    try {
+      // The windows are display objects: bring them up to date with the state as it stands for this frame (a flow that ran after the tick may have changed it).
+      this.hud.sync();
+      this.canvasDirty = this.renderer.render(ctx);
+    } finally {
+      ctx.restore();
+      if (was || this.canvasDirty) image.refresh();
+    }
+  }
+
+  /** A picture of this scene for the screen snapshot (`Game.ctx`): its canvas as last painted. Its windows are display objects and are not in it: the only snapshot (`snapshotScreen`, before a battle starts) never sees a battle. */
+  override paintSnapshot(ctx: CanvasRenderingContext2D): void {
+    if (this.image?.visible) ctx.drawImage(this.image.canvas, 0, 0);
   }
 
   constructor(setup: BattleSetup) {
@@ -169,9 +195,6 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     // party, effects and numbers onto a clear world layer in front of them (battlekit/render.ts).
     this.enemyLayer = surface(W, H);
     this.front = surface(BW, BHT);
-    // GPU particles stay on the battlefield: above the status cards.
-    postfx.clear();
-    postfx.clip = { x: 0, y: 0, w: W, h: PANEL_Y };
     const party = state.party.map((id, i) => partyCombatant(state.members[id]!, i, i));
     const group = setup.enemies ?? pickGroup(setup.encounter);
     const enemies = enemyParty(group);
@@ -216,12 +239,26 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     return this.layoutVersion;
   }
 
-  /** However the fight ends (won, lost, fled, or abandoned after a fault), its effects end with it. */
-  override exit(): void {
-    postfx.clear();
-  }
+  /** This scene's canvas (the whole art picture when there is no stage, else the impact frame, the intro and the bloom's light). Null before `create` and after the scene is gone. */
+  private image: CanvasImage | null = null;
 
-  override enter(): void {
+  override create(): void {
+    const fx = this.game.fx;
+    // GPU particles stay on the battlefield: above the status cards.
+    fx.clear();
+    fx.clip = { x: 0, y: 0, w: W, h: PANEL_Y };
+    this.image = this.add.canvasImage(0, 0, W, H);
+    // The windows, text, bars and menus are kit parts in the ui layer (above the stage HUD, as every UI scene's are).
+    this.hud.create();
+    this.roundMenu = this.hud.roundMenu;
+    this.cmdMenu = this.hud.cmdMenu;
+    this.listMenu = this.hud.listMenu;
+    this.events.on('prerender', this.paint, this);
+    this.events.once('shutdown', () => {
+      // However the fight ends (won, lost, fled, or abandoned after a fault), its effects end with it.
+      this.image = null;
+      fx.clear();
+    });
     music(this.setup.music ?? (this.setup.boss ? 'boss' : 'battle'), 0);
     this.flow(this.intro());
   }
@@ -278,7 +315,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       this.introT = Math.floor(t);
       for (const e of this.battle.enemies) this.d(e.uid).alpha = Math.min(1, Math.max(0, (t - INTRO_T * 0.35) / (INTRO_T * 0.5)));
       // The glass breaks: the air ripples out from the middle of the screen (GPU effects).
-      if (t < CRACK && t + this.speed() >= CRACK) playMoment(FX, 'intro', W / 2, H / 2);
+      if (t < CRACK && t + this.speed() >= CRACK) this.game.fx.playMoment('intro', W / 2, H / 2);
       await this.game.wait(1);
     }
     this.introT = 999;
@@ -437,12 +474,18 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   }
 
   // ------------------------------------------------------------------ update
-  update(): void {
+  fixedUpdate(): void {
+    this.step();
+    // A scene that closed in this tick has had its objects destroyed.
+    if (!this.closed) this.hud.sync();
+  }
+
+  private step(): void {
     if (this.flowError) throw this.flowError;
     this.frame++;
     this.fx.rate = this.animRate();
     // GPU particles and shockwaves run on the battle's animation clock too, and hold in a hit pause.
-    postfx.rate = this.hitstop > 0 ? 0 : this.fx.rate;
+    this.game.fx.rate = this.hitstop > 0 ? 0 : this.fx.rate;
     if (this.timing.isOpen && !this.timing.result) {
       // A registered driver (a test harness) presses on the beat by itself.
       const auto = battleDriver()?.timing() ?? null;
@@ -557,7 +600,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     }
     switch (this.mode) {
       case 'round': {
-        const r = this.roundMenu.update(inp);
+        const r = this.roundMenu.update(this.input.actions);
         if (r === 'confirm') {
           const v = this.roundMenu.current!.value;
           if (v === 'fight') this.nextActor();
@@ -575,7 +618,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         break;
       }
       case 'command': {
-        const r = this.cmdMenu.update(inp);
+        const r = this.cmdMenu.update(this.input.actions);
         if (r === 'cancel') this.prevActor();
         else if (r === 'confirm') {
           const v = this.cmdMenu.current!.value;
@@ -588,7 +631,9 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         break;
       }
       case 'list': {
-        const r = this.listMenu.update(inp);
+        // The command menu stays up under the list: it takes no keys, but its highlight still moves.
+        this.cmdMenu.update();
+        const r = this.listMenu.update(this.input.actions);
         if (r === 'cancel') this.mode = 'command';
         else if (r === 'confirm') {
           const id = this.listMenu.current!.value;
@@ -875,35 +920,11 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     const dropNames = summarize(r.drops.map((id) => ITEMS[id]!.name));
     let start = this.frame;
     this.bannerStart = -1;
-    const tallied = this.panel((ctx) => {
-      const t = this.frame - start;
-      const tally = Math.min(1, t / 28), fill = Math.min(1, Math.max(0, (t - 10) / 44));
-      const w = 272, h = 58 + dropNames.length * 11 + bars.length * 13;
-      // Under a stage the panel starts below the stage HUD's top boxes (the turn timeline reaches row 45), as the other top lines do (`BattleStage.topClear`).
-      const x = (W - w) / 2, y = this.stage ? Math.max(44, this.stage.topClear) : 44;
-      drawWindow(ctx, x, y, w, h, { title: 'VICTORY', accent: UI.amber });
-      drawText(ctx, `{y}${Math.round(r.xp * tally)}{/} XP each`, x + 14, y + 14);
-      drawText(ctx, `{y}${Math.round(r.cred * tally).toLocaleString('en-US')}¢{/} cred`, x + 14, y + 26);
-      drawText(ctx, `Wallet: ${Math.round(walletBefore + r.cred * tally).toLocaleString('en-US')}¢`, x + w - 14, y + 26, { color: UI.dim, align: 'right' });
-      // Each survivor's progress to the next level fills; a level-up fills, flips and rolls over.
-      bars.forEach((b, i) => {
-        const by = y + 42 + i * 13;
-        const up = b.lv1 > b.lv0, flipped = up && fill >= 0.6;
-        const ratio = !up ? b.r0 + (b.r1 - b.r0) * fill : !flipped ? b.r0 + (1 - b.r0) * (fill / 0.6) : b.r1 * ((fill - 0.6) / 0.4);
-        drawText(ctx, MEMBERS[b.id].name, x + 14, by, { color: MEMBERS[b.id].color });
-        drawText(ctx, `Lv ${flipped ? b.lv1 : b.lv0}`, x + 70, by, { color: flipped ? UI.amber : UI.dim });
-        drawBar(ctx, x + 104, by + 3, 110, 4, ratio, flipped ? UI.amber : UI.cyan);
-        if (flipped && this.frame % 24 < 16) drawText(ctx, 'LV UP!', x + w - 14, by, { color: UI.amber, align: 'right' });
-      });
-      const dy = y + 46 + bars.length * 13;
-      if (dropNames.length) {
-        drawText(ctx, 'Found:', x + 14, dy, { color: UI.dim });
-        dropNames.forEach((n, i) => {
-          drawText(ctx, n, x + 54, dy + i * 11, { color: UI.cyan });
-        });
-      }
-      if (this.frame % 40 < 28) drawText(ctx, '▼', x + w - 16, y + h - 13, { color: UI.cyan });
-    }, { done: () => this.frame - start >= 54, skip: () => { start = this.frame - 54; } });
+    const tallied = this.panel(
+      // Under a stage the panel starts below the stage HUD's top boxes (the turn timeline reaches row 45), as the other top lines do (topClear).
+      () => new VictoryPanel(this, { xp: r.xp, cred: r.cred, walletBefore, bars, dropNames, y: this.stage ? Math.max(44, this.stage.topClear) : 44 }, () => this.frame - start),
+      { done: () => this.frame - start >= 54, skip: () => { start = this.frame - 54; } },
+    );
     // Tally ticks while the numbers count up (started once the panel is up: until round 2 of
     // Mark's notes they ran before it and so never played).
     let tallying = true;
@@ -963,12 +984,13 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
    * completes it instead (the same key the player was just hitting for timed presses; a stray
    * press mustn't throw away the tally).
    */
-  private panel(draw: (ctx: Ctx) => void, finish?: { done: () => boolean; skip: () => void }): Promise<void> {
+  private panel(make: () => BattlePanel, finish?: { done: () => boolean; skip: () => void }): Promise<void> {
     if (battleDriver()?.hurry()) return Promise.resolve();
     return new Promise((res) => {
-      this.endPanel = draw;
+      this.endPanel = make();
       this.panelFinish = finish ?? null;
       this.waitingConfirm = () => {
+        this.endPanel?.destroy();
         this.endPanel = null;
         this.panelFinish = null;
         res();
@@ -983,12 +1005,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
    */
   private async levelUpPanel(u: LevelUp): Promise<void> {
     music('levelup', 6);
-    const mem = MEMBERS[u.id];
-    const stats = LEVEL_STATS.filter(([k]) => u.to[k] > 0);
-    const rowAt = (i: number) => 18 + i * LEVEL_ROW_T;
-    const restoredAt = rowAt(stats.length) + 10;
-    const learnAt = (j: number) => restoredAt + 22 + j * 18;
-    const end = learnAt(u.learned.length) + 4;
+    const { stats, rowAt, restoredAt, learnAt, end } = levelUpBeats(u);
     let start = this.frame;
     // Sounds on their beats: a tick as each stat counts (rising), a chime for the restore, a
     // key-item flourish for each thing learned. Skipping ahead plays whatever it jumped past.
@@ -1009,75 +1026,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         await this.game.wait(1);
       }
     };
-    const port = getPortrait(u.id, 'happy');
-    const restores = `{g}Fully restored:{/} HP and ${u.id === 'rook' ? 'skill uses' : mem.tpLabel}, ailments cleared`;
-    const w = 300, h = 76 + stats.length * 12 + 16 + u.learned.length * 18 + 8;
-    const x = (W - w) / 2, y = Math.max(8, Math.round((H - h) / 2) - 20);
-    const shown = this.panel((ctx) => {
-      const t = this.frame - start;
-      drawWindow(ctx, x, y, w, h, { title: 'LEVEL UP', accent: mem.color });
-      // The member, lit: a slow wheel of light behind the portrait.
-      const pcx = x + 38, pcy = y + 38;
-      ctx.fillStyle = mem.color;
-      for (let k = 0; k < 12; k++) {
-        const a = (k * Math.PI) / 6 + this.frame * 0.015;
-        const ca = Math.cos(a), sa = Math.sin(a);
-        for (let r = 22 + (((this.frame >> 3) + k) % 4); r < 36; r += 4) {
-          const py = Math.round(pcy + sa * r);
-          // Kept above the stat rows.
-          if (py < y + 60) ctx.fillRect(Math.round(pcx + ca * r), py, 1, 1);
-        }
-      }
-      if (port) ctx.drawImage(port, pcx - 24, pcy - 24);
-      drawText(ctx, mem.name, x + 76, y + 14, { color: mem.color });
-      // The new level stamps in: white as it lands, then amber.
-      drawText(ctx, `Lv ${u.level - 1}  →`, x + 76, y + 32, { color: UI.dim });
-      const lv = String(u.level);
-      drawBig(ctx, lv, x + 118 + measure(lv), y + 28, t < 10 ? '#ffffff' : UI.amber);
-      // Each stat counts up in turn, its bar filling from the old value to the new.
-      const top = y + 64;
-      stats.forEach(([k, label], i) => {
-        const ry = top + i * 12;
-        const p = Math.max(0, Math.min(1, (t - rowAt(i)) / 12));
-        const from = u.from[k], to = u.to[k], gain = to - from;
-        const cur = Math.round(from + gain * p);
-        drawText(ctx, label, x + 14, ry, { color: UI.dim });
-        drawText(ctx, String(from), x + 70, ry, { align: 'right', color: UI.dim });
-        const bx = x + 78, bw = 124;
-        drawBar(ctx, bx, ry + 2, bw, 4, from / to, shade(mem.color, -0.3));
-        // The gained stretch: white while it fills, then amber.
-        const gx = Math.round((bw * from) / to), gw = Math.round((bw * cur) / to) - gx;
-        if (gw > 0) {
-          ctx.fillStyle = p < 1 ? '#ffffff' : UI.amber;
-          ctx.fillRect(bx + gx, ry + 2, gw, 4);
-        }
-        drawText(ctx, String(cur), x + 238, ry, { align: 'right', color: p <= 0 ? UI.disabled : p < 1 ? UI.amber : UI.text });
-        if (p > 0 && gain > 0) drawText(ctx, `+${gain}`, x + 246, ry, { color: UI.green });
-      });
-      const ry = top + stats.length * 12 + 4;
-      if (t >= restoredAt) drawText(ctx, fitText(restores, w - 28), x + 14, ry);
-      u.learned.forEach((id, j) => {
-        const ab = ABILITIES[id];
-        if (!ab || t < learnAt(j)) return;
-        const ly = ry + 16 + j * 18;
-        const tag = ab.kind === 'skill' ? 'NEW SKILL' : 'NEW TECH';
-        const tw = measure(tag) + 8;
-        ctx.fillStyle = UI.amber;
-        ctx.fillRect(x + 14, ly - 2, tw, 11);
-        drawText(ctx, tag, x + 18, ly, { color: '#1a1020', shadow: false });
-        const nx = x + 22 + tw;
-        drawText(ctx, fitText(abilityLabel(ab), LEVELUP_TEXT_W), nx, ly, { color: UI.cyan });
-        // A glint runs across the new name as it arrives.
-        const gt = t - learnAt(j);
-        if (gt < 16) {
-          ctx.globalAlpha = 0.7;
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(nx + gt * 8, ly - 1, 3, 9);
-          ctx.globalAlpha = 1;
-        }
-      });
-      if (t >= end && this.frame % 40 < 28) drawText(ctx, '▼', x + w - 16, y + h - 13, { color: UI.cyan });
-    }, { done: () => this.frame - start >= end, skip: () => { start = this.frame - end; } });
+    const shown = this.panel(() => new LevelUpPanel(this, u, () => this.frame - start), { done: () => this.frame - start >= end, skip: () => { start = this.frame - end; } });
     void playCues();
     await shown;
     open = false;

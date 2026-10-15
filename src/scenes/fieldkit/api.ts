@@ -179,7 +179,7 @@ export function scriptApi(f: FieldScene): ScriptApi {
     refreshMap: () => {
       const l = f.leader;
       const followers = f.followersVisible;
-      f.load(f.def.id, l.x, l.y, l.dir);
+      f.loadAt(f.def.id, l.x, l.y, l.dir);
       f.followersVisible = followers;
     },
     objective: (text) => {
