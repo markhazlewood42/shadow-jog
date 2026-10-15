@@ -6,7 +6,7 @@
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Input } from '../src/engine/input';
-import { type Container, ListMenu, TextObject } from '../src/sje';
+import { type Container, type ListMenu, TextObject } from '../src/sje';
 import { Game } from '../src/sje/runtime/game';
 import { installCanvasStub } from './recorder';
 
