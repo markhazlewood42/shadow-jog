@@ -1,7 +1,7 @@
 /**
  * A stand-in for the old engine's `Scene` base class, for the tests of the `LegacyScene` adapter only (M8d task 11; task 13 deletes this file with those tests).
  *
- * `src/engine/game.ts` held the real class and goes in task 12. These tests still need a scene "of the old shape" until the adapter goes, so the shape lives here:
+ * The old engine's game file held the real class (deleted in task 12). These tests still need a scene "of the old shape" until the adapter goes, so the shape lives here:
  * `enter`, `exit`, `resume`, `update()`, `render(ctx)`, the three flags and `close(result)`, which takes the scene off the game and resolves its promise.
  */
 import type { LegacyGameSurface, LegacyShape } from '../src/sje/runtime/gameapi';

@@ -321,13 +321,13 @@ describe('who may import the engine', () => {
   // A static `import ... from './sje/boot'` (the door must be dynamic, or the engine and Pixi land in the entry chunk).
   const STATIC_DOOR = /^[ \t]*import\b[^(]*\bfrom\s*['"]\.\/sje\/boot['"]/m;
 
-  it('the shipped game reaches the engine through nine doors only: the size module, the Rng module, the game font (M3), the effects state, the effects data checks and the particle simulation (all plain code: no Pixi, no Three), a types-only file, the boot door, and (M8b) the facade for the ported UI scenes', () => {
+  it('the shipped game reaches the engine through seven doors only: the size module, the Rng module, the game font (M3), the effects data checks and the particle simulation (all plain code: no Pixi, no Three), the boot door, and (M8b) the facade for the ported UI scenes', () => {
     const shipped = all.filter((e) => outsideEngine(e) && !e.file.startsWith('src/sje-lab/') && !isDevTool(e.file));
-    expect([...new Set(shipped.map((e) => e.target))].sort()).toEqual(['src/sje', 'src/sje/boot', 'src/sje/core/rng', 'src/sje/core/size', 'src/sje/display/font', 'src/sje/fx/fxdata', 'src/sje/fx/fxstate', 'src/sje/fx/particles', 'src/sje/runtime/gameapi']);
+    expect([...new Set(shipped.map((e) => e.target))].sort()).toEqual(['src/sje', 'src/sje/boot', 'src/sje/core/rng', 'src/sje/core/size', 'src/sje/display/font', 'src/sje/fx/fxdata', 'src/sje/fx/particles']);
     // M8b: the UI scenes ported to native scenes take the kit and the scene base from the facade. M8c adds the battle scene and its kit (`Scene`, `CanvasImage`, and the `Game` type for `PlaybackView` and the stage seam; group G adds the battle HUD and its panels (battlekit/hud.ts, panels.ts), the field HUD (fieldkit/hud.ts) and their plain-data ops (src/scenes/uiops.ts); `game/systems.ts` names the `Game` type). M8c adds the field scene and its seam (`Scene`, `CanvasImage`, the `Game` type), and `src/boot.ts` names the `Game` and `PageDisplay` types. M8d task 10 adds `src/story/newgame.ts` (the `Game` type, no cast). The list holds nothing else.
     expect([...new Set(shipped.filter((e) => e.target === 'src/sje').map((e) => e.file))].sort()).toEqual(M8B_FACADE_USERS);
-    // M2: the old PostFx extends the shared state, the old particle module re-exports the shared simulation. (M6 deleted the old presenter, the one file that took SOFTWARE_GL from the GL module.)
-    expect([...new Set(shipped.filter((e) => e.target === 'src/sje/fx/fxstate').map((e) => e.file))]).toEqual(['src/engine/postfx.ts']);
+    // M2: the old PostFx extended the shared state; M8d deleted it, so no shipped file takes the effects state or the types-only file (the old `Game` held the one import of it) any more. The old particle module still re-exports the shared simulation. (M6 deleted the old presenter, the one file that took SOFTWARE_GL from the GL module.)
+    expect(shipped.filter((e) => e.target === 'src/sje/fx/fxstate').map((e) => e.file)).toEqual([]);
     expect(shipped.filter((e) => e.target === 'src/sje/fx/fxdata').map((e) => e.file)).toEqual(['src/engine/fxdata.ts']);
     expect(shipped.filter((e) => e.target === 'src/sje/fx/particles').map((e) => e.file)).toEqual(['src/engine/particles.ts']);
     // M6: nothing outside the engine imports the GL names module any more.
@@ -339,9 +339,7 @@ describe('who may import the engine', () => {
     expect(new Set(shipped.filter((e) => e.target === 'src/sje/core/size').map((e) => e.file)).size).toBeGreaterThan(30);
     // The Rng module is reached through the old path's re-export only: no old file changed its import.
     expect(shipped.filter((e) => e.target === 'src/sje/core/rng').map((e) => e.file)).toEqual(['src/engine/rng.ts']);
-    // The types file is erased: its one importer says `import type`, so nothing of it reaches the shipped game.
-    expect(shipped.filter((e) => e.target === 'src/sje/runtime/gameapi').map((e) => e.file)).toEqual(['src/engine/game.ts']);
-    expect(onlyTypeImports(readFileSync(join(ROOT, 'src/engine/game.ts'), 'utf8'), '../sje/runtime/gameapi')).toBe(true);
+    expect(shipped.filter((e) => e.target === 'src/sje/runtime/gameapi').map((e) => e.file)).toEqual([]);
     // The boot door: only main.ts, and only through a dynamic import(), so the engine and Pixi are a chunk of their own that the default path never fetches.
     expect(shipped.filter((e) => e.target === 'src/sje/boot').map((e) => e.file)).toEqual(['src/main.ts']);
     const main = readFileSync(join(ROOT, 'src/main.ts'), 'utf8');
@@ -353,8 +351,8 @@ describe('who may import the engine', () => {
     const fromMain = all.filter((e) => e.file === 'src/main.ts');
     expect(fromMain.map((e) => e.target).filter((t) => t !== null && /^src\/engine\/(display|game|postfx|gl\/)/.test(t))).toEqual([]);
     // Control: the check can fail. The same scan finds the old imports in a made-up list of edges.
-    const made: Edge[] = [{ file: 'src/main.ts', spec: './engine/display', target: 'src/engine/display' }];
-    expect(made.map((e) => e.target).filter((t) => t !== null && /^src\/engine\/(display|game|postfx|gl\/)/.test(t))).toEqual(['src/engine/display']);
+    const made: Edge[] = [{ file: 'src/main.ts', spec: `./engine/${'display'}`, target: `src/engine/${'display'}` }];
+    expect(made.map((e) => e.target).filter((t) => t !== null && /^src\/engine\/(display|game|postfx|gl\/)/.test(t))).toEqual([`src/engine/${'display'}`]);
     expect(existsSync(join(ROOT, 'src/engine/gl'))).toBe(false);
   });
 

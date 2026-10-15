@@ -6,8 +6,8 @@
  * another size, change this file only. `tests/screen-literals.test.ts` enforces this. (Godot calls
  * this the base resolution.)
  *
- * The old engine (`src/engine/game.ts`) re-exports `W` and `H` from here, so the shipped game and
- * the new engine can never disagree about the picture size.
+ * Until M8d the old engine re-exported `W` and `H` from here, so the shipped game and the new engine could
+ * never disagree about the picture size. The old engine is gone; every file takes them from here.
  *
  * There is no size switch. The spike had a DEV `?size=` mock; the 640x360 move (PR #23) made it
  * obsolete, so a shipped build, a dev build and a test all have the one size below.

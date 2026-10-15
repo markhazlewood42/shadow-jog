@@ -41,8 +41,8 @@ export type FaultReporter = (scene: AnyScene | null, error: unknown, phase: Faul
 
 /**
  * Which scenes are drawn. Fills `out` (one boolean per scene) and returns the index of the BASE
- * scene: the topmost opaque one, or the bottom scene. This is today's rule from
- * `src/engine/game.ts` `render`:
+ * scene: the topmost opaque one, or the bottom scene. This is the rule of the old engine's
+ * `Game.render`:
  *  - The base is drawn. Scenes below it are not (they stay alive).
  *  - Only the topmost CURTAIN draws over the base. Scenes between the base and that curtain are
  *    hidden: a menu it was opened from is not repainted beneath it.

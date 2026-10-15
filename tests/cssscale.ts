@@ -1,7 +1,7 @@
 /**
  * The scale rule of the old display, kept as a reference model for two tests (M8d).
  *
- * Until M8d `src/engine/display.ts` held `cssScaleFor`, the rule of the display with two modes. Mark dropped the fill mode on 2026-10-09: the shipped display (`src/sje/runtime/display.ts`) has
+ * Until M8d the old display file of `src/engine` held `cssScaleFor`, the rule of the display with two modes. Mark dropped the fill mode on 2026-10-09: the shipped display (`src/sje/runtime/display.ts`) has
  * the integer mode only, so no game code calls this any more. The rule moved here because two tests still use it: `tests/display.test.ts` pins its table of window sizes (docs/PIVOT-640.md,
  * D14 and PL7), and `tests/sje-display.test.ts` uses the old fill rule as the negative control for the integer rule.
  *

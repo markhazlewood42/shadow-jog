@@ -141,6 +141,10 @@ describe('ET pass line 2: no tool reaches a deleted path of the old engine', () 
     expect(problemsOf(disk, entry)).toEqual([]);
   });
 
+  it('the deleted files are gone', () => {
+    for (const f of DELETED) expect(existsSync(join(ROOT, f)), f).toBe(false);
+  });
+
   it('the five viewers are tool files under src/dev/viewers, on a scene of the new engine', () => {
     const viewers = ['mapview', 'chartest', 'portraittest', 'bestiarytest', 'fonttest'];
     for (const v of viewers) {

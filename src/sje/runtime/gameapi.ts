@@ -28,7 +28,7 @@ export interface ShakeDirection {
 }
 
 /**
- * Today's scene shape (src/engine/game.ts `Scene`): `enter`, `exit`, `resume`, `update()`, `render(ctx)`, the three flags and
+ * Today's scene shape (the old engine's `Scene`): `enter`, `exit`, `resume`, `update()`, `render(ctx)`, the three flags and
  * `close(result)`. The old base class satisfies it. The `LegacyScene` adapter wraps one of these in a new `Scene`.
  */
 export interface LegacyShape<R = unknown> {
