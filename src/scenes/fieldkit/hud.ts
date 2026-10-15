@@ -2,30 +2,29 @@
  * The field's two windows as kit parts (M8c group G; docs/engine/m8-brief.md, "Mark decided on 2026-10-15: port those windows in M8c").
  *
  * The field had two screen-space overlays that it painted with canvas calls into its picture every frame: the OBJECTIVE box (the current goal, in the top-left corner)
- * and the AREA BANNER (the map's name, fading in and out over the top of the screen). Both are display objects in the scene's ui layer now: `TextObject` lines and
- * one-color pictures for their plates. The world, the actors, the emotes, the cue, the curtains and the weather stay canvas pictures (they are art in the world).
+ * and the AREA BANNER (the map's name, fading in and out over the top of the screen). Their text is `TextObject` lines in the scene's ui layer now, and the objective's plate
+ * is a one-color picture. The world, the actors, the emotes, the cue, the curtains, the weather and the banner's scrim (a dark band with a growing rule, `FieldScene.renderBanner`)
+ * stay canvas pictures: they are art in the world. (The scrim stays in the screen layer on purpose: the field parity pictures pin the pixels of its semi-clear gradient to
+ * 2/255, and a separate GPU blend of it moved one pixel to 3/255.)
  *
  * Like the old code, `sync` runs once for each drawn frame (the `prerender` handler of the scene), because the objective's flash counts drawn frames. A box is built
- * again only when what it shows changes: the objective when its text or its flash changes, the banner when its text changes. The banner's rule that grows and the
- * fade of both are a scale, a position and an alpha, never a build.
+ * again only when what it shows changes: the objective when its text or its flash changes, the banner when its text changes. The fade of both is an alpha, never a build.
  */
-import { type CanvasImage, Container, measure, UI, wrap } from '../../sje';
+import { Container, measure, UI, wrap } from '../../sje';
 import { W } from '../../sje/core/size';
-import { bandGradient } from '../../ui/draw';
 import { FIELD_OBJ_W } from '../../ui/layout';
 import type { FieldScene } from '../field';
 import { applyOps, type Op } from '../uiops';
 import { ViewBuilder } from '../uiview';
 
-/** The banner's band: 26 px tall, 40 px wider than its text, 18 px from the top. */
-const BANNER_Y = 18, BANNER_H = 26;
+/** The banner's top: the scrim starts 18 px down. */
+const BANNER_Y = 18;
 
 export class FieldHud {
   private objectiveBox!: Container;
   private objectiveKey = '';
   private bannerBox!: Container;
   private bannerKey = '';
-  private rule: CanvasImage | null = null;
   // The objective's own state (it was fields of the scene): what it shows, wrapped, and the frames of its flash.
   private objText = '';
   private objLines: string[] = [];
@@ -83,7 +82,7 @@ export class FieldHud {
     this.objectiveBox.setAlpha(s.leader.moving ? 0.55 : 0.9);
   }
 
-  /** The area banner: a dark band with the map's name over a pink rule that grows from the middle, fading in over 20 ticks and out over the last 30 of 200. */
+  /** The area banner's name and sub line, fading in over 20 ticks and out over the last 30 of 200 (the scrim and the rule under them are painted by the scene). */
   private syncBanner(): void {
     const s = this.s;
     const b = s.bannerNow;
@@ -94,31 +93,13 @@ export class FieldHud {
       return;
     }
     this.bannerBox.setVisible(true);
-    const w = measure(b.text) + 40;
-    const x = Math.round((W - w) / 2);
     const key = JSON.stringify([b.text, b.sub]);
     if (key !== this.bannerKey) {
       this.bannerKey = key;
       this.bannerBox.removeAll(true);
       const v = new ViewBuilder(s, this.bannerBox);
-      v.pic(x, BANNER_Y, w, BANNER_H, (c) => {
-        c.fillStyle = bandGradient(c, 0, w, 0.2, 0.85);
-        c.fillRect(0, 0, w, BANNER_H);
-      });
-      // The rule is one pink pixel, stretched to its width each tick.
-      this.rule = v.pic(0, BANNER_Y + 13, 1, 1, (c) => {
-        c.fillStyle = UI.pink;
-        c.fillRect(0, 0, 1, 1);
-      });
       v.text(W / 2, BANNER_Y + 3, b.text, { align: 'center', color: '#ffffff' });
       if (b.sub) v.text(W / 2, BANNER_Y + 16, b.sub, { align: 'center', color: UI.dim });
-    }
-    const lw = Math.min(w - 40, Math.round((t / 30) * (w - 40)));
-    const rule = this.rule;
-    if (rule) {
-      rule.setVisible(lw > 0);
-      rule.setScale(Math.max(1, lw), 1);
-      rule.setPosition(Math.round(W / 2 - lw / 2), BANNER_Y + 13);
     }
     this.bannerBox.setAlpha(a);
   }

@@ -3,7 +3,7 @@ import type { Dir } from '../art/chars';
 import { sfx } from '../audio/sfx';
 import { placeMusic } from '../audio/music';
 import type { Ctx } from '../engine/canvas';
-import { CanvasImage, Scene } from '../sje';
+import { CanvasImage, measure, Scene } from '../sje';
 import { W, H } from '../sje/core/size';
 import { Rng } from '../engine/rng';
 import { Actor, DIRS, opposite } from '../field/actor';
@@ -19,7 +19,7 @@ import { flags, state } from '../game/state';
 import { LOOKS } from '../data/looks';
 import { getMap } from '../data/maps';
 import { chestHalo, chestSprites } from '../field/chests';
-import { UI } from '../ui/draw';
+import { bandGradient, UI } from '../ui/draw';
 import { fieldHooks } from '../game/hooks';
 import { notice, reportError } from '../engine/errors';
 import { scriptApi } from './fieldkit/api';
@@ -101,6 +101,7 @@ export class FieldScene extends Scene<void> implements FieldStageSource {
   private frame = 0;
   private lastBump = -99;
   private banner: { text: string; sub: string; t: number } | null = null;
+  private bannerGrad: { x: number; g: CanvasGradient } | null = null;
 
   /** The area banner as it stands (its text, its sub line and the ticks since it showed), or null: the HUD shows it. */
   get bannerNow(): Readonly<{ text: string; sub: string; t: number }> | null {
@@ -872,8 +873,8 @@ export class FieldScene extends Scene<void> implements FieldStageSource {
   }
 
   /**
-   * The end of the picture, in screen space: the dust, the weather, the pop-in curtains, the emotes and the interact cue. The old render
-   * ended with these (and with the area banner and the objective, which are kit parts now), and the stage asks for them as one layer (`paintScreen`). Returns false when nothing was drawn.
+   * The end of the picture, in screen space: the dust, the weather, the pop-in curtains, the emotes, the interact cue and the area banner's scrim. The old render
+   * ended with these (and with the banner's text and the objective, which are kit parts now), and the stage asks for them as one layer (`paintScreen`). Returns false when nothing was drawn.
    */
   private paintScreenLayer(ctx: Ctx, cx: number, cy: number): boolean {
     const f = this.frame;
@@ -893,6 +894,7 @@ export class FieldScene extends Scene<void> implements FieldStageSource {
       this.drawCue(ctx, this.cue.x - cx, this.cue.y - cy, f);
       drew = true;
     }
+    if (this.renderBanner(ctx)) drew = true;
     return drew;
   }
 
@@ -940,6 +942,30 @@ export class FieldScene extends Scene<void> implements FieldStageSource {
       out.push(p);
     }
     return out;
+  }
+
+  /**
+   * The area banner's scrim and rule: the dark band across the top and the pink line that grows from its middle. This is art in the screen layer (it stays a canvas painting: a
+   * separate GPU blend of the semi-clear band moved one pixel of the field parity picture from 2/255 to 3/255). Its name and sub line are texts: kit parts (fieldkit/hud.ts).
+   */
+  private renderBanner(ctx: Ctx): boolean {
+    if (!this.banner) return false;
+    const t = this.banner.t;
+    const a = t < 20 ? t / 20 : t > 170 ? Math.max(0, (200 - t) / 30) : 1;
+    if (a <= 0) return false;
+    ctx.save();
+    ctx.globalAlpha = a;
+    const w = measure(this.banner.text) + 40;
+    const x = Math.round((W - w) / 2), y = 18;
+    // One gradient per banner (its width is fixed while it shows), not one per frame.
+    if (this.bannerGrad?.x !== x) this.bannerGrad = { x, g: bandGradient(ctx, x, w, 0.2, 0.85) };
+    ctx.fillStyle = this.bannerGrad.g;
+    ctx.fillRect(x, y, w, 26);
+    ctx.fillStyle = UI.pink;
+    const lw = Math.min(w - 40, Math.round((t / 30) * (w - 40)));
+    ctx.fillRect(Math.round(W / 2 - lw / 2), y + 13, lw, 1);
+    ctx.restore();
+    return true;
   }
 
   // ------------------------------------------------------------------ script API

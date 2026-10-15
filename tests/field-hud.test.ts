@@ -6,7 +6,7 @@
  *
  *   1. The objective box: where it sits, what it says, its alpha while the leader walks, and when it hides.
  *   2. A box is built again only when what it shows changes (the flash is a change, the next frame of the same flash is not).
- *   3. The banner: it fades in over 20 ticks and out over the last 30, its rule grows from the middle without a build, and it is gone after 200 ticks.
+ *   3. The banner: its text fades in over 20 ticks and out over the last 30 and is gone after 200 ticks; its scrim and rule stay canvas painting (the scene's `renderBanner`).
  *   4. Ten fields in a row leave no texture and no object behind.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -14,6 +14,7 @@ import type { Input } from '../src/engine/input';
 import { type Container, type GameObject, NineSlice, TextObject } from '../src/sje';
 import { Game } from '../src/sje/runtime/game';
 import { installCanvasStub } from './recorder';
+import { recorder } from './sjeuikit';
 
 vi.mock('../src/audio/sfx', () => ({ sfx: () => undefined }));
 vi.mock('../src/audio/music', () => ({ music: () => undefined, placeMusic: () => undefined, previewMusic: () => undefined, pushMusic: () => undefined, popMusic: () => undefined }));
@@ -140,7 +141,7 @@ describe('the objective box', () => {
 });
 
 describe('the area banner', () => {
-  it('fades in over 20 ticks, holds, fades out over the last 30, and is gone after 200; its window is a band, a rule, the name and the sub line', async () => {
+  it('fades in over 20 ticks, holds, fades out over the last 30, and is gone after 200; its name and sub line are the texts', async () => {
     const f = await field();
     (f.showBanner as (t: string, s: string) => void).call(f, 'Lantern Row', 'Chapter One');
     const box = hud(f).bannerBox;
@@ -164,31 +165,39 @@ describe('the area banner', () => {
     expect(box.visible).toBe(false);
   });
 
-  it('the rule grows from the middle by scale, and the banner is built once for its text', async () => {
+  it('the name and the sub line are built once for their text; the scrim and the growing rule are painted by the scene while the banner shows', async () => {
     const { W } = await import('../src/sje/core/size');
     const { measure } = await import('../src/sje');
     const f = await field();
-    (f.showBanner as (t: string, s: string) => void).call(f, 'Lantern Row', '');
+    (f.showBanner as (t: string, s: string) => void).call(f, 'Lantern Row', 'Chapter One');
     const box = hud(f).bannerBox;
-    tick(5);
+    tick(25);
     draw();
     const built = kids(box);
-    const rule = built.find((o) => 'width' in o && (o as unknown as { width: number }).width === 1) as GameObject;
-    expect(rule).toBeDefined();
-    const w = measure('Lantern Row') + 40;
-    const widths: number[] = [];
-    for (let i = 0; i < 25; i++) {
-      tick();
-      draw();
-      widths.push(rule.scaleX);
-    }
-    // t = 6 .. 30 ticks: the rule is `round(t / 30 * (w - 40))` wide and centered on the screen's middle.
-    expect(widths[0]).toBe(Math.max(1, Math.round((6 / 30) * (w - 40))));
-    expect(widths.at(-1)).toBe(Math.min(w - 40, Math.round((30 / 30) * (w - 40))));
-    expect(widths[0]).toBeLessThan(widths.at(-1) ?? 0);
-    expect(rule.x).toBe(Math.round(W / 2 - (widths.at(-1) ?? 0) / 2));
-    // No build for any of it: the same objects.
+    expect(built.map((o) => (o as TextObject).text)).toEqual(['Lantern Row', 'Chapter One']);
+    // The name sits 3 px into the band, the sub line 16 px: the old calls.
+    expect(built.map((o) => [o.x, o.y])).toEqual([[W / 2, 21], [W / 2, 34]]);
+    tick(20);
+    draw();
     expect(same(kids(box), built)).toBe(true);
+    // The scrim: the band across the top (x, 18, w, 26) and a rule of round(t / 30 * (w - 40)) px centered on the middle, as the old code painted them.
+    const w = measure('Lantern Row') + 40;
+    const x = Math.round((W - w) / 2);
+    const paint = (t: number): string[] => {
+      (f.banner as { t: number }).t = t;
+      const r = recorder();
+      (f.renderBanner as (ctx: unknown) => boolean).call(f, r.ctx);
+      return r.log.filter((l) => l.startsWith('fillRect'));
+    };
+    const early = paint(15);
+    expect(early).toEqual([`fillRect(${x},18,${w},26)`, `fillRect(${Math.round(W / 2 - Math.round(0.5 * (w - 40)) / 2)},31,${Math.round(0.5 * (w - 40))},1)`]);
+    // Control: a later tick has a wider rule, and a banner that is gone paints nothing.
+    const late = paint(30);
+    expect(late[1]).toBe(`fillRect(${Math.round(W / 2 - (w - 40) / 2)},31,${w - 40},1)`);
+    (f as unknown as { banner: unknown }).banner = null;
+    const none = recorder();
+    expect((f.renderBanner as (ctx: unknown) => boolean).call(f, none.ctx)).toBe(false);
+    expect(none.log).toEqual([]);
     // Control: another banner text is another build.
     (f.showBanner as (t: string, s: string) => void).call(f, 'Sinkline', '');
     tick(2);

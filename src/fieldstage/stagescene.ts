@@ -6,7 +6,7 @@
  *   the surround behind a small map                               ->  a pinned `CanvasImage`, painted by the old painter only when it changes
  *   the animations (`AnimFx`)                                     ->  two pinned `CanvasImage`s (lit: before the light map; unlit: after)
  *   the light map and the haze                                    ->  `LightRig`: `Lights` painting a pinned `CanvasImage`, shown with a multiply blend, and an additive one for the haze
- *   dust, weather, curtains, emotes, cue (the banner and the objective are kit parts of the field scene, M8c)  ->  one pinned `CanvasImage`, painted by the field's own painters (`FieldStageSource.paintScreen`)
+ *   dust, weather, curtains, emotes, cue, the banner's scrim (the banner's text and the objective are kit parts of the field scene, M8c)  ->  one pinned `CanvasImage`, painted by the field's own painters (`FieldStageSource.paintScreen`)
  *   the camera                                                    ->  `cameras.main.setScroll` to the field's camera (the field owns the camera RULE: `cameraOrigin`, the pan easing, the pop-in boxes)
  *
  * HOW IT FITS. The scene is a pure view. `fieldopen.ts` puts it on the scene stack UNDER the field scene (`Game.runBeneath`); the field makes itself non-opaque so the
