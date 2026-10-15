@@ -22,6 +22,8 @@ export class SaveScene extends UiScene<SlotId | null> {
   private slots: SlotId[];
   private idx = 0;
   private confirm = false;
+  /** True after a successful write: the scene is only waiting to close, so it ignores input (a second confirm would overwrite another slot). */
+  private done = false;
   private note = '';
 
   /** Slot headers, loadability and (for newer-version saves) the version that wrote them, read once (full validation and JSON parsing are too costly per frame). */
@@ -163,6 +165,7 @@ export class SaveScene extends UiScene<SlotId | null> {
   }
 
   private step(): void {
+    if (this.done) return;
     const keys = this.input.actions;
     const slot = this.slots[this.idx] as SlotId;
     if (this.confirm) {
@@ -208,6 +211,7 @@ export class SaveScene extends UiScene<SlotId | null> {
       sfx('save');
       this.note = `Saved to slot ${slot}.`;
       this.confirm = false;
+      this.done = true;
       void this.game.wait(30).then(() => !this.closed && this.close(slot));
     } else {
       sfx('buzz');

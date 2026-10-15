@@ -156,6 +156,8 @@ export class Game implements GameApi {
 
   /** Replace the whole stack with one scene. */
   reset<R>(scene: Scene<R> | NativeScene<R>): Promise<R> {
+    // Refuse a native scene BEFORE the stack is torn down, so a wiring mistake does not also wipe the running game (run() has the same guard).
+    if (!(scene instanceof Scene)) throw new Error('the old Game cannot run a native sje scene');
     for (const s of [...this.stack].reverse()) {
       s.closed = true;
       s.exit();

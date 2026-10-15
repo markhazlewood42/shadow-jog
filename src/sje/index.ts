@@ -47,6 +47,6 @@ export { Bar, type BarRect, barRects } from './ui/bar';
 export { Cursor, type CursorKind, cursorNudge, moreVisible } from './ui/cursor';
 export { type ListAction, type ListInput, type ListItem, ListMenu, type ListResult, type RowGeometry, listRows, scrollFor, stepIndex, type UiSound } from './ui/listmenu';
 export { NineSlice, paintTab, paintWindow, type WindowBounds, type WindowStyle, windowBounds } from './ui/nineslice';
-export { type BarParams, type CursorParams, hpColor, keyLegend, type ListParams, OVERLAY_DIM, SELECT_FILL, UI, UI_DEFAULTS, type UiParams, type WindowParams } from './ui/params';
+export { type BarParams, type CursorParams, hpColor, keyLegend, type ListParams, OVERLAY_DIM, OVERLAY_DIM_ALPHA, SELECT_FILL, UI, UI_DEFAULTS, type UiParams, type WindowParams } from './ui/params';
 export { layoutText, paintText, type TextLayout, TextObject, type TextStyle } from './ui/textobject';
 export { type Tween, type TweenConfig, TweenManager } from './runtime/tween';

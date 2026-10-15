@@ -13,7 +13,7 @@
  *
  * A scene adds its objects with `this.sys.ui.add(...)`. There is no `add` helper here on purpose: the scene's own `add` is the object factory of the engine.
  */
-import { CanvasImage, Graphics, keyLegend, OVERLAY_DIM, Scene } from '../sje';
+import { CanvasImage, Graphics, keyLegend, OVERLAY_DIM_ALPHA, Scene } from '../sje';
 import { H, W } from '../sje/core/size';
 
 export abstract class UiScene<R = void> extends Scene<R> {
@@ -29,7 +29,7 @@ export abstract class UiScene<R = void> extends Scene<R> {
   }
 
   /**
-   * A full-screen shade, added to the ui layer. With no argument it is the dim of a full-screen menu (`OVERLAY_DIM`, 0.985); a card
+   * A full-screen shade, added to the ui layer. With no argument it is the dim of a full-screen menu (`OVERLAY_DIM_ALPHA`, 0.985); a card
    * passes `0.5`. The color is the game's night black.
    */
   protected dim(alpha: number = OVERLAY_DIM_ALPHA): Graphics {
@@ -57,5 +57,3 @@ export abstract class UiScene<R = void> extends Scene<R> {
   }
 }
 
-/** The alpha of `OVERLAY_DIM` ('rgba(7,6,13,0.985)'). */
-export const OVERLAY_DIM_ALPHA = Number(OVERLAY_DIM.slice(OVERLAY_DIM.lastIndexOf(',') + 1, -1));

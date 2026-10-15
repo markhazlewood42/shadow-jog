@@ -153,6 +153,42 @@ describe('DialogScene', () => {
     return Promise.resolve().then(() => expect(result).toBe(0));
   });
 
+  it('the music duck is released once on every way the box ends: close, abandon and reset (control: not while open)', async () => {
+    const { DialogScene } = await import('../src/scenes/dialog');
+    const { audio } = await import('../src/audio/engine');
+    const spy = vi.spyOn(audio, 'duck');
+    try {
+      const a = new DialogScene({ who: 'dutch', text: 'One.' });
+      void game.run(a);
+      expect(spy.mock.calls).toEqual([[true]]); // control: ducked, and not released while open
+      a.close(0);
+      tick(1);
+      expect(spy.mock.calls).toEqual([[true], [false]]);
+      spy.mockClear();
+      void game.run(new DialogScene({ who: 'dutch', text: 'Two.' }));
+      game.abandon();
+      expect(spy.mock.calls).toEqual([[true], [false]]);
+      spy.mockClear();
+      void game.run(new DialogScene({ who: 'dutch', text: 'Three.' }));
+      void game.reset(new DialogScene({ who: 'dutch', text: 'Four.' }));
+      expect(spy.mock.calls.filter((c) => c[0] === false)).toHaveLength(1);
+      expect(spy.mock.calls.filter((c) => c[0] === true)).toHaveLength(2);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('restore and step before the scene runs throw a clear error (control: they work once it runs)', async () => {
+    const { DialogScene } = await import('../src/scenes/dialog');
+    const s = new DialogScene({ who: 'dutch', text: 'Sit.' });
+    expect(() => s.step(1)).toThrow(/needs a running scene/);
+    expect(() => s.restore(s.snapshot())).toThrow(/needs a running scene/);
+    void game.run(s);
+    expect(() => s.step(1)).not.toThrow();
+    expect(() => s.restore(s.snapshot())).not.toThrow();
+    s.close(0);
+  });
+
   it('a long line turns pages on confirm, and the second page starts empty', async () => {
     const { DialogScene } = await import('../src/scenes/dialog');
     const s = new DialogScene({ who: 'dutch', text: TWO_PAGES });

@@ -258,6 +258,32 @@ describe('SaveScene', () => {
     expect(result).toBeNull();
   });
 
+  it('after a successful save the scene ignores input, so a second confirm cannot overwrite another slot', async () => {
+    const { SaveScene } = await import('../src/scenes/saveload');
+    const store = new Map<string, string>();
+    vi.stubGlobal('localStorage', { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v), removeItem: (k: string) => void store.delete(k) });
+    try {
+      const { game, keys } = newGame();
+      const s = new SaveScene('save');
+      void game.run(s);
+      press(game, keys, 'confirm'); // writes slot 1
+      expect(store.size).toBe(1);
+      press(game, keys, 'down');
+      press(game, keys, 'confirm'); // would write slot 2 without the guard
+      expect(store.size).toBe(1);
+      // Control: a fresh scene that has not saved yet does write when the cursor is on another slot.
+      const fresh = new SaveScene('save');
+      void game.run(fresh);
+      press(game, keys, 'down');
+      press(game, keys, 'confirm');
+      expect(store.size).toBe(2);
+      fresh.close(null);
+      s.close(null);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('the cursor wraps on a save screen with three slots', async () => {
     const { SaveScene } = await import('../src/scenes/saveload');
     const { game, keys } = newGame();

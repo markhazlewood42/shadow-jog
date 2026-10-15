@@ -89,6 +89,10 @@ export class DialogScene extends UiScene<number> {
   private bx = Math.round((W - this.bw) / 2);
 
   private win!: NineSlice;
+  /** True once `create` has run (the display objects exist). */
+  private created = false;
+  /** True while this box holds a music duck that it has not yet released. */
+  private ducked = false;
   private portrait: CanvasImage | null = null;
   private portraitKey = '';
   private tab: CanvasImage | null = null;
@@ -119,10 +123,27 @@ export class DialogScene extends UiScene<number> {
   }
 
   override create(): void {
+    this.created = true;
     audio.duck(true);
-    this.events.on('shutdown', () => audio.duck(false));
+    this.ducked = true;
+    // Every way a scene ends (close, reset, abandon, a fault) tears it down and sends 'shutdown', then 'destroy'. Listening to both, with a flag,
+    // un-ducks the music once whichever comes first, and never twice (a second duck(false) would cancel the duck of another box).
+    this.events.on('shutdown', () => this.unduck());
+    this.events.on('destroy', () => this.unduck());
     this.buildObjects();
     this.refreshView();
+  }
+
+  /** Put the music back to full volume, once. */
+  private unduck(): void {
+    if (!this.ducked) return;
+    this.ducked = false;
+    audio.duck(false);
+  }
+
+  /** The editor calls (restore, step) need the display objects, which exist only after create. Fail with a clear message, not a null error. */
+  private needCreated(what: string): void {
+    if (!this.created) throw new Error(`DialogScene.${what}() needs a running scene: push it with game.run() first`);
   }
 
   /** Make every display object of the current line. Called by `create` and again by `restore` (a restored line can differ from the constructed one). */
@@ -304,6 +325,7 @@ export class DialogScene extends UiScene<number> {
 
   /** Put a snapshot back. The line comes from the snapshot, so a box built for another line becomes this one. Call it on a running scene. */
   restore(s: DialogSnapshot): void {
+    this.needCreated('restore');
     this.setLine(plainOpts(s.opts));
     this.page = Math.max(0, Math.min(s.page, this.pages.length - 1));
     this.shown = Math.max(0, Math.min(s.shown, this.pageLen()));
@@ -324,6 +346,7 @@ export class DialogScene extends UiScene<number> {
    * current page. It stops at the end of the page: it never pages, never picks a choice and never closes the box.
    */
   step(n: number): void {
+    this.needCreated('step');
     for (let i = 0; i < n; i++) {
       this.frame++;
       if (this.opened < OPEN_TICKS) this.opened++;

@@ -105,6 +105,8 @@ interface ListSpot {
 
 export class MenuScene extends UiScene<MenuResult> {
   private mode: Mode = 'main';
+  /** True while the Deck scene is loading, so only one is pushed. */
+  private deckPending = false;
   /** The lists are kit `ListMenu`s, built in `create` (a display object needs the running scene). */
   private main!: ListMenu<string>;
   private beasts!: ListMenu<string>;
@@ -236,7 +238,11 @@ export class MenuScene extends UiScene<MenuResult> {
           this.buildSaveList();
           this.mode = 'save';
         } else if (v === 'options') void this.game.run(new OptionsScene(true)).then((r) => r === 'title' && this.close({ kind: 'title' }));
-        else if (v === 'deck') void import('./deck').then(({ DeckScene }) => this.game.run(new DeckScene('view')));
+        else if (v === 'deck' && !this.deckPending) {
+          // The deck loads lazily. Until it arrives the menu still takes input, so a second confirm must not start a second import.
+          this.deckPending = true;
+          void import('./deck').then(({ DeckScene }) => this.game.run(new DeckScene('view'))).finally(() => { this.deckPending = false; });
+        }
         break;
       }
       case 'pickMember':

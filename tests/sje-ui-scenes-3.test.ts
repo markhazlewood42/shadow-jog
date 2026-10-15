@@ -140,6 +140,26 @@ describe('MenuScene', () => {
     expect(m.top.list.length).toBe(0);
   });
 
+  it('choosing Deck twice before the lazy chunk arrives pushes one DeckScene (control: it can be opened again after)', async () => {
+    const { DeckScene } = await import('../src/scenes/deck');
+    const { m } = await open();
+    tick(1);
+    m.main.index = m.main.items.findIndex((it) => it.label === 'Deck');
+    expect(m.main.index).toBeGreaterThanOrEqual(0);
+    press('confirm');
+    press('confirm'); // the import has not resolved yet: the menu still takes input
+    await new Promise((r) => setTimeout(r, 30));
+    const decks = (): number => game.scene.scenes.filter((s) => s instanceof DeckScene).length;
+    expect(decks()).toBe(1);
+    // Control: once the deck is closed, Deck opens again (the pending flag is released, not stuck).
+    (game.scene.scenes.find((s) => s instanceof DeckScene) as InstanceType<typeof DeckScene>).close();
+    tick(1);
+    await new Promise((r) => setTimeout(r, 30)); // let the flag release
+    press('confirm');
+    await new Promise((r) => setTimeout(r, 30));
+    expect(decks()).toBe(1);
+  });
+
   it('Equip walks member, slot and gear list, and cancel steps back through them', async () => {
     const { m } = await open();
     const i = m.main.items.findIndex((it) => it.label === 'Equip');
