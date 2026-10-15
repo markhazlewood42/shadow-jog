@@ -28,7 +28,7 @@ import { ENEMIES, FAMILY_WEAK } from '../../data/enemies';
 import { ITEMS } from '../../data/items';
 import { MEMBERS } from '../../data/party';
 import { state, type MemberId } from '../../game/state';
-import { CanvasImage, Container, drawText, fitText, type GameObject, hpColor, ListMenu, measure, UI, wrap } from '../../sje';
+import { Bar, CanvasImage, Container, drawText, fitText, type GameObject, hpColor, ListMenu, measure, TextObject, UI, wrap } from '../../sje';
 import { H, W } from '../../sje/core/size';
 import { TARGET_INFO_W } from '../../ui/layout';
 import type { BattleScene } from '../battle';
@@ -38,7 +38,7 @@ import { drawVictoryBanner } from './banner';
 import { BANNER_H, CARD_H, CARD_RAISE, CARD_W, CMD_W, DECK_CUT_LIFE, HUD, listWindowW, MENU_ABOVE_PANEL, MENU_X, ORDER_BOTTOM, ORDER_FACE, ORDER_LABEL_ABOVE, ORDER_RIGHT, ORDER_STEP_OUT, ORDER_THUMB, ORDER_TOP, orderStripLayout, PANEL_Y, ROUND_MENU_H, WORLD_SCALE } from './geom';
 import { ELEMENT_COLOR, ELEMENT_ICON, ELEMENT_TAG, ELEMENTS, elementMark, markElements, STATUS_LABEL, statusName } from './tables';
 import { artTop, drawBig, enemyThumb } from './sprites';
-import { applyOps, barPixels, type Op } from '../uiops';
+import { applyOps, barPixels, LAG_COLOR, type Op } from '../uiops';
 import type { Cutin } from './playback';
 
 /** Who is acting: one bright color for the bouncing arrow, their status card and their turn-order entry. Picking a target uses the menu cursor's cyan instead. */
@@ -60,6 +60,27 @@ interface Keyed {
 /** The ops of one box, and what moves without a rebuild. */
 interface Card extends Keyed {
   ring: CanvasImage | null;
+}
+
+/** An op without what animates: a text line's string, a bar's fill and ghost. */
+function shapeOf(o: Op): Op {
+  if (o.k === 'text') return { ...o, s: '' };
+  if (o.k === 'bar') return { ...o, fill: 0, lag: 0 };
+  return o;
+}
+
+/** Bring the parts that `applyOps` made for `ops` up to date: the strings of the text lines and the fill and ghost of the bars. The part for op i is child i of the box. */
+function patchOps(box: Container, ops: readonly Op[]): void {
+  const parts = box.list;
+  for (let i = 0; i < ops.length; i++) {
+    const o = ops[i];
+    const part = parts[i];
+    if (o?.k === 'text' && part instanceof TextObject) part.setText(o.s);
+    else if (o?.k === 'bar' && part instanceof Bar) {
+      part.setRatio(o.w > 0 ? o.fill / o.w : 0);
+      part.setGhost(o.lag > o.fill && o.w > 0 ? { ratio: o.lag / o.w, color: LAG_COLOR } : null);
+    }
+  }
 }
 
 export class BattleHud {
@@ -90,7 +111,7 @@ export class BattleHud {
   private deck: { img: CanvasImage; t: number } | null = null;
   /** The text objects and pictures of the banner that fade with its alpha. */
   private fade: GameObject[] = [];
-  private order: { key: string; entries: { box: Container; pulse: CanvasImage | null; done: boolean }[] } = { key: '', entries: [] };
+  private order: { key: string; entries: { box: Container; pulse: CanvasImage | null }[] } = { key: '', entries: [] };
   private orderLabel!: Keyed;
 
   constructor(private readonly s: BattleScene) {}
@@ -157,9 +178,13 @@ export class BattleHud {
   }
 
   /** Make `key`'s box again (and only then). `make` returns the ops, or null to leave the box empty. */
-  private rebuild(k: Keyed, ops: readonly Op[] | null, extra = ''): boolean {
-    const key = ops ? extra + JSON.stringify(ops) : '';
-    if (key === k.key) return false;
+  private rebuild(k: Keyed, ops: readonly Op[] | null, extra = '', inPlace = false): boolean {
+    // `inPlace`: the key leaves out what animates (the text of a line, the fill and ghost of a bar). The same key then updates those parts in place; the box is built again only when its structure changes.
+    const key = ops ? extra + JSON.stringify(inPlace ? ops.map(shapeOf) : ops) : '';
+    if (key === k.key) {
+      if (inPlace && ops) patchOps(k.box, ops);
+      return false;
+    }
     k.key = key;
     k.box.removeAll(true);
     if (ops) applyOps(this.s, k.box, ops);
@@ -354,7 +379,7 @@ export class BattleHud {
    */
   private targetNotes(u: Combatant): { weak: string; guess: string; notes: [string, string][] } {
     const seenW = state.weakSeen[u.key]?.length ?? 0, seenR = state.resistSeen[u.key]?.length ?? 0, seenI = state.immuneSeen[u.key]?.length ?? 0;
-    const key = u.uid * 10000 + (u.analyzed ? 5000 : 0) + seenW * 100 + seenR * 10 + seenI;
+    const key = `${u.uid}|${u.analyzed ? 1 : 0}|${seenW}|${seenR}|${seenI}`;
     if (this.targetCache?.key === key) return this.targetCache.value;
     // Analyzed: the whole chart. Otherwise what the crew has learned the hard way.
     const weak = u.analyzed ? Object.entries(u.weak ?? {}).filter(([, v]) => (v ?? 1) > 1).map(([k]) => k) : (state.weakSeen[u.key] ?? []);
@@ -376,7 +401,7 @@ export class BattleHud {
     this.targetCache = { key, value };
     return value;
   }
-  private targetCache: { key: number; value: { weak: string; guess: string; notes: [string, string][] } } | null = null;
+  private targetCache: { key: string; value: { weak: string; guess: string; notes: [string, string][] } } | null = null;
 
   private syncTarget(): void {
     const s = this.s;
@@ -417,7 +442,7 @@ export class BattleHud {
         ];
       }
     }
-    this.rebuild(this.targetBox, ops);
+    this.rebuild(this.targetBox, ops, '', true);
   }
 
   // ------------------------------------------------------------------ the party cards (without a stage)
@@ -497,7 +522,7 @@ export class BattleHud {
       if (tags > 1) ops.push({ k: 'text', x: x + 8 + measure('WWW'), y: y + 21, s: `+${tags - 1}`, style: { color: UI.dim, shadow: false } });
       // The ring of the card that gives orders or is aimed at: its color and place are part of the key, its pulse is not.
       const ringColor = lit ? (targeted ? AIMING : ACTIVE) : '';
-      const changed = this.rebuild(card, ops, `${ringColor}|${x}|${y}|`);
+      const changed = this.rebuild(card, ops, `${ringColor}|${x}|${y}|`, true);
       if (changed) {
         card.ring = null;
         if (ringColor) {
@@ -537,10 +562,15 @@ export class BattleHud {
           this.enemyLayer.add(k.box);
           this.enemies.set(e.uid, k);
         }
-        this.rebuild(k, this.enemyOps(e));
+        this.rebuild(k, this.enemyOps(e), '', true);
       }
     }
-    for (const [uid, k] of this.enemies) if (!live.has(uid)) this.rebuild(k, null);
+    // An enemy that left (dead, dying, hidden) loses its box; one that comes back gets a new one.
+    for (const [uid, k] of this.enemies) {
+      if (live.has(uid)) continue;
+      k.box.destroy();
+      this.enemies.delete(uid);
+    }
   }
 
   private enemyOps(e: Combatant): Op[] {
@@ -654,7 +684,7 @@ export class BattleHud {
       this.orderLayer.removeAll(true);
       this.orderLabel = { box: new Container(s, 0, 0, 'battle-order-label'), key: '' };
       this.orderLayer.add(this.orderLabel.box);
-      const entries: { box: Container; pulse: CanvasImage | null; done: boolean }[] = [];
+      const entries: { box: Container; pulse: CanvasImage | null }[] = [];
       const lb = new ViewBuilder(s, this.orderLabel.box);
       lb.text(edgeX, ORDER_TOP - ORDER_LABEL_ABOVE, 'TURN', { color: UI.dim, align: side });
       for (let k = 0; k < rects.length; k++) {
@@ -716,7 +746,7 @@ export class BattleHud {
         });
         if (done) box.setAlpha(0.35);
         this.orderLayer.add(box);
-        entries.push({ box, pulse: ring, done });
+        entries.push({ box, pulse: ring });
       }
       if (rects.length < list.length) new ViewBuilder(s, this.orderLabel.box).text(edgeX, ORDER_BOTTOM - 2, `+${list.length - rects.length}`, { color: UI.dim, align: side });
       this.order = { key, entries };

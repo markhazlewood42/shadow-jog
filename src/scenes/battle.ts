@@ -162,8 +162,6 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
 
   /** The `prerender` handler: paint `render` into the scene's canvas image and upload it. A throw still uploads the (clear) canvas, then reaches the engine's guard. */
   private paint(): void {
-    // The windows are display objects: bring them up to date with the state as it stands for this frame (a flow that ran after the tick may have changed it).
-    if (this.image) this.hud.sync();
     const image = this.image;
     if (!image) return;
     const ctx = image.ctx;
@@ -173,6 +171,8 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     if (was) ctx.clearRect(0, 0, W, H);
     ctx.save();
     try {
+      // The windows are display objects: bring them up to date with the state as it stands for this frame (a flow that ran after the tick may have changed it).
+      this.hud.sync();
       this.canvasDirty = this.renderer.render(ctx);
     } finally {
       ctx.restore();
@@ -180,7 +180,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     }
   }
 
-  /** A picture of this scene for the screen snapshot (`Game.ctx`): its canvas as last painted. A scene made of one canvas has no objects to describe. */
+  /** A picture of this scene for the screen snapshot (`Game.ctx`): its canvas as last painted. Its windows are display objects and are not in it: the only snapshot (`snapshotScreen`, before a battle starts) never sees a battle. */
   override paintSnapshot(ctx: CanvasRenderingContext2D): void {
     if (this.image?.visible) ctx.drawImage(this.image.canvas, 0, 0);
   }

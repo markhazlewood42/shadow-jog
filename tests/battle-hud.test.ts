@@ -16,7 +16,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import type { Input } from '../src/engine/input';
 import { drawLag } from '../src/scenes/battlekit/sprites';
 import { barPixels } from '../src/scenes/uiops';
-import { type Container, type GameObject, NineSlice, TextObject } from '../src/sje';
+import { Bar, type Container, type GameObject, NineSlice, TextObject } from '../src/sje';
 import { barRects } from '../src/sje/ui/bar';
 import { Game } from '../src/sje/runtime/game';
 import { layoutOfNative } from './nativelayout';
@@ -314,11 +314,14 @@ describe('a box is built again only when what it shows changes', () => {
     expect(first.length).toBeGreaterThanOrEqual(2);
     tick(3);
     expect(same(k?.box.list, first)).toBe(true);
-    // Control: a hit that takes a third of the HP changes the bar.
+    // Control: a hit that takes a third of the HP moves the bar, in place (the same objects, no rebuild).
+    const bar = k?.box.list.find((o): o is Bar => o instanceof Bar);
+    const r0 = bar?.ratio ?? 0;
     const dd = (b.d as (uid: number) => { shownHp: number }).call(b, e?.uid ?? 0);
     dd.shownHp = (e?.base.maxHp ?? 30) * 0.6;
     tick();
-    expect(k?.box.list.some((o, i) => o !== first[i])).toBe(true);
+    expect(same(k?.box.list, first)).toBe(true);
+    expect(bar?.ratio).toBeLessThan(r0);
   });
 });
 
