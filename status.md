@@ -20,7 +20,7 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 
 ## M8c "Battle and field" started (2026-10-15)
 
-M8a ([PR #94](https://github.com/markhazlewood42/shadow-jog/pull/94)) and M8b ([PR #95](https://github.com/markhazlewood42/shadow-jog/pull/95), merge f78f307) are merged: all 13 UI scenes are native `sje` scenes. M8c ports the battle and field scenes on branch `engine-m8c-battle-field`. Plan and pass lines: `docs/engine/m8-brief.md` tasks 8 and 9. Bundle caps until M8d: first play 412 kB, total 473.8 kB (Mark yes).
+M8a ([PR #94](https://github.com/markhazlewood42/shadow-jog/pull/94)) and M8b ([PR #95](https://github.com/markhazlewood42/shadow-jog/pull/95), merge f78f307) are merged: all 13 UI scenes are native `sje` scenes. M8c ports the battle and field scenes on branch `engine-m8c-battle-field`. Plan and pass lines: `docs/engine/m8-brief.md` tasks 8 and 9. Bundle caps until M8d: first play 412 kB, total 475.5 kB (Mark yes, 2026-10-15, after the battle and field kit port).
 
 ## ET "Editor port" built (2026-10-13)
 

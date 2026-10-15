@@ -80,7 +80,7 @@ const CHUNK_MAX = 480 * 1000;
 // 2026-10-12 (M7, D2 B of docs/engine/m7-brief.md): the total EXCLUDES the lazy 3D chunk (it has its own caps below), so what joins it is the hack door, the jump (the cover, its time line and
 // style A) and their data. Measured 455.193 kB gzip (the M6 baseline was 451.688 kB: +3.5 kB; the brief's estimate was +1.5 kB for the door alone, before the cover); set to 456 kB, rounded up
 // to the next 1 kB. The 3D chunk that the first stub-door build counted in the total was the +145.9 kB of that build.
-const GZIP_TOTAL_MAX = 473.8 * 1000; // 2026-10-14 (M8b, Mark yes): measured 472.6 kB; the old scenes ship beside the new ones until M8d. Was 468.5 kB (M8b phase 1), 462.5 kB (M8a)
+const GZIP_TOTAL_MAX = 475.5 * 1000; // 2026-10-15 (M8c, Mark yes): measured 474.7 kB after the battle and field kit port; the old engine ships until M8d. Was 473.8 kB (M8b), 468.5 kB (M8b phase 1), 462.5 kB (M8a)
 // 2026-10-10 (M6): `first play` (boot + lazy-2d) is what every player downloads, so it has its own cap:
 // measured 391.363 kB gzip (boot 1.5 + the game's boot chunk and what it imports 184.7 + the engine 156.1 + the two stages 49.1), cap = measured + 1 kB = 392.4 kB. Before the flip it was 345.7 kB, with no cap
 // and without the stages. The largest-chunk cap (480 kB) holds because `src/sje/boot.ts` loads the game's boot with its own dynamic import: with a static one, Rolldown merged the engine and the game into one 770.8 kB chunk.
