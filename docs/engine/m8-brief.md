@@ -310,3 +310,7 @@ Groups are commits. M8a = tasks 1 to 3 and 5. M8b = tasks 4, 6 and 7. M8c = task
 | 8 review 3 paint sync without `!closed` | Not real | `prerenderVisible` skips closed scenes and `paint` returns when `image` is null (cleared on shutdown) | none |
 | 9 review 3 cut-in built once | Not real | Nothing assigns `fromLeft`, `row` or `line` after `v.cutin(...)` creates the object | none |
 | 10 review 3 budget comment | Real | Comment says 475.1 kB (first play 411.3 kB) | 116c29b |
+| 2 review 4 VICTORY banner full-screen picture | Real | The picture is the full width and only the rows the banner touches (translated, same pixels); it is destroyed when the banner ends. It still repaints each tick: the sweep changes every tick | ed336bd |
+| 3 review 4 `objText` kept when the objective hides | Not real | A hidden or empty objective sets the box invisible and `plate` null, so no text or plate shows; `objText` is kept on purpose so the flash holds | none |
+| 7 review 4 `patchOps` one child per op | Real | `patchOps` checks the part count and kinds and returns false; `rebuild` then builds the box again | ed336bd |
+| 6 review 4 one `CanvasImage` per flat `rect` op (`uiops.ts`) | Follow-up, not changed | M8d follow-up: a kit flat-plate part (or one batched picture per box) for `rect` ops. Related to the open CI 2 note (full-canvas uploads each frame) and to F-a above | none |
