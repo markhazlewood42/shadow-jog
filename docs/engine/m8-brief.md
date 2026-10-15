@@ -203,7 +203,7 @@ Groups are commits. M8a = tasks 1 to 3 and 5. M8b = tasks 4, 6 and 7. M8c = task
 | Seams | `stageseam.ts` and `liveopen.ts` take the sje `Game` type | `git grep -n "from '../engine/game'" src/scenes` prints only `field.ts` | done | `game/systems.ts` casts `game` to the sje `Game` for `battleStages.open`. M8d task 10 removes the cast |
 | Battle Test | `battleglue.ts` no longer routes `postfx` | Battle Test runs a fight (`battletest.spec.ts` green). Pins in `et-tools.test.ts` and `sje-imports.test.ts` now expect no `postfx` or `route` edge in `src/dev`, each with a control | done | The exemption lists stay for M8d task 11 |
 | Seed 7 control | Live scene trace equals `battleTrace(7)` | `tests/battle-native.test.ts` (unit, real scene on a real `Game`) and `e2e/battletest.spec.ts` pass line 9. Controls: seed 8 differs, one changed word differs | holds | |
-| Timing proofs | Intro moment tick, hit stop, shake, flash, effects cleared on close | `tests/battle-native.test.ts` (5 tests) and `tests/playback.test.ts` (3 new). Mutating the code turned 4 of them red | holds | |
+| Timing proofs | Intro moment tick, hit stop, shake, flash, effects cleared on close | `tests/battle-native.test.ts` (5 tests) and `tests/playback.test.ts` (3 new). A mutation of the code turned 4 of them red | holds | |
 | Unit tests | `npm run check` | exit 0. 112 files, 2019 tests. `ui-layout.test.ts` reads the native scene with `nativeKeys` and stubs the intro; no test deleted or loosened | holds | |
 | Specs | `sje-battle`, `battletest`, `sje-stage-parity`, `gpufx`, `gameover`, `playthrough` with `CI=1 PW_PORT=3012` | 102 passed, 21 skipped, exit 0 | holds | |
 | Pass lines 10, 12, 13 | Diff scans and `npm run budget` | Lines 10 and 12 print nothing. Budget exits 0: first play 411.4 kB (cap 412), total 473.2 kB (cap 473.8) | holds | Total rose 0.6 kB since M8b (472.6 kB) |
@@ -261,3 +261,11 @@ Groups are commits. M8a = tasks 1 to 3 and 5. M8b = tasks 4, 6 and 7. M8c = task
 | F-b | The `has screens to check` test in `tests/ui-layout.test.ts` has a 20 s timeout. | It takes 1.6 s alone and 4.2 s in the full suite. The old 5 s limit was too near the 4.2 s. | holds | |
 | F-c | "Mutating" in the group F and group G rows. | Both rows say "A mutation of the code". | fixed | |
 | F-d | Timing proof for hitstop, shake and battle-in in group G. | Group E tests in `tests/battle-native.test.ts` cover them: "the battle-in transition" (the intro moment, once, on the tick of the crack), "hit stop" (the effects clock stands still), "a move asks for a shake and a flash" and "a freeze holds a request back". All 9 tests pass. Group G did not change the effect code. | holds | No new test needed. |
+
+### M8c verification
+
+| Step | What | Result | Verdict | Fix or note |
+|---|---|---|---|---|
+| Round 1 | Runner (sonnet) and reader (haiku) on groups E and F | Runner 9.0, PASS. Reader 8.33, FAIL: F1 Important (the seam rule allowed a value import), F2 to F6 Minor | fail | Mark decided 2026-10-15 to port the battle and field windows to the kit in M8c (group G) |
+| Round 2 | Runner (sonnet) and reader (haiku) on group G and F1 to F6 | Reader 8.5, PASS. Runner 8.6, FAIL: `default-path` rustyard 2/255 against a 1/255 bound (Important) | fail | Fix round 2 |
+| Fix round 2 | One fresh verifier (sonnet) on the rustyard finding and F-a to F-d | Rustyard passes with the reference and bound unchanged. 56 passed, 0 failed. Score 9.0 | pass | One Minor (STE wording at the group E row), fixed in the next commit |
