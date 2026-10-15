@@ -135,7 +135,7 @@ test('Load from Game Over with a damaged save says so and returns to the title',
 
 test('Autosave reports success, and failure when storage is unavailable', async ({ page }) => {
   await stage(page, 'town');
-  // The 'saved' badge lives 1.8 s (engine/errors.ts). Read it in the same page task that makes the warp, as the warp ends. With a poll of its own in between, a slow engine
+  // The 'saved' badge lives 1.8 s (src/sje/core/errors.ts). Read it in the same page task that makes the warp, as the warp ends. With a poll of its own in between, a slow engine
   // (WebKit on CI takes a second or more to answer a page.evaluate) lets the badge expire before the test looks, and the null that results says nothing about autosave.
   const saved = await sj<{ tone: string } | null>(page, "(async () => { await sj.tp('world', 20, 22, 'right'); return sj.notice(); })()");
   expect(saved?.tone).toBe('saved');

@@ -5,7 +5,7 @@
  *
  * What it records, in screen pixels (after any `translate` and `scale` the scene applied):
  *   - every `fillRect`, `strokeRect`, `clearRect`, `drawImage` and `clip`;
- *   - the box of each `drawText` and `drawParagraph` call (`src/engine/font.ts`);
+ *   - the box of each `drawText` and `drawParagraph` call (`src/sje/display/font.ts`);
  *   - each `drawWindow` call (`src/ui/draw.ts`), with the text its own frame draws (the title tab and
  *     the key legend sit on the window's edge by design, so they are marked "decor", not content);
  *   - each `ListMenu.render` call (`src/ui/list.ts`): where it starts and how many rows it was given.

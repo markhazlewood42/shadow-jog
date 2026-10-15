@@ -44,7 +44,7 @@ export interface GameState {
   immuneSeen: Record<string, string[]>;
   /** Last round's battle orders per member (for "Repeat"). */
   lastOrders: Partial<Record<MemberId, { cmd: string; id?: string | undefined }>>;
-  /** Encounter stream state (see engine/rng streams). */
+  /** Encounter stream state (see src/sje/core/rng.ts streams). */
   rngState: number;
   /** Battle stream state. */
   rngBattle: number;

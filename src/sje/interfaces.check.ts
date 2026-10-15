@@ -9,7 +9,7 @@
 import type { DisplayHost } from './display/gameobject';
 
 // ---- stubs: names the sketches use and the doc says are not part of the design (interfaces.md, "Types that are not shown") ----
-type Ctx = CanvasRenderingContext2D; // today's canvas context (src/engine/canvas.ts)
+type Ctx = CanvasRenderingContext2D; // today's canvas context (src/sje/core/canvas.ts)
 type Fighter = Record<string, unknown>;
 type StageData = Record<string, unknown>;
 type HackDef = Record<string, unknown>;
@@ -346,7 +346,7 @@ export interface SceneInput {
   /** Dev and editor builds only. */
   on?(ev: 'pointerdown' | 'pointermove' | 'pointerup', fn: (p: { x: number; y: number }) => void): void;
 }
-export interface InputManager {                        // ours. Today's surface in src/engine/input.ts
+export interface InputManager {                        // ours. Today's surface in src/sje/runtime/input.ts
   readonly actions: ActionMap;
   lastDevice: InputDevice;                             // 'keyboard' | 'gamepad' | 'touch'. Picks the on-screen hint text
   /** Rebind. Returns null if the change would leave an action with no key. */

@@ -171,8 +171,8 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     if (was) ctx.clearRect(0, 0, W, H);
     ctx.save();
     try {
-      // The windows are display objects: bring them up to date with the state as it stands for this frame (a flow that ran after the tick may have changed it).
-      this.hud.sync();
+      // The windows are display objects that `fixedUpdate` brought up to date at the end of the tick, so paint does not sync them again (M8c follow-up). A flow that changes the
+      // state after the last tick shows in the windows one tick later, at most; the old canvas drew from the state on every frame.
       this.canvasDirty = this.renderer.render(ctx);
     } finally {
       ctx.restore();

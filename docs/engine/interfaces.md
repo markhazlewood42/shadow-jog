@@ -18,7 +18,7 @@ This file shows the key public TypeScript interfaces. Each block has a short exp
 
 **Strict types.** Phaser members that we do not implement are absent from the types, so a call to them is a compile error. The list is in [conventions.md](conventions.md).
 
-**Types that are not shown.** Some names come from the real code and are not part of this design. Examples: `Ctx` (`src/engine/canvas.ts`), `Fighter`, `StageData`, `HackDef`, `SceneDump`, `EmitterPreset`. The block below defines the small value types that the sketches share. Points are plain `{ x, y }` objects. There is no `Vec2` class.
+**Types that are not shown.** Some names come from the real code and are not part of this design. Examples: `Ctx` (`src/sje/core/canvas.ts`), `Fighter`, `StageData`, `HackDef`, `SceneDump`, `EmitterPreset`. The block below defines the small value types that the sketches share. Points are plain `{ x, y }` objects. There is no `Vec2` class.
 
 ```ts
 export interface Rect { x: number; y: number; w: number; h: number; }
@@ -417,7 +417,7 @@ export interface SceneInput {
   /** Dev and editor builds only. */
   on?(ev: 'pointerdown' | 'pointermove' | 'pointerup', fn: (p: { x: number; y: number }) => void): void;
 }
-export interface InputManager {                        // ours. Today's surface in src/engine/input.ts
+export interface InputManager {                        // ours. Today's surface in src/sje/runtime/input.ts
   readonly actions: ActionMap;
   lastDevice: InputDevice;                             // 'keyboard' | 'gamepad' | 'touch'. Picks the on-screen hint text
   /** Rebind. Returns null if the change would leave an action with no key. */

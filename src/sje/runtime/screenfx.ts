@@ -29,7 +29,7 @@ export interface LegacyCompat {
   reportError(error: unknown): void;
   /** Tell the player something in plain words (a file that did not load). Default: `console.warn`. */
   warn(message: string): void;
-  /** The shake motion: this frame's offset in whole pixels (src/engine/shake.ts). Default: no motion. */
+  /** The shake motion: this frame's offset in whole pixels (src/sje/fx/shake.ts). Default: no motion. */
   shakeOffset(s: { t: number; len: number; mag: number; dir: ShakeDirection | null }): { x: number; y: number };
   /** Multiplier from the caller's shake strength to today's pixels (`SHAKE_PIXEL_GAIN`, 4/3). */
   shakeGain: number;

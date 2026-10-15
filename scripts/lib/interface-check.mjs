@@ -21,7 +21,7 @@ export const VALUE_LINES = new Map([
 export const STUBS = `import type { DisplayHost } from './display/gameobject';
 
 // ---- stubs: names the sketches use and the doc says are not part of the design (interfaces.md, "Types that are not shown") ----
-type Ctx = CanvasRenderingContext2D; // today's canvas context (src/engine/canvas.ts)
+type Ctx = CanvasRenderingContext2D; // today's canvas context (src/sje/core/canvas.ts)
 type Fighter = Record<string, unknown>;
 type StageData = Record<string, unknown>;
 type HackDef = Record<string, unknown>;

@@ -94,7 +94,7 @@ export function boot(game: Game, display: PageDisplay): void {
     shop: (id: string) => void field()?.runScript((s) => s.shop(id)),
     run: (fn: ScriptFn) => void field()?.runScript(fn),
     save: (slot: 1 | 2 | 3 | 'auto') => writeSave(slot, game.playFrames),
-    /** Frame-work timing (see engine/perf.ts). */
+    /** Frame-work timing (see src/sje/core/perf.ts). */
     perf,
     notice: () => currentNotice(),
     /** The end-of-chapter results and next-chapter card, without the comic pages. */
