@@ -104,11 +104,11 @@ describe('the battle scene is a native sje scene', () => {
 
   it('control: the scan finds an import of each of the four files, and ignores a comment', () => {
     for (const name of ['game', 'display', 'postfx', 'moments']) {
-      expect(`import { x } from '../engine/${name}';`).toMatch(OLD_ENGINE);
-      expect(`const m = () => import('../../engine/${name}');`).toMatch(OLD_ENGINE);
+      expect(`import { x } from '../${'engine'}/${name}';`).toMatch(OLD_ENGINE);
+      expect(`const m = () => import('../../${'engine'}/${name}');`).toMatch(OLD_ENGINE);
     }
-    expect(code(`// import { postfx } from '../engine/${'postfx'}';`)).not.toMatch(OLD_ENGINE);
-    expect(`import { shake } from '../engine/shake';`).not.toMatch(OLD_ENGINE);
+    expect(code(`// import { postfx } from '../${'engine'}/${'postfx'}';`)).not.toMatch(OLD_ENGINE);
+    expect(`import { shake } from '../${'engine'}/shake';`).not.toMatch(OLD_ENGINE);
   });
 });
 

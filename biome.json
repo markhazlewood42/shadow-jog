@@ -28,7 +28,7 @@
 	},
 	"overrides": [
 		{
-			"includes": ["src/engine/**", "src/battle/**", "src/sje/**"],
+			"includes": ["src/battle/**", "src/sje/**"],
 			"linter": { "rules": { "style": { "noNonNullAssertion": "error" } } }
 		},
 		{

@@ -2,7 +2,7 @@
  * Input actions for the new scenes (docs/engine/interfaces.md section 8).
  * Follows: Godot `InputMap` and Unity action maps (Phaser has no action map). `ActionMap` is ours.
  *
- * This file WRAPS `src/engine/input.ts`, it does not copy it: keyboard, gamepad and touch, the nine actions, one-tick presses,
+ * This file WRAPS `src/sje/runtime/inputdevice.ts`, it does not copy it: keyboard, gamepad and touch, the nine actions, one-tick presses,
  * repeat after 16 ticks then every 4, `consume()` on every scene push and pop, and the player's custom keys all stay in the
  * old `Input` class. `Game` runs its `update()` and `endFrame()` at the places the design names (frame-and-rendering.md
  * section 2), and a scene reads it through `scene.input.actions`. The legacy scenes read `game.input` (the same object) as before.
