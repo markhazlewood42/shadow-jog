@@ -155,56 +155,63 @@ async function drawAll(size: { W: number; H: number } | null): Promise<{ shots: 
 
   // ---- the field menu
   const { MenuScene } = await import('../src/scenes/menu');
-  const menu = () => bind(new MenuScene(true));
+  // The menu is native: it runs on the real `Game`, the keys go through `nativeKeys`, and its display objects are read into the record.
+  const menu = () => nativeOpen(new MenuScene(true));
   /** Move the main list's cursor to a row by its label. */
-  const goto = (m: AnyScene, label: string): void => {
-    const main = m.main as { items: { label: string }[]; index: number };
+  const goto = (m: object, label: string): void => {
+    const main = (m as AnyScene).main as { items: { label: string }[]; index: number };
     const i = main.items.findIndex((it) => it.label === label);
     if (i < 0) throw new Error(`no ${label} in the menu`);
     main.index = i;
   };
   {
     const m = menu();
-    take('menu: party cards', m);
+    nativeShot('menu: party cards', m);
     goto(m, 'Items');
-    drive(m, input, ['confirm']);
-    take('menu: items', m);
-    drive(m, input, ['confirm']);
-    take('menu: item target', m);
+    nativeKeys(['confirm']);
+    nativeShot('menu: items', m);
+    nativeKeys(['confirm']);
+    nativeShot('menu: item target', m);
+    nativeClose(m);
   }
   for (const [i, who] of ['kit', 'rook', 'hex', 'sable'].entries()) {
     const m = menu();
     goto(m, 'Techs');
-    drive(m, input, ['confirm', ...Array<string>(i).fill('down'), 'confirm']);
-    take(`menu: techs, ${who}`, m);
+    nativeKeys(['confirm', ...Array<string>(i).fill('down'), 'confirm']);
+    nativeShot(`menu: techs, ${who}`, m);
+    nativeClose(m);
   }
   {
     const m = menu();
     goto(m, 'Equip');
-    drive(m, input, ['confirm', 'confirm']);
-    take('menu: equip slots', m);
-    drive(m, input, ['confirm']);
-    take('menu: equip gear list', m);
+    nativeKeys(['confirm', 'confirm']);
+    nativeShot('menu: equip slots', m);
+    nativeKeys(['confirm']);
+    nativeShot('menu: equip gear list', m);
+    nativeClose(m);
   }
   for (const [i, who] of ['kit', 'rook', 'hex', 'sable'].entries()) {
     const m = menu();
     goto(m, 'Status');
-    drive(m, input, ['confirm', ...Array<string>(i).fill('down'), 'confirm']);
-    take(`menu: status, ${who}`, m);
+    nativeKeys(['confirm', ...Array<string>(i).fill('down'), 'confirm']);
+    nativeShot(`menu: status, ${who}`, m);
+    nativeClose(m);
   }
   {
     // Rook, wounded: the status page with the wound line, and his locked abilities.
     const m = menu();
     delete stateMod.state.flags.rook_mended;
     goto(m, 'Status');
-    drive(m, input, ['confirm', 'down', 'confirm']);
-    take('menu: status, rook (wounded)', m);
+    nativeKeys(['confirm', 'down', 'confirm']);
+    nativeShot('menu: status, rook (wounded)', m);
+    nativeClose(m);
   }
   for (const label of ['Combos', 'Bestiary', 'Places', 'Save']) {
     const m = menu();
     goto(m, label);
-    drive(m, input, ['confirm']);
-    take(`menu: ${label.toLowerCase()}`, m);
+    nativeKeys(['confirm']);
+    nativeShot(`menu: ${label.toLowerCase()}`, m);
+    nativeClose(m);
   }
 
   // ---- the battle (WP6): the menus, the turn strip, the cut-ins and the banners, over a street fight
@@ -321,21 +328,17 @@ async function drawAll(size: { W: number; H: number } | null): Promise<{ shots: 
   // The rain is a Weather painted into the scene's art canvas (a canvas picture, not a display object), so the record holds the text, the menu window and the list.
   takeNative('game over', new GameOverScene(true) as never, 200);
   const { DeckScene } = await import('../src/scenes/deck');
-  for (const mode of ['dead', 'seat', 'view'] as const) {
-    const d = bind<AnyScene>(new DeckScene(mode));
-    d.t = 200;
-    take(`deck: ${mode}`, d);
-  }
+  for (const mode of ['dead', 'seat', 'view'] as const) takeNative(`deck: ${mode}`, new DeckScene(mode) as never, 200);
   const { PanelScene, PAGES } = await import('../src/scenes/panels');
   for (const [id, pages] of Object.entries(PAGES)) {
     pages.forEach((page, pi) => {
-      const p = bind<AnyScene>(new PanelScene(id));
-      p.page = pi;
-      p.shown = page.length;
-      p.panelT = page.map(() => 400);
-      p.typed = page.map(() => 1000);
-      p.t = 400;
-      take(`comic: ${id} page ${pi + 1}`, p);
+      // The page is set up as a player would see it after a while: every panel in, every line typed.
+      takeNative(`comic: ${id} page ${pi + 1}`, new PanelScene(id) as never, 400, (p) => {
+        p.page = pi;
+        p.shown = page.length;
+        p.panelT = page.map(() => 400);
+        p.typed = page.map(() => 1000);
+      });
     });
   }
 
@@ -622,8 +625,8 @@ describe('what the full-page scenes promise (WP5, D9)', () => {
   it('the deck group is centered across the screen and sits in the room above Hex’s line box, with the larger gap below', async () => {
     const { shots, W, H } = await drawAll(null);
     const dead = shots.find((s) => s.name === 'deck: dead')!.layout;
-    // The deck's backing plate (a fillRect 28 wider than the 264 px art) and its side panel (the prompt window).
-    const plate = dead.draws.find((d) => d.op === 'fillRect' && d.w === 264 + 28)!;
+    // The deck's backing plate (28 wider than the 264 px art; the scene paints it into its art canvas, so the scene says where it is) and its side panel (the prompt window).
+    const { DECK_PLATE: plate } = await import('../src/scenes/deck');
     const prompt = dead.windows.find((w) => !w.title && w.h === 70)!;
     expect(plate && prompt).toBeTruthy();
     const left = plate.x + 14, right = prompt.x + prompt.w;
