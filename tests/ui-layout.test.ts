@@ -130,6 +130,24 @@ async function drawAll(size: { W: number; H: number } | null): Promise<{ shots: 
     scene.close(undefined);
     game.advanceTick();
   };
+  /** Open a native scene that the test then drives with keys: `nativeKeys` presses, `nativeShot` records, `nativeClose` closes it. */
+  const nativeOpen = <T extends { sys: { ui: unknown }; close(r?: unknown): void }>(scene: T): T => {
+    void game.run(scene as never);
+    game.advanceTick();
+    return scene;
+  };
+  const nativeKeys = (actions: string[]): void => {
+    for (const a of actions) {
+      input.press(a);
+      game.advanceTick();
+      input.press(null);
+    }
+  };
+  const nativeShot = (name: string, scene: { sys: { ui: unknown } }): void => void shots.push({ name, layout: layoutOfNative(scene.sys.ui as never), native: true });
+  const nativeClose = (scene: { close(r?: unknown): void }): void => {
+    scene.close(undefined);
+    game.advanceTick();
+  };
 
   applyStage('finale');
   // A full bag: one of every item, a few of each.
@@ -241,22 +259,23 @@ async function drawAll(size: { W: number; H: number } | null): Promise<{ shots: 
   // ---- the shop
   const { ShopScene } = await import('../src/scenes/shop');
   {
-    const s = bind(new ShopScene('lr_weapons'));
     stateMod.state.cred = 900;
-    take('shop: root', s);
-    drive(s, input, ['confirm']);
-    take('shop: buy', s);
-    drive(s, input, ['down', 'confirm']);
-    take('shop: quantity', s);
-    drive(s, input, ['cancel', 'cancel', 'down', 'confirm']);
-    take('shop: sell', s);
-    drive(s, input, ['confirm']);
-    take('shop: sell all loot', s);
+    const s = nativeOpen(new ShopScene('lr_weapons'));
+    nativeShot('shop: root', s);
+    nativeKeys(['confirm']);
+    nativeShot('shop: buy', s);
+    nativeKeys(['down', 'confirm']);
+    nativeShot('shop: quantity', s);
+    nativeKeys(['cancel', 'cancel', 'down', 'confirm']);
+    nativeShot('shop: sell', s);
+    nativeKeys(['confirm']);
+    nativeShot('shop: sell all loot', s);
+    nativeClose(s);
   }
 
   // ---- the modals
   const { OptionsScene } = await import('../src/scenes/options');
-  take('options', bind(new OptionsScene(true)));
+  takeNative('options', new OptionsScene(true) as never);
   const { SaveScene } = await import('../src/scenes/saveload');
   takeNative('save slots', new SaveScene('save') as never);
   takeNative('load slots', new SaveScene('load') as never);
@@ -268,9 +287,11 @@ async function drawAll(size: { W: number; H: number } | null): Promise<{ shots: 
   // ---- the dialog
   const { DialogScene } = await import('../src/scenes/dialog');
   const say = (name: string, opts: ConstructorParameters<typeof DialogScene>[0]): void => {
-    const d = bind(new DialogScene(opts));
-    for (let i = 0; i < 400; i++) d.update();
-    take(`dialog: ${name}`, d);
+    // No keys are pressed: the box opens and types its page, then waits (a choice box shows its choices).
+    const d = nativeOpen(new DialogScene(opts));
+    for (let i = 0; i < 400; i++) game.advanceTick();
+    nativeShot(`dialog: ${name}`, d);
+    nativeClose(d);
   };
   say('one line', { who: 'dutch', text: 'Sit. Mind the stain.' });
   say('four-line page', { who: 'dutch', text: LONG });
@@ -287,14 +308,11 @@ async function drawAll(size: { W: number; H: number } | null): Promise<{ shots: 
   }
   // ---- the full-page scenes (WP5)
   const { TitleScene } = await import('../src/scenes/title');
-  {
-    const t = bind<AnyScene>(new TitleScene());
-    t.t = 200;
-    take('title: press any key', t);
+  takeNative('title: press any key', new TitleScene() as never, 200);
+  takeNative('title: menu', new TitleScene() as never, 200, (t) => {
     t.started = true;
     t.startT = 100;
-    take('title: menu', t);
-  }
+  });
   const { EndingScene } = await import('../src/scenes/ending');
   takeNative('ending: results', new EndingScene(60 * 60 * 31) as never, 400);
   // The second page: the scene turns the page (as it does on a key press), then its tick counter is moved to the end of the fades.
