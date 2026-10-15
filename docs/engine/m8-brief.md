@@ -269,3 +269,12 @@ Groups are commits. M8a = tasks 1 to 3 and 5. M8b = tasks 4, 6 and 7. M8c = task
 | Round 1 | Runner (sonnet) and reader (haiku) on groups E and F | Runner 9.0, PASS. Reader 8.33, FAIL: F1 Important (the seam rule allowed a value import), F2 to F6 Minor | fail | Mark decided 2026-10-15 to port the battle and field windows to the kit in M8c (group G) |
 | Round 2 | Runner (sonnet) and reader (haiku) on group G and F1 to F6 | Reader 8.5, PASS. Runner 8.6, FAIL: `default-path` rustyard 2/255 against a 1/255 bound (Important) | fail | Fix round 2 |
 | Fix round 2 | One fresh verifier (sonnet) on the rustyard finding and F-a to F-d | Rustyard passes with the reference and bound unchanged. 56 passed, 0 failed. Score 9.0 | pass | One Minor (STE wording at the group E row), fixed in the next commit |
+
+### M8c CI fixes
+
+| Step | What | Result | Verdict | Fix or note |
+|---|---|---|---|---|
+| CI 1 | The Command Center job failed 2 tests: `milestone-data.test.ts` (strip) and `hosted-resolve.test.ts` (Status panel). | The docs were true: `roadmap.json` marks M8a and M8b done, M8c active. Both tests still held the old list "M8a to M8d are not done". | found | Both tests now expect M8a and M8b done, and M8c and M8d not done. The roadmap-equality check is the same. |
+| CI 1 fix | `npm run check` in `tools/command-center`. | 2,064 passed, 0 failed. | fixed | No doc changed. `status.md` is not the cause. |
+| CI 2 | `e2e/economy.spec.ts:27` (shard 8/8) saw `BattleScene` after a 60 s wait for `FieldScene`. | The test ran 1.6 min in CI. Locally the walk takes 7 s and one playtest fight takes 22 s. The field was stable after the fight (no second fight). A 60 s limit fits a slow runner, not a race. | found | Cause is a limit that is too short for a software renderer. `sj.top()` is correct. |
+| CI 2 fix | The wait is now 180 s, the test limit is 300 s, and the wait result has its own message. | `CI=1 PW_PORT=3012` with `--repeat-each=3`: 15 passed (5 specs x 3), 0 failed. | fixed | The test still proves the walk, the fight and the payout. |

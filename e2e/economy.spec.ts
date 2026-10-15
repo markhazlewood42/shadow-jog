@@ -25,6 +25,8 @@ async function waitFor(page: Page, cond: string, ms: number): Promise<boolean> {
 }
 
 test('walking the Barrens turns up fights that pay out', async ({ page }) => {
+  // A playtest fight takes about 22 s on a fast machine (frame-bound), and a CI runner with a software renderer draws fewer frames per second.
+  test.setTimeout(300_000);
   await page.goto('/?debug');
   // The game starts asynchronously (two lazy chunks): wait for its title, not a fixed time.
   await page.waitForFunction(() => (window as unknown as { __SJ__?: { top?: () => string | null } }).__SJ__?.top?.() === 'TitleScene', null, { timeout: 30_000 });
@@ -62,8 +64,9 @@ test('walking the Barrens turns up fights that pay out', async ({ page }) => {
   // The fight itself plays out on Auto (the playtest driver picks Auto and confirms the results
   // panels); what's under test here is the walk and the payout.
   await sj(page, '(Object.assign(sj.debug, { playtest: true }), true)');
-  await waitFor(page, "sj.top() === 'FieldScene'", 60_000);
+  const back = await waitFor(page, "sj.top() === 'FieldScene'", 180_000);
   await sj(page, '(Object.assign(sj.debug, { playtest: false }), true)');
+  expect(back, 'the fight ends and the field returns').toBe(true);
   expect(await sj<string>(page, 'sj.top()')).toBe('FieldScene');
   expect(await sj<number>(page, 'sj.state.battles')).toBe(battles0 + 1);
   expect(await sj<number>(page, 'sj.state.cred')).toBeGreaterThan(cred0);
