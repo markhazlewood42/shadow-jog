@@ -6,6 +6,8 @@
  *
  * Pictures go to media/m8-ui/<scene>.png (git-ignored) at 1280x720. Phase 1 of M8b: card, controls, gameover, ending (two pages), placemap, save, load.
  * Phase 2: title (before and after a key), options, dialog (a portrait line and a choice), shop (root, buy, quantity, sell, sell all loot).
+ * Phase 3: the field menu (party, items, item target, techs, equip slots and gear, status, combos, bestiary, places, save), Hex's deck (dead, seating, booted, view)
+ * and the comic panels (the intro's two pages, the ending's pages and the title card).
  * A scene that cannot be reached is named in the output and the rest is still written.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -99,6 +101,95 @@ test('M8b pictures: the UI scenes ported so far', async ({ browser }) => {
     await sj(page, 'sj.game.top.close()');
     await page.waitForTimeout(300);
   } else missing.push('shop');
+  // The field menu: the party first, then each page. `pick` moves the main list's cursor to a row by its label and presses confirm; `back` presses cancel.
+  await sj(page, '(sj.state.inventory = { medkit: 2, gang_colors: 2, scrap_plate: 3, stim: 1 }, true)');
+  await sj(page, 'sj.menu()');
+  if (await waitTop(page, 'MenuScene', 10_000)) {
+    await page.waitForTimeout(500);
+    await shot('menu-party');
+    const pick = async (label: string): Promise<void> => {
+      await sj(page, `(sj.game.top.main.index = sj.game.top.main.items.findIndex((it) => it.label === ${JSON.stringify(label)}), true)`);
+      await keyTap('Enter');
+    };
+    const back = async (n: number): Promise<void> => {
+      for (let i = 0; i < n; i++) await keyTap('Escape');
+    };
+    await pick('Items');
+    await shot('menu-items');
+    await keyTap('Enter');
+    await shot('menu-item-target');
+    await back(2);
+    await pick('Techs');
+    await keyTap('Enter');
+    await shot('menu-techs');
+    await back(2);
+    await pick('Equip');
+    await keyTap('Enter');
+    await shot('menu-equip-slots');
+    await keyTap('Enter');
+    await shot('menu-equip-gear');
+    await back(3);
+    await pick('Status');
+    await keyTap('Enter');
+    await shot('menu-status');
+    await back(2);
+    for (const label of ['Combos', 'Bestiary', 'Places', 'Save']) {
+      await pick(label);
+      await shot(`menu-${label.toLowerCase()}`);
+      await back(1);
+    }
+    await back(1);
+  } else missing.push('menu');
+  // Hex's deck: dead, then seating the Stingray (the swing is not aimed by a script: drop it, snap both clips, let it boot), then the view.
+  await sj(page, "(sj.run((s) => s.deck('dead')), true)");
+  if (await waitTop(page, 'DeckScene', 10_000)) {
+    await page.waitForTimeout(900);
+    await shot('deck-dead');
+    await keyTap('Escape');
+    await page.waitForTimeout(500);
+  } else missing.push('deck-dead');
+  await sj(page, "(sj.run((s) => s.deck('seat')), true)");
+  if (await waitTop(page, 'DeckScene', 10_000)) {
+    await page.waitForTimeout(1100);
+    await shot('deck-seat-align');
+    await sj(page, '(sj.game.top.go("drop"), true)');
+    await page.waitForTimeout(700);
+    await keyTap('Enter');
+    await page.waitForTimeout(400);
+    await keyTap('Enter');
+    await page.waitForTimeout(3600);
+    await shot('deck-seat-booted');
+    await sj(page, 'sj.game.top.close(undefined)');
+    await page.waitForTimeout(400);
+  } else missing.push('deck-seat');
+  await sj(page, "(sj.run((s) => s.deck('view')), true)");
+  if (await waitTop(page, 'DeckScene', 10_000)) {
+    await page.waitForTimeout(700);
+    await shot('deck-view');
+    await sj(page, 'sj.game.top.close(undefined)');
+    await page.waitForTimeout(400);
+  } else missing.push('deck-view');
+  // The comic panels: confirm until the wanted page has every panel in, then wait for its speech to type out.
+  const panelsTo = async (id: string, pageIdx: number, name: string, wait: number): Promise<void> => {
+    await sj(page, `(sj.run((s) => s.panels('${id}')), true)`);
+    if (!(await waitTop(page, 'PanelScene', 10_000))) {
+      missing.push(name);
+      return;
+    }
+    const at = (): Promise<boolean> => sj<boolean>(page, `(() => { const t = sj.game.top; return t.page === ${pageIdx} && t.shown === t.pages[${pageIdx}].length; })()`);
+    for (let i = 0; i < 40 && !(await at()); i++) {
+      await keyTap('Enter');
+      await page.waitForTimeout(450);
+    }
+    await page.waitForTimeout(wait);
+    await shot(name);
+    await sj(page, 'sj.game.top.close(undefined)');
+    await page.waitForTimeout(400);
+  };
+  await panelsTo('intro', 0, 'panels-intro-1', 2500);
+  await panelsTo('intro', 1, 'panels-intro-2', 3500);
+  await panelsTo('ending', 0, 'panels-ending-1', 3500);
+  await panelsTo('ending', 3, 'panels-ending-finale', 4500);
   // The ending: the results page, then a key press for the next-chapter card.
   await sj(page, 'sj.ending()');
   if (await waitTop(page, 'EndingScene', 10_000)) {
