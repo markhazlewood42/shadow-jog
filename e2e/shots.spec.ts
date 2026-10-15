@@ -89,8 +89,8 @@ async function ready(page: Page): Promise<void> {
   const start = Date.now();
   for (;;) {
     const booted = await page.evaluate(() => {
-      const w = window as unknown as { __SJ__?: { game?: { stack: unknown[] } } };
-      return !!w.__SJ__?.game?.stack.length;
+      const w = window as unknown as { __SJ__?: { game?: { top?: unknown } } };
+      return !!w.__SJ__?.game?.top;
     });
     if (booted) return;
     if (Date.now() - start > 30_000) throw new Error('the game did not boot in 30 s');

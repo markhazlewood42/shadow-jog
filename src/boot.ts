@@ -23,6 +23,7 @@ import { CardScene } from './scenes/card';
 import { ControlsScene } from './scenes/controls';
 import { EndingScene } from './scenes/ending';
 import { GameOverScene } from './scenes/gameover';
+import { OptionsScene } from './scenes/options';
 import { PlaceMapScene } from './scenes/placemap';
 import { SaveScene } from './scenes/saveload';
 import { fieldHooks } from './game/hooks';
@@ -105,10 +106,11 @@ export function boot(game: Game, display: Display): void {
     /** The end-of-chapter results and next-chapter card, without the comic pages. */
     ending: () => void game.run(new EndingScene(game.playFrames)),
     /** Open one of the small UI scenes by name, for the pictures of M8b (e2e/m8-ui-pictures.spec.ts). */
-    show: (kind: 'card' | 'controls' | 'gameover' | 'placemap' | 'save' | 'load') => {
+    show: (kind: 'card' | 'controls' | 'gameover' | 'options' | 'placemap' | 'save' | 'load') => {
       if (kind === 'card') void game.run(new CardScene('Tutorial', 'Hold X to run. Press Z to talk to people and open things. The menu is on C, and it holds your items, techs, gear and the map of everywhere you have been so far.'));
       else if (kind === 'controls') void game.run(new ControlsScene());
       else if (kind === 'gameover') void game.run(new GameOverScene(true));
+      else if (kind === 'options') void game.run(new OptionsScene(true));
       else if (kind === 'placemap') void game.run(new PlaceMapScene(stateMod.state.map));
       else void game.run(new SaveScene(kind));
     },
