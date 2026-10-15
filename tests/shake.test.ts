@@ -5,7 +5,7 @@
  * The offset a scene applies stays a whole number of game pixels.
  */
 import { describe, expect, it, vi } from 'vitest';
-import { shakeOffset } from '../src/engine/shake';
+import { shakeOffset } from '../src/sje/fx/shake';
 import { GameFx, SHAKE_PIXEL_GAIN } from '../src/sje/runtime/screenfx';
 
 vi.spyOn(console, 'error').mockImplementation(() => undefined);

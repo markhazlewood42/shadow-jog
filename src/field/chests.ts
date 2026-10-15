@@ -4,7 +4,7 @@
  * Made more prominent after Mark's first playthrough (2026-09-29: "chests… blend into the
  * background"): brighter bodies, a lit trim, and (in the field) a slow pulse and the odd glint.
  */
-import { surface } from '../engine/canvas';
+import { surface } from '../sje/core/canvas';
 
 type Kind = 'crate' | 'locker' | 'case';
 export interface ChestArt {

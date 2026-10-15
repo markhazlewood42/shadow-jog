@@ -13,7 +13,7 @@
  */
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FIELD_LOOK } from '../src/data/fieldlook';
-import { currentNotice } from '../src/engine/errors';
+import { currentNotice } from '../src/sje/core/errors';
 import { Lighting } from '../src/field/lighting';
 import type { BakedLight, SortedSprite } from '../src/field/bake';
 import { TS } from '../src/field/tiles';

@@ -4,13 +4,13 @@
  * native scenes, which had no subject left).
  */
 import { describe, expect, it, vi } from 'vitest';
-import { currentNotice } from '../src/engine/errors';
+import { currentNotice } from '../src/sje/core/errors';
 
 // Not about `Game`: the notice merge rule of engine/errors.ts.
 describe('error notices', () => {
   it('a second error while the first is showing is counted, not shown over it', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    const { reportError, notice } = await import('../src/engine/errors');
+    const { reportError, notice } = await import('../src/sje/core/errors');
     notice('clear', 'warn');
     reportError(new Error('root cause'));
     reportError(new Error('fallout'));

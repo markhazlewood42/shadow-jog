@@ -2,8 +2,8 @@
  * Procedural terrain painters. Each painter colors one 16×16 tile pixel-by-pixel into a shared
  * RGBA buffer, using stable hash noise so the same map always bakes identically.
  */
-import { rgb, type RGB } from '../engine/color';
-import { fbm, hash2, valueNoise } from '../engine/rng';
+import { rgb, type RGB } from '../sje/core/color';
+import { fbm, hash2, valueNoise } from '../sje/core/rng';
 import type { TerrainId } from './types';
 
 export const TS = 16;

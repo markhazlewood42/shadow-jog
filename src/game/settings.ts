@@ -1,5 +1,5 @@
 /** Player preferences, persisted separately from save files. */
-import type { Action } from '../engine/input';
+import type { Action } from '../sje/runtime/inputdevice';
 
 export interface Settings {
   musicVol: number;

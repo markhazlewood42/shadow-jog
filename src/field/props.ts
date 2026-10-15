@@ -1,9 +1,9 @@
 /** Prop painters. Flat props bake into the ground layer; tall props become depth-sorted sprites. */
-import { disc, ellipse, surface, type Ctx } from '../engine/canvas';
-import { mix, shade } from '../engine/color';
-import { drawText, measure } from '../engine/font';
-import { reportError } from '../engine/errors';
-import { Rng } from '../engine/rng';
+import { disc, ellipse, surface, type Ctx } from '../sje/core/canvas';
+import { mix, shade } from '../sje/core/color';
+import { drawText, measure } from '../sje/display/font';
+import { reportError } from '../sje/core/errors';
+import { Rng } from '../sje/core/rng';
 import type { BakeCtx } from './bake';
 import { TS } from './tiles';
 import type { PropDef, PropKind } from './types';

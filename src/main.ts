@@ -1,4 +1,4 @@
-import { reportError } from './engine/errors';
+import { reportError } from './sje/core/errors';
 
 function fail(err: unknown): void {
   const el = document.getElementById('boot');

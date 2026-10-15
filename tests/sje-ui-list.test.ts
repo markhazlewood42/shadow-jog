@@ -7,7 +7,7 @@
  * and alignment), and the highlight rectangle. Controls: a list with one changed number (a row height) fails the same comparison.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Input } from '../src/engine/input';
+import type { Input } from '../src/sje/runtime/inputdevice';
 import { ListMenu as OldList } from '../src/ui/list';
 import { ListMenu, type ListAction, type ListInput, type ListItem, listRows, scrollFor, stepIndex, type UiSound } from '../src/sje/ui/listmenu';
 import { TEXT } from '../src/sje/display/font';
@@ -26,8 +26,8 @@ interface TextCall {
   color: string | undefined;
 }
 const drawn: TextCall[] = [];
-vi.mock('../src/engine/font', async (importOriginal) => {
-  const real = await importOriginal<typeof import('../src/engine/font')>();
+vi.mock('../src/sje/display/font', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../src/sje/display/font')>();
   return {
     ...real,
     drawText: (ctx: never, text: string, x: number, y: number, opts: NonNullable<Parameters<typeof real.drawText>[4]> = {}) => {

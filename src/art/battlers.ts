@@ -6,7 +6,7 @@
 import { backGrid, paint, type CharLook } from './chars';
 import { rigBattler } from './rig2/battle';
 import { Pix, scale2x } from './pix';
-import { surface } from '../engine/canvas';
+import { surface } from '../sje/core/canvas';
 
 /**
  * 'attack' is the weapon raised to strike; 'strike' is the follow-through a beat later (the blade swept

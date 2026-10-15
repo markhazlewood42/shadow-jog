@@ -1,6 +1,6 @@
 /** Battle sprite treatments: silhouettes, rim light, duplicates (palette, mirror, markings), bars, big text. */
-import { silhouette, surface, type Ctx } from '../../engine/canvas';
-import { drawText } from '../../engine/font';
+import { silhouette, surface, type Ctx } from '../../sje/core/canvas';
+import { drawText } from '../../sje/display/font';
 import { W } from '../../sje/core/size';
 import type { EnemyArt } from '../../art/enemies';
 

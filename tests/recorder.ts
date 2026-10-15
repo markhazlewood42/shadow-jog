@@ -20,7 +20,7 @@
  * and the advisory `paneShares` for rubric R5). A window drawn at `W - 10` must fail the first, and
  * the same scenes at 480x270 must pass all of them: `tests/ui-layout.test.ts` holds both controls.
  */
-import type { Ctx } from '../src/engine/canvas';
+import type { Ctx } from '../src/sje/core/canvas';
 
 export interface Box {
   x: number;

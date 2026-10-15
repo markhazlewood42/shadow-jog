@@ -21,12 +21,12 @@ import { artTop } from '../scenes/battlekit/sprites';
 import { type EnemyArt, enemyArt } from '../art/enemies';
 import { ENEMIES } from '../data/enemies';
 import { FX, GAME_MOMENTS, replaceFx } from '../data/fx';
-import { surface } from '../engine/canvas';
-import type { Ctx } from '../engine/canvas';
-import { drawText } from '../engine/font';
-import { checkFx, type FxData, type FxPreset, formatFx, type Moment, type MomentLayer } from '../engine/fxdata';
+import { surface } from '../sje/core/canvas';
+import type { Ctx } from '../sje/core/canvas';
+import { drawText } from '../sje/display/font';
+import { checkFx, type FxData, type FxPreset, formatFx, type Moment, type MomentLayer } from '../sje/fx/fxdata';
 import { H, W } from '../sje/core/size';
-import type { ParticleShape } from '../engine/particles';
+import type { ParticleShape } from '../sje/fx/particles';
 import { BHT, BW, PANEL_Y } from '../scenes/battlekit/geom';
 import { CanvasViewScene } from './viewers/base';
 

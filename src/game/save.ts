@@ -5,7 +5,7 @@ import { ITEMS } from '../data/items';
 import { getMap } from '../data/maps';
 import { levelForXp, MEMBERS, xpFor } from '../data/party';
 import { reconcileParty } from './party';
-import { streams } from '../engine/rng';
+import { streams } from '../sje/core/rng';
 import { SAVE_VERSION, setState, state, type EquipSlot, type GameState, type MemberId } from './state';
 import { APP_VERSION } from '../version';
 import { OBJ } from '../story/chapter1';

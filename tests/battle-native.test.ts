@@ -17,8 +17,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { battleTrace, engineWords, headOf, setupFor } from '../src/battlestage/battledrive';
 import { stageOf } from '../src/battlestage/config';
 import type { BattleEvent } from '../src/battle/types';
-import { streams } from '../src/engine/rng';
-import type { Input } from '../src/engine/input';
+import { streams } from '../src/sje/core/rng';
+import type { Input } from '../src/sje/runtime/inputdevice';
 import { Scene } from '../src/sje';
 import { Game } from '../src/sje/runtime/game';
 import { installCanvasStub } from './recorder';

@@ -12,9 +12,9 @@
  * installed. Pixi's scene classes run in Node; the GPU is not needed.
  */
 import { afterAll, describe, expect, it, vi } from 'vitest';
-import { currentNotice, reportError } from '../src/engine/errors';
-import type { Input } from '../src/engine/input';
-import { shakeOffset } from '../src/engine/shake';
+import { currentNotice, reportError } from '../src/sje/core/errors';
+import type { Input } from '../src/sje/runtime/inputdevice';
+import { shakeOffset } from '../src/sje/fx/shake';
 import { FixedLoop, type FixedLoopOptions, MAX_TICKS_PER_FRAME } from '../src/sje/core/fixedloop';
 import { TICK_MS } from '../src/sje/core/size';
 import { FAULT_LIMIT, Game } from '../src/sje/runtime/game';
@@ -406,7 +406,7 @@ describe('game-level fade, shake and flash', () => {
   });
 
   it('the game notice shows for a fault only once per tick, however many things threw: the first one', async () => {
-    const { notice } = await import('../src/engine/errors');
+    const { notice } = await import('../src/sje/core/errors');
     notice('clear', 'warn');
     const g = newGame();
     g.tickers.push(() => {

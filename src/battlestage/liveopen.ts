@@ -11,7 +11,7 @@
  * It answers null when anything goes wrong (a hero with no sheet, a group the stage has no slots for, a failed load), and the battle then draws itself as it does without the
  * flag: a stage that cannot be made must not cost the player the fight.
  */
-import { notice } from '../engine/errors';
+import { notice } from '../sje/core/errors';
 import type { BattleScene } from '../scenes/battle';
 import { STAGE_FAILED_NOTICE, type BattleStage, type BattleStageProvider } from '../scenes/battlekit/stageseam';
 import type { Game } from '../sje';

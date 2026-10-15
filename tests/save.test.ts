@@ -24,7 +24,7 @@ const { ABILITIES } = await import('../src/data/abilities');
 type GameState = import('../src/game/state').GameState;
 const stateMod = await import('../src/game/state');
 const { newState, setState } = stateMod;
-const { streams } = await import('../src/engine/rng');
+const { streams } = await import('../src/sje/core/rng');
 const rng = streams.encounter;
 
 function freshGame(): void {
@@ -461,7 +461,7 @@ describe('saves record the build that wrote them', () => {
   });
 
   it('every character a version string can hold has a glyph in the bitmap font', async () => {
-    const { hasGlyph } = await import('../src/engine/font');
+    const { hasGlyph } = await import('../src/sje/display/font');
     const all = [...'0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.+-() ’—'];
     expect(all.filter((c) => !hasGlyph(c))).toEqual([]);
   });

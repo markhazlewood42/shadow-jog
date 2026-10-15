@@ -19,7 +19,7 @@
  * values keyed by item id, in code for now because PL6 forbids data edits in this package. It moves
  * into the map data once Mark gives his written yes.
  */
-import type { Ctx } from '../../engine/canvas';
+import type { Ctx } from '../../sje/core/canvas';
 import type { Rect } from '../../field/overrects';
 import { TS } from '../../field/tiles';
 import { voidShade } from './void';

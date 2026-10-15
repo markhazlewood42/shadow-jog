@@ -8,7 +8,7 @@ import { createMember, knownAbilities } from '../src/game/party';
 import { flags } from '../src/game/state';
 import { CH1_STORY_FLAGS } from '../src/data/abilities';
 import type { EquipSlot, MemberId, MemberState } from '../src/game/state';
-import { Rng } from '../src/engine/rng';
+import { Rng } from '../src/sje/core/rng';
 
 export interface Loadout {
   id: MemberId;

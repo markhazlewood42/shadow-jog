@@ -2,8 +2,8 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { FX, GAME_MOMENTS } from '../src/data/fx';
-import { checkFx, type FxData, formatFx } from '../src/engine/fxdata';
-import { type EmitterPreset, PARTICLE_STRIDE, ParticleSim, SHAPE_ID } from '../src/engine/particles';
+import { checkFx, type FxData, formatFx } from '../src/sje/fx/fxdata';
+import { type EmitterPreset, PARTICLE_STRIDE, ParticleSim, SHAPE_ID } from '../src/sje/fx/particles';
 import { FxSystem } from '../src/sje/fx/fxsystem';
 import { MAX_SHOCKS } from '../src/sje/fx/fxstate';
 import { runCases } from './fxstate-cases';

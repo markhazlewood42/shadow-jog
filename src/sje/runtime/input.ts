@@ -12,7 +12,7 @@
  * @deviation from interfaces.md section 8: `justReleased` is not built (the old `Input` has no release edge, and no scene asks for
  * one), and `SceneInput.context` is not built (no scene needs parallel action maps yet). Both are absent from the types.
  */
-import type { Action, Input } from '../../engine/input';
+import type { Action, Input } from './inputdevice';
 
 export type { Action };
 

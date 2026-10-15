@@ -1,6 +1,6 @@
 /** Input: edge detection, hold, auto-repeat, direction priority, taps shorter than a tick. */
 import { describe, expect, it } from 'vitest';
-import { Input } from '../src/engine/input';
+import { Input } from '../src/sje/runtime/inputdevice';
 
 type Handler = (e: { code: string; key: string; repeat: boolean; preventDefault(): void }) => void;
 

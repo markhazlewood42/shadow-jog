@@ -8,9 +8,9 @@
  * its ticks (`fixedUpdate`) and its draws (the `prerender` event), and fails on demand.
  */
 import { describe, expect, it, vi } from 'vitest';
-import type { Ctx } from '../src/engine/canvas';
-import { currentNotice } from '../src/engine/errors';
-import type { Input } from '../src/engine/input';
+import type { Ctx } from '../src/sje/core/canvas';
+import { currentNotice } from '../src/sje/core/errors';
+import type { Input } from '../src/sje/runtime/inputdevice';
 import type { Game } from '../src/sje/runtime/game';
 import { Scene } from '../src/sje/runtime/scene';
 
@@ -166,7 +166,7 @@ export const GAME_CASES: Case[] = [
   {
     name: 'a scene whose exit() throws still leaves the stack cleanly (and says so)',
     async run(make) {
-      const { notice } = await import('../src/engine/errors');
+      const { notice } = await import('../src/sje/core/errors');
       notice('clear', 'warn');
       const g = make(noopInput);
       const a = new Faulty(() => false);

@@ -3,7 +3,7 @@
  * outlives its scene, no object is left in the display list, and a deliberate leak is seen by the same count (the control).
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Input } from '../src/engine/input';
+import type { Input } from '../src/sje/runtime/inputdevice';
 import { Game } from '../src/sje/runtime/game';
 import { Scene } from '../src/sje/runtime/scene';
 import { Bar } from '../src/sje/ui/bar';

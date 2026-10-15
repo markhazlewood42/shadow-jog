@@ -22,7 +22,7 @@ import type { BattleEvent, Combatant, Element, Command, StatusId } from '../batt
 import { ABILITIES } from '../data/abilities';
 import { ENEMIES } from '../data/enemies';
 import { MEMBERS } from '../data/party';
-import { Rng } from '../engine/rng';
+import { Rng } from '../sje/core/rng';
 import { createMember, knownAbilities } from '../game/party';
 import { flags } from '../game/state';
 import type { MemberId } from '../game/state';

@@ -13,7 +13,7 @@
  *   6. Ten fights in a row leave no texture and no object behind.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Input } from '../src/engine/input';
+import type { Input } from '../src/sje/runtime/inputdevice';
 import { drawLag } from '../src/scenes/battlekit/sprites';
 import { barPixels } from '../src/scenes/uiops';
 import { Bar, type Container, type GameObject, NineSlice, TextObject } from '../src/sje';

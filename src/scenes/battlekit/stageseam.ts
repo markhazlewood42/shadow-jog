@@ -14,7 +14,7 @@
  * of its own layout (`SCREEN_W` x `SCREEN_H` of `src/battlestage/config.ts`) and converts at this boundary: that is the one conversion in the program.
  */
 import type { Pt } from '../../battle/fx';
-import { notice } from '../../engine/errors';
+import { notice } from '../../sje/core/errors';
 import type { Game } from '../../sje';
 import type { BattleScene } from '../battle';
 

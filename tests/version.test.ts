@@ -1,6 +1,6 @@
 /** The version stamp: a real semver number, and a label the bitmap font can draw. */
 import { describe, expect, it } from 'vitest';
-import { hasGlyph } from '../src/engine/font';
+import { hasGlyph } from '../src/sje/display/font';
 import { APP_VERSION, BUILD_SHA, VERSION_LABEL } from '../src/version';
 
 // The official Semantic Versioning 2.0.0 pattern (https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string):

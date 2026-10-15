@@ -7,8 +7,8 @@
  * calls a scene's canvas got.
  */
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { reportError } from '../src/engine/errors';
-import type { Input } from '../src/engine/input';
+import { reportError } from '../src/sje/core/errors';
+import type { Input } from '../src/sje/runtime/inputdevice';
 import { Container } from '../src/sje/display/container';
 import { CameraEffects, msToTicks, parseColor } from '../src/sje/display/cameraeffects';
 import { Graphics } from '../src/sje/display/graphics';

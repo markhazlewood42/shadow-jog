@@ -8,7 +8,7 @@
  *
  * It answers null when anything goes wrong, and the field then draws itself as it does without the flag. A stage that cannot be made must not cost the player the field.
  */
-import { notice } from '../engine/errors';
+import { notice } from '../sje/core/errors';
 import { FIELD_STAGE_FAILED_NOTICE, type FieldStage, type FieldStageProvider } from '../scenes/fieldkit/fieldseam';
 import type { FieldScene } from '../scenes/field';
 import type { Game } from '../sje';

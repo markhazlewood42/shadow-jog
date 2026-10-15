@@ -1,8 +1,8 @@
 /** Scrolling list menu widget with cursor, disabled rows, right-aligned detail and repeat navigation. */
 import { sfx } from '../audio/sfx';
-import type { Ctx } from '../engine/canvas';
-import { drawText, fitText, measure } from '../engine/font';
-import type { Input } from '../engine/input';
+import type { Ctx } from '../sje/core/canvas';
+import { drawText, fitText, measure } from '../sje/display/font';
+import type { Input } from '../sje/runtime/inputdevice';
 import { drawCursor, drawSelect, UI } from './draw';
 
 export interface ListItem<T> {

@@ -19,7 +19,7 @@ import type { BattleStageInit } from '../../battlestage/stagescene';
 import type { BattleEvent } from '../../battle/types';
 import { music } from '../../audio/music';
 import { FX } from '../../data/fx';
-import { streams } from '../../engine/rng';
+import { streams } from '../../sje/core/rng';
 import { createMember, memberStats, restoreUses } from '../../game/party';
 import { settings } from '../../game/settings';
 import { flags, state } from '../../game/state';

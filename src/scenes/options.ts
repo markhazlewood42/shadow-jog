@@ -2,8 +2,8 @@
 import { audio } from '../audio/engine';
 import { previewMusic } from '../audio/music';
 import { sfx } from '../audio/sfx';
-import { notice } from '../engine/errors';
-import { type Action, keyLabel } from '../engine/input';
+import { notice } from '../sje/core/errors';
+import { type Action, keyLabel } from '../sje/runtime/inputdevice';
 import { BATTLE_SPEEDS, battleSpeed, gpuWanted, saveSettings, settings, TEXT_SPEEDS, textSpeed } from '../game/settings';
 import { Bar, Container, Cursor, fitText, Graphics, NineSlice, SELECT_FILL, TextObject, UI } from '../sje';
 import { H, W } from '../sje/core/size';

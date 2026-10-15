@@ -7,7 +7,7 @@ import { ITEMS, sellPrice } from '../src/data/items';
 import { levelForXp, MEMBERS, xpFor } from '../src/data/party';
 import { innPrice } from '../src/game/party';
 import type { MemberId } from '../src/game/state';
-import { Rng } from '../src/engine/rng';
+import { Rng } from '../src/sje/core/rng';
 
 /** Expected cred, XP and loot resale value of one fight from a table. */
 export function tableValue(table: string): { cred: number; xp: number; loot: number } {

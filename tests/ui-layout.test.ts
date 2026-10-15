@@ -36,8 +36,8 @@ import {
 } from './recorder';
 
 // The font and window drawing go through the recorder's taps (the game's own code is not changed).
-vi.mock('../src/engine/font', async (importOriginal) => {
-  const real = await importOriginal<typeof import('../src/engine/font')>();
+vi.mock('../src/sje/display/font', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../src/sje/display/font')>();
   const r = await import('./recorder');
   return { ...real, drawText: r.tapText(real.drawText as never, real.measure), drawParagraph: r.tapParagraph(real.drawParagraph as never, real.wrap, real.measure) };
 });
@@ -464,7 +464,7 @@ describe('every screen draws inside the frame (PL4)', () => {
 
   it('a text wider than its window fails check 2 (the control)', async () => {
     const { drawWindow } = await import('../src/ui/draw');
-    const { drawText } = await import('../src/engine/font');
+    const { drawText } = await import('../src/sje/display/font');
     const layout = new Layout();
     setLayout(layout);
     const ctx = recordingContext();

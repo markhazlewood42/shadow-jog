@@ -13,7 +13,7 @@
 import { getPortrait } from '../../art/portraits';
 import { ABILITIES } from '../../data/abilities';
 import { MEMBERS } from '../../data/party';
-import { shade } from '../../engine/color';
+import { shade } from '../../sje/core/color';
 import type { GrowthStat, LevelUp } from '../../game/party';
 import type { MemberId } from '../../game/state';
 import { Bar, CanvasImage, Container, type DisplayHost, fitText, measure, NineSlice, TextObject, UI } from '../../sje';

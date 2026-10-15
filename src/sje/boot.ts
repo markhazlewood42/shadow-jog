@@ -16,10 +16,10 @@
  *   4. In a DEV build only, add the engine's members to `window.__SJ__` (`src/sje-lab/devhook.ts`, interfaces.md section 14). A shipped build
  *      never loads that file (the import sits behind `import.meta.env.DEV`).
  */
-import { notice, reportError } from '../engine/errors';
-import { Input } from '../engine/input';
-import { perf } from '../engine/perf';
-import { shakeOffset } from '../engine/shake';
+import { notice, reportError } from './core/errors';
+import { Input } from './runtime/inputdevice';
+import { perf } from './core/perf';
+import { shakeOffset } from './fx/shake';
 import { FX } from '../data/fx';
 import { showGpuNoticeOnce } from '../game/gpunotice';
 import { settings } from '../game/settings';

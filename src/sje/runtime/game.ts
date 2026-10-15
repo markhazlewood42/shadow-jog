@@ -46,7 +46,7 @@ import { Screen } from '../display/screen';
 import { TextureManager } from '../display/texturemanager';
 import { FxSystem, type FxLevel, type FxRequest } from '../fx/fxsystem';
 import { glRendererName } from '../render/glcontext';
-import type { Input } from '../../engine/input';
+import type { Input } from './inputdevice';
 import { Display } from './display';
 import type { GameApi, ShakeDirection } from './gameapi';
 import { type FrameRenderer, GlRenderer } from './glrenderer';

@@ -1,5 +1,5 @@
 /** Every action in battle: party techs & skills, combos, enemy moves. */
-import { must } from '../engine/assert';
+import { must } from '../sje/core/assert';
 import type { Ability } from '../battle/types';
 
 const A = (a: Ability): Ability => a;

@@ -2,15 +2,15 @@
  * Installs the field hooks: items, party changes, random encounters, battles (with retry),
  * shops, inn, clinic, save prompts, tutorials and the menu.
  */
-import { notice, reportError } from '../engine/errors';
+import { notice, reportError } from '../sje/core/errors';
 import { popMusic, pushMusic } from '../audio/music';
 import { sfx } from '../audio/sfx';
 import { ENCOUNTERS } from '../data/enemies';
 import { ABILITIES } from '../data/abilities';
 import { ITEMS } from '../data/items';
 import { MEMBERS } from '../data/party';
-import { surface } from '../engine/canvas';
-import { streams } from '../engine/rng';
+import { surface } from '../sje/core/canvas';
+import { streams } from '../sje/core/rng';
 import type { Game } from '../sje';
 import { TS } from '../field/tiles';
 import { battleStages } from '../scenes/battlekit/stageseam';

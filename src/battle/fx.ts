@@ -4,9 +4,9 @@
  * `play(id, from, targets)` spawns shapes and particles and returns when the impact lands
  * and when the effect is done, so the scene can sync damage numbers to the hit.
  */
-import { surface, type Ctx } from '../engine/canvas';
-import { mix } from '../engine/color';
-import { Rng } from '../engine/rng';
+import { surface, type Ctx } from '../sje/core/canvas';
+import { mix } from '../sje/core/color';
+import { Rng } from '../sje/core/rng';
 
 export interface Pt {
   x: number;

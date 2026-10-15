@@ -7,9 +7,9 @@
  *
  * Coordinates are the art's own pixels (DECK_W × DECK_H), shown at 1x on the W×H screen.
  */
-import { surface } from '../engine/canvas';
-import type { Ctx } from '../engine/canvas';
-import { drawText } from '../engine/font';
+import { surface } from '../sje/core/canvas';
+import type { Ctx } from '../sje/core/canvas';
+import { drawText } from '../sje/display/font';
 
 export const DECK_W = 264, DECK_H = 136;
 

@@ -2,9 +2,9 @@
  * The on-screen notice (the "Something glitched" bar, the saved badge, the news nudge), drawn as an overlay of the top scene.
  * Moved out of `src/main.ts` unchanged, when two entry paths drew the same notice. `src/sje/boot.ts` registers it now.
  */
-import type { Ctx } from './engine/canvas';
-import { currentNotice } from './engine/errors';
-import { drawText, fitText, measure, wrap } from './engine/font';
+import type { Ctx } from './sje/core/canvas';
+import { currentNotice } from './sje/core/errors';
+import { drawText, fitText, measure, wrap } from './sje/display/font';
 import { H, W } from './sje/core/size';
 
 export function drawNotice(ctx: Ctx): void {

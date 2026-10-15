@@ -6,7 +6,7 @@
  * The window runs in real frames, not battle-speed frames: the beat you learn is the beat you get.
  */
 import type { Timing, TimingProfile, TimingPrompt } from '../../battle/engine';
-import type { Ctx } from '../../engine/canvas';
+import type { Ctx } from '../../sje/core/canvas';
 
 /**
  * Each profile's beat: how long the ring takes to close (at least; a slow windup runs longer),
