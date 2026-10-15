@@ -1,30 +1,56 @@
-/** Save / load slot picker. Save writes immediately (with overwrite confirm); load returns the slot. */
+/** Save / load slot picker. Save writes immediately (with overwrite confirm); load returns the slot. Native sje scene (M8b). */
 import { buildChar } from '../art/chars';
 import { sfx } from '../audio/sfx';
-import { autoClose } from '../game/debug';
 import { LOOKS } from '../data/looks';
-import type { Ctx } from '../engine/canvas';
-import { drawText, fitText, measure } from '../engine/font';
-import { Scene } from '../engine/game';
-import { W, H } from '../sje/core/size';
-import { formatPlayTime, readMeta, savedByVersion, slotStatus, writeSave, type SaveMeta, type SlotId, type SlotStatus } from '../game/save';
-import { drawSelect, drawWindow, keyLegend, UI, OVERLAY_DIM } from '../ui/draw';
+import { autoClose } from '../game/debug';
+import { formatPlayTime, readMeta, type SaveMeta, type SlotId, type SlotStatus, savedByVersion, slotStatus, writeSave } from '../game/save';
+import { Container, fitText, Graphics, measure, NineSlice, SELECT_FILL, TextObject, UI } from '../sje';
+import { H, W } from '../sje/core/size';
+import { UiScene } from './uiscene';
 
-export class SaveScene extends Scene<SlotId | null> {
-  override opaque = false;
-  override curtain = true;
+/** The slot select highlight is lighter than a list's (the old drawSelect color rgba(63,224,240,0.08)). */
+const SLOT_SELECT_ALPHA = 0.08;
+
+/** What one slot shows, read once. */
+interface SlotInfo {
+  meta: SaveMeta | null;
+  status: SlotStatus;
+  version: string | null;
+}
+
+export class SaveScene extends UiScene<SlotId | null> {
   private slots: SlotId[];
   private idx = 0;
   private confirm = false;
   private note = '';
-  private t = 0;
 
   /** Slot headers, loadability and (for newer-version saves) the version that wrote them, read once (full validation and JSON parsing are too costly per frame). */
-  private info: { meta: SaveMeta | null; status: SlotStatus; version: string | null }[] = [];
+  private info: SlotInfo[] = [];
+
+  // The window and where the rows sit.
+  private readonly w = 330;
+  private readonly rowH = 40;
+  private readonly h: number;
+  private readonly x: number;
+  private readonly y: number;
+
+  private cards: NineSlice[] = [];
+  private contents: Container[] = [];
+  private highlight!: Graphics;
+  private shownKey = '';
+  private noteText!: TextObject;
+  private win!: NineSlice;
+  private popup!: Container;
+  private popupTitle!: TextObject;
 
   constructor(private mode: 'save' | 'load') {
     super();
+    this.opaque = false;
+    this.curtain = true;
     this.slots = mode === 'load' ? ['auto', 1, 2, 3] : [1, 2, 3];
+    this.h = this.slots.length * (this.rowH + 4) + 30;
+    this.x = (W - this.w) / 2;
+    this.y = (H - this.h) / 2;
     this.refresh();
     if (mode === 'load') {
       // Start on the most recent save that will load.
@@ -45,32 +71,118 @@ export class SaveScene extends Scene<SlotId | null> {
     });
   }
 
-  update(): void {
-    this.t++;
+  override create(): void {
+    const ui = this.sys.ui;
+    const { x, y, w, h, rowH } = this;
+    this.dim();
+    this.win = new NineSlice(this, x, y, w, h, { title: this.mode === 'save' ? 'SAVE GAME' : 'LOAD GAME', footer: this.legend() });
+    ui.add(this.win);
+    this.highlight = new Graphics(this, 0, 0);
+    this.slots.forEach((_s, i) => {
+      const ry = y + 10 + i * (rowH + 4);
+      const card = new NineSlice(this, x + 8, ry, w - 16, rowH, { plain: true });
+      ui.add(card);
+      this.cards.push(card);
+    });
+    // The highlight sits over the selected card's frame and under its text.
+    ui.add(this.highlight);
+    this.buildContents();
+    this.noteText = new TextObject(this, W / 2, y + h + 6, '', { align: 'center', color: UI.amber });
+    ui.add(this.noteText);
+    // The overwrite question: a small window with two lines, shown only while it is asked.
+    this.popup = new Container(this, 0, 0, 'overwrite');
+    this.popup.add(new NineSlice(this, x + 40, y + h / 2 - 16, w - 80, 32, { accent: UI.amber }));
+    this.popupTitle = new TextObject(this, W / 2, y + h / 2 - 10, '', { align: 'center' });
+    this.popup.add(this.popupTitle);
+    this.popup.add(new TextObject(this, W / 2, y + h / 2 + 2, '{y}Confirm{/} yes · {d}Cancel{/} no', { align: 'center' }));
+    ui.add(this.popup);
+    this.refreshView();
+  }
+
+  /** Build what each slot shows (its header and details) from `info`. Called again after a save, which changes a slot. */
+  private buildContents(): void {
+    for (const c of this.contents) c.destroy();
+    this.contents = [];
+    const ui = this.sys.ui;
+    this.slots.forEach((s, i) => {
+      const c = new Container(this, 0, 0, `slot-${s}`);
+      ui.add(c);
+      this.contents.push(c);
+      this.fillSlot(c, i);
+    });
+  }
+
+  private fillSlot(c: Container, i: number): void {
+    const { x, y, w, rowH } = this;
+    const s = this.slots[i] as SlotId;
+    const ry = y + 10 + i * (rowH + 4);
+    const text = (tx: number, ty: number, str: string, style: ConstructorParameters<typeof TextObject>[4] = {}): void => void c.add(new TextObject(this, tx, ty, str, style));
+    const { meta, status, version: v } = this.info[i] as SlotInfo;
+    text(x + 16, ry + 6, s === 'auto' ? 'AUTOSAVE' : `SLOT ${s}`, { color: s === 'auto' ? UI.amber : UI.cyan });
+    if (status === 'empty') {
+      text(x + 16, ry + 20, 'Empty', { color: UI.disabled });
+      return;
+    }
+    if (status === 'newer') {
+      text(x + 70, ry + 6, fitText(v ? `Saved by a newer version (v${v})` : 'Saved by a newer version', w - 86), { color: UI.amber });
+      text(x + 70, ry + 20, this.mode === 'load' ? 'This version can’t load it' : 'Saving here replaces it', { color: UI.dim });
+      return;
+    }
+    if (status === 'damaged' || !meta) {
+      text(x + 16, ry + 20, this.mode === 'load' ? 'Damaged — can’t be loaded' : 'Damaged — saving here replaces it', { color: UI.red });
+      return;
+    }
+    this.fillMeta(c, meta, x + 16, ry, w - 32);
+  }
+
+  private fillMeta(c: Container, m: SaveMeta, x: number, y: number, w: number): void {
+    const when = new Date(m.when).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    c.add(new TextObject(this, x + 70, y + 6, fitText(m.location, w - 70 - measure(when) - 8)));
+    c.add(new TextObject(this, x + w, y + 6, when, { align: 'right', color: UI.dim }));
+    m.party.forEach((name, i) => {
+      const key = name.toLowerCase() as keyof typeof LOOKS;
+      const look = LOOKS[key];
+      if (!look) return;
+      const frame = buildChar(look).frames.down[0] as CanvasImageSource;
+      // A character sprite is art: a 14 x 20 canvas picture.
+      c.add(this.picture(x + i * 16, y + 14, 14, 20, (ctx) => ctx.drawImage(frame, 0, 0, 14, 20)));
+    });
+    c.add(new TextObject(this, x + 70, y + 20, `Lv ${m.leaderLevel}`, { color: UI.dim }));
+    c.add(new TextObject(this, x + 120, y + 20, `${m.cred.toLocaleString('en-US')}¢`, { color: UI.amber }));
+    c.add(new TextObject(this, x + w, y + 20, formatPlayTime(m.playFrames), { align: 'right', color: UI.dim }));
+  }
+
+  protected tick(): void {
     if (autoClose(this.t, 40)) {
       this.close(null);
       return;
     }
-    const inp = this.game.input;
-    const slot = this.slots[this.idx]!;
+    this.step();
+    // A closed scene has had its objects destroyed.
+    if (!this.closed) this.refreshView();
+  }
+
+  private step(): void {
+    const keys = this.input.actions;
+    const slot = this.slots[this.idx] as SlotId;
     if (this.confirm) {
-      if (inp.pressed('confirm')) this.write(slot);
-      else if (inp.pressed('cancel')) {
+      if (keys.justPressed('confirm')) this.write(slot);
+      else if (keys.justPressed('cancel')) {
         sfx('cancel');
         this.confirm = false;
       }
       return;
     }
     const n = this.slots.length;
-    if (inp.repeat('up')) { this.idx = (this.idx + n - 1) % n; sfx('cursor'); }
-    if (inp.repeat('down')) { this.idx = (this.idx + 1) % n; sfx('cursor'); }
-    if (inp.pressed('cancel')) {
+    if (keys.repeat('up')) { this.idx = (this.idx + n - 1) % n; sfx('cursor'); }
+    if (keys.repeat('down')) { this.idx = (this.idx + 1) % n; sfx('cursor'); }
+    if (keys.justPressed('cancel')) {
       sfx('cancel');
       this.close(null);
       return;
     }
-    if (!inp.pressed('confirm')) return;
-    const { meta, status } = this.info[this.idx]!;
+    if (!keys.justPressed('confirm')) return;
+    const { meta, status } = this.info[this.idx] as SlotInfo;
     if (this.mode === 'load') {
       if (status !== 'ok') {
         sfx('buzz');
@@ -92,6 +204,7 @@ export class SaveScene extends Scene<SlotId | null> {
   private write(slot: SlotId): void {
     if (writeSave(slot, this.game.playFrames)) {
       this.refresh();
+      this.buildContents();
       sfx('save');
       this.note = `Saved to slot ${slot}.`;
       this.confirm = false;
@@ -103,55 +216,20 @@ export class SaveScene extends Scene<SlotId | null> {
     }
   }
 
-  render(ctx: Ctx): void {
-    ctx.fillStyle = OVERLAY_DIM;
-    ctx.fillRect(0, 0, W, H);
-    const w = 330, rowH = 40;
-    const h = this.slots.length * (rowH + 4) + 30;
-    const x = (W - w) / 2, y = (H - h) / 2;
-    drawWindow(ctx, x, y, w, h, { title: this.mode === 'save' ? 'SAVE GAME' : 'LOAD GAME' , footer: keyLegend(this.game.input) });
-    this.slots.forEach((s, i) => {
-      const ry = y + 10 + i * (rowH + 4);
-      const sel = i === this.idx;
-      drawWindow(ctx, x + 8, ry, w - 16, rowH, { plain: !sel, accent: sel ? UI.cyan : undefined });
-      if (sel) drawSelect(ctx, x + 10, ry + 2, w - 20, rowH - 4, 'rgba(63,224,240,0.08)');
-      const { meta, status, version: v } = this.info[i]!;
-      drawText(ctx, s === 'auto' ? 'AUTOSAVE' : `SLOT ${s}`, x + 16, ry + 6, { color: s === 'auto' ? UI.amber : UI.cyan });
-      if (status === 'empty') {
-        drawText(ctx, 'Empty', x + 16, ry + 20, { color: UI.disabled });
-        return;
-      }
-      if (status === 'newer') {
-        drawText(ctx, fitText(v ? `Saved by a newer version (v${v})` : 'Saved by a newer version', w - 86), x + 70, ry + 6, { color: UI.amber });
-        drawText(ctx, this.mode === 'load' ? 'This version can’t load it' : 'Saving here replaces it', x + 70, ry + 20, { color: UI.dim });
-        return;
-      }
-      if (status === 'damaged' || !meta) {
-        drawText(ctx, this.mode === 'load' ? 'Damaged — can’t be loaded' : 'Damaged — saving here replaces it', x + 16, ry + 20, { color: UI.red });
-        return;
-      }
-      this.drawMeta(ctx, meta, x + 16, ry, w - 32);
+  /** Bring the objects up to date: which card is lit, the highlight, the note and the overwrite question. */
+  private refreshView(): void {
+    const { x, y, rowH } = this;
+    this.win.setStyle({ footer: this.legend() });
+    this.cards.forEach((card, i) => {
+      card.setStyle(i === this.idx ? { plain: false, accent: UI.cyan } : { plain: true, accent: undefined });
     });
-    if (this.note) drawText(ctx, this.note, W / 2, y + h + 6, { align: 'center', color: this.note.startsWith('Saved') ? UI.green : UI.amber });
-    if (this.confirm) {
-      drawWindow(ctx, x + 40, y + h / 2 - 16, w - 80, 32, { accent: UI.amber });
-      const newer = this.info[this.idx]?.status === 'newer';
-      drawText(ctx, newer ? 'Replace this newer-version save?' : 'Overwrite this save?', W / 2, y + h / 2 - 10, { align: 'center' });
-      drawText(ctx, '{y}Confirm{/} yes · {d}Cancel{/} no', W / 2, y + h / 2 + 2, { align: 'center' });
+    if (this.shownKey !== String(this.idx)) {
+      this.shownKey = String(this.idx);
+      const ry = y + 10 + this.idx * (rowH + 4);
+      this.highlight.clear().fillStyle(SELECT_FILL.color, SLOT_SELECT_ALPHA).fillRect(x + 10, ry + 2, this.w - 20, rowH - 4);
     }
-  }
-
-  private drawMeta(ctx: Ctx, m: SaveMeta, x: number, y: number, w: number): void {
-    const when = new Date(m.when).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-    drawText(ctx, fitText(m.location, w - 70 - measure(when) - 8), x + 70, y + 6);
-    drawText(ctx, when, x + w, y + 6, { align: 'right', color: UI.dim });
-    m.party.forEach((name, i) => {
-      const key = name.toLowerCase() as keyof typeof LOOKS;
-      const look = LOOKS[key];
-      if (look) ctx.drawImage(buildChar(look).frames.down[0]!, x + i * 16, y + 14, 14, 20);
-    });
-    drawText(ctx, `Lv ${m.leaderLevel}`, x + 70, y + 20, { color: UI.dim });
-    drawText(ctx, `${m.cred.toLocaleString('en-US')}¢`, x + 120, y + 20, { color: UI.amber });
-    drawText(ctx, formatPlayTime(m.playFrames), x + w, y + 20, { align: 'right', color: UI.dim });
+    this.noteText.setText(this.note).setStyle({ color: this.note.startsWith('Saved') ? UI.green : UI.amber });
+    this.popup.setVisible(this.confirm);
+    if (this.confirm) this.popupTitle.setText(this.info[this.idx]?.status === 'newer' ? 'Replace this newer-version save?' : 'Overwrite this save?');
   }
 }

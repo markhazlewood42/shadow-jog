@@ -67,6 +67,8 @@ interface AnyScene {
 interface Shot {
   name: string;
   layout: Layout;
+  /** A native scene (M8b): its record holds windows, texts, lists and pictures, and no canvas calls. */
+  native?: boolean;
 }
 
 /** The longest line of dialogue the test uses: four lines on a page at the capped text width. */
@@ -111,6 +113,22 @@ async function drawAll(size: { W: number; H: number } | null): Promise<{ shots: 
   const bind = <T>(scene: unknown): T & AnyScene => {
     (scene as unknown as AnyScene).game = fakeGame(input);
     return scene as T & AnyScene;
+  };
+
+  // The ported scenes are native: they run on a real `Game` (no renderer), and their display objects are read into the same record (tests/nativelayout.ts).
+  const { Game } = await import('../src/sje/runtime/game');
+  const { layoutOfNative } = await import('./nativelayout');
+  const nativeInput = Object.assign(input, { update: () => undefined, endFrame: () => undefined, consume: () => undefined, dir: () => null });
+  const game = new Game({ renderer: { render: () => undefined }, input: nativeInput as never });
+  /** Run a native scene, let it tick once (after setting its tick counter to `t`, to skip an animation), read its objects, and close it. */
+  const takeNative = (name: string, scene: { sys: { ui: never }; close(r?: unknown): void }, t?: number, before?: (s: AnyScene) => void): void => {
+    void game.run(scene as never);
+    before?.(scene as unknown as AnyScene);
+    if (t !== undefined) (scene as unknown as AnyScene).t = t;
+    game.advanceTick();
+    shots.push({ name, layout: layoutOfNative(scene.sys.ui), native: true });
+    scene.close(undefined);
+    game.advanceTick();
   };
 
   applyStage('finale');
@@ -240,12 +258,12 @@ async function drawAll(size: { W: number; H: number } | null): Promise<{ shots: 
   const { OptionsScene } = await import('../src/scenes/options');
   take('options', bind(new OptionsScene(true)));
   const { SaveScene } = await import('../src/scenes/saveload');
-  take('save slots', bind(new SaveScene('save')));
-  take('load slots', bind(new SaveScene('load')));
+  takeNative('save slots', new SaveScene('save') as never);
+  takeNative('load slots', new SaveScene('load') as never);
   const { ControlsScene } = await import('../src/scenes/controls');
-  take('controls', bind(new ControlsScene()));
+  takeNative('controls', new ControlsScene() as never);
   const { CardScene } = await import('../src/scenes/card');
-  take('card', bind(new CardScene('Tutorial', 'Hold X to run. Press Z to talk to people and open things. The menu is on C, and it holds your items, techs, gear and the map of everywhere you have been so far.')));
+  takeNative('card', new CardScene('Tutorial', 'Hold X to run. Press Z to talk to people and open things. The menu is on C, and it holds your items, techs, gear and the map of everywhere you have been so far.') as never, 20);
 
   // ---- the dialog
   const { DialogScene } = await import('../src/scenes/dialog');
@@ -263,7 +281,7 @@ async function drawAll(size: { W: number; H: number } | null): Promise<{ shots: 
   // The map of a place (the plan, scaled to the screen), where the stub canvases allow it.
   try {
     const { PlaceMapScene } = await import('../src/scenes/placemap');
-    take('place map', bind(new PlaceMapScene('lantern_row')));
+    takeNative('place map', new PlaceMapScene('lantern_row') as never);
   } catch (e) {
     console.warn('place map not drawn here:', (e as Error).message);
   }
@@ -278,24 +296,12 @@ async function drawAll(size: { W: number; H: number } | null): Promise<{ shots: 
     take('title: menu', t);
   }
   const { EndingScene } = await import('../src/scenes/ending');
-  {
-    const e = bind<AnyScene>(new EndingScene(60 * 60 * 31));
-    e.t = 400;
-    take('ending: results', e);
-    e.page = 1;
-    e.t = 400;
-    take('ending: next chapter', e);
-  }
+  takeNative('ending: results', new EndingScene(60 * 60 * 31) as never, 400);
+  // The second page: the scene turns the page (as it does on a key press), then its tick counter is moved to the end of the fades.
+  takeNative('ending: next chapter', new EndingScene(60 * 60 * 31) as never, 400, (e) => (e as unknown as { turn(): void }).turn());
   const { GameOverScene } = await import('../src/scenes/gameover');
-  {
-    const g = bind<AnyScene>(new GameOverScene(true));
-    g.t = 200;
-    // The rain is a Weather: its streaks and splashes begin above the top edge and fall in, by design, so
-    // every frame of it has a rect outside the screen. It is the same Weather the streets use (tested with
-    // them), so this scene draws without it here.
-    g.rain = { update: () => undefined, render: () => undefined };
-    take('game over', g);
-  }
+  // The rain is a Weather painted into the scene's art canvas (a canvas picture, not a display object), so the record holds the text, the menu window and the list.
+  takeNative('game over', new GameOverScene(true) as never, 200);
   const { DeckScene } = await import('../src/scenes/deck');
   for (const mode of ['dead', 'seat', 'view'] as const) {
     const d = bind<AnyScene>(new DeckScene(mode));
@@ -382,7 +388,11 @@ describe('every screen draws inside the frame (PL4)', () => {
   it('has screens to check (a test that draws nothing proves nothing)', async () => {
     const { shots } = await drawAll(null);
     expect(shots.length).toBeGreaterThanOrEqual(30);
-    for (const s of shots) expect(s.layout.draws.length, s.name).toBeGreaterThan(5);
+    // A native scene has no canvas calls: its record counts windows, texts, lists and pictures instead.
+    for (const s of shots) {
+      if (s.native) expect(s.layout.draws.length + s.layout.texts.length + s.layout.windows.length + s.layout.lists.length, s.name).toBeGreaterThan(1);
+      else expect(s.layout.draws.length, s.name).toBeGreaterThan(5);
+    }
     expect(shots.some((s) => s.layout.windows.length > 0 && s.layout.lists.length > 0)).toBe(true);
   });
 
@@ -580,10 +590,11 @@ describe('what the full-page scenes promise (WP5, D9)', () => {
     expect(next.texts.find((t) => t.text.startsWith('Press'))!.y).toBe(H - PAGE_PROMPT_FROM_BOTTOM);
     const over = shots.find((s) => s.name === 'game over')!.layout;
     expect(over.texts.find((t) => t.text === 'THE RUN IS OVER')!.y).toBe(44 + PAGE_DY);
+    // The crew, the street and the glow are one full-screen art picture; the bands it paints come from `gameOverBands` (the street at H - 26, the glow above it).
+    expect(over.draws.some((d) => d.op === 'drawImage' && d.x === 0 && d.y === 0 && d.w === W && d.h === H)).toBe(true);
+    const { gameOverBands } = await import('../src/scenes/gameover');
     const street = H - STREET_FROM_BOTTOM;
-    expect(over.draws.some((d) => d.op === 'fillRect' && d.x === 0 && d.y === street && d.w === W && d.h === H - street)).toBe(true);
-    // The red glow behind the crew: 0.74 of the height, which is the 267 px (200 of 270) it was.
-    expect(over.draws.some((d) => d.op === 'fillRect' && d.x === 0 && d.y === street - GLOW_REACH && d.w === W && d.h === GLOW_REACH)).toBe(true);
+    expect(gameOverBands()).toEqual({ street: { x: 0, y: street, w: W, h: H - street }, glow: { x: 0, y: street - GLOW_REACH, w: W, h: GLOW_REACH } });
     expect(Math.abs(GLOW_REACH - 267)).toBeLessThanOrEqual(2);
     // The menu window sits under the title text, not on the old row.
     const menuWin = over.windows.find((w) => w.w === 140)!;

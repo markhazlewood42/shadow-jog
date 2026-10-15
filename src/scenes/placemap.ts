@@ -3,16 +3,14 @@
  * with the exits labelled by where they lead and, on the map the crew is on, where they stand.
  */
 import { sfx } from '../audio/sfx';
-import type { Ctx } from '../engine/canvas';
-import { drawText, measure } from '../engine/font';
-import { Scene } from '../engine/game';
-import { H, W } from '../sje/core/size';
 import { getMap } from '../data/maps';
 import { FieldMap } from '../field/fieldmap';
 import { TS } from '../field/tiles';
-import { state } from '../game/state';
 import type { MapDef } from '../field/types';
-import { drawWindow, UI, OVERLAY_DIM } from '../ui/draw';
+import { state } from '../game/state';
+import { CanvasImage, measure, NineSlice, TextObject, UI } from '../sje';
+import { H, W } from '../sje/core/size';
+import { UiScene } from './uiscene';
 
 /** A placed exit label: its dot, and the text box beside it. */
 export interface ExitLabel {
@@ -68,15 +66,17 @@ export function exitLabels(def: MapDef, flags: Record<string, unknown>): ExitLab
 /** Maps are baked once per visit to this screen, not per frame. */
 const baked = new Map<string, FieldMap>();
 
-export class PlaceMapScene extends Scene<void> {
-  override opaque = false;
-  override curtain = true;
+export class PlaceMapScene extends UiScene<void> {
   private m: FieldMap;
-  private t = 0;
   private labels: ExitLabel[] | null = null;
+  private plan!: CanvasImage;
+  /** The size of the "you are here" pulse last painted (-1: none yet), so the plan is painted again only when it changes. */
+  private pulse = -1;
 
   constructor(private id: string) {
     super();
+    this.opaque = false;
+    this.curtain = true;
     let m = baked.get(id);
     if (!m) {
       m = new FieldMap(getMap(id));
@@ -85,20 +85,45 @@ export class PlaceMapScene extends Scene<void> {
     this.m = m;
   }
 
-  update(): void {
-    this.t++;
-    const inp = this.game.input;
-    if (inp.pressed('cancel') || inp.pressed('confirm')) {
-      sfx('cancel');
-      this.close(undefined);
+  override create(): void {
+    const ui = this.sys.ui;
+    this.dim();
+    const win = new NineSlice(this, 6, 6, W - 12, H - 12, { title: this.m.def.name.toUpperCase(), accent: UI.cyan });
+    ui.add(win);
+    // The plan is art: the map's own pictures, scaled, tinted and ruled. It is a canvas one pixel larger than the plan on each side, for the border.
+    const { x, y, w, h } = planRect(this.m.w, this.m.h);
+    this.plan = new CanvasImage(this, x - 1, y - 1, w + 2, h + 2);
+    ui.add(this.plan);
+    this.paintPlan();
+    // Exits, labelled by destination (placed clear of each other: exitLabels, tested).
+    this.labels ??= exitLabels(this.m.def, state.flags);
+    for (const l of this.labels) {
+      const text = new TextObject(this, l.box.x, l.box.y, l.text, { color: '#ffe7a0' });
+      ui.add(text);
     }
+    if (state.map === this.id) ui.add(new TextObject(this, 14, H - 20, 'You are here', { color: UI.pink }));
+    ui.add(new TextObject(this, W - 14, H - 20, `${this.input.actions.keyName('cancel')}: back`, { color: UI.dim, align: 'right' }));
   }
 
-  render(ctx: Ctx): void {
-    ctx.fillStyle = OVERLAY_DIM;
-    ctx.fillRect(0, 0, W, H);
-    drawWindow(ctx, 6, 6, W - 12, H - 12, { title: this.m.def.name.toUpperCase(), accent: UI.cyan });
+  protected tick(): void {
+    const keys = this.input.actions;
+    if (keys.justPressed('cancel') || keys.justPressed('confirm')) {
+      sfx('cancel');
+      this.close(undefined);
+      return;
+    }
+    // The pulse steps every 8 ticks through three sizes.
+    if (state.map === this.id && 3 + (Math.floor(this.t / 8) % 3) !== this.pulse) this.paintPlan();
+  }
+
+  /** Paint the plan: the map scaled to fit, night-blue, ruled, with the exit dots and (on the crew's own map) the "you are here" mark. */
+  private paintPlan(): void {
+    const ctx = this.plan.ctx;
     const { x, y, w, h, k } = planRect(this.m.w, this.m.h);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, w + 2, h + 2);
+    // The numbers below are screen pixels, as the old scene drew them; the canvas starts one pixel up and left of the plan.
+    ctx.translate(-(x - 1), -(y - 1));
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(this.m.ground, x, y, w, h);
     for (const s of this.m.sprites) ctx.drawImage(s.canvas, x + s.x * k, y + s.y * k, s.canvas.width * k, s.canvas.height * k);
@@ -117,27 +142,23 @@ export class PlaceMapScene extends Scene<void> {
     ctx.globalAlpha = 0.5;
     ctx.strokeRect(x - 0.5, y - 0.5, w + 1, h + 1);
     ctx.globalAlpha = 1;
-
-    // Exits, labelled by destination (placed clear of each other: exitLabels, tested).
     ctx.fillStyle = UI.amber;
     for (const wp of this.m.def.warps ?? []) {
       if (wp.when && !wp.when(state.flags)) continue;
       ctx.fillRect(Math.round(x + (wp.x + (wp.w ?? 1) / 2) * TS * k) - 1, Math.round(y + (wp.y + (wp.h ?? 1) / 2) * TS * k) - 1, 3, 3);
     }
-    this.labels ??= exitLabels(this.m.def, state.flags);
-    for (const l of this.labels) drawText(ctx, l.text, l.box.x, l.box.y, { color: '#ffe7a0' });
-
     // You are here.
     if (state.map === this.id) {
       const px = Math.round(x + (state.x + 0.5) * TS * k), py = Math.round(y + (state.y + 0.5) * TS * k);
       const r = 3 + (Math.floor(this.t / 8) % 3);
+      this.pulse = r;
       ctx.fillStyle = UI.pink;
       ctx.globalAlpha = 0.35;
       ctx.fillRect(px - r, py - r, r * 2 + 1, r * 2 + 1);
       ctx.globalAlpha = 1;
       ctx.fillRect(px - 1, py - 1, 3, 3);
-      drawText(ctx, 'You are here', 14, H - 20, { color: UI.pink });
     }
-    drawText(ctx, `${this.game.input.keyName('cancel')}: back`, W - 14, H - 20, { color: UI.dim, align: 'right' });
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    this.plan.refresh();
   }
 }
