@@ -192,3 +192,18 @@ Groups are commits. M8a = tasks 1 to 3 and 5. M8b = tasks 4, 6 and 7. M8c = task
 | Pictures | `M8_PICTURES=1`: 36 pictures in `media/m8-ui/` (menu 11, deck 4, panels 4, plus phases 1 and 2) | None missing | for Mark | |
 | Pass lines 10 and 12 | `git diff --stat main...HEAD` over `src/data src/battle src/field src/art src/audio src/story`, and over `src/sje/render src/sje/display src/sje/three` | Both print nothing | holds | No `npm run perf` needed for M8b |
 | Pass line 13 | `npm run budget` | **Over the caps.** First play 410.8 kB (cap 408), total 472.6 kB (cap 468.5), lazy-3d 146.7 kB (cap 160). The caps are not changed here | open | Mark decides: raise the caps (about 2.8 and 4.1 kB over) or trim |
+
+### M8c group E (battle)
+
+| Step | What | Result | Verdict | Fix or note |
+|---|---|---|---|---|
+| Port | `BattleScene` extends the sje `Scene`. It paints `render(ctx)` into one `CanvasImage` on `prerender`. `enter` is `create`, `update` is `fixedUpdate`, `exit` is the `shutdown` event | Commit `0a60e94`. `battlekit/render.ts` still draws the old UI with canvas calls into that image. It is not moved to kit parts | done | Open: a kit port of `render.ts` is not in this group. M8d does not need it |
+| Effects | Each `postfx` call is `this.game.fx` | `clear`, `clip` (create), `clear` (shutdown), `rate` with hit stop (`fixedUpdate`), `glowLayer`, `bloom`, `ui`, `active` (render). `later` and the moments of `playback.ts` use `v.game.fx` | done | |
+| Moments | `playMoment(FX, name, x, y)` is `game.fx.playMoment(name, x, y)` | The `intro` moment at the screen middle, and every `gpu*` call of `playback.ts`. Same data (`fx.json` through `loadData`), same effects clock | done | The old copy in `engine/moments.ts` has no caller in the battle |
+| Seams | `stageseam.ts` and `liveopen.ts` take the sje `Game` type | `git grep -n "from '../engine/game'" src/scenes` prints only `field.ts` | done | `game/systems.ts` casts `game` to the sje `Game` for `battleStages.open`. M8d task 10 removes the cast |
+| Battle Test | `battleglue.ts` no longer routes `postfx` | Battle Test runs a fight (`battletest.spec.ts` green). Pins in `et-tools.test.ts` and `sje-imports.test.ts` now expect no `postfx` or `route` edge in `src/dev`, each with a control | done | The exemption lists stay for M8d task 11 |
+| Seed 7 control | Live scene trace equals `battleTrace(7)` | `tests/battle-native.test.ts` (unit, real scene on a real `Game`) and `e2e/battletest.spec.ts` pass line 9. Controls: seed 8 differs, one changed word differs | holds | |
+| Timing proofs | Intro moment tick, hit stop, shake, flash, effects cleared on close | `tests/battle-native.test.ts` (5 tests) and `tests/playback.test.ts` (3 new). Mutating the code turned 4 of them red | holds | |
+| Unit tests | `npm run check` | exit 0. 112 files, 2019 tests. `ui-layout.test.ts` reads the native scene with `nativeKeys` and stubs the intro; no test deleted or loosened | holds | |
+| Specs | `sje-battle`, `battletest`, `sje-stage-parity`, `gpufx`, `gameover`, `playthrough` with `CI=1 PW_PORT=3012` | 102 passed, 21 skipped, exit 0 | holds | |
+| Pass lines 10, 12, 13 | Diff scans and `npm run budget` | Lines 10 and 12 print nothing. Budget exits 0: first play 411.4 kB (cap 412), total 473.2 kB (cap 473.8) | holds | Total rose 0.6 kB since M8b (472.6 kB) |
