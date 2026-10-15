@@ -170,3 +170,11 @@ Groups are commits. M8a = tasks 1 to 3 and 5. M8b = tasks 4, 6 and 7. M8c = task
 - The `onSound` callback maps to sfx.
 - There is no `UiScene` base class yet.
 - The level table in `docs/engine/README.md` lacks level 2.6. Do this in M8d.
+
+### M8b phase 2 (options, dialog, title, shop)
+
+| Step | What | Result | Verdict | Fix or note |
+|---|---|---|---|---|
+| Phase 1 finding | Test that `Game.run` of the old class refuses a native scene | `tests/game.test.ts`, commit `0cf8e68` | done | |
+| Group C | Options, dialog, title and shop are native `UiScene`s | Commit `be3fc23`. Options reads `game.fx.active`, not `postfx`. The old `Game.reset` type takes a native scene | done | Dialog choice highlight is 1 px taller than the old one (the kit `ListMenu` uses `rowH` for it) |
+| Editor items d and e | `snapshot()`, `restore()` and `step(n)` on dialog and shop | `tests/sje-ui-scenes-2.test.ts`, each proof has a control | done | See `m8a-data-format.md` section 8 |
