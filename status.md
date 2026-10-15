@@ -4,7 +4,7 @@ title: Shadow Jog — Project Status
 project: shadow-jog
 created: 2026-09-27
 updated: 2026-10-13
-milestone: none
+milestone: M8b
 tags: [status]
 ---
 
