@@ -281,3 +281,16 @@ Groups are commits. M8a = tasks 1 to 3 and 5. M8b = tasks 4, 6 and 7. M8c = task
 | CI 2 check | Is the slow fight a regression of M8c? Same fight, `main` against HEAD, local, Chromium with SwiftShader (as CI), also 1 and 2 CPU cores and a 8x CPU slowdown. | A fight in the Barrens takes 18 to 26 s on both. `perf.stats()` frame cost is 1.0 to 1.2 ms (`main`) and 1.2 to 1.5 ms (HEAD), both at 60 fps. Eight runs of the economy spec on HEAD took 33 to 54 s. | found | No local slowdown on HEAD. A profile of 1,200 battle ticks shows the same time on both (182 ms and 196 ms). |
 | CI 2 cause | Test times in the CI logs of `main` against HEAD. | Two `main` runs (38653744921, 38628567731) took 1.6 min and 1.3 min for this test, and 29 s and 30 s for `battletest.spec.ts:405`. Two other `main` runs (38676245985, 38616721122) took 38.7 s and 41.7 s, and 11 s. HEAD took 1.6 min and 1.3 min, and 29 s. | found | The cause is a slow runner, and `main` also hits it. The 60 s wait fails on `main` when the runner is slow. Keep the 180 s wait and the 300 s limit. |
 | CI 2 note | Cost that M8c adds per frame. | A battle frame uploads 2.0 canvases of 640x360 (HEAD) against 1.0 (`main`): 509k against 283k pixels. `BattleScene.paint` clears and uploads the full canvas each frame, also when `renderOverStage` draws nothing. | open | Not the cause of the CI time. A later step can skip the upload when nothing was drawn. |
+
+### M8c PR 96 review triage
+
+| Finding | Verdict | Change | Commit |
+|---|---|---|---|
+| 1 `field.ts` banner scrim in the battle snapshot | Real | `paintScreenLayer` skips `renderBanner` when `forSnapshot`, as it does the plate | d255906 |
+| 2 `hud.ts` plate lags one frame | Real: the scene manager runs `prerender` bottom first, so the stage paints before the field syncs | `paintScreen` calls `hud.syncEarly()`; the field's `paint` calls `syncFrame()`, which skips a second sync | d255906 |
+| 3 `battle.ts` joined statements, doubled comment | Real | Split the line, kept one comment, named `(topClear)` | d255906 |
+| 4 `hud.sync()` twice per frame | Not changed: `tests/battle-hud.test.ts` and `tests/ui-layout.test.ts` read the windows after ticks with no draw (11 fail without the tick sync) | Trade-off. Open note fixed: `BattleScene.paint` skips the clear and the upload when this frame and the last drew nothing (`render` returns a boolean) | d255906 |
+| 5 `uiops.ts` bar with `w` 0 | Real | Ratio is 0 when `w` is 0 (fill and ghost) | d255906 |
+| 6 `panels.ts` learned id not in `ABILITIES` | Real | The row is skipped, as the old code did | d255906 |
+| 7 `boot.ts` mixed `top` views | Partly real | `top` reads `sje.top`, as `idle` does. The double casts stay until M8d task 10 | d255906 |
+| 8 `hud.ts` objective rebuilt on flash | Real | The key leaves out the color. A flash toggle calls `setStyle({ color })` on the lines; `tests/field-hud.test.ts` expects the same objects | d255906 |
