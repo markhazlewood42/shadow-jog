@@ -1,11 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1354 788" width="1354" height="788" role="img" aria-labelledby="roadmap-title roadmap-desc">
   <title id="roadmap-title">Shadow Jog roadmap</title>
-  <desc id="roadmap-desc">Order and dependency only. Bar length is not time. Now: M8c Battle and field. Next: M8a UI kit and data. Items in the same column can run in parallel. Foundations: Phase 0 Platform spike (done), Pre-M0 640x360 move (done), M0 Prepare (done). Engine path: M1 Shell (done), M2 Effects (done), M3 Battle stage (done), M5 Field (done), M6 Flip default (done), M7 3D mode (done), M8a UI kit and data (next), M8b UI scenes (done), M8c Battle and field (active), M8d Delete old engine (later). Side paths: M1b 3D proof (done), M4 UI scenes (optional), ET Editor port (done), Editors Editor suite (later). Needs Mark's go-ahead: archive-tags Archive tags (gated), release-tags Release tags (gated), deploy Deploy site (gated). Other open items (no order): playthrough-notes Playthrough notes edit (next), pixellab-end PixelLab end date (next), sprite-fusion Sprite credits (optional), cc-followups CC follow-ups (optional), plasma-bug plasma-ui bug report (optional).</desc>
+  <desc id="roadmap-desc">Order and dependency only. Bar length is not time. Now: M8c Battle and field. Items in the same column can run in parallel. Foundations: Phase 0 Platform spike (done), Pre-M0 640x360 move (done), M0 Prepare (done). Engine path: M1 Shell (done), M2 Effects (done), M3 Battle stage (done), M5 Field (done), M6 Flip default (done), M7 3D mode (done), M8a UI kit and data (done), M8b UI scenes (done), M8c Battle and field (active), M8d Delete old engine (later). Side paths: M1b 3D proof (done), M4 UI scenes (optional), ET Editor port (done), Editors Editor suite (later). Needs Mark's go-ahead: archive-tags Archive tags (gated), release-tags Release tags (gated), deploy Deploy site (gated). Other open items (no order): playthrough-notes Playthrough notes edit (next), pixellab-end PixelLab end date (next), sprite-fusion Sprite credits (optional), cc-followups CC follow-ups (optional), plasma-bug plasma-ui bug report (optional).</desc>
   <defs>
     <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse"><polygon points="0 0, 8 3, 0 6" fill="#bfc3e4"/></marker>
   </defs>
   <rect width="1354" height="788" fill="#0d0c1f"/>
-  <text x="20" y="46" fill="#f4f1ff" font-size="26" font-style="italic" font-family="'Instrument Serif', Georgia, 'Times New Roman', serif">Now: M8c Battle and field. Next: M8a UI kit and data.</text>
+  <text x="20" y="46" fill="#f4f1ff" font-size="26" font-style="italic" font-family="'Instrument Serif', Georgia, 'Times New Roman', serif">Now: M8c Battle and field.</text>
   <text x="20" y="72" fill="#ffcc3d" font-size="14" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">Order and dependency only. Bar length is not time.</text>
   <text x="20" y="92" fill="#8f94bd" font-size="11" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.06em">READ LEFT TO RIGHT. A COLUMN IS A STEP IN THE ORDER. ITEMS IN ONE COLUMN CAN RUN IN PARALLEL. DATA UPDATED 2026-10-14.</text>
   <rect x="14" y="126" width="102" height="570" fill="#ffffff" fill-opacity="0.025"/>
@@ -130,12 +130,12 @@
     <text x="844" y="447" fill="#cfeee0" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">DONE</text>
   </g>
   <g id="item-M8a">
-    <title>M8a UI kit and data: next. Waits for Mark to approve docs/engine/m8-brief.md and the shop and dialogue data format. The UI kit in src/sje/ui, then the data move. GPU timing check (npm run perf) once at the end.</title>
-    <rect x="938" y="264" width="90" height="76" rx="6" fill="#16304d" stroke="#5fb3ff" stroke-width="1.2"/>
+    <title>M8a UI kit and data: done. Merged 2026-10-14 (PR #94). The UI kit is in src/sje/ui (TextObject, NineSlice, ListMenu, bar, cursor), and the shop and dialogue content moved to data files. Mark ran the GPU timing check (npm run perf) on 2026-10-14: it passed. Record: docs/engine/m8-brief.md.</title>
+    <rect x="938" y="264" width="90" height="76" rx="6" fill="#14382e" stroke="#4cc38a" stroke-width="1.2"/>
     <text x="946" y="283" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">M8a</text>
     <text x="946" y="301" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">UI kit and</text>
     <text x="946" y="315" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">data</text>
-    <text x="946" y="333" fill="#d4e8ff" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">NEXT</text>
+    <text x="946" y="333" fill="#cfeee0" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">DONE</text>
   </g>
   <g id="item-M8b">
     <title>M8b UI scenes: done. Port the 13 UI scenes to native scenes, small to big. All 13 are native. Merged in PR #95 (2026-10-15). Follows the diff rule for the GPU timing check.</title>

@@ -324,7 +324,7 @@ describe('who may import the engine', () => {
   it('the shipped game reaches the engine through nine doors only: the size module, the Rng module, the game font (M3), the effects state, the effects data checks and the particle simulation (all plain code: no Pixi, no Three), a types-only file, the boot door, and (M8b) the facade for the ported UI scenes', () => {
     const shipped = all.filter((e) => outsideEngine(e) && !e.file.startsWith('src/sje-lab/') && !isDevTool(e.file));
     expect([...new Set(shipped.map((e) => e.target))].sort()).toEqual(['src/sje', 'src/sje/boot', 'src/sje/core/rng', 'src/sje/core/size', 'src/sje/display/font', 'src/sje/fx/fxdata', 'src/sje/fx/fxstate', 'src/sje/fx/particles', 'src/sje/runtime/gameapi']);
-    // M8b: the UI scenes ported to native scenes take the kit and the scene base from the facade. M8c adds the battle scene and its kit (`Scene`, `CanvasImage`, and the `Game` type for `PlaybackView` and the stage seam; `game/systems.ts` names the `Game` type for its cast until M8d). M8c adds the field scene and its seam (`Scene`, `CanvasImage`, the `Game` type), and `src/boot.ts` names the `Game` type for the same cast until M8d. The list holds nothing else.
+    // M8b: the UI scenes ported to native scenes take the kit and the scene base from the facade. M8c adds the battle scene and its kit (`Scene`, `CanvasImage`, and the `Game` type for `PlaybackView` and the stage seam; group G adds the battle HUD and its panels (battlekit/hud.ts, panels.ts), the field HUD (fieldkit/hud.ts) and their plain-data ops (src/scenes/uiops.ts); `game/systems.ts` names the `Game` type for its cast until M8d). M8c adds the field scene and its seam (`Scene`, `CanvasImage`, the `Game` type), and `src/boot.ts` names the `Game` type for the same cast until M8d. The list holds nothing else.
     expect([...new Set(shipped.filter((e) => e.target === 'src/sje').map((e) => e.file))].sort()).toEqual(M8B_FACADE_USERS);
     // M2: the old PostFx extends the shared state, the old particle module re-exports the shared simulation. (M6 deleted the old presenter, the one file that took SOFTWARE_GL from the GL module.)
     expect([...new Set(shipped.filter((e) => e.target === 'src/sje/fx/fxstate').map((e) => e.file))]).toEqual(['src/engine/postfx.ts']);
@@ -433,15 +433,23 @@ describe('the field stage (src/fieldstage, M5)', () => {
   });
 
   it('the seam (src/scenes/fieldkit/fieldseam.ts) imports no engine file and no stage code: it holds types and the provider slot only', () => {
-    // M8c: the seam names the engine's `Game` type (the facade, as the battle's seam does), and nothing deeper.
-    const stray = (list: Edge[]) => list.filter((e) => (toEngine(e) && e.target !== 'src/sje') || (e.target ?? '').startsWith('src/fieldstage')).map((e) => `${e.file} imports ${e.spec}`);
+    // M8c: the seam names the engine's `Game` type from the facade, as a TYPE import, and nothing deeper. A value import of the facade would be code, so it is flagged too (review finding F1).
+    const stray = (list: Edge[], text: (f: string) => string) =>
+      list
+        .filter((e) => (toEngine(e) && e.target !== 'src/sje') || (e.target === 'src/sje' && !onlyTypeImports(text(e.file), e.spec)) || (e.target ?? '').startsWith('src/fieldstage'))
+        .map((e) => `${e.file} imports ${e.spec}`);
     const seam = all.filter((e) => e.file === 'src/scenes/fieldkit/fieldseam.ts');
-    expect(stray(seam)).toEqual([]);
+    expect(stray(seam, (f) => readFileSync(join(ROOT, f), 'utf8'))).toEqual([]);
     expect(seam.map((e) => e.target)).toContain('src/sje');
-    // Control: the same rule flags a deeper engine file and the stage's code.
+    // Control: the same rule flags a deeper engine file, the stage's code, and a value import of the facade; and it passes a type import of the facade.
     const deep: Edge = { file: 'src/scenes/fieldkit/fieldseam.ts', spec: '../../sje/runtime/game', target: 'src/sje/runtime/game' };
     const code: Edge = { file: 'src/scenes/fieldkit/fieldseam.ts', spec: '../../fieldstage/stagescene', target: 'src/fieldstage/stagescene' };
-    expect(stray([deep, code])).toHaveLength(2);
+    const facade: Edge = { file: 'src/scenes/fieldkit/fieldseam.ts', spec: '../../sje', target: 'src/sje' };
+    const asValue = () => "import { Game } from '../../sje';";
+    const asType = () => "import type { Game } from '../../sje';";
+    expect(stray([deep, code, facade], asValue)).toHaveLength(3);
+    expect(stray([facade], asValue)).toHaveLength(1);
+    expect(stray([facade], asType)).toEqual([]);
   });
 });
 

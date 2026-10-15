@@ -153,12 +153,14 @@
       "kind": "milestone",
       "label": "UI kit and data",
       "lane": "engine",
-      "status": "next",
+      "status": "done",
       "after": [
         "M7",
         "ET"
       ],
-      "notes": "Waits for Mark to approve docs/engine/m8-brief.md and the shop and dialogue data format. The UI kit in src/sje/ui, then the data move. GPU timing check (npm run perf) once at the end."
+      "notes": "Merged 2026-10-14 (PR #94). The UI kit is in src/sje/ui (TextObject, NineSlice, ListMenu, bar, cursor), and the shop and dialogue content moved to data files. Mark ran the GPU timing check (npm run perf) on 2026-10-14: it passed. Record: docs/engine/m8-brief.md.",
+      "branch": "engine-m8a-ui-kit",
+      "pr": "#94 (merged 2026-10-14)"
     },
     {
       "id": "M8b",
