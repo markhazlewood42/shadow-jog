@@ -146,7 +146,7 @@ export class LevelUpPanel implements BattlePanel {
   private levelColor = '';
   private readonly rows: { cur: TextObject; gain: TextObject; bar: Bar }[] = [];
   private readonly restored: TextObject;
-  private readonly learned: { tag: CanvasImage; tagText: TextObject; name: TextObject; glint: CanvasImage }[] = [];
+  private readonly learned: { j: number; tag: CanvasImage; tagText: TextObject; name: TextObject; glint: CanvasImage }[] = [];
   private readonly arrow: TextObject;
 
   constructor(private readonly host: PanelHost, private readonly u: LevelUp, private readonly t: () => number) {
@@ -193,7 +193,7 @@ export class LevelUpPanel implements BattlePanel {
       // An id with no entry gets no row (as the old code did), not a chip with a blank name.
       if (!ab) return;
       const ly = ry + 16 + j * 18;
-      const tag = ab?.kind === 'skill' ? 'NEW SKILL' : 'NEW TECH';
+      const tag = ab.kind === 'skill' ? 'NEW SKILL' : 'NEW TECH';
       const tw = measure(tag) + 8;
       const chip = add(box, new CanvasImage(host, Math.round(x + 14), ly - 2, tw, 11));
       chip.ctx.fillStyle = UI.amber;
@@ -209,7 +209,7 @@ export class LevelUpPanel implements BattlePanel {
       glint.refresh();
       glint.setAlpha(0.7);
       for (const o of [chip, tagText, name, glint]) o.setVisible(false);
-      this.learned.push({ tag: chip, tagText, name, glint });
+      this.learned.push({ j, tag: chip, tagText, name, glint });
     });
     this.arrow = add(box, new TextObject(host, Math.round(x + w - 16), y + h - 13, '▼', { color: UI.cyan }));
     this.arrow.setVisible(false);
@@ -247,9 +247,9 @@ export class LevelUpPanel implements BattlePanel {
       row.gain.setVisible(p > 0 && gain > 0);
     });
     this.restored.setVisible(t >= beats.restoredAt);
-    u.learned.forEach((_, j) => {
-      const l = this.learned[j];
-      if (!l) return;
+    // An id with no ability has no entry here, so each entry keeps its place `j` in the list (its beat and its row).
+    for (const l of this.learned) {
+      const j = l.j;
       const on = t >= beats.learnAt(j);
       l.tag.setVisible(on);
       l.tagText.setVisible(on);
@@ -257,7 +257,7 @@ export class LevelUpPanel implements BattlePanel {
       const gt = t - beats.learnAt(j);
       l.glint.setVisible(on && gt < 16);
       if (on && gt < 16) l.glint.x = l.name.x + gt * 8;
-    });
+    }
     this.arrow.setVisible(t >= beats.end && frame % 40 < 28);
   }
 

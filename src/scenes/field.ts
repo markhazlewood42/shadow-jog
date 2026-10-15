@@ -23,7 +23,7 @@ import { bandGradient, UI } from '../ui/draw';
 import { fieldHooks } from '../game/hooks';
 import { notice, reportError } from '../engine/errors';
 import { scriptApi } from './fieldkit/api';
-import { FieldHud } from './fieldkit/hud';
+import { bannerAlpha, FieldHud } from './fieldkit/hud';
 import { cameraOrigin, LEADER_FOCUS_LIFT } from './fieldkit/camera';
 import { cameraBoxFor, curtainsFor, drawCurtains, type CameraBox, type Curtain } from './fieldkit/popins';
 import { blit, blitParts, byBaseY, drawEmote, inView, type DrawEntry } from './fieldkit/draw';
@@ -955,7 +955,7 @@ export class FieldScene extends Scene<void> implements FieldStageSource {
   private renderBanner(ctx: Ctx): boolean {
     if (!this.banner) return false;
     const t = this.banner.t;
-    const a = t < 20 ? t / 20 : t > 170 ? Math.max(0, (200 - t) / 30) : 1;
+    const a = bannerAlpha(t);
     if (a <= 0) return false;
     ctx.save();
     ctx.globalAlpha = a;

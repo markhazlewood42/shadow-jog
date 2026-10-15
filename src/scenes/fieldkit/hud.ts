@@ -19,6 +19,11 @@ import type { FieldScene } from '../field';
 import { applyOps, type Op } from '../uiops';
 import { ViewBuilder } from '../uiview';
 
+/** How opaque the area banner is `t` ticks in: it fades in over 20 ticks and out over the last 30 of 200. The scrim (`FieldScene.renderBanner`) and the text (`syncBanner`) share it. */
+export function bannerAlpha(t: number): number {
+  return t < 20 ? t / 20 : t > 170 ? Math.max(0, (200 - t) / 30) : 1;
+}
+
 /** The banner's top: the scrim starts 18 px down. */
 const BANNER_Y = 18;
 
@@ -40,6 +45,13 @@ export class FieldHud {
   /** Make the two layers. Call it from the scene's `create` (a display object needs the running scene). */
   create(): void {
     const ui = this.s.sys.ui;
+    // A new drawn frame begins: the early sync of the last one no longer counts.
+    const reset = (): void => {
+      this.early = false;
+    };
+    const events = this.s.game.events;
+    events.on('prerender', reset);
+    this.s.events.once('shutdown', () => events.off('prerender', reset));
     this.objectiveBox = new Container(this.s, 0, 0, 'field-objective');
     this.bannerBox = new Container(this.s, 0, 0, 'field-banner');
     ui.add([this.bannerBox, this.objectiveBox]);
@@ -51,7 +63,7 @@ export class FieldHud {
     this.syncObjective();
   }
 
-  /** True when `syncEarly` already ran in this drawn frame. */
+  /** True when `syncEarly` already ran in this drawn frame (the game's `prerender` event, which starts every drawn frame, clears it). */
   private early = false;
 
   /** The stage below the field paints the plate before the field's own `prerender`: sync first, so the plate is not a frame late. */
@@ -125,7 +137,7 @@ export class FieldHud {
     const s = this.s;
     const b = s.bannerNow;
     const t = b?.t ?? 0;
-    const a = t < 20 ? t / 20 : t > 170 ? Math.max(0, (200 - t) / 30) : 1;
+    const a = bannerAlpha(t);
     if (!b || a <= 0) {
       this.bannerBox.setVisible(false);
       return;

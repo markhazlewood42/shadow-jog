@@ -432,6 +432,31 @@ describe('the result panels', () => {
     expect(texts()).not.toContain('▼');
     panel.destroy();
   });
+
+  it('the level-up panel: an unknown learned id has no row, and the known one after it shows on its own beat', async () => {
+    const { LevelUpPanel, levelUpBeats } = await import('../src/scenes/battlekit/panels');
+    const b = await open();
+    const known = Object.keys((await import('../src/data/abilities')).ABILITIES)[1] as string;
+    const u = {
+      id: 'kit',
+      level: 5,
+      from: { hp: 100, tp: 20, atk: 10, def: 8, mnd: 6, agi: 12 },
+      to: { hp: 112, tp: 22, atk: 12, def: 9, mnd: 7, agi: 13 },
+      learned: ['no_such_ability', known],
+    };
+    const beats = levelUpBeats(u as never);
+    let t = beats.learnAt(0) + 2;
+    const panel = new LevelUpPanel(b as never, u as never, () => t);
+    const chips = (): number => all(b.sys.ui).filter((o): o is TextObject => o instanceof TextObject && o.visible && (o.text === 'NEW SKILL' || o.text === 'NEW TECH')).length;
+    // The first beat has come, but its id has no row. The known id (index 1) waits for its own beat.
+    b.frame = 0;
+    panel.update();
+    expect(chips()).toBe(0);
+    t = beats.learnAt(1);
+    panel.update();
+    expect(chips()).toBe(1);
+    panel.destroy();
+  });
 });
 
 describe('ten fights in a row leave nothing behind', () => {
