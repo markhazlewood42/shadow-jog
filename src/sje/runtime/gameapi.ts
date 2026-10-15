@@ -18,6 +18,9 @@
 import type { Input } from '../../engine/input';
 import type { Scene } from './scene';
 
+/** A native `sje` scene, named here so the old `Game.run` can accept one by type (M8b) without importing the runtime. */
+export type NativeScene<R = unknown> = Scene<R>;
+
 /** The way a blow travelled, as a vector (the old engine's `shake` argument). */
 export interface ShakeDirection {
   x: number;
