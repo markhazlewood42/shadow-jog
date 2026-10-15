@@ -294,3 +294,9 @@ Groups are commits. M8a = tasks 1 to 3 and 5. M8b = tasks 4, 6 and 7. M8c = task
 | 6 `panels.ts` learned id not in `ABILITIES` | Real | The row is skipped, as the old code did | d255906 |
 | 7 `boot.ts` mixed `top` views | Partly real | `top` reads `sje.top`, as `idle` does. The double casts stay until M8d task 10 | d255906 |
 | 8 `hud.ts` objective rebuilt on flash | Real | The key leaves out the color. A flash toggle calls `setStyle({ color })` on the lines; `tests/field-hud.test.ts` expects the same objects | d255906 |
+| 1 review 2 `battlekit/hud.ts` cards, enemy boxes and target box rebuilt as values animate | Real | `rebuild(..., inPlace)`: the key leaves out text strings and bar fill and ghost; same key updates `TextObject.setText` and `Bar.setRatio` and `setGhost` in place. Economy Barrens test took 72 s locally, not clearly faster than the 33 to 54 s recorded before, so the timeouts stay | db0b8d7 |
+| 2 review 2 `battle.ts` `paintSnapshot` lacks display objects | Not real: the only caller of `Game.ctx` is `snapshotScreen` (`game/systems.ts:359`), run before a battle starts, so no snapshot sees a battle. The field and the UI scenes follow the same pattern | Comment only | db0b8d7 |
+| 3 review 2 `battle.ts` paint-time sync outside `try` | Real | `hud.sync()` is inside the `try`, so a throw still restores and uploads | db0b8d7 |
+| 6 review 2 enemies Map never drops entries | Real | A box of an enemy that is not live is destroyed and its key deleted | db0b8d7 |
+| 8 review 2 dead `done` field, order key | Real for `done`; key left | `done` removed from the order entries. The `JSON.stringify` order key stays: caching by list identity needs `roundOrder` and `turnOrder` to return stable arrays, which they do not | db0b8d7 |
+| 10 review 2 `targetNotes` key collides at 10 | Real | The key is a `|` joined string | db0b8d7 |
