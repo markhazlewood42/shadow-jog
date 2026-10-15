@@ -72,7 +72,7 @@ function shapeOf(o: Op): Op {
 /** Bring the parts that `applyOps` made for `ops` up to date: the strings of the text lines and the fill and ghost of the bars. The part for op i is child i of the box. */
 function patchOps(box: Container, ops: readonly Op[]): boolean {
   const parts = box.list;
-  // Guard: one part per op, the same kind. Anything else (a card also holds its ring after the ops) is not what `applyOps` made, so the caller builds the box again.
+  // Guard: at least one part per op, and the first parts match the ops in kind (a card also holds its ring after the ops, which is fine: the extra trailing parts are left alone). If they do not match, the parts are not what `applyOps` made, so the caller builds the box again.
   if (parts.length < ops.length) return false;
   for (let i = 0; i < ops.length; i++) {
     const o = ops[i], part = parts[i];
