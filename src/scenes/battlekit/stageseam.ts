@@ -4,7 +4,7 @@
  * The battle scene (`scenes/battle.ts`) keeps state and flow: command entry, the round, playback of the engine's events through `PlaybackView`. Normally the
  * renderer beside it (`battlekit/render.ts`) draws the whole picture into a Canvas 2D. Under `?engine=sje` a STAGE can draw it instead: a scene of the new
  * engine that stands under the battle on the scene stack and shows the backdrop, the floor, the figures, the effects, the HUD and the numbers as Pixi
- * objects, while the battle scene keeps drawing only what is still the old UI (the menus, the end panels, the cut-ins, the intro) on a clear canvas over it.
+ * objects, while the battle scene keeps its windows (the menus, the end panels, the cut-ins: kit parts, battlekit/hud.ts) and draws the impact frame and the intro on a clear canvas over it.
  *
  * The stage READS the battle scene each tick (its `Disp` per fighter, the floaters, the banner, the mode, the effects layer), exactly as the old renderer does,
  * and gives back a few answers the battle needs about where things stand on the stage. That is all of this interface. Without the flag no stage is ever

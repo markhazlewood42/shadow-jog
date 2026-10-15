@@ -43,7 +43,7 @@ export { browserBackend, CacheManager, type LoadBackend, type LoadFile, Loader }
 export { Scene, type SceneEvents, type SceneStatus, type Systems } from './runtime/scene';
 export { type AnyScene, computeVisibility, SceneManager } from './runtime/scenemanager';
 export type { LegacyCompat } from './runtime/screenfx';
-export { Bar, type BarRect, barRects } from './ui/bar';
+export { Bar, type BarGhost, type BarRect, barRects } from './ui/bar';
 export { Cursor, type CursorKind, cursorNudge, moreVisible } from './ui/cursor';
 export { type ListAction, type ListInput, type ListItem, ListMenu, type ListResult, type RowGeometry, listRows, scrollFor, stepIndex, type UiSound } from './ui/listmenu';
 export { NineSlice, paintTab, paintWindow, type WindowBounds, type WindowStyle, windowBounds } from './ui/nineslice';

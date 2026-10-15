@@ -95,20 +95,7 @@ async function drawAll(size: { W: number; H: number } | null): Promise<{ shots: 
   ListMenu.prototype.render = tapListRender(real as any) as typeof real;
 
   const shots: Shot[] = [];
-  const ctx = recordingContext();
   const input = new FakeInput();
-  /** Draw a scene's `render(ctx)` once onto the recorder (the battle scene paints its canvas through it). */
-  const take = (name: string, scene: AnyScene): void => {
-    const layout = new Layout();
-    setLayout(layout);
-    try {
-      scene.render(ctx);
-    } finally {
-      setLayout(null);
-    }
-    shots.push({ name, layout });
-  };
-
   // The ported scenes are native: they run on a real `Game` (no renderer), and their display objects are read into the same record (tests/nativelayout.ts).
   const { Game } = await import('../src/sje/runtime/game');
   const { layoutOfNative } = await import('./nativelayout');
@@ -211,9 +198,11 @@ async function drawAll(size: { W: number; H: number } | null): Promise<{ shots: 
   // ---- the battle (WP6): the menus, the turn strip, the cut-ins and the banners, over a street fight
   {
     const { BattleScene } = await import('../src/scenes/battle');
-    // The battle scene is native (M8c): it runs on the real `Game` and the keys go through `nativeKeys`. Its `render(ctx)` is what its canvas image paints each frame
-    // (the old UI, and the whole picture when no stage is under it), so the recorder reads that, as it did before. The shatter intro is not what this draws: it is turned off.
-    (BattleScene.prototype as unknown as { intro: () => Promise<void> }).intro = async () => undefined;
+    // The battle scene is native (M8c) and so is its HUD (group G): the windows, texts, lists and bars are kit parts in its ui layer, read like any native scene. The shatter intro is not what this
+    // draws: it is turned off for the fixture, and put back when the block ends (the override must not outlive it).
+    const proto = BattleScene.prototype as unknown as { intro: () => Promise<void> };
+    const realIntro = proto.intro;
+    proto.intro = async () => undefined;
     let current: AnyScene | null = null;
     /** A fresh fight: the shatter is over (introT 999), the enemies are in (alpha 1), and the round menu is up. */
     const fight = (enemies: string[], boss = false): AnyScene => {
@@ -227,42 +216,51 @@ async function drawAll(size: { W: number; H: number } | null): Promise<{ shots: 
       (b.startRound as () => void)();
       return b;
     };
-    const four = ['rustfang_punk', 'scrap_hound', 'glowrat', 'smog_wisp'];
-    {
-      const b = fight(four);
-      take('battle: round menu, four enemies', b);
-      (b.nextActor as () => void)();
-      take('battle: command menu', b);
-      nativeKeys(['down', 'confirm']);
-      take('battle: a list open (the second command)', b);
+    /** Record the fight as it stands after one more tick (the HUD brings its objects up to date at the end of a tick). */
+    const shoot = (name: string, b: AnyScene): void => {
+      game.advanceTick();
+      nativeShot(name, b as never);
+    };
+    try {
+      const four = ['rustfang_punk', 'scrap_hound', 'glowrat', 'smog_wisp'];
+      {
+        const b = fight(four);
+        shoot('battle: round menu, four enemies', b);
+        (b.nextActor as () => void)();
+        shoot('battle: command menu', b);
+        nativeKeys(['down', 'confirm']);
+        nativeShot('battle: a list open (the second command)', b as never);
+      }
+      {
+        const b = fight(['rustfang_punk']);
+        (b.nextActor as () => void)();
+        const cmd = b.cmdMenu as { items: { label: string }[]; index: number };
+        cmd.index = Math.max(0, cmd.items.findIndex((it) => it.label === 'Item'));
+        nativeKeys(['confirm']);
+        nativeShot('battle: the item list', b as never);
+        nativeKeys(['confirm']);
+        nativeShot('battle: the target box', b as never);
+      }
+      {
+        // Cut-ins at both sides and on two rows, one with a line of speech; the strip at its fullest.
+        const b = fight(four);
+        b.mode = 'play'; // cut-ins show while a round plays, with the menus gone
+        (b.cutins as unknown[]).push(
+          { key: 'kit', face: 'smirk', t: 20, fromLeft: true, life: 56, row: 0 },
+          { key: 'rook', face: 'angry', t: 20, fromLeft: false, life: 56, row: 0, line: 'Now!' },
+          { key: 'hex', face: 'smirk', t: 20, fromLeft: true, life: 56, row: 1 },
+          { key: 'sable', face: 'smirk', t: 20, fromLeft: false, life: 56, row: 1 },
+        );
+        shoot('battle: four cut-ins and the turn strip', b);
+      }
+      {
+        const b = fight(['warden'], true);
+        shoot('battle: a boss fight, round menu', b);
+      }
+    } finally {
+      if (current) nativeClose(current as unknown as { close(r?: unknown): void });
+      proto.intro = realIntro;
     }
-    {
-      const b = fight(['rustfang_punk']);
-      (b.nextActor as () => void)();
-      const cmd = b.cmdMenu as { items: { label: string }[]; index: number };
-      cmd.index = Math.max(0, cmd.items.findIndex((it) => it.label === 'Item'));
-      nativeKeys(['confirm']);
-      take('battle: the item list', b);
-      nativeKeys(['confirm']);
-      take('battle: the target box', b);
-    }
-    {
-      // Cut-ins at both sides and on two rows, one with a line of speech; the strip at its fullest.
-      const b = fight(four);
-      b.mode = 'play'; // cut-ins show while a round plays, with the menus gone
-      (b.cutins as unknown[]).push(
-        { key: 'kit', face: 'smirk', t: 20, fromLeft: true, life: 56, row: 0 },
-        { key: 'rook', face: 'angry', t: 20, fromLeft: false, life: 56, row: 0, line: 'Now!' },
-        { key: 'hex', face: 'smirk', t: 20, fromLeft: true, life: 56, row: 1 },
-        { key: 'sable', face: 'smirk', t: 20, fromLeft: false, life: 56, row: 1 },
-      );
-      take('battle: four cut-ins and the turn strip', b);
-    }
-    {
-      const b = fight(['warden'], true);
-      take('battle: a boss fight, round menu', b);
-    }
-    if (current) nativeClose(current as unknown as { close(r?: unknown): void });
   }
 
   // ---- the shop
@@ -417,7 +415,8 @@ describe('every screen draws inside the frame (PL4)', () => {
       else expect(s.layout.draws.length, s.name).toBeGreaterThan(5);
     }
     expect(shots.some((s) => s.layout.windows.length > 0 && s.layout.lists.length > 0)).toBe(true);
-  });
+    // This test loads every scene and draws 60 screens; with the whole suite running at once it needs more than the default 5 s (M8c group G: the battle HUD is kit parts now).
+  }, 20_000);
 
   it('1 to 3: every rect is on screen, every text is inside its window, and the tall panes’ lists follow the height', async () => {
     const { shots, W, H } = await drawAll(null);
