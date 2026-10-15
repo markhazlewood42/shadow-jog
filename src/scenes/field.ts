@@ -3,9 +3,8 @@ import type { Dir } from '../art/chars';
 import { sfx } from '../audio/sfx';
 import { placeMusic } from '../audio/music';
 import type { Ctx } from '../engine/canvas';
-import { postfx } from '../engine/postfx';
 import { drawText, measure, wrap } from '../engine/font';
-import { Scene } from '../engine/game';
+import { CanvasImage, Scene } from '../sje';
 import { W, H } from '../sje/core/size';
 import { Rng } from '../engine/rng';
 import { Actor, DIRS, opposite } from '../field/actor';
@@ -116,7 +115,7 @@ export class FieldScene extends Scene<void> implements FieldStageSource {
 
   constructor(mapId: string, x: number, y: number, dir: Dir = 'down') {
     super();
-    this.load(mapId, x, y, dir);
+    this.loadAt(mapId, x, y, dir);
   }
 
   get leader(): Actor {
@@ -124,7 +123,8 @@ export class FieldScene extends Scene<void> implements FieldStageSource {
   }
 
   // ------------------------------------------------------------------ loading
-  load(mapId: string, x: number, y: number, dir: Dir): void {
+  /** Load a map and put the party on it. (Named `loadAt` because the sje `Scene` owns the name `load`: its loader.) */
+  loadAt(mapId: string, x: number, y: number, dir: Dir): void {
     this.map = loadMap(mapId);
     this.def = this.map.def;
     state.map = mapId;
@@ -174,17 +174,25 @@ export class FieldScene extends Scene<void> implements FieldStageSource {
     }
   }
 
-  override enter(): void {
+  /** This scene's canvas: the whole picture when no stage draws it, else only the dev overlay. Null before `create` and after the scene is gone. */
+  private image: CanvasImage | null = null;
+
+  override create(): void {
+    this.image = this.add.canvasImage(0, 0, W, H);
+    this.events.on('prerender', this.paint, this);
+    this.events.once('shutdown', () => this.onShutdown());
     this.game.countPlayTime = true;
     if (this.def.music) placeMusic(this.def.music, this.def.space);
     void this.onMapEnter();
     void this.openStage();
   }
 
-  override exit(): void {
+  /** The `shutdown` event: the scene is gone (it closed, or a reset or abandon tore the stack down). */
+  private onShutdown(): void {
+    this.image = null;
     const stage = this.stage;
     this.stage = null;
-    // Not at once: `exit` runs inside the scene stack's own teardown (a reset drops every scene, this one first), and the stage's `close` would change the stack under it.
+    // Not at once: `shutdown` runs inside the scene stack's own teardown (a reset drops every scene, this one first), and the stage's `close` would change the stack under it.
     // By the next microtask the stack has settled, and a stage that was dropped with it is already closed (`close` then does nothing).
     if (stage) queueMicrotask(() => stage.close());
   }
@@ -199,7 +207,7 @@ export class FieldScene extends Scene<void> implements FieldStageSource {
   private stageActors: StageActor[] = [];
   private stageChests: StageChest[] = [];
 
-  /** True while the stage draws the picture and there is no dev overlay to put on this canvas: the adapter then leaves this scene's canvas out (`LegacyShape.blank`). */
+  /** True while the stage draws the picture and there is no dev overlay to put on this canvas: `paint` then leaves this scene's canvas out. */
   get blank(): boolean {
     return !!this.stage && !this.stage.closed && !fieldHooks.renderOverlay;
   }
@@ -306,7 +314,7 @@ export class FieldScene extends Scene<void> implements FieldStageSource {
   }
 
   // ------------------------------------------------------------------ update
-  update(): void {
+  fixedUpdate(): void {
     this.frame++;
     const prevCamX = this.camX, prevCamY = this.camY;
     // Actors
@@ -501,7 +509,7 @@ export class FieldScene extends Scene<void> implements FieldStageSource {
     try {
       if (fade) await this.game.fadeOut(14);
       const prevMusic = this.def.music;
-      this.load(mapId, x, y, dir);
+      this.loadAt(mapId, x, y, dir);
       if (this.def.music && (this.def.music !== prevMusic || this.def.space)) placeMusic(this.def.music, this.def.space);
       fieldHooks.onWarp?.(this);
     } catch (e) {
@@ -717,6 +725,37 @@ export class FieldScene extends Scene<void> implements FieldStageSource {
   }
 
   // ------------------------------------------------------------------ render
+  /**
+   * The `prerender` handler: paint `render` into the scene's canvas image and upload it. A scene above the base starts each frame clear, as a legacy scene did. With a stage
+   * under it and no dev overlay, the canvas is cleared once and left out (no 921,600-byte upload). A throw still uploads the picture, then reaches the engine's guard.
+   */
+  private paint(): void {
+    const image = this.image;
+    if (!image) return;
+    const ctx = image.ctx;
+    if (this.blank) {
+      if (image.visible) {
+        ctx.clearRect(0, 0, W, H);
+        image.visible = false;
+      }
+      return;
+    }
+    image.visible = true;
+    ctx.clearRect(0, 0, W, H);
+    ctx.save();
+    try {
+      this.render(ctx);
+    } finally {
+      ctx.restore();
+      image.refresh();
+    }
+  }
+
+  /** A picture of this scene for the screen snapshot (`Game.ctx`): its canvas as last painted, unless a stage draws the picture (the stage paints its own). */
+  override paintSnapshot(ctx: CanvasRenderingContext2D): void {
+    if (this.image?.visible) ctx.drawImage(this.image.canvas, 0, 0);
+  }
+
   render(ctx: Ctx): void {
     // Under a stage (fieldkit/fieldseam.ts) the stage draws the picture; this canvas, above it, carries only the dev overlay.
     if (this.stage && !this.stage.closed) {
@@ -764,9 +803,9 @@ export class FieldScene extends Scene<void> implements FieldStageSource {
     blit(ctx, this.map.emit, cx, cy);
     // GPU effects: the same light into the glow layer, so neon, lamps and lit windows bloom for
     // real (sprites add theirs in drawSprite). Towns glow harder than rooms.
-    this.glow = forSnapshot ? null : postfx.glowLayer();
+    this.glow = forSnapshot ? null : this.game.fx.glowLayer();
     if (this.glow) {
-      postfx.bloom = this.def.kind === 'interior' ? 0.5 : 0.9;
+      this.game.fx.bloom = this.def.kind === 'interior' ? 0.5 : 0.9;
       blit(this.glow, this.map.emit, cx, cy);
     }
     for (const a of this.map.anims) if (!a.lit && inView(a, cx, cy)) a.draw(ctx, f, cx, cy);

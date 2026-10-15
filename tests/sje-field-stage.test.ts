@@ -14,7 +14,6 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FIELD_LOOK } from '../src/data/fieldlook';
 import { currentNotice } from '../src/engine/errors';
-import { postfx } from '../src/engine/postfx';
 import { Scene as OldScene } from '../src/engine/game';
 import { Lighting } from '../src/field/lighting';
 import type { BakedLight, SortedSprite } from '../src/field/bake';
@@ -794,7 +793,7 @@ describe('FieldStageScene: snapshot and restore', () => {
     const r = stage();
     const glowCanvas = recCanvas(W, H, 'GLOW');
     const glowCtx = glowCanvas.getContext('2d');
-    const asked = vi.spyOn(postfx, 'glowLayer').mockReturnValue(glowCtx);
+    const asked = vi.spyOn(r.h.game.fx, 'glowLayer').mockReturnValue(glowCtx);
     r.h.frame(17);
     // Control: the live frame asks for the layer and blits the emissive layer into it, so the check below can see a feed.
     expect(asked).toHaveBeenCalled();

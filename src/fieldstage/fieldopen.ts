@@ -9,16 +9,13 @@
  * It answers null when anything goes wrong, and the field then draws itself as it does without the flag. A stage that cannot be made must not cost the player the field.
  */
 import { notice } from '../engine/errors';
-import type { Game as OldGame } from '../engine/game';
 import { FIELD_STAGE_FAILED_NOTICE, type FieldStage, type FieldStageProvider } from '../scenes/fieldkit/fieldseam';
 import type { FieldScene } from '../scenes/field';
 import type { Game } from '../sje';
 import { FieldStageScene } from './stagescene';
 
 export const fieldProvider: FieldStageProvider = {
-  async open(old: OldGame, field: FieldScene): Promise<FieldStage | null> {
-    // The scene stack is the new engine's: the glue passes the new `Game` in the old `Game`'s clothes (the one unchecked seam of the migration, src/sje/boot.ts).
-    const game = old as unknown as Game;
+  async open(game: Game, field: FieldScene): Promise<FieldStage | null> {
     // The field closed while the code was loading: nothing to stand under.
     if (field.closed) return null;
     try {

@@ -151,7 +151,7 @@ export function installSystems(game: Game, h: SystemHandlers): void {
   // ---------------------------------------------------------------- encounters
   fieldHooks.onStep = (f) => {
     // Long stretches inside one map (a dungeon floor) still get saved every few minutes.
-    if (unsavedFrames(game.playFrames) > AUTOSAVE_EVERY && game.top === f && f.busy === 0) autosave(game);
+    if (unsavedFrames(game.playFrames) > AUTOSAVE_EVERY && (game as unknown as SjeGame).top === f && f.busy === 0) autosave(game);
     const zones = f.def.encounters;
     if (!zones?.length || flags.has('noEncounters')) return false;
     const l = f.leader;

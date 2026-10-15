@@ -21,7 +21,6 @@
  * while a snapshot is shown); `release()` goes back to the live view. What stays in code on purpose, because it is the form and not the tuning: the layer order, the sort
  * rule (`Container.ySort`), the lighting formula (`Lights`), the shadow shape.
  */
-import { postfx } from '../engine/postfx';
 import { blit, inView } from '../scenes/fieldkit/draw';
 import { drawSurround, surroundFor, type SurroundView, voidShows } from '../scenes/fieldkit/surround';
 import { FIELD_LOOK } from '../data/fieldlook';
@@ -483,9 +482,9 @@ export class FieldStageScene extends Scene<void> implements FieldStage {
     // GPU effects: the same light into the glow layer, so neon, lamps and lit windows bloom for real (the props add theirs below). Towns glow harder than rooms.
     // A held snapshot feeds the glow layer like a live frame: `restore(snapshot())` must give the same picture, and with GPU effects on the bloom is part of the picture.
     // (The glow layer is cleared and drawn again each frame, so a held frame leaves nothing behind. The battle intro's still, `paintSnapshot`, is another path and feeds none.)
-    const glow = postfx.glowLayer();
+    const glow = this.game.fx.glowLayer();
     if (glow) {
-      postfx.bloom = interior ? FIELD_LOOK.glow.interior : FIELD_LOOK.glow.outdoors;
+      this.game.fx.bloom = interior ? FIELD_LOOK.glow.interior : FIELD_LOOK.glow.outdoors;
       blit(glow, map.emit, cx, cy);
     }
     this.unlitAnimsOn = this.paintAnims(this.unlitAnims, false, this.unlitAnimsOn, v);

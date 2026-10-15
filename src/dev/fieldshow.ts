@@ -48,7 +48,7 @@ export interface FieldInfo {
 
 /** The running field scene, or null. */
 function fieldOf(game: Game): FieldScene | null {
-  return game.stack.find((s): s is FieldScene => s instanceof FieldScene) ?? null;
+  return game.scene.scenes.find((s): s is FieldScene => s instanceof FieldScene) ?? null;
 }
 
 /** Start a fresh field in the state of `c`. Resolves when the fade-in has been asked for (the caller then runs the clock until the field is idle). */
