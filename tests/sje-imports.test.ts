@@ -316,7 +316,7 @@ describe('who may import the engine', () => {
   });
 
   /** The UI scenes that are native `sje` scenes (M8b) and so import the facade. */
-  const M8B_FACADE_USERS = ['src/boot.ts', 'src/game/systems.ts', 'src/scenes/battle.ts', 'src/scenes/battlekit/hud.ts', 'src/scenes/battlekit/panels.ts', 'src/scenes/battlekit/playback.ts', 'src/scenes/battlekit/stageseam.ts', 'src/scenes/card.ts', 'src/scenes/controls.ts', 'src/scenes/deck.ts', 'src/scenes/dialog.ts', 'src/scenes/ending.ts', 'src/scenes/field.ts', 'src/scenes/fieldkit/fieldseam.ts', 'src/scenes/gameover.ts', 'src/scenes/menu.ts', 'src/scenes/options.ts', 'src/scenes/panels.ts', 'src/scenes/placemap.ts', 'src/scenes/saveload.ts', 'src/scenes/shop.ts', 'src/scenes/title.ts', 'src/scenes/uiops.ts', 'src/scenes/uiscene.ts', 'src/scenes/uisound.ts', 'src/scenes/uiview.ts'];
+  const M8B_FACADE_USERS = ['src/boot.ts', 'src/game/systems.ts', 'src/scenes/battle.ts', 'src/scenes/battlekit/hud.ts', 'src/scenes/battlekit/panels.ts', 'src/scenes/battlekit/playback.ts', 'src/scenes/battlekit/stageseam.ts', 'src/scenes/card.ts', 'src/scenes/controls.ts', 'src/scenes/deck.ts', 'src/scenes/dialog.ts', 'src/scenes/ending.ts', 'src/scenes/field.ts', 'src/scenes/fieldkit/fieldseam.ts', 'src/scenes/fieldkit/hud.ts', 'src/scenes/gameover.ts', 'src/scenes/menu.ts', 'src/scenes/options.ts', 'src/scenes/panels.ts', 'src/scenes/placemap.ts', 'src/scenes/saveload.ts', 'src/scenes/shop.ts', 'src/scenes/title.ts', 'src/scenes/uiops.ts', 'src/scenes/uiscene.ts', 'src/scenes/uisound.ts', 'src/scenes/uiview.ts'];
 
   // A static `import ... from './sje/boot'` (the door must be dynamic, or the engine and Pixi land in the entry chunk).
   const STATIC_DOOR = /^[ \t]*import\b[^(]*\bfrom\s*['"]\.\/sje\/boot['"]/m;

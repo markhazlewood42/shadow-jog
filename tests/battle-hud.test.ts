@@ -83,6 +83,9 @@ async function open(enemies: string[] = ['rustfang_punk', 'scrap_hound']): Promi
   return b;
 }
 
+/** The same objects, in the same order (identity, not a deep compare: a box built again has equal-looking new objects). */
+const same = (a: readonly unknown[] | undefined, b: readonly unknown[]): boolean => !!a && a.length === b.length && a.every((o, i) => o === b[i]);
+
 const tick = (n = 1): void => {
   for (let i = 0; i < n; i++) game.advanceTick();
 };
@@ -219,7 +222,7 @@ describe('a box is built again only when what it shows changes', () => {
     const first = [...box.box.list];
     expect(first.length).toBeGreaterThan(2);
     tick(5);
-    expect(box.box.list).toEqual(first);
+    expect(same(box.box.list, first)).toBe(true);
     // Control: another target is another box.
     b.targetIdx = 1;
     tick();
@@ -237,7 +240,7 @@ describe('a box is built again only when what it shows changes', () => {
     // After the flash (t >= 24) nothing about it changes; the window frame is the same object.
     (b.tell as { t: number }).t = 40;
     tick(4);
-    expect(tellBox.box.list).toEqual(first);
+    expect(same(tellBox.box.list, first)).toBe(true);
     // Control: clear the tell and the box is empty.
     b.tell = null;
     tick();
@@ -259,7 +262,7 @@ describe('a box is built again only when what it shows changes', () => {
       alphas.add(Math.round((card?.ring?.alpha ?? 0) * 1000));
     }
     expect(alphas.size).toBeGreaterThan(3);
-    expect(card?.box.list).toEqual(first);
+    expect(same(card?.box.list, first)).toBe(true);
     // The HP bar is 75 px: a change of a fraction of a pixel is the same box.
     const party = (b.battle as { party: { uid: number; base: { maxHp: number } }[] }).party;
     const p = party[0];
@@ -267,7 +270,7 @@ describe('a box is built again only when what it shows changes', () => {
     const before = dd.shownHp;
     dd.shownHp = before - (p?.base.maxHp ?? 100) / 75 / 8;
     tick();
-    expect(card?.box.list.slice(0, 3)).toEqual(first.slice(0, 3));
+    expect(same(card?.box.list, first)).toBe(true);
     // Control: a drop of many pixels (and its number) builds the card again.
     dd.hp = Math.round(before / 2);
     dd.shownHp = before / 2;
@@ -310,7 +313,7 @@ describe('a box is built again only when what it shows changes', () => {
     const first = [...(k?.box.list ?? [])];
     expect(first.length).toBeGreaterThanOrEqual(2);
     tick(3);
-    expect(k?.box.list).toEqual(first);
+    expect(same(k?.box.list, first)).toBe(true);
     // Control: a hit that takes a third of the HP changes the bar.
     const dd = (b.d as (uid: number) => { shownHp: number }).call(b, e?.uid ?? 0);
     dd.shownHp = (e?.base.maxHp ?? 30) * 0.6;

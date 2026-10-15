@@ -3,7 +3,6 @@ import type { Dir } from '../art/chars';
 import { sfx } from '../audio/sfx';
 import { placeMusic } from '../audio/music';
 import type { Ctx } from '../engine/canvas';
-import { drawText, measure, wrap } from '../engine/font';
 import { CanvasImage, Scene } from '../sje';
 import { W, H } from '../sje/core/size';
 import { Rng } from '../engine/rng';
@@ -20,11 +19,11 @@ import { flags, state } from '../game/state';
 import { LOOKS } from '../data/looks';
 import { getMap } from '../data/maps';
 import { chestHalo, chestSprites } from '../field/chests';
-import { bandGradient, UI } from '../ui/draw';
-import { FIELD_OBJ_W } from '../ui/layout';
+import { UI } from '../ui/draw';
 import { fieldHooks } from '../game/hooks';
 import { notice, reportError } from '../engine/errors';
 import { scriptApi } from './fieldkit/api';
+import { FieldHud } from './fieldkit/hud';
 import { cameraOrigin, LEADER_FOCUS_LIFT } from './fieldkit/camera';
 import { cameraBoxFor, curtainsFor, drawCurtains, type CameraBox, type Curtain } from './fieldkit/popins';
 import { blit, blitParts, byBaseY, drawEmote, inView, type DrawEntry } from './fieldkit/draw';
@@ -102,16 +101,19 @@ export class FieldScene extends Scene<void> implements FieldStageSource {
   private frame = 0;
   private lastBump = -99;
   private banner: { text: string; sub: string; t: number } | null = null;
+
+  /** The area banner as it stands (its text, its sub line and the ticks since it showed), or null: the HUD shows it. */
+  get bannerNow(): Readonly<{ text: string; sub: string; t: number }> | null {
+    return this.banner;
+  }
   private rng = new Rng(4242);
   followersVisible = true;
   /** Steps since the last random battle. */
   stepsSinceBattle = 0;
   private pendingWarp = false;
   objectiveText = '';
-  private objKey = '';
-  private objLines: string[] = [];
-  private objW = 0;
-  private objFlash = 0;
+  /** The objective box and the area banner, as kit parts in the ui layer (fieldkit/hud.ts). */
+  private readonly hud = new FieldHud(this);
 
   constructor(mapId: string, x: number, y: number, dir: Dir = 'down') {
     super();
@@ -179,6 +181,7 @@ export class FieldScene extends Scene<void> implements FieldStageSource {
 
   override create(): void {
     this.image = this.add.canvasImage(0, 0, W, H);
+    this.hud.create();
     this.events.on('prerender', this.paint, this);
     this.events.once('shutdown', () => this.onShutdown());
     this.game.countPlayTime = true;
@@ -732,6 +735,8 @@ export class FieldScene extends Scene<void> implements FieldStageSource {
   private paint(): void {
     const image = this.image;
     if (!image) return;
+    // The objective and the banner are display objects: bring them up to date for this frame (they show whether or not this canvas does).
+    this.hud.sync();
     const ctx = image.ctx;
     if (this.blank) {
       if (image.visible) {
@@ -767,7 +772,7 @@ export class FieldScene extends Scene<void> implements FieldStageSource {
 
   /** The whole picture on one Canvas 2D: the default path, and the stage's snapshot for a battle's intro (`forSnapshot`: it feeds no glow layer). */
   private renderLegacy(ctx: Ctx, forSnapshot: boolean): void {
-    // Shake moves the camera (the world); the banner and objective are drawn in screen space.
+    // Shake moves the camera (the world); the banner and objective are kit parts in the ui layer (fieldkit/hud.ts), and do not shake.
     const cx = this.camX - this.game.shakeX, cy = this.camY - this.game.shakeY;
     const f = this.frame;
     // Whatever shows around a map smaller than the screen: its surround (fieldkit/surround.ts), or the plain void behind a map that fills the screen.
@@ -867,8 +872,8 @@ export class FieldScene extends Scene<void> implements FieldStageSource {
   }
 
   /**
-   * The end of the picture, in screen space: the dust, the weather, the pop-in curtains, the emotes, the interact cue, the area banner and the objective. The old render
-   * ended with these, and the stage asks for them as one layer (`paintScreen`). Returns false when nothing was drawn.
+   * The end of the picture, in screen space: the dust, the weather, the pop-in curtains, the emotes and the interact cue. The old render
+   * ended with these (and with the area banner and the objective, which are kit parts now), and the stage asks for them as one layer (`paintScreen`). Returns false when nothing was drawn.
    */
   private paintScreenLayer(ctx: Ctx, cx: number, cy: number): boolean {
     const f = this.frame;
@@ -888,34 +893,7 @@ export class FieldScene extends Scene<void> implements FieldStageSource {
       this.drawCue(ctx, this.cue.x - cx, this.cue.y - cy, f);
       drew = true;
     }
-    if (this.renderBanner(ctx)) drew = true;
-    if (this.renderObjective(ctx)) drew = true;
     return drew;
-  }
-
-  /**
-   * The current objective, always on screen in the top-left corner (dimmer while walking,
-   * hidden during cutscenes and dialogue); it flashes amber for a moment when it changes.
-   */
-  private renderObjective(ctx: Ctx): boolean {
-    const text = this.objective;
-    if (!text || this.busy || this.def.kind === 'interior') return false;
-    if (text !== this.objKey) {
-      this.objFlash = this.objKey ? 150 : 0;
-      this.objKey = text;
-      this.objLines = wrap(text, FIELD_OBJ_W);
-      this.objW = Math.max(...this.objLines.map(measure)) + 16;
-    }
-    if (this.objFlash > 0) this.objFlash--;
-    const flash = this.objFlash > 0 && Math.floor(this.objFlash / 10) % 2 === 0;
-    ctx.globalAlpha = this.leader.moving ? 0.55 : 0.9;
-    ctx.fillStyle = 'rgba(10,9,19,0.78)';
-    ctx.fillRect(4, 4, this.objW, 4 + this.objLines.length * 10);
-    ctx.fillStyle = flash ? '#ffcc3d' : '#6a5a2a';
-    ctx.fillRect(4, 4, 2, 4 + this.objLines.length * 10);
-    for (let i = 0; i < this.objLines.length; i++) drawText(ctx, (i === 0 ? '{y}▶{/} ' : '   ') + this.objLines[i], 9, 6 + i * 10, { color: flash ? '#ffe7a0' : '#d8d6ec', shadow: false });
-    ctx.globalAlpha = 1;
-    return true;
   }
 
   private drawSprite(ctx: Ctx, s: SortedSprite, cx: number, cy: number, f: number): void {
@@ -934,7 +912,6 @@ export class FieldScene extends Scene<void> implements FieldStageSource {
   private lastStepDash = false;
   private visibleBuf: Actor[] = [];
   private drawPool: DrawEntry[] = [];
-  private bannerGrad: { x: number; g: CanvasGradient } | null = null;
 
   /** Fill (or reuse) draw-list slot `n`; returns the next free slot. */
   private pushDraw(n: number, baseY: number, kind: 0 | 1 | 2, ref: SortedSprite | Chest | Actor): number {
@@ -963,29 +940,6 @@ export class FieldScene extends Scene<void> implements FieldStageSource {
       out.push(p);
     }
     return out;
-  }
-
-  private renderBanner(ctx: Ctx): boolean {
-    if (!this.banner) return false;
-    const t = this.banner.t;
-    const a = t < 20 ? t / 20 : t > 170 ? Math.max(0, (200 - t) / 30) : 1;
-    if (a <= 0) return false;
-    ctx.save();
-    ctx.globalAlpha = a;
-    const text = this.banner.text;
-    const w = measure(text) + 40;
-    const x = Math.round((W - w) / 2), y = 18;
-    // One gradient per banner (its width is fixed while it shows), not one per frame.
-    if (this.bannerGrad?.x !== x) this.bannerGrad = { x, g: bandGradient(ctx, x, w, 0.2, 0.85) };
-    ctx.fillStyle = this.bannerGrad.g;
-    ctx.fillRect(x, y, w, 26);
-    ctx.fillStyle = UI.pink;
-    const lw = Math.min(w - 40, Math.round((t / 30) * (w - 40)));
-    ctx.fillRect(Math.round(W / 2 - lw / 2), y + 13, lw, 1);
-    drawText(ctx, text, W / 2, y + 3, { align: 'center', color: '#ffffff' });
-    if (this.banner.sub) drawText(ctx, this.banner.sub, W / 2, y + 16, { align: 'center', color: UI.dim });
-    ctx.restore();
-    return true;
   }
 
   // ------------------------------------------------------------------ script API
