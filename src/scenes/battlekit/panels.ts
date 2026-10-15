@@ -190,6 +190,8 @@ export class LevelUpPanel implements BattlePanel {
     this.restored.setVisible(false);
     u.learned.forEach((id, j) => {
       const ab = ABILITIES[id];
+      // An id with no entry gets no row (as the old code did), not a chip with a blank name.
+      if (!ab) return;
       const ly = ry + 16 + j * 18;
       const tag = ab?.kind === 'skill' ? 'NEW SKILL' : 'NEW TECH';
       const tw = measure(tag) + 8;
@@ -199,7 +201,7 @@ export class LevelUpPanel implements BattlePanel {
       chip.refresh();
       const tagText = add(box, new TextObject(host, Math.round(x + 18), ly, tag, { color: '#1a1020', shadow: false }));
       const nx = x + 22 + tw;
-      const name = add(box, new TextObject(host, Math.round(nx), ly, ab ? fitText(abilityLabel(ab), LEVELUP_TEXT_W) : '', { color: UI.cyan }));
+      const name = add(box, new TextObject(host, Math.round(nx), ly, fitText(abilityLabel(ab), LEVELUP_TEXT_W), { color: UI.cyan }));
       // A glint runs across the new name as it arrives.
       const glint = add(box, new CanvasImage(host, Math.round(nx), ly - 1, 3, 9));
       glint.ctx.fillStyle = '#ffffff';

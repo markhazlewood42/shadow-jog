@@ -47,10 +47,9 @@ function putArt(g: Ctx, c: HTMLCanvasElement, x: number, y: number, res: number)
 export class BattleRenderer {
   constructor(private readonly s: BattleScene) {}
 
-  render(ctx: Ctx): void {
+  render(ctx: Ctx): boolean {
     if (this.s.stage) {
-      this.renderOverStage(ctx);
-      return;
+      return this.renderOverStage(ctx);
     }
     // Three layers: the backdrop (world scale), the enemies (screen resolution, drawn through a
     // 2x transform so world coordinates still place them), then the party, effects and numbers
@@ -153,21 +152,27 @@ export class BattleRenderer {
       fx.bloom = 0.7 * (1 - Math.min(0.62, this.s.defeatT / 70));
       this.renderGlow(glow, shx, shy);
     }
+    return true;
   }
 
   /**
    * The battle under a stage (battlekit/stageseam.ts): the stage scene below draws the backdrop, the figures, the effects, the HUD and the numbers, so this draws only what is
    * still the old UI, on a canvas that starts clear every frame: the impact frame, the intro's shattering glass, the bloom's light (the menus, panels and cut-ins are kit parts: battlekit/hud.ts).
    */
-  private renderOverStage(ctx: Ctx): void {
+  private renderOverStage(ctx: Ctx): boolean {
     ctx.imageSmoothingEnabled = false;
     const shx = this.s.game.shakeX, shy = this.s.game.shakeY;
-    if (this.s.impactT > 0 && this.s.impactOn) this.renderImpact(ctx, shx, shy);
+    let drew = false;
+    if (this.s.impactT > 0 && this.s.impactOn) {
+      this.renderImpact(ctx, shx, shy);
+      drew = true;
+    }
     // The killing blow drains the frame toward red-black: the stage draws the wash from this count, which only this draw advances (as in the old picture).
     if (this.s.defeatT > 0) this.s.defeatT++;
     if (this.s.setup.intro && this.s.introT < INTRO_T) {
       if (!this.shatter) this.shatter = new ShatterIntro(this.s.setup.intro);
       this.shatter.draw(ctx, this.s.introT);
+      drew = true;
     }
     const dark = (this.s.setup.intro && this.s.introT < INTRO_T) || (this.s.impactT > 0 && !!this.s.impactOn);
     const fx = this.s.game.fx;
@@ -176,6 +181,7 @@ export class BattleRenderer {
       fx.bloom = 0.7 * (1 - Math.min(0.62, this.s.defeatT / 70));
       this.renderGlow(glow, shx, shy);
     }
+    return drew;
   }
 
   /**

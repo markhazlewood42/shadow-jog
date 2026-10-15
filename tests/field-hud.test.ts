@@ -158,9 +158,12 @@ describe('the objective box', () => {
     draw();
     // One frame later, inside the same ten-frame step of the flash: the same objects.
     expect(same(kids(box), flashing)).toBe(true);
-    // Ten frames later the stripe changes color: built again.
+    // Ten frames later the flash toggles: the same objects, recolored in place (no rebuild).
+    const colorOf = () => (box.list.find((o): o is TextObject => o instanceof TextObject) as TextObject).style.color;
+    const before = colorOf();
     for (let i = 0; i < 10; i++) draw();
-    expect(same(kids(box), flashing)).toBe(false);
+    expect(same(kids(box), flashing)).toBe(true);
+    expect(colorOf()).not.toBe(before);
   });
 });
 

@@ -12,7 +12,7 @@
  * again only when what it shows changes: the objective when its text or its flash changes, the banner when its text changes. The fade of both is an alpha, never a build.
  */
 import type { Ctx } from '../../engine/canvas';
-import { Container, measure, UI, wrap } from '../../sje';
+import { Container, measure, TextObject, UI, wrap } from '../../sje';
 import { W } from '../../sje/core/size';
 import { FIELD_OBJ_W } from '../../ui/layout';
 import type { FieldScene } from '../field';
@@ -51,6 +51,21 @@ export class FieldHud {
     this.syncObjective();
   }
 
+  /** True when `syncEarly` already ran in this drawn frame. */
+  private early = false;
+
+  /** The stage below the field paints the plate before the field's own `prerender`: sync first, so the plate is not a frame late. */
+  syncEarly(): void {
+    this.sync();
+    this.early = true;
+  }
+
+  /** The scene's `prerender` sync: skipped when `syncEarly` ran this frame (the objective's flash counts drawn frames, so a second sync would count it twice). */
+  syncFrame(): void {
+    if (this.early) this.early = false;
+    else this.sync();
+  }
+
   /**
    * The current objective, always on screen in the top-left corner (dimmer while walking, hidden during cutscenes and dialogue); it flashes amber for a moment when it
    * changes. While it is hidden nothing about it moves on (the flash holds), as it was.
@@ -75,15 +90,17 @@ export class FieldHud {
     const h = 4 + this.objLines.length * 10;
     const alpha = s.leader.moving ? 0.55 : 0.9;
     this.plate = { w: this.objW, h, flash, alpha };
+    const color = flash ? '#ffe7a0' : '#d8d6ec';
     const ops: Op[] = [
-      ...this.objLines.map((line, i): Op => ({ k: 'text', x: 9, y: 6 + i * 10, s: (i === 0 ? '{y}▶{/} ' : '   ') + line, style: { color: flash ? '#ffe7a0' : '#d8d6ec', shadow: false } })),
+      ...this.objLines.map((line, i): Op => ({ k: 'text', x: 9, y: 6 + i * 10, s: (i === 0 ? '{y}▶{/} ' : '   ') + line, style: { color, shadow: false } })),
     ];
-    const key = JSON.stringify(ops);
+    // The box is built again when its text changes; a flash toggle only recolors the lines in place.
+    const key = JSON.stringify(ops.map((o) => (o.k === 'text' ? { ...o, style: { shadow: false } } : o)));
     if (key !== this.objectiveKey) {
       this.objectiveKey = key;
       this.objectiveBox.removeAll(true);
       applyOps(s, this.objectiveBox, ops);
-    }
+    } else for (const c of this.objectiveBox.list) if (c instanceof TextObject) c.setStyle({ color });
     this.objectiveBox.setAlpha(alpha);
   }
 

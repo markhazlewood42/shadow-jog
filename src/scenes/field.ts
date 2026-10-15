@@ -276,6 +276,8 @@ export class FieldScene extends Scene<void> implements FieldStageSource {
 
   /** The screen-fixed layer for the stage: the same painters, in the same order, as the end of the old `render`. False when nothing was drawn. */
   paintScreen(ctx: Ctx, cx: number, cy: number): boolean {
+    // The stage scene is below this one, so its prerender runs first: bring the plate up to date before it is painted (this frame's `paint` then skips its own sync).
+    this.hud.syncEarly();
     return this.paintScreenLayer(ctx, cx, cy);
   }
 
@@ -737,7 +739,7 @@ export class FieldScene extends Scene<void> implements FieldStageSource {
     const image = this.image;
     if (!image) return;
     // The objective and the banner are display objects: bring them up to date for this frame (they show whether or not this canvas does).
-    this.hud.sync();
+    this.hud.syncFrame();
     const ctx = image.ctx;
     if (this.blank) {
       if (image.visible) {
@@ -894,7 +896,8 @@ export class FieldScene extends Scene<void> implements FieldStageSource {
       this.drawCue(ctx, this.cue.x - cx, this.cue.y - cy, f);
       drew = true;
     }
-    if (this.renderBanner(ctx)) drew = true;
+    // The snapshot skips the scrim like the plate: the banner's text is a kit part that is not in it, so the scrim would show as an empty band.
+    if (!forSnapshot && this.renderBanner(ctx)) drew = true;
     if (!forSnapshot && this.hud.paintPlate(ctx)) drew = true;
     return drew;
   }

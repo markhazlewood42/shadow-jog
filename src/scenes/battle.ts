@@ -157,6 +157,9 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     this.renderer.render(ctx);
   }
 
+  /** True when this scene's canvas holds a picture (so the next frame must clear and upload it). Starts true: the first frame uploads. */
+  private canvasDirty = true;
+
   /** The `prerender` handler: paint `render` into the scene's canvas image and upload it. A throw still uploads the (clear) canvas, then reaches the engine's guard. */
   private paint(): void {
     // The windows are display objects: bring them up to date with the state as it stands for this frame (a flow that ran after the tick may have changed it).
@@ -164,13 +167,16 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     const image = this.image;
     if (!image) return;
     const ctx = image.ctx;
-    ctx.clearRect(0, 0, W, H);
+    // Under a stage most frames draw nothing here: skip the clear and the upload when the last frame drew nothing either (the canvas is still clear).
+    const was = this.canvasDirty;
+    this.canvasDirty = true;
+    if (was) ctx.clearRect(0, 0, W, H);
     ctx.save();
     try {
-      this.render(ctx);
+      this.canvasDirty = this.renderer.render(ctx);
     } finally {
       ctx.restore();
-      image.refresh();
+      if (was || this.canvasDirty) image.refresh();
     }
   }
 
@@ -914,9 +920,8 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     const dropNames = summarize(r.drops.map((id) => ITEMS[id]!.name));
     let start = this.frame;
     this.bannerStart = -1;
-    // Under a stage the panel starts below the stage HUD top boxes (the turn timeline reaches row 45), as the other top lines do (topClear).
     const tallied = this.panel(
-      // Under a stage the panel starts below the stage HUD's top boxes (the turn timeline reaches row 45), as the other top lines do ().
+      // Under a stage the panel starts below the stage HUD's top boxes (the turn timeline reaches row 45), as the other top lines do (topClear).
       () => new VictoryPanel(this, { xp: r.xp, cred: r.cred, walletBefore, bars, dropNames, y: this.stage ? Math.max(44, this.stage.topClear) : 44 }, () => this.frame - start),
       { done: () => this.frame - start >= 54, skip: () => { start = this.frame - 54; } },
     );
@@ -986,7 +991,8 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       this.panelFinish = finish ?? null;
       this.waitingConfirm = () => {
         this.endPanel?.destroy();
-        this.endPanel = null;        this.panelFinish = null;
+        this.endPanel = null;
+        this.panelFinish = null;
         res();
       };
     });

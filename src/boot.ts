@@ -63,7 +63,7 @@ export function boot(game: Game, display: Display): void {
       return stateMod.state;
     },
     field,
-    top: () => game.top?.constructor.name ?? null,
+    top: () => sje.top?.constructor.name ?? null,
     idle: () => {
       const f = field();
       return !!f && sje.top === f && f.busy === 0 && !f.leader.moving;

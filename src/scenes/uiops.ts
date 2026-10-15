@@ -53,8 +53,10 @@ export function applyOps(host: DisplayHost, box: Container, ops: readonly Op[]):
         const params: Partial<BarParams> = {};
         if (o.back !== undefined) params.back = o.back;
         if (o.shine !== undefined) params.shineAlpha = o.shine;
-        const bar = new Bar(host, Math.round(o.x), Math.round(o.y), o.w, o.h, o.color, o.fill / o.w, params);
-        if (o.lag > o.fill) bar.setGhost({ ratio: o.lag / o.w, color: LAG_COLOR });
+        // A bar of width 0 shows an empty bar, not NaN.
+        const ratio = (v: number): number => (o.w > 0 ? v / o.w : 0);
+        const bar = new Bar(host, Math.round(o.x), Math.round(o.y), o.w, o.h, o.color, ratio(o.fill), params);
+        if (o.lag > o.fill) bar.setGhost({ ratio: ratio(o.lag), color: LAG_COLOR });
         box.add(bar);
         break;
       }
