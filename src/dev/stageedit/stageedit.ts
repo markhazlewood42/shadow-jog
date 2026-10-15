@@ -668,8 +668,19 @@ async function main(): Promise<void> {
      * against the NEW global HUD), by the same code the dev server runs, so a bad file never leaves the page. If the server refuses (or cannot be reached), no file was changed: it writes
      * them as a set or not at all. Answers true when the files were written (also when the read-back check afterwards could not run: that is a warning in the status line, not a failed
      * save), false when nothing was written. No caller reads the answer today; the test hook `window.__stageedit.save` returns it.
+     * A second Save while one is still running does nothing and answers false (a double Ctrl+S would otherwise post the same set twice).
      */
+    let saving = false;
     async function save(): Promise<boolean> {
+      if (saving) return false;
+      saving = true;
+      try {
+        return await saveNow();
+      } finally {
+        saving = false;
+      }
+    }
+    async function saveNow(): Promise<boolean> {
       // Tidy first: a stage override keeps only what differs from the all-battles HUD (an empty "different on this stage" box is not saved).
       session.settle();
       const dirty = session.dirtyParts;

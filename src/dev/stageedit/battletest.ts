@@ -121,7 +121,7 @@ export class BattleTest {
   }
 
   /**
-   * Play ticks of the game with no real time passing (a spec stops the real loop first: `game.stop()`), until `n` ticks have run or `until` says stop. Returns the ticks played.
+   * Play ticks of the game with no real time passing (a spec stops the real loop first: `game.stop()`), until `n` ticks have run or `until` says stop. `until` is asked before each tick and once more after the last (n + 1 calls when it never says stop). Returns the ticks played.
    * Why not `game.step(n)` alone: the battle scene is a chain of `await game.wait(...)`, and a promise continues only when the running code lets go of the thread. So this lets
    * go after every tick (one message-channel hop: the promises of that tick all run before the next), and draws one frame at the end, as `game.step` does.
    */
@@ -136,7 +136,9 @@ export class BattleTest {
         c.port2.postMessage(0);
       });
     let played = 0;
-    while (played < n && !this.stopped && !(until?.() ?? false)) {
+    // `until` is asked before every tick AND once after the last one, so it sees the state at the start (tick 0) and the state after each tick, the last included
+    // (it used to be asked n times, for the states 0 to n - 1, and never saw what the last tick left: ET follow-up 5). Stopping early still plays no extra tick.
+    while (!this.stopped && !(until?.() ?? false) && played < n) {
       this.game.advanceTick();
       played++;
       await hop();

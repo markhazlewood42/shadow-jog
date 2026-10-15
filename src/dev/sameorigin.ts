@@ -45,5 +45,9 @@ export function sameOrigin(req: Pick<IncomingMessage, 'headers'>): boolean {
  * One helper for every write endpoint (PR 86 review, R2-2); they used to read the flag three different ways.
  */
 export function isDry(url: string | undefined): boolean {
-  return new URL(url ?? '/', 'http://localhost').searchParams.get('dry') === '1';
+  try {
+    return new URL(url ?? '/', 'http://localhost').searchParams.get('dry') === '1';
+  } catch {
+    return false; // a request line that is not an address is no dry run (the stage endpoint answers 400 for it first)
+  }
 }

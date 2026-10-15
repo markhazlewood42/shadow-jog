@@ -11,6 +11,7 @@
 import { createHash } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer, type IncomingHttpHeaders, request, type Server } from 'node:http';
+import { connect } from 'node:net';
 import type { AddressInfo } from 'node:net';
 import { join, resolve } from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -138,6 +139,27 @@ describe('reading', () => {
     // Control: the endpoint itself, with and without a query, still answers.
     expect((await send('GET', '/__stage/stages')).status).toBe(200);
     expect((await send('GET', '/__stage/stages?x=1')).status).toBe(200);
+  });
+
+  it('a request line that is not an address gets 400 and the server stays up (ET follow-up 3)', async () => {
+    // `//` is a path that `new URL('//', base)` refuses to read: it used to throw out of the handler and end the dev server.
+    const raw = (line: string): Promise<string> =>
+      new Promise((resolveText, reject) => {
+        const socket = connect(port, '127.0.0.1', () => socket.write(`${line} HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nConnection: close\r\n\r\n`));
+        const parts: Buffer[] = [];
+        socket.on('data', (c: Buffer) => parts.push(c));
+        socket.on('end', () => resolveText(Buffer.concat(parts).toString('utf8')));
+        socket.on('error', reject);
+      });
+    const before = snapshot(dataDir);
+    for (const path of ['/__stage/stages//', '/__stage/hud//']) {
+      for (const method of ['GET', 'POST']) expect((await raw(`${method} ${path}`)).split('\r\n')[0], `${method} ${path}`).toBe('HTTP/1.1 400 Bad Request');
+    }
+    expect(snapshot(dataDir)).toEqual(before);
+    // The server is still there: a good request is answered.
+    expect((await send('GET', '/__stage/stages')).status).toBe(200);
+    // isDry reads a bad address as "not a dry run" and does not throw.
+    expect(isDry('//')).toBe(false);
   });
 
   it('PUT and DELETE are 405', async () => {

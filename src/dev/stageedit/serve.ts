@@ -26,6 +26,7 @@
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { join } from 'node:path';
+import { withBody } from '../endpoint';
 import { isDry, sameOrigin } from '../sameorigin';
 import type { Prepared, SaveOptions, SavePart } from './save';
 import { saveFailureMessage, writeTogether } from './writeset';
@@ -60,8 +61,24 @@ type Handler = (req: IncomingMessage, res: ServerResponse) => void;
  * `/__stage/stages/anything` reaches the handler with the url `/anything`. Only the endpoint itself (`/`, with or without a query) is answered; any sub-path is a 404 (PR 86 review, round 3, finding 2).
  */
 function isRoot(url: string | undefined): boolean {
-  return new URL(url ?? '/', 'http://localhost').pathname === '/';
+  try {
+    return new URL(url ?? '/', 'http://localhost').pathname === '/';
+  } catch {
+    return false; // a request line that is not an address (the handlers answer 400 before they ask)
+  }
 }
+
+/** Whether the request's address can be read at all. `new URL` throws for a line such as `//`; the handlers answer 400 for it and the server stays up (ET follow-up 3). */
+function badUrl(url: string | undefined): boolean {
+  try {
+    new URL(url ?? '/', 'http://localhost');
+    return false;
+  } catch {
+    return true;
+  }
+}
+
+const BAD_URL = { ok: false, problems: ['the request address is not valid'] };
 
 function reply(res: ServerResponse, code: number, body: unknown): void {
   res.statusCode = code;
@@ -95,6 +112,10 @@ function readPart(part: SavePart, dir: string | null, opts: StageServeOptions): 
 /** The handlers for `/__stage/stages` and `/__stage/hud`. */
 export function stageHandlers(opts: StageServeOptions): { stages: Handler; hud: Handler } {
   const stages: Handler = (req, res) => {
+    if (badUrl(req.url)) {
+      reply(res, 400, BAD_URL);
+      return;
+    }
     if (!isRoot(req.url)) {
       reply(res, 404, { ok: false, problems: ['no such endpoint: use /__stage/stages'] });
       return;
@@ -124,30 +145,16 @@ export function stageHandlers(opts: StageServeOptions): { stages: Handler; hud: 
       reply(res, 403, { ok: false, problems: ['writes only from the dev server’s own pages'] });
       return;
     }
-    const chunks: Buffer[] = [];
-    let size = 0;
-    let tooBig = false;
-    req.on('data', (chunk: Buffer) => {
-      if (tooBig) return;
-      size += chunk.length;
-      if (size > MAX_BODY) {
-        // Past the limit: answer 413 at once and stop reading, so a huge body is not read to its end (PR 86 review, R1-2). The request is paused (no more of the body is taken in) and
-        // destroyed a moment after the answer has gone out: destroying at once would reset the connection before a client that is still sending has read the 413.
-        tooBig = true;
-        chunks.length = 0;
-        req.pause();
-        res.setHeader('Connection', 'close'); // the connection is not reused: the timer below would otherwise cut the next request that rides on it
-        res.once('finish', () => setTimeout(() => req.destroy(), 250).unref());
-        reply(res, 413, { ok: false, problems: [`the body is bigger than ${MAX_BODY} bytes`] });
-        return;
-      }
-      chunks.push(chunk);
-    });
-    req.on('end', () => {
-      if (tooBig) return; // already answered 413 above
+    // The body is read by the shared `withBody` (`../endpoint`): 413 at once past MAX_BODY with no more read, and a throw or rejection of the handler is a 500.
+    withBody(req, res, {
+      max: MAX_BODY,
+      reply: (code, body) => reply(res, code, body),
+      tooBig: { ok: false, problems: [`the body is bigger than ${MAX_BODY} bytes`] },
+      failed: (message) => ({ ok: false, problems: [message] }),
+      handle: (text) => {
       let data: unknown;
       try {
-        data = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        data = JSON.parse(text);
       } catch {
         reply(res, 400, { ok: false, problems: ['not valid JSON'] });
         return;
@@ -188,10 +195,15 @@ export function stageHandlers(opts: StageServeOptions): { stages: Handler; hud: 
       } catch (e) {
         reply(res, 500, { ok: false, problems: [saveFailureMessage(e)] });
       }
+      },
     });
   };
 
   const hud: Handler = (req, res) => {
+    if (badUrl(req.url)) {
+      reply(res, 400, BAD_URL);
+      return;
+    }
     if (!isRoot(req.url)) {
       reply(res, 404, { ok: false, problems: ['no such endpoint: use /__stage/hud'] });
       return;

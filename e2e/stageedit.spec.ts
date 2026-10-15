@@ -901,3 +901,49 @@ test('an edit made while a save is in flight stays unsaved: the save marks only 
   expect((await stageOf(page)).backdrop.horizonY).toBe(137);
   expect(errors).toEqual([]);
 });
+
+test('a second Save while one is running does nothing: two calls, one POST (ET follow-up 2)', async ({ page }) => {
+  const { errors } = await openEditor(page, scratch);
+  await page.evaluate(() => {
+    window.__stageedit?.session.edit('horizon', (d) => {
+      const s = d.stages.street;
+      if (!s) return;
+      s.backdrop.horizonY = 143;
+      s.floor.y0 = 143;
+    });
+  });
+  let posts = 0;
+  let arrived!: () => void;
+  const gotPost = new Promise<void>((done) => (arrived = done));
+  let release!: () => void;
+  const gate = new Promise<void>((done) => (release = done));
+  await page.route(STAGES_URL, async (route) => {
+    if (route.request().method() !== 'POST') return route.continue();
+    posts++;
+    arrived();
+    await gate;
+    return route.continue();
+  });
+  const first = page.evaluate(() => window.__stageedit?.save());
+  await gotPost;
+  // The first Save is waiting for the server. The second call starts now; the gate opens a moment later, so a second POST (the bug) would also get through and be counted.
+  const second = page.evaluate(() => window.__stageedit?.save());
+  await page.waitForTimeout(300);
+  release();
+  expect(await first).toBe(true);
+  expect(await second).toBe(false);
+  expect(posts).toBe(1);
+  // Control: when the first Save is over, the editor saves again (the guard does not stay shut).
+  await page.evaluate(() => {
+    window.__stageedit?.session.edit('horizon', (d) => {
+      const s = d.stages.street;
+      if (!s) return;
+      s.backdrop.horizonY = 144;
+      s.floor.y0 = 144;
+    });
+  });
+  expect(await page.evaluate(() => window.__stageedit?.save())).toBe(true);
+  expect(posts).toBe(2);
+  await page.unroute(STAGES_URL);
+  expect(errors).toEqual([]);
+});
