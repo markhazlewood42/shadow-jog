@@ -40,7 +40,7 @@ export function applyOps(host: DisplayHost, box: Container, ops: readonly Op[]):
         b.win(Math.round(o.x), Math.round(o.y), o.w, o.h, o.style);
         break;
       case 'rect':
-        // A flat plate or a colored chip: a one-color picture.
+        // A flat plate or a colored chip under kit text: a one-color picture (the kit has no flat-plate part; the battle default-path picture pins these pixels).
         b.pic(Math.round(o.x), Math.round(o.y), o.w, o.h, (c) => {
           c.fillStyle = o.color;
           c.fillRect(0, 0, o.w, o.h);

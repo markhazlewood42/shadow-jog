@@ -868,15 +868,15 @@ export class FieldScene extends Scene<void> implements FieldStageSource {
       blitParts(ctx, this.map.overEmit, cx, cy, this.map.overRects, this.overPart);
     }
     this.lighting.bloom(ctx, this.map.lights, cx, cy, f, this.def.kind === 'interior' ? 0.08 : 0.14);
-    this.paintScreenLayer(ctx, cx, cy);
+    this.paintScreenLayer(ctx, cx, cy, forSnapshot);
     fieldHooks.renderOverlay?.(this, ctx);
   }
 
   /**
-   * The end of the picture, in screen space: the dust, the weather, the pop-in curtains, the emotes, the interact cue and the area banner's scrim. The old render
-   * ended with these (and with the banner's text and the objective, which are kit parts now), and the stage asks for them as one layer (`paintScreen`). Returns false when nothing was drawn.
+   * The end of the picture, in screen space: the dust, the weather, the pop-in curtains, the emotes, the interact cue, the area banner's scrim and the objective's plate. The old render
+   * ended with these (and with the banner's text and the objective's text, which are kit parts now), and the stage asks for them as one layer (`paintScreen`). Returns false when nothing was drawn.
    */
-  private paintScreenLayer(ctx: Ctx, cx: number, cy: number): boolean {
+  private paintScreenLayer(ctx: Ctx, cx: number, cy: number, forSnapshot = false): boolean {
     const f = this.frame;
     let drew = this.dust.live > 0;
     this.dust.render(ctx, cx, cy);
@@ -895,6 +895,7 @@ export class FieldScene extends Scene<void> implements FieldStageSource {
       drew = true;
     }
     if (this.renderBanner(ctx)) drew = true;
+    if (!forSnapshot && this.hud.paintPlate(ctx)) drew = true;
     return drew;
   }
 

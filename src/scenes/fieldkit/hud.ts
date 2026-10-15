@@ -2,14 +2,16 @@
  * The field's two windows as kit parts (M8c group G; docs/engine/m8-brief.md, "Mark decided on 2026-10-15: port those windows in M8c").
  *
  * The field had two screen-space overlays that it painted with canvas calls into its picture every frame: the OBJECTIVE box (the current goal, in the top-left corner)
- * and the AREA BANNER (the map's name, fading in and out over the top of the screen). Their text is `TextObject` lines in the scene's ui layer now, and the objective's plate
- * is a one-color picture. The world, the actors, the emotes, the cue, the curtains, the weather and the banner's scrim (a dark band with a growing rule, `FieldScene.renderBanner`)
- * stay canvas pictures: they are art in the world. (The scrim stays in the screen layer on purpose: the field parity pictures pin the pixels of its semi-clear gradient to
- * 2/255, and a separate GPU blend of it moved one pixel to 3/255.)
+ * and the AREA BANNER (the map's name, fading in and out over the top of the screen). Their text is `TextObject` lines in the scene's ui layer now. The world, the actors,
+ * the emotes, the cue, the curtains, the weather, the banner's scrim (a dark band with a growing rule, `FieldScene.renderBanner`) and the objective's plate and stripe
+ * (`paintPlate`) stay canvas pictures. The scrim and the plate stay in the screen layer on purpose: they are semi-clear, and the pictures of the default path and of the field
+ * parity pin their pixels (1/255 and 2/255). A separate GPU blend of a semi-clear picture moved the scrim to 3/255 and the plate to 2/255 (12 px), so each one is painted on
+ * the canvas with the old calls.
  *
  * Like the old code, `sync` runs once for each drawn frame (the `prerender` handler of the scene), because the objective's flash counts drawn frames. A box is built
  * again only when what it shows changes: the objective when its text or its flash changes, the banner when its text changes. The fade of both is an alpha, never a build.
  */
+import type { Ctx } from '../../engine/canvas';
 import { Container, measure, UI, wrap } from '../../sje';
 import { W } from '../../sje/core/size';
 import { FIELD_OBJ_W } from '../../ui/layout';
@@ -30,6 +32,8 @@ export class FieldHud {
   private objLines: string[] = [];
   private objW = 0;
   private objFlash = 0;
+  /** What `paintPlate` paints this frame (null: the objective is hidden). The text of the box is the kit part; the plate under it is canvas art. */
+  private plate: { w: number; h: number; flash: boolean; alpha: number } | null = null;
 
   constructor(private readonly s: FieldScene) {}
 
@@ -56,6 +60,7 @@ export class FieldHud {
     const text = s.objective;
     if (!text || s.busy || s.def.kind === 'interior') {
       this.objectiveBox.setVisible(false);
+      this.plate = null;
       return;
     }
     this.objectiveBox.setVisible(true);
@@ -68,9 +73,9 @@ export class FieldHud {
     if (this.objFlash > 0) this.objFlash--;
     const flash = this.objFlash > 0 && Math.floor(this.objFlash / 10) % 2 === 0;
     const h = 4 + this.objLines.length * 10;
+    const alpha = s.leader.moving ? 0.55 : 0.9;
+    this.plate = { w: this.objW, h, flash, alpha };
     const ops: Op[] = [
-      { k: 'rect', x: 4, y: 4, w: this.objW, h, color: 'rgba(10,9,19,0.78)' },
-      { k: 'rect', x: 4, y: 4, w: 2, h, color: flash ? '#ffcc3d' : '#6a5a2a' },
       ...this.objLines.map((line, i): Op => ({ k: 'text', x: 9, y: 6 + i * 10, s: (i === 0 ? '{y}▶{/} ' : '   ') + line, style: { color: flash ? '#ffe7a0' : '#d8d6ec', shadow: false } })),
     ];
     const key = JSON.stringify(ops);
@@ -79,7 +84,23 @@ export class FieldHud {
       this.objectiveBox.removeAll(true);
       applyOps(s, this.objectiveBox, ops);
     }
-    this.objectiveBox.setAlpha(s.leader.moving ? 0.55 : 0.9);
+    this.objectiveBox.setAlpha(alpha);
+  }
+
+  /**
+   * The objective's plate and amber stripe, painted on the screen canvas with the calls of the old code (the text is the box above). Returns false when the objective is
+   * hidden. A battle's intro snapshot skips it (the text is not in that snapshot either), so the snapshot never shows a plate with no text on it.
+   */
+  paintPlate(ctx: Ctx): boolean {
+    const p = this.plate;
+    if (!p) return false;
+    ctx.globalAlpha = p.alpha;
+    ctx.fillStyle = 'rgba(10,9,19,0.78)';
+    ctx.fillRect(4, 4, p.w, p.h);
+    ctx.fillStyle = p.flash ? '#ffcc3d' : '#6a5a2a';
+    ctx.fillRect(4, 4, 2, p.h);
+    ctx.globalAlpha = 1;
+    return true;
   }
 
   /** The area banner's name and sub line, fading in over 20 ticks and out over the last 30 of 200 (the scrim and the rule under them are painted by the scene). */

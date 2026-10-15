@@ -76,7 +76,7 @@ const kids = (c: Container): GameObject[] => [...c.list];
 const same = (a: readonly unknown[], b: readonly unknown[]): boolean => a.length === b.length && a.every((o, i) => o === b[i]);
 
 describe('the objective box', () => {
-  it('sits in the top-left corner: a dark plate and an amber stripe, and the lines of the objective, the first with the arrow', async () => {
+  it('sits in the top-left corner: the lines of the objective, the first with the arrow, over a canvas plate and an amber stripe', async () => {
     const f = await field();
     await objective('Find Dutch at the bar. Ask about the job.');
     draw();
@@ -86,15 +86,39 @@ describe('the objective box', () => {
     expect(lines.length).toBeGreaterThanOrEqual(1);
     expect(lines[0]?.text.startsWith('{y}▶{/} ')).toBe(true);
     expect([lines[0]?.x, lines[0]?.y]).toEqual([9, 6]);
-    // The plate and the stripe are pictures at (4, 4); the stripe is 2 px wide.
-    const pics = box.list.filter((o) => !(o instanceof TextObject));
-    expect(pics.map((p) => [p.x, p.y])).toEqual([[4, 4], [4, 4]]);
-    expect((pics[1] as unknown as { width: number }).width).toBe(2);
+    // The box holds the texts only: the plate and the stripe are canvas art (`paintPlate`, proved in the next test).
+    expect(box.list.every((o) => o instanceof TextObject)).toBe(true);
     // Alpha: 0.9 standing, 0.55 while the leader walks.
     expect(box.alpha).toBeCloseTo(0.9, 5);
     f.leader.moving = true;
     draw();
     expect(box.alpha).toBeCloseTo(0.55, 5);
+  });
+
+  it('paints the plate and the stripe on the canvas with the old calls: (4, 4, w, h) and a 2 px stripe, at the box alpha; nothing while it is hidden', async () => {
+    const f = await field();
+    await objective('Find Dutch at the bar.');
+    draw();
+    const h = hud(f) as unknown as { paintPlate(ctx: unknown): boolean; objW: number; objLines: string[] };
+    const plate = (): string[] => {
+      const r = recorder();
+      h.paintPlate(r.ctx);
+      return r.log;
+    };
+    const height = 4 + h.objLines.length * 10;
+    const standing = plate();
+    expect(standing.filter((l) => l.startsWith('fillRect'))).toEqual([`fillRect(4,4,${h.objW},${height})`, `fillRect(4,4,2,${height})`]);
+    // Control: the alpha follows the leader (0.9 standing, 0.55 walking), and a hidden objective paints nothing.
+    f.leader.moving = true;
+    draw();
+    const r = recorder();
+    h.paintPlate(r.ctx);
+    expect(r.log).toContain('globalAlpha=0.55');
+    f.busy = 1;
+    draw();
+    const none = recorder();
+    expect(h.paintPlate(none.ctx)).toBe(false);
+    expect(none.log).toEqual([]);
   });
 
   it('hides during a cutscene or dialogue (busy) and in an interior', async () => {

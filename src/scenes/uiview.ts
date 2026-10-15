@@ -63,7 +63,11 @@ export class ViewBuilder {
     return b;
   }
 
-  /** A canvas picture, for ART only (a portrait, a character sprite, a boss portrait box). Drawn with smoothing off, as the game's own canvas was. */
+  /**
+   * A canvas picture, for ART (a portrait, a character sprite, a boss portrait box) and for the flat one-color plates under kit text (the `rect` ops of `uiops.ts`: the kit has no
+   * flat-plate part). Drawn with smoothing off, as the game's own canvas was. A plate that is semi-clear and on the field is NOT made here: the field parity pictures pin its
+   * blend (see `fieldkit/hud.ts`).
+   */
   pic(x: number, y: number, w: number, h: number, draw: (ctx: CanvasRenderingContext2D) => void): CanvasImage {
     const img = new CanvasImage(this.scene, x, y, w, h);
     img.ctx.imageSmoothingEnabled = false;
