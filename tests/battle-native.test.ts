@@ -107,7 +107,7 @@ describe('the battle scene is a native sje scene', () => {
       expect(`import { x } from '../engine/${name}';`).toMatch(OLD_ENGINE);
       expect(`const m = () => import('../../engine/${name}');`).toMatch(OLD_ENGINE);
     }
-    expect(code("// import { postfx } from '../engine/postfx';")).not.toMatch(OLD_ENGINE);
+    expect(code(`// import { postfx } from '../engine/${'postfx'}';`)).not.toMatch(OLD_ENGINE);
     expect(`import { shake } from '../engine/shake';`).not.toMatch(OLD_ENGINE);
   });
 });

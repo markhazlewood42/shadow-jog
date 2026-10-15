@@ -5,7 +5,7 @@
  * Every check has a control: the same check on a stand-in that has the trap (the old `fit` rule, a mapping that ignores the bars) must fail.
  */
 import { describe, expect, it } from 'vitest';
-import { cssScaleFor } from '../src/engine/display';
+import { cssScaleFor } from './cssscale';
 import { H, W } from '../src/sje/core/size';
 import { deviceSize, type PictureLayout, pictureLayout } from '../src/sje/render/presenter';
 import { Display, type ScaleTarget } from '../src/sje/runtime/display';

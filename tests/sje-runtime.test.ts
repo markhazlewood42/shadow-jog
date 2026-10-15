@@ -8,7 +8,7 @@
  */
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { reportError } from '../src/engine/errors';
-import { Scene as OldScene } from '../src/engine/game';
+import { OldScene } from './legacykit';
 import type { Input } from '../src/engine/input';
 import { Container } from '../src/sje/display/container';
 import { CameraEffects, msToTicks, parseColor } from '../src/sje/display/cameraeffects';

@@ -1,21 +1,18 @@
 /**
  * The new engine's Game core (docs/engine/m1-brief.md tasks 3 to 8 and 14), in plain Node: no browser, no GPU.
  *
- *  1. The shared case table of tests/game-cases.ts runs on the NEW `Game`: the same fault, abandon, curtain, exit-throw and render-fault cases
- *     that tests/game.test.ts runs on the old one. Controls: a `Game` with a broken fault counter and a broken render counter must fail the
- *     matching case.
+ *  1. The shared case table of tests/game-cases.ts runs on the `Game`: the fault, abandon, curtain, exit-throw and render-fault cases (until M8d the old engine's `Game`
+ *     ran the same table too). Controls: a `Game` with a broken fault counter and a broken render counter must fail the matching case.
  *  2. Close order and microtask timing, for new scenes and legacy scenes. Controls: a close in the wrong order, and a loop that lets promises
  *     run between ticks, must fail.
  *  3. The loop rules: up to 5 catch-up ticks then the backlog drops, and the hidden-tab clamp. Control: a naive loop fails.
- *  4. The old `Game` and the new one both fit the interfaces (a compile-time check, plus a runtime check that both have the surface).
+ *  4. The `Game` fits the interfaces (a compile-time check, plus a runtime check that it has the surface).
  *
  * `Game` needs a renderer; the one here draws nothing. `CanvasImage` needs `document.createElement('canvas')`, so a minimal stand-in is
  * installed. Pixi's scene classes run in Node; the GPU is not needed.
  */
 import { afterAll, describe, expect, it, vi } from 'vitest';
 import { currentNotice, reportError } from '../src/engine/errors';
-import type { Game as OldGame } from '../src/engine/game';
-import { FAULT_LIMIT as OLD_FAULT_LIMIT, Scene as OldScene } from '../src/engine/game';
 import type { Input } from '../src/engine/input';
 import { shakeOffset } from '../src/engine/shake';
 import { FixedLoop, type FixedLoopOptions, MAX_TICKS_PER_FRAME } from '../src/sje/core/fixedloop';
@@ -25,6 +22,7 @@ import type { GameApi, LegacyGameSurface } from '../src/sje/runtime/gameapi';
 import { LegacyScene } from '../src/sje/runtime/legacyscene';
 import { Scene } from '../src/sje/runtime/scene';
 import { caseNamed, defineGameCases, Faulty, noopInput, type Subject } from './game-cases';
+import { OldScene } from './legacykit';
 
 vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
@@ -52,16 +50,15 @@ function subjectOf(g: Game): Subject {
 
 // ---- 1. the shared case table ---------------------------------------------------------------------------
 
-describe('the two Game classes agree on the limit', () => {
-  it('FAULT_LIMIT is the same number (30) on both', () => {
+describe('the fault limit', () => {
+  it('FAULT_LIMIT is 30 (the number the old engine had)', () => {
     expect(FAULT_LIMIT).toBe(30);
-    expect(FAULT_LIMIT).toBe(OLD_FAULT_LIMIT);
   });
 });
 
-defineGameCases('new Game', (input) => subjectOf(newGame(input)), FAULT_LIMIT);
+defineGameCases('Game', (input) => subjectOf(newGame(input)), FAULT_LIMIT);
 
-describe('negative controls: a broken new Game fails the matching shared case', () => {
+describe('negative controls: a broken Game fails the matching shared case', () => {
   /** Run one shared case on a subject and say whether it passed. */
   async function passes(part: string, make: (input: Input) => Subject): Promise<boolean> {
     try {
@@ -392,15 +389,14 @@ describe('loop rules: catch-up ticks, dropped backlog, hidden-tab clamp', () => 
 // ---- 4. both classes fit the interfaces --------------------------------------------------------------------
 
 describe('the interface seam', () => {
-  it('compile time: the old Game fits GameApi, and the new Game fits LegacyGameSurface (tsc fails this file otherwise)', () => {
+  it('compile time: the Game fits GameApi and LegacyGameSurface (tsc fails this file otherwise)', () => {
     // These are type checks. `tsc` is the test: an assignment that does not fit is a compile error.
-    const fitsApi = (g: OldGame): GameApi => g;
+    const fitsApi = (g: Game): GameApi => g;
     const fitsSurface = (g: Game): LegacyGameSurface => g;
-    const oldIsTheSurface = (g: OldGame): LegacyGameSurface => g;
-    expect([typeof fitsApi, typeof fitsSurface, typeof oldIsTheSurface]).toEqual(['function', 'function', 'function']);
+    expect([typeof fitsApi, typeof fitsSurface]).toEqual(['function', 'function']);
   });
 
-  it('runtime: both classes have every member of the surface that the legacy scenes call', () => {
+  it('runtime: the Game has every member of the surface that the legacy scenes call', () => {
     const members = ['run', 'reset', 'abandon', 'remove', 'wait', 'fadeTo', 'fadeOut', 'fadeIn', 'shake', 'flash'] as const;
     const g = newGame();
     for (const m of members) expect(typeof g[m]).toBe('function');
@@ -409,15 +405,19 @@ describe('the interface seam', () => {
   });
 
   it('wraps a legacy scene: the stack lists the legacy scene, not the adapter, and `top` is the legacy scene', () => {
+    class Old extends OldScene<void> {
+      update(): void {}
+      render(): void {}
+    }
     const g = newGame();
-    const a = new Faulty(() => false);
+    const a = new Old();
     void g.run(a);
     expect(g.stack).toEqual([a]);
     expect(g.top).toBe(a);
     expect(g.scene.top).toBeInstanceOf(LegacyScene);
   });
 
-  it('legacy flags are read live: a scene that turns `opaque` off while it runs changes what is drawn', () => {
+  it('scene flags are read live: a scene that turns `opaque` off while it runs changes what is drawn', () => {
     const g = newGame();
     const field = new Faulty(() => false);
     const dialog = new Faulty(() => false);

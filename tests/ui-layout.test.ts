@@ -81,10 +81,10 @@ const LONG =
 async function drawAll(size: { W: number; H: number } | null): Promise<{ shots: Shot[]; W: number; H: number }> {
   vi.resetModules();
   if (size) {
-    // The size has one source (src/sje/core/size.ts, M0), and engine/game.ts re-exports it, so mocking the source changes both.
+    // The size has one source (src/sje/core/size.ts, M0), so mocking it changes every scene that is imported after.
     vi.doMock('../src/sje/core/size', async (importOriginal) => ({ ...(await importOriginal<typeof import('../src/sje/core/size')>()), ...size }));
   } else vi.doUnmock('../src/sje/core/size');
-  const { W, H } = await import('../src/engine/game');
+  const { W, H } = await import('../src/sje/core/size');
   const { applyStage } = await import('../src/game/stages');
   const { ITEMS } = await import('../src/data/items');
   const stateMod = await import('../src/game/state');

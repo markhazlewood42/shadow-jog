@@ -143,9 +143,9 @@ test.describe('M1 bench (local only, real GPU)', () => {
           const gl = (window as unknown as { __gl: { draws: number; binds: number; uploads: number; uploadBytes: number } }).__gl;
           // The dev server's own modules (the same instances the game runs). The names are variables so TypeScript does not look for the files.
           const imageObjectUrl = '/src/sje/display/imageobject.ts';
-          const oldGameUrl = '/src/engine/game.ts';
+          const sjeUrl = '/src/sje/index.ts';
           const { ImageObject } = await import(/* @vite-ignore */ imageObjectUrl);
-          const { Scene } = await import(/* @vite-ignore */ oldGameUrl);
+          const { Scene } = await import(/* @vite-ignore */ sjeUrl);
           // The shared measuring loop (see benchKit): evaluated here so it runs in the page.
           const { pct, measure } = new Function(`return (${kitSrc})`)()(game, gl, frames, warmup);
           const none = () => undefined;
@@ -154,17 +154,23 @@ test.describe('M1 bench (local only, real GPU)', () => {
           // A: the title alone.
           result.A = await measure(none);
 
-          // B: a transparent probe scene over the title: two legacy canvases are drawn. C3 (control): a third.
+          // B: a transparent probe scene over the title: two canvases are drawn. C3 (control): a third. The probe is a native scene with a canvas image of its own,
+          // which it repaints and uploads each frame, like a scene that draws with Canvas 2D.
           class Probe extends Scene {
             constructor() {
               super();
               this.opaque = false;
             }
-            update(): void {}
-            render(ctx: CanvasRenderingContext2D): void {
-              ctx.fillStyle = 'rgba(40, 90, 160, 0.4)';
-              ctx.fillRect(8, 8, 60, 30);
+            create(): void {
+              const image = this.add.canvasImage(0, 0, 640, 360);
+              this.events.on('prerender', () => {
+                image.ctx.clearRect(0, 0, 640, 360);
+                image.ctx.fillStyle = 'rgba(40, 90, 160, 0.4)';
+                image.ctx.fillRect(8, 8, 60, 30);
+                image.refresh();
+              });
             }
+            fixedUpdate(): void {}
           }
           const probe1 = new Probe();
           void game.run(probe1);

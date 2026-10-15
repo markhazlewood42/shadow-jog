@@ -1,27 +1,24 @@
 /**
  * The screen shake keeps its size on the player's screen across the 640x360 move (docs/PIVOT-640.md,
  * D10). Callers still pass the strengths they were tuned with (1 to 5 game pixels, tuned when a game
- * pixel was 4/3 as wide on screen), and `Game.shake` multiplies them by `SHAKE_PIXEL_GAIN` (4/3).
+ * pixel was 4/3 as wide on screen), and the shake of the game (`GameFx.shake`, which `Game.shake` calls) multiplies them by `SHAKE_PIXEL_GAIN` (4/3).
  * The offset a scene applies stays a whole number of game pixels.
  */
 import { describe, expect, it, vi } from 'vitest';
-import type { Ctx } from '../src/engine/canvas';
-import { Game, SHAKE_PIXEL_GAIN } from '../src/engine/game';
-import type { Input } from '../src/engine/input';
+import { shakeOffset } from '../src/engine/shake';
+import { GameFx, SHAKE_PIXEL_GAIN } from '../src/sje/runtime/screenfx';
 
 vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
-const input = { update: () => undefined, endFrame: () => undefined, consume: () => undefined } as unknown as Input;
-const noop = () => undefined;
-const ctx = new Proxy({}, { get: () => noop, set: () => true }) as unknown as Ctx;
+/** The shake state of a game, made the way `src/sje/boot.ts` makes it: the engine's shake motion and the gain. */
+const newFx = () => new GameFx({ shakeOffset, shakeGain: SHAKE_PIXEL_GAIN });
 
-/** A game with one shake running, rendered once so `shakeX` and `shakeY` hold frame 0's offset. */
+/** A shake running, with a draw's `prepare` run once so `shakeX` and `shakeY` hold frame 0's offset (the setting is `scale`). */
 function shaken(mag: number, scale = 1) {
-  const g = new Game(ctx, input);
-  g.shakeScale = () => scale;
+  const g = newFx();
   // A blow straight along +x: at frame 0 the kick is the full amplitude, with no cross-wobble.
   g.shake(12, mag, { x: 1, y: 0 });
-  g.render();
+  g.prepare(scale);
   return g;
 }
 
@@ -43,9 +40,9 @@ describe('the shake gain', () => {
   });
 
   it('keeps the default strength (3) at 4 pixels', () => {
-    const g = new Game(ctx, input);
+    const g = newFx();
     g.shake(12, undefined, { x: 0, y: 1 });
-    g.render();
+    g.prepare(1);
     expect(g.shakeY).toBe(4);
     expect(g.shakeX).toBe(0);
   });
@@ -56,7 +53,7 @@ describe('the shake gain', () => {
   });
 
   it('compares strengths after scaling: a stronger shake takes over, a weaker one only extends', () => {
-    const g = new Game(ctx, input);
+    const g = newFx();
     g.shake(12, 3);
     g.shake(30, 1); // weaker: extends the running shake, keeps its strength
     expect(g.shakeMag).toBeCloseTo(3 * SHAKE_PIXEL_GAIN, 10);

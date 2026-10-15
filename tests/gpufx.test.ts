@@ -1,11 +1,11 @@
-/** The GPU effects layer's logic: the particle simulation and the effects façade (no WebGL needed). */
+/** The GPU effects layer's logic: the particle simulation and the effects system (`FxSystem`, state only: no WebGL needed). */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { FX, GAME_MOMENTS } from '../src/data/fx';
 import { checkFx, type FxData, formatFx } from '../src/engine/fxdata';
-import { playMoment } from '../src/engine/moments';
 import { type EmitterPreset, PARTICLE_STRIDE, ParticleSim, SHAPE_ID } from '../src/engine/particles';
-import { MAX_SHOCKS, PostFx, postfx } from '../src/engine/postfx';
+import { FxSystem } from '../src/sje/fx/fxsystem';
+import { MAX_SHOCKS } from '../src/sje/fx/fxstate';
 import { runCases } from './fxstate-cases';
 
 const dot: EmitterPreset = { count: [5, 5], life: [10, 10], speed: [1, 1], angle: 0, spread: 0, size: [2, 2], colors: ['#ff0000', '#0000ff'], alpha: [1, 0], shape: 'dot' };
@@ -109,7 +109,10 @@ describe('particles', () => {
   });
 });
 
-describe('effects façade', () => {
+describe('effects system', () => {
+  /** A system with no GPU: the state exists, nothing is drawn, and a test switches `active` itself. */
+  const postfx = new FxSystem({ seed: 1 });
+
   it('does nothing while GPU effects are off', () => {
     postfx.clear();
     postfx.active = false;
@@ -147,9 +150,9 @@ describe('effects façade', () => {
   });
 });
 
-describe('effects state table (shared with the new FxSystem: tests/sje-fx.test.ts)', () => {
-  it('every case of the shared table passes on the old postfx', () => {
-    expect(runCases(() => new PostFx())).toEqual([]);
+describe('effects state table (also run, with mutants, by tests/sje-fx.test.ts)', () => {
+  it('every case of the shared table passes on a headless FxSystem', () => {
+    expect(runCases(() => new FxSystem({ seed: 1 }))).toEqual([]);
   });
 });
 
@@ -180,13 +183,14 @@ describe('fx data (src/data/fx.json, edited in the FX lab)', () => {
   });
 
   it('a moment plays its layers, the delayed ones on the effects clock', () => {
-    postfx.clear();
+    const postfx = new FxSystem({ seed: 1 });
     postfx.active = true;
     const fx: FxData = {
       presets: { p: dot },
       moments: { m: { layers: [{ emit: 'p' }, { emit: 'p', delay: 5, weighted: true }, { shock: { strength: 2 } }] } },
     };
-    playMoment(fx, 'm', 10, 10, { weight: 2 });
+    expect(postfx.loadData(fx)).toEqual([]);
+    postfx.playMoment('m', 10, 10, { weight: 2 });
     expect(postfx.particles.count).toBe(5);
     expect(postfx.shocks.length).toBe(1);
     for (let i = 0; i < 4; i++) postfx.update();
@@ -194,7 +198,7 @@ describe('fx data (src/data/fx.json, edited in the FX lab)', () => {
     postfx.update();
     // The delayed, weighted layer: twice the count, on top of what's still alive.
     expect(postfx.particles.count).toBe(15);
-    playMoment(fx, 'no_such_moment', 0, 0);
+    postfx.playMoment('no_such_moment', 0, 0);
     postfx.active = false;
     postfx.clear();
   });

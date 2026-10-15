@@ -1,20 +1,18 @@
 /**
  * The shared case table of the Game core: the fault, abandon, curtain, exit-throw and render-fault behavior (docs/engine/m1-brief.md task 14).
  *
- * Both `Game` classes run THESE cases, not copies of them: `tests/game.test.ts` runs them on the old engine's `Game` and
- * `tests/sje-game.test.ts` on the new one. A case is a plain async function (`run`) so a test can also call it on a deliberately broken
- * `Game` and expect it to throw (the negative controls in `tests/sje-game.test.ts`).
+ * `tests/sje-game.test.ts` runs them on the `Game` of the engine (until M8d the old engine's `Game` ran the same table; M8d deleted that class). A case is a plain async function
+ * (`run`) so a test can also call it on a deliberately broken `Game` and expect it to throw (the negative controls in `tests/sje-game.test.ts`).
  *
- * A "subject" is a `Game` plus the two things whose names differ between the classes: the old `tick()` and `render()` are the new
- * `advanceTick()` and `draw()`. Everything else (`run`, `tickers`, `overlays`, `onFault`, `abandon`, `stack`, `remove`, `wait`) is the same
- * name on both, because the new class implements the old class's surface (`LegacyGameSurface`).
+ * A "subject" is a `Game` plus the two calls that run one tick and one draw (`advanceTick()` and `draw()`). The scenes of the cases are native `sje` scenes: `Faulty` counts
+ * its ticks (`fixedUpdate`) and its draws (the `prerender` event), and fails on demand.
  */
 import { describe, expect, it, vi } from 'vitest';
 import type { Ctx } from '../src/engine/canvas';
 import { currentNotice } from '../src/engine/errors';
-import { Scene } from '../src/engine/game';
 import type { Input } from '../src/engine/input';
-import type { LegacyGameSurface } from '../src/sje/runtime/gameapi';
+import type { Game } from '../src/sje/runtime/game';
+import { Scene } from '../src/sje/runtime/scene';
 
 // performance.now() drives notice lifetime; node has it. Console noise from reportError is expected.
 vi.spyOn(console, 'error').mockImplementation(() => undefined);
@@ -25,23 +23,30 @@ export const proxyCtx = new Proxy({}, { get: () => noop, set: () => true }) as u
 
 /** A `Game` and the two calls that are named differently on the two classes. */
 export interface Subject {
-  game: Pick<LegacyGameSurface, 'run' | 'tickers' | 'overlays' | 'onFault' | 'abandon' | 'stack' | 'remove' | 'wait'>;
-  /** One fixed tick: old `tick()`, new `advanceTick()`. */
+  game: Pick<Game, 'run' | 'tickers' | 'overlays' | 'onFault' | 'abandon' | 'scene' | 'wait'>;
+  /** One fixed tick: `advanceTick()`. */
   tick(): void;
-  /** One drawn frame: old `render()`, new `draw()`. */
+  /** One drawn frame: `draw()`. */
   render(): void;
 }
 
 export type MakeSubject = (input: Input) => Subject;
 
-/** A scene that throws on demand, and counts what it was asked to do. */
+/**
+ * A native scene that throws on demand, and counts what it was asked to do. `render` runs on each `prerender` event (a draw of a visible scene) and `exit` on `shutdown`;
+ * both are looked up when they run, so a case can replace them on the instance.
+ */
 export class Faulty extends Scene<void> {
   updates = 0;
   renders = 0;
   constructor(private failUpdate: (n: number) => boolean, private failRender = false) {
     super();
   }
-  update(): void {
+  override create(): void {
+    this.events.on('prerender', () => this.render());
+    this.events.on('shutdown', () => this.exit());
+  }
+  fixedUpdate(): void {
     this.updates++;
     if (this.failUpdate(this.updates)) throw new Error(`update ${this.updates}`);
   }
@@ -49,6 +54,7 @@ export class Faulty extends Scene<void> {
     this.renders++;
     if (this.failRender) throw new Error('render');
   }
+  exit(): void {}
 }
 
 export interface Case {
@@ -138,7 +144,7 @@ export const GAME_CASES: Case[] = [
       g.tick();
       g.render();
       expect(faults).toBe(1);
-      expect(g.game.stack.length).toBe(0);
+      expect(g.game.scene.scenes.length).toBe(0);
     },
   },
   {
@@ -170,8 +176,8 @@ export const GAME_CASES: Case[] = [
       };
       void g.game.run(a);
       void g.game.run(b);
-      g.game.remove(b);
-      expect(g.game.stack).toEqual([a]);
+      b.close();
+      expect(g.game.scene.scenes).toEqual([a]);
       expect(currentNotice()?.text).toContain('bad cleanup');
     },
   },
@@ -204,7 +210,7 @@ export const GAME_CASES: Case[] = [
       for (let i = 0; i < 5; i++) g.tick();
       await Promise.resolve();
       expect(woke).toBe(false);
-      expect(g.game.stack.length).toBe(0);
+      expect(g.game.scene.scenes.length).toBe(0);
     },
   },
   {
@@ -224,7 +230,7 @@ export const GAME_CASES: Case[] = [
       for (let i = 0; i < limit + 5; i++) g.tick();
       // Every tick still reached the scene, and a persistent input failure never tripped recovery.
       expect(s.updates).toBe(limit + 5);
-      expect(g.game.stack.includes(s)).toBe(true);
+      expect(g.game.scene.scenes.includes(s)).toBe(true);
       // Reported once (the on-screen notice merges with earlier cases' ones; the log doesn't).
       const logged = vi.mocked(console.error).mock.calls.filter((c) => String(c[1]).includes('gamepad blocked'));
       expect(logged.length).toBe(1);

@@ -6,8 +6,8 @@
  * what the game plays: the menus, the timed presses, the effects, the numbers, Items and Run. It shows no move animations, because the shipped stage has none
  * (`src/battlestage/live.ts`, "What is NOT here").
  *
- * This file is engine-free tool code. The game's battle scene still uses the old engine, so the one file that touches it is `battleglue.ts`, which this file loads with a
- * dynamic `import()` (pass line 2's named exemption in `tests/et-tools.test.ts`). The dialog that asks what to test is `battledialog.ts`.
+ * This file holds no game scene. The one file that touches the game's battle scene is `battleglue.ts`, which this file loads with a dynamic `import()`, so the scene stays out of the editor's
+ * chunk (`tests/et-tools.test.ts` pins that). The dialog that asks what to test is `battledialog.ts`.
  *
  * Time: the page's game runs its real 60 Hz loop. A spec stops the loop and advances the fight with `game.step(n)` (the same n ticks give the same picture), and reads
  * `status()` and `trace`.

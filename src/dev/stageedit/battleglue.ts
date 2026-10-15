@@ -1,9 +1,9 @@
 /**
- * Battle Test's glue (ET task 6; docs/engine/et-brief.md decision 2, option B, and the Battle Test exemption of pass line 2).
+ * Battle Test's glue (ET task 6; docs/engine/et-brief.md decision 2, option B).
  *
  * Battle Test runs the game's OWN `BattleScene` (`src/scenes/battle.ts`) over the stage the editor shows, unsaved edits included. Since M8c that scene is a native `sje` scene and sends its
- * effects to `game.fx` itself, so this file no longer routes the old `postfx`. `tests/et-tools.test.ts` still names it (and `scenes/battle.ts`) as the only game files a Battle Test file may
- * load, and only through a dynamic `import()` (`battletest.ts` makes it). M8d task 11 removes that exemption list.
+ * effects to `game.fx` itself. This file is an ordinary tool file now (M8d task 11 removed the exemption list of `tests/et-tools.test.ts`). `battletest.ts` still loads it with a dynamic
+ * `import()`, so the battle scene stays out of the editor's own chunk; `tests/et-tools.test.ts` pins that.
  *
  * What it does, in order (the same steps the shipped battle takes in `game/systems.ts` `runBattle`, and the probe of `et-survey.md` section 9.1):
  *   1. load the effects data (`fx.json`) into `game.fx`, as `src/sje/boot.ts` does for the game;

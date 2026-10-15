@@ -1,5 +1,5 @@
 /**
- * The scale rule of the display (`cssScaleFor` in src/engine/display.ts), pinned as a table of
+ * The scale rule of the old display (`cssScaleFor`, now tests/cssscale.ts; the shipped display is integer only), pinned as a table of
  * window sizes: docs/PIVOT-640.md, D14 and PL7. The screen is W by H game pixels (640 by 360), so
  * a window of 1280x720 is exactly 2x, 1920x1080 is 3x, 2560x1440 is 4x and 3840x2160 is 6x.
  *
@@ -10,7 +10,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { H, W } from '../src/sje/core/size';
-import { cssScaleFor } from '../src/engine/display';
+import { cssScaleFor } from './cssscale';
 
 /** The scale the display uses for a window, in CSS pixels per game pixel. */
 const fill = (vw: number, vh: number, dpr = 1) => cssScaleFor(vw, vh, dpr, 'fit');

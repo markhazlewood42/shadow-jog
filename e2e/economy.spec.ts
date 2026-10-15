@@ -189,7 +189,7 @@ test('the camera at the four corners of every scrolling map rests on the clamp a
     await page.goto('/?debug');
     // The game starts asynchronously (two lazy chunks): wait for its title, not a fixed time.
     await page.waitForFunction(() => (window as unknown as { __SJ__?: { top?: () => string | null } }).__SJ__?.top?.() === 'TitleScene', null, { timeout: 30_000 });
-    return sj<[number, number]>(page, "(async () => { const g = await import('/src/engine/game.ts'); return [g.W, g.H]; })()");
+    return sj<[number, number]>(page, "(async () => { const g = await import('/src/sje/core/size.ts'); return [g.W, g.H]; })()");
   })();
   for (const { map, stage } of CORNER_MAPS) {
     await sj(page, `sj.stage('${stage}')`);

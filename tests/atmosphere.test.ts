@@ -73,7 +73,7 @@ describe('rain', () => {
 
   it('scales the counts by the screen’s area, so the weather keeps its density per pixel', async () => {
     const { AREA_SCALE, DRIPS, DUST_MOTES, RAIN_DROPS, MAX_SPLASHES, Weather } = await import('../src/field/weather');
-    const { H, W } = await import('../src/engine/game');
+    const { H, W } = await import('../src/sje/core/size');
     // The old counts were tuned on 129,600 pixels (the 480x270 field).
     const ratio = (W * H) / 129_600;
     expect(AREA_SCALE).toBeCloseTo(ratio, 10);

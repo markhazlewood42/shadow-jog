@@ -14,7 +14,7 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FIELD_LOOK } from '../src/data/fieldlook';
 import { currentNotice } from '../src/engine/errors';
-import { Scene as OldScene } from '../src/engine/game';
+import { OldScene } from './legacykit';
 import { Lighting } from '../src/field/lighting';
 import type { BakedLight, SortedSprite } from '../src/field/bake';
 import { TS } from '../src/field/tiles';
