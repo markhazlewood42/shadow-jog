@@ -27,3 +27,17 @@ describe('error notices', () => {
     expect(currentNotice()?.text).toBe('root cause (+2 more)');
   });
 });
+
+// M8b: the old Game types `run` to accept a native sje scene (so game code compiles against one class), but it cannot run one. It must refuse
+// loudly, not push a scene that has no `update`/`render`. At run time the game is the sje Game, so this guard only fires in a wiring mistake.
+describe('old Game.run and native scenes', () => {
+  it('throws when asked to run a native sje scene', async () => {
+    const { Scene: NativeScene } = await import('../src/sje');
+    class Native extends NativeScene<void> {
+      fixedUpdate(): void {}
+    }
+    const g = new Game(proxyCtx, {} as unknown as Input);
+    expect(() => g.run(new Native())).toThrow('the old Game cannot run a native sje scene');
+    expect(g.top).toBeUndefined();
+  });
+});
