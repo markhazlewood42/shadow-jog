@@ -155,7 +155,7 @@ export class Game implements GameApi {
   }
 
   /** Replace the whole stack with one scene. */
-  reset<R>(scene: Scene<R>): Promise<R> {
+  reset<R>(scene: Scene<R> | NativeScene<R>): Promise<R> {
     for (const s of [...this.stack].reverse()) {
       s.closed = true;
       s.exit();
