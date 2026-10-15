@@ -3,7 +3,7 @@
  * (`battlekit/stageseam.ts`, M3).
  *
  * The field scene (`scenes/field.ts`) keeps every rule: movement, warps, events, scripts, the camera target, the weather and dust motes. It normally draws the whole
- * picture into a Canvas 2D (`FieldScene.render`). Under `?engine=sje` a STAGE can draw it instead: a scene of the new engine that stands UNDER the field on the scene
+ * picture into a Canvas 2D (`FieldScene.render`). A STAGE can draw it instead: a scene of the new engine that stands UNDER the field on the scene
  * stack and shows the map's baked layers, the props, the chests and the actors (sorted by y), the light map, the animations and the screen-fixed layer as engine
  * objects, while the field's own canvas, above it, carries only the dev overlay.
  *
@@ -111,7 +111,7 @@ export const FIELD_STAGE_FAILED_NOTICE = 'The new field view could not load, so 
 
 let provider: FieldStageProvider | null = null;
 
-/** Register (or, with null, remove) the provider. Called by `src/sje/boot.ts` under `?engine=sje`, and by tests. */
+/** Register (or, with null, remove) the provider. Called by `src/sje/boot.ts`, and by tests. */
 export function setFieldStageProvider(p: FieldStageProvider | null): void {
   provider = p;
 }

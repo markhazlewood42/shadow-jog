@@ -192,9 +192,9 @@ describe('the painters follow the stage’s screen', () => {
 describe('a stage for the stage set is chosen from the page address', () => {
   it('the 640x360 set unless the address asks for the 480x270 one (the pictures of the look review)', async () => {
     const { stageSetFromSearch } = await import('../src/battlestage/liveopen');
-    expect(stageSetFromSearch('?engine=sje')).toBe('640');
+    expect(stageSetFromSearch('?debug')).toBe('640');
     expect(stageSetFromSearch('')).toBe('640');
-    expect(stageSetFromSearch('?engine=sje&stageset=480')).toBe('480');
+    expect(stageSetFromSearch('?debug&stageset=480')).toBe('480');
     expect(stageSetFromSearch('?stageset=999')).toBe('640');
   });
 });

@@ -1,5 +1,5 @@
 /**
- * Opening the stage for the shipped field (M5 task 7): the provider the engine's boot glue registers under `?engine=sje` (`src/sje/boot.ts` loads this file with a dynamic
+ * Opening the stage for the shipped field (M5 task 7): the provider the engine's boot glue registers (`src/sje/boot.ts` loads this file with a dynamic
  * `import()`, so none of it is in the default path's download). `open` is called by the field scene (`scenes/field.ts`) when it enters:
  *
  *   1. make a `FieldStageScene` that reads the field (`FieldStageSource`), and put it on the scene stack UNDER the field (`Game.runBeneath`), so the field's rules keep running

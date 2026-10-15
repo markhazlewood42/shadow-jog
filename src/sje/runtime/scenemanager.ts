@@ -542,14 +542,14 @@ export class SceneManager {
 
   /**
    * Send `resume` to the top scene, but ONLY if a `push` paused it. When a scene in the middle of
-   * the stack closes, a native top scene was never paused, so it does not hear `resume`. A legacy scene
-   * always does (`resumesOnAnyClose`): the old `Game.remove` resumed the top after every close.
+   * the stack closes, the top scene was never paused, so it does not hear `resume`. (The old engine's `Game.remove` resumed the top after every close;
+   * no scene needs that any more.)
    */
   private resumeTop(): void {
     const top = this.top;
     if (!top) return;
     const wasPaused = this.paused.delete(top);
-    if (!wasPaused && !top.resumesOnAnyClose) return;
+    if (!wasPaused) return;
     this.guard(top, () => top.events.emit('resume'), 'other');
   }
 

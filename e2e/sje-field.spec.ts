@@ -36,7 +36,7 @@ const glErrors = (page: Page) =>
   sj<number[]>(page, '(() => { const gl = sj.game.renderer.glc.gl; const out = []; for (let e = gl.getError(); e !== 0 && out.length < 16; e = gl.getError()) out.push(e); return out; })()');
 
 /** The class names of the scene stack, bottom first. */
-const stack = (page: Page) => sj<string[]>(page, 'sj.game.scene.scenes.map((s) => s.legacy ? s.legacy.constructor.name : s.constructor.name)');
+const stack = (page: Page) => sj<string[]>(page, 'sj.game.scene.scenes.map((s) => s.constructor.name)');
 
 /** How many distinct colors the player sees (a blank or broken picture has very few). */
 const colors = (page: Page) =>

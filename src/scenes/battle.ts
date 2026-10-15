@@ -127,7 +127,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   private readonly hud = new BattleHud(this);
 
   /**
-   * The stage that draws the battle under `?engine=sje` (battlekit/stageseam.ts), or null: the renderer then draws everything, as it always did. With a stage the
+   * The stage that draws the battle (battlekit/stageseam.ts), or null: the renderer then draws everything, as it always did. With a stage the
    * renderer draws only the effects of the old picture (the impact frame, the intro, the bloom's light) on a clear canvas, and the windows are kit parts (battlekit/hud.ts), so this scene lets the stage show through and the stage scene below keep running.
    */
   stage: BattleStage | null = null;

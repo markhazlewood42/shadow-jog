@@ -67,8 +67,8 @@ import { gzipSync } from 'node:zlib';
  * battle backdrops from the world width (named count-and-step records at the top of `art/battlebg.ts`);
  * WP6 round 1 measured 240.5 kB. WP7 changes no file under `src/`. Mark confirms this raise in the pull
  * request (D20).
- * Raised to 400 kB on 2026-10-09 (M1 build A, Mark: "one bigger total"). The `?engine=sje` flag pulls the new
- * engine chunk (all of Pixi, about 127 kB gzip) into the game build, and the build also holds an 11.2 kB Pixi
+ * Raised to 400 kB on 2026-10-09 (M1 build A, Mark: "one bigger total"). The new engine (behind a flag then) pulls its
+ * chunk (all of Pixi, about 127 kB gzip) into the game build, and the build also holds an 11.2 kB Pixi
  * chunk that a player never downloads: the total measured 379.270 kB (379,270 bytes), of which the old game
  * alone is 240.963 kB (+167 bytes over 240.796). Reset to 380 kB on 2026-10-09 at the end of M1 (measured 379.9 kB,
  * rounded up to the next 1 kB). The old-game growth is no longer gated separately.

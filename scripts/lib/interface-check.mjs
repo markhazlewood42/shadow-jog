@@ -28,17 +28,8 @@ type HackDef = Record<string, unknown>;
 type SceneDump = Record<string, unknown>; // the JSON tree of the DEV hook
 type EmitterPreset = Record<string, unknown>;
 type InputDevice = 'keyboard' | 'gamepad' | 'touch';
-/** Today's \`Scene\` shape, wrapped by the \`LegacyScene\` adapter (M1). */
-interface LegacyScene<R = unknown> {
-  opaque: boolean;
-  curtain: boolean;
-  passUpdate: boolean;
-  update(): void;
-  render(ctx: Ctx): void;
-  close(result: R): void;
-}
 // Used by sketches that only name them in comments or signatures.
-export type { Ctx, DisplayHost, EmitterPreset, Fighter, HackDef, InputDevice, LegacyScene, SceneDump, StageData };
+export type { Ctx, DisplayHost, EmitterPreset, Fighter, HackDef, InputDevice, SceneDump, StageData };
 `;
 
 /** The \`ts\` code blocks of the doc, in order. */

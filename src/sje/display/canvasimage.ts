@@ -3,8 +3,8 @@
  * Follows: Phaser `CanvasTexture` shown by an `Image` (ours as one class). Pixi backing: `Sprite` over a `CanvasSource`.
  *
  * Draw on `ctx` (the 2D canvas context), then call `refresh()` once: that uploads the canvas to the GPU (a
- * `texSubImage2D`). Without `refresh()` the old picture stays on the GPU. The `LegacyScene` adapter owns one of these
- * per scene and draws today's whole Canvas 2D frame into it.
+ * `texSubImage2D`). Without `refresh()` the old picture stays on the GPU. A scene that paints with Canvas 2D owns one of these
+ * (the UI scenes and the battle and field scenes do) and draws its whole frame into it.
  *
  * It frees its texture with itself: `destroy()` removes the key from the `TextureManager`.
  */

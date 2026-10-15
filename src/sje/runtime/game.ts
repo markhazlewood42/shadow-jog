@@ -7,7 +7,7 @@
  * One TICK (`advanceTick`), in the order of frame-and-rendering.md section 2:
  *   1. Input polling (`input.update()`). A throw is reported once and dropped: a blocked Gamepad API is not a scene fault.
  *   2. `prestep` then `step` events (with the tick that is ending).
- *   3. The legacy tickers (the audio sequencer, the old effects layer). A ticker that throws is reported and dropped.
+ *   3. The tickers (the audio sequencer, the effects step). A ticker that throws is reported and dropped.
  *   4. The game clock: the tick counter goes up, `playFrames`, due `wait()` timers resolve, the game fade moves, shake and flash count down.
  *   5. The scenes run, top first (`SceneManager.tick`): `preupdate`, the scene's `time` and `tweens`, `fixedUpdate`, `update`, `postupdate`,
  *      the cameras' effects.
@@ -48,10 +48,9 @@ import { FxSystem, type FxLevel, type FxRequest } from '../fx/fxsystem';
 import { glRendererName } from '../render/glcontext';
 import type { Input } from '../../engine/input';
 import { Display } from './display';
-import type { AnyLegacy, LegacyGameSurface, LegacyShape, ShakeDirection } from './gameapi';
+import type { GameApi, ShakeDirection } from './gameapi';
 import { type FrameRenderer, GlRenderer } from './glrenderer';
 import { type ActionMap, actionMapOf } from './input';
-import { LegacyScene } from './legacyscene';
 import { CacheManager, type LoadBackend } from './loader';
 import { Scene } from './scene';
 import { type AnyScene, type FaultPhase, SceneManager } from './scenemanager';
@@ -117,7 +116,7 @@ const DEFAULT_COMPAT: LegacyCompat = {
   shakeGain: 1,
 };
 
-export class Game implements DisplayHost, LegacyGameSurface {
+export class Game implements DisplayHost, GameApi {
   readonly events = new EventEmitter<GameEvents>();
   readonly textures: TextureManager;
   readonly cache = new CacheManager();
@@ -126,7 +125,7 @@ export class Game implements DisplayHost, LegacyGameSurface {
   readonly scale: Display;
   readonly scene: SceneManager;
   readonly renderer: FrameRenderer;
-  /** The old `Input`, as the legacy scenes use it. */
+  /** The device input: keyboard, gamepad, touch and the player's own keys. */
   readonly input: Input;
   /** The same input as an action map, for the new scenes. */
   readonly actions: ActionMap;
@@ -136,15 +135,10 @@ export class Game implements DisplayHost, LegacyGameSurface {
   /** Frames of play time (only counts while countPlayTime is set: not on the title or menus that stop the clock). */
   playFrames = 0;
   countPlayTime = false;
-  /** Hooks run every tick before the scenes (the audio sequencer, the old effects layer). */
+  /** Hooks run every tick before the scenes (the audio sequencer, the effects step). */
   tickers: (() => void)[] = [];
   /** Hooks run after the topmost scene draws (the notice badge). */
   overlays: ((ctx: CanvasRenderingContext2D) => void)[] = [];
-  /**
-   * Whether an overlay has anything to paint now (the notice bar). The boot glue sets it. While it is null every overlay counts as having something, so a `blank` legacy scene
-   * (see `LegacyShape.blank`) keeps painting its canvas as the old engine did.
-   */
-  overlayWanted: (() => boolean) | null = null;
   /** Screen-shake strength multiplier (the player's setting); 0 turns every shake off. */
   shakeScale: () => number = () => 1;
   /** Player setting for full-screen flashes (0 = off). */
@@ -159,7 +153,6 @@ export class Game implements DisplayHost, LegacyGameSurface {
   private readonly gfx: GameFx;
   private timers: Timer[] = [];
   private dueBuf: (Timer | undefined)[] = [];
-  private readonly wrappers = new WeakMap<object, AnyScene>();
   /** Consecutive ticks in which something threw. */
   private faults = 0;
   /** Input polling has thrown once (reported); later throws are dropped silently. */
@@ -169,7 +162,7 @@ export class Game implements DisplayHost, LegacyGameSurface {
   private renderFaults = 0;
   private faultedThisRender = false;
   private snapshot: { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } | null = null;
-  // Used only while the topmost drawn scene is not a legacy scene (or there is none).
+  // The game-level fade and flash, and the overlay hooks, as display objects in the overlay root.
   private washGfx: Graphics | null = null;
   private overlayLayer: CanvasImage | null = null;
 
@@ -258,17 +251,9 @@ export class Game implements DisplayHost, LegacyGameSurface {
     return this.scene.dropCount;
   }
 
-  /** The scene on top: the old scene for a legacy one, else the `Scene`. */
-  get top(): unknown {
-    const t = this.scene.top;
-    return t instanceof LegacyScene ? t.legacy : t;
-  }
-
-  /** The legacy scenes on the stack, bottom first (what `game.stack` was). New scenes are not listed. */
-  get stack(): readonly AnyLegacy[] {
-    const out: AnyLegacy[] = [];
-    for (const s of this.scene.scenes) if (s instanceof LegacyScene) out.push(s.legacy);
-    return out;
+  /** The scene on top, or undefined when the stack is empty. */
+  get top(): AnyScene | undefined {
+    return this.scene.top;
   }
 
   get fadeLevel(): number {
@@ -291,8 +276,8 @@ export class Game implements DisplayHost, LegacyGameSurface {
   }
 
   /**
-   * A 2D context holding the picture as the player sees it, drawn on demand from the layers of the drawn legacy scenes (the old
-   * back buffer). `snapshotScreen` reads it before a battle transition. It is rebuilt on each call; keep the canvas, not the context.
+   * A 2D context holding the picture as the player sees it, drawn on demand by the visible scenes that can paint a picture of themselves
+   * (the old back buffer). `snapshotScreen` reads it before a battle transition. It is rebuilt on each call; keep the canvas, not the context.
    */
   get ctx(): CanvasRenderingContext2D {
     if (!this.snapshot) {
@@ -310,33 +295,30 @@ export class Game implements DisplayHost, LegacyGameSurface {
     for (const s of this.scene.scenes) {
       if (!s.sys.visible) continue;
       // A scene that draws with display objects (the field stage, M5) has no canvas of its own: it paints a picture of itself on request.
-      if (s.paintSnapshot) s.paintSnapshot(ctx);
-      else if (s instanceof LegacyScene && s.layer) ctx.drawImage(s.layer, 0, 0);
+      s.paintSnapshot?.(ctx);
     }
     return ctx;
   }
 
   /**
-   * Push a scene and wait for it. `init`, `preload` and `create` run in THIS call (a legacy scene's `enter` too). The promise
+   * Push a scene and wait for it. `init`, `preload` and `create` run in THIS call. The promise
    * resolves when the scene calls `close(result)`, and only then. @deviation Phaser's `run` does not wait.
    */
-  run<R>(scene: Scene<R> | LegacyShape<R>, data?: unknown): Promise<R> {
-    return this.scene.push(this.adopt(scene), data);
+  run<R>(scene: Scene<R>, data?: unknown): Promise<R> {
+    return this.scene.push(scene, data);
   }
 
   /**
-   * Push a scene UNDER another one that is on the stack (a new `Scene`, or the old scene the other is wrapped from), and run its lifecycle at once (M5: the field
+   * Push a scene UNDER another one that is on the stack, and run its lifecycle at once (M5: the field
    * stage stands under the field scene and draws it). The scene above must be non-opaque, or the new one is hidden. Rejects if `above` is not on the stack.
    */
-  runBeneath<R>(scene: Scene<R>, above: AnyScene | AnyLegacy): Promise<R> {
-    const target = above instanceof Scene ? above : this.wrappers.get(above);
-    if (!target) return Promise.reject(new Error('Game.runBeneath: the scene above is not on the stack'));
-    return this.scene.pushBeneath(scene, target);
+  runBeneath<R>(scene: Scene<R>, above: AnyScene): Promise<R> {
+    return this.scene.pushBeneath(scene, above);
   }
 
   /** Replace the whole stack with one scene. The old scenes' promises stay pending. */
-  reset<R>(scene: Scene<R> | LegacyShape<R>, data?: unknown): Promise<R> {
-    return this.scene.reset(this.adopt(scene), data);
+  reset<R>(scene: Scene<R>, data?: unknown): Promise<R> {
+    return this.scene.reset(scene, data);
   }
 
   /** Drop every scene, timer and fade without resolving them, so a story flow waiting on any of them stops dead. */
@@ -346,14 +328,6 @@ export class Game implements DisplayHost, LegacyGameSurface {
     this.gfx.abandon();
     this.faults = 0;
     this.renderFaults = 0;
-  }
-
-  /** What the old `Scene.close` calls: take a legacy scene off the stack. The scene's own `close` then resolves its promise. */
-  remove(legacy: AnyLegacy): void {
-    const wrapper = this.wrappers.get(legacy);
-    if (!wrapper) return;
-    wrapper.closed = true;
-    this.scene.remove(wrapper);
   }
 
   wait(frames: number): Promise<void> {
@@ -465,32 +439,6 @@ export class Game implements DisplayHost, LegacyGameSurface {
     this.draw(0);
   }
 
-  /**
-   * Called by the topmost drawn legacy scene after it drew itself: the game-level flash and fade, then the overlay hooks, in the old
-   * engine's order. Overlays that throw are reported and dropped.
-   */
-  paintTop(ctx: CanvasRenderingContext2D): void {
-    // With the composite on, the flash is the composite's (set in `draw`), and the fade and the notices go in the effects' UI layer so the
-    // shockwaves do not bend them: as in the old engine. That layer sits under every scene above the base, so it is only right when the base is the
-    // topmost drawn scene; otherwise that scene's own canvas (already above the filtered world) carries them.
-    const layer = this.fx.compositing && this.scene.topVisible === this.scene.base ? this.fx.ui : null;
-    const target = layer ?? ctx;
-    this.gfx.paint(target, this.flashScale(), !this.fx.compositing);
-    for (let i = 0; i < this.overlays.length; i++) {
-      try {
-        this.overlays[i]?.(target);
-      } catch (e) {
-        this.reportFault(null, e, 'tick');
-        this.overlays.splice(i--, 1);
-      }
-    }
-  }
-
-  /** True when the topmost drawn legacy scene must paint onto its canvas this frame: a fade or flash is on, or an overlay has something to show. */
-  get topPaintWanted(): boolean {
-    return this.gfx.painting || (this.overlayWanted ? this.overlayWanted() : this.overlays.length > 0);
-  }
-
   /** Dev and tests only: stop, drop the scenes, free the renderer. Production never destroys the renderer. */
   destroyForTests(): void {
     this.stop();
@@ -500,16 +448,6 @@ export class Game implements DisplayHost, LegacyGameSurface {
   }
 
   // ---- internals --------------------------------------------------------------------------------------
-
-  /** A legacy scene gets its adapter (one per legacy scene, remembered so `remove` can find it). A new scene runs as it is. */
-  private adopt<R>(scene: Scene<R> | LegacyShape<R>): Scene<R> {
-    if (scene instanceof Scene) return scene;
-    const known = this.wrappers.get(scene);
-    if (known) return known as Scene<R>;
-    const wrapper = new LegacyScene<R>(scene);
-    this.wrappers.set(scene, wrapper);
-    return wrapper;
-  }
 
   private resolveTimers(): void {
     if (this.timers.length === 0) return;
@@ -528,18 +466,8 @@ export class Game implements DisplayHost, LegacyGameSurface {
     }
   }
 
-  /** The game-level washes and overlays when the topmost drawn scene is not a legacy scene (or there is none). */
+  /** The game-level washes and overlays, as display objects in the overlay root: above every scene, and (with the composite on) the fade and the notices in the effects' UI layer. */
   private paintNative(): void {
-    const top = this.scene.topVisible;
-    if (top instanceof LegacyScene) {
-      // The legacy scene paints them itself. A fallback layer left from a moment with no scene is freed.
-      if (this.overlayLayer) {
-        this.overlayLayer.destroy();
-        this.overlayLayer = null;
-      }
-      if (this.washGfx) this.washGfx.visible = false;
-      return;
-    }
     if (this.gfx.painting) {
       if (!this.washGfx) {
         this.washGfx = new Graphics(this);

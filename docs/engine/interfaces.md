@@ -322,7 +322,7 @@ export declare class FxSystem {                       // ours. Keeps the postfx 
   update(): void;
   clear(): void;
   warm(): void;                                        // new. Compile shaders off screen
-  /** Today's call shape, kept for LegacyScene. A Pixi-side glow layer is a new method beside it. */
+  /** Today's call shape. A Pixi-side glow layer is a new method beside it. */
   glowLayer(): Ctx | null;
 }
 ```
@@ -623,16 +623,16 @@ export interface GlHandoff {                           // ours
   drainErrors(): number[];                             // dev and tests: the GL errors, cleared
 }
 
-/** Story code and scenes type against this. The legacy Game and the new Game both implement it. */
+/** Story code and scenes type against this. The `Game` implements it (until M8d the old engine's `Game` did too). */
 export interface GameApi {
-  run<R>(s: Scene<R> | LegacyScene<R>): Promise<R>;
+  run<R>(s: Scene<R>): Promise<R>;
   wait(frames: number): Promise<void>;
   fadeTo: Game['fadeTo']; shake: Game['shake']; flash: Game['flash'];
   readonly top: unknown; readonly tick: number; speed: number;
 }
 ```
 
-`LegacyScene` has today's shape: `enter`, `exit`, `resume`, `update()`, `render(ctx)`, `opaque`, `curtain`, `passUpdate`, `close(result)`. It owns a 640x360 `CanvasImage` (921,600 bytes) and calls `render(ctx)` into it each frame. See [migration.md](migration.md).
+From M1 to M8c an adapter (`LegacyScene`) ran scenes of the old shape (`enter`, `exit`, `resume`, `update()`, `render(ctx)`, `opaque`, `curtain`, `passUpdate`, `close(result)`) in a 640x360 `CanvasImage`. M8d deleted it with the old engine; every scene is a native `Scene`. See [migration.md](migration.md).
 
 ---
 

@@ -295,10 +295,10 @@ describe('who may import the engine', () => {
 
   // The DEV tools (src/dev, loaded through src/devroutes.ts and never in a shipped build) are outside that list. Since ET they run on the new engine: the viewers and the FX lab
   // are scenes of it. They reach it through the facade (src/sje/index.ts) and the size module, like game code on the engine (battlestage, fieldstage). The runtime files
-  // (Game, LegacyShape: the old allowance for TYPE imports of M6) are not on the list any more: the lab is a Scene and the tools take `Game` from the facade.
+  // (Game, and the legacy scene shape: the old allowance for TYPE imports of M6) are not on the list any more: the lab is a Scene and the tools take `Game` from the facade.
   const isDevTool = (f: string) => f.startsWith('src/dev/') || f === 'src/devroutes.ts';
 
-  it('ET: the DEV tools reach the engine through the size module and the facade only, and never the runtime files (Game, LegacyShape, gameapi)', () => {
+  it('ET: the DEV tools reach the engine through the size module and the facade only, and never the runtime files (Game, gameapi)', () => {
     const dev = all.filter((e) => outsideEngine(e) && isDevTool(e.file));
     const allowed = ['src/sje/core/size', 'src/sje', 'src/sje/index'];
     // ET task 6 let Battle Test's glue module take one extra edge, `routePostfx` (src/sje/fx/route), to route the old effects to `game.fx`. M8c ported the battle scene to `game.fx`, so the
@@ -311,7 +311,7 @@ describe('who may import the engine', () => {
     // The scan is alive: the scene base of the viewers and the FX lab (src/dev/viewers/base.ts), and the dev routes, take the engine from the facade.
     expect(dev.some((e) => e.file === 'src/dev/viewers/base.ts' && (e.target === 'src/sje' || e.target === 'src/sje/index'))).toBe(true);
     expect(dev.some((e) => e.file === 'src/devroutes.ts' && (e.target === 'src/sje' || e.target === 'src/sje/index'))).toBe(true);
-    // M6's allowance is gone: the file that held the type imports of Game and LegacyShape no longer names those runtime files.
+    // M6's allowance is gone: the file that held the type imports of Game and the legacy scene shape no longer names those runtime files.
     expect(dev.filter((e) => e.target === 'src/sje/runtime/game' || e.target === 'src/sje/runtime/gameapi')).toEqual([]);
   });
 

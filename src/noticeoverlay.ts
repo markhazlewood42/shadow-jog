@@ -1,6 +1,6 @@
 /**
  * The on-screen notice (the "Something glitched" bar, the saved badge, the news nudge), drawn as an overlay of the top scene.
- * Moved out of `src/main.ts` unchanged so that both entry paths (the old engine, and `?engine=sje` through `src/sje/boot.ts`) draw the same notice.
+ * Moved out of `src/main.ts` unchanged, when two entry paths drew the same notice. `src/sje/boot.ts` registers it now.
  */
 import type { Ctx } from './engine/canvas';
 import { currentNotice } from './engine/errors';

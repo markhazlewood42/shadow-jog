@@ -203,7 +203,7 @@ export class FieldScene extends Scene<void> implements FieldStageSource {
 
   // ------------------------------------------------------------------ the stage (fieldkit/fieldseam.ts)
   /**
-   * Under `?engine=sje` a stage scene draws this field (fieldkit/fieldseam.ts): it stands UNDER this scene on the stack and shows the map, the actors and the lights
+   * A stage scene draws this field (fieldkit/fieldseam.ts): it stands UNDER this scene on the stack and shows the map, the actors and the lights
    * as engine objects. This scene keeps every rule and draws only the dev overlay. Null without the flag, or when the stage could not be made: the field then draws itself.
    */
   private stage: FieldStage | null = null;

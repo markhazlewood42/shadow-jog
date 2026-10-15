@@ -14,7 +14,6 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FIELD_LOOK } from '../src/data/fieldlook';
 import { currentNotice } from '../src/engine/errors';
-import { OldScene } from './legacykit';
 import { Lighting } from '../src/field/lighting';
 import type { BakedLight, SortedSprite } from '../src/field/bake';
 import { TS } from '../src/field/tiles';
@@ -229,23 +228,19 @@ describe('Game.runBeneath: a scene under the one the player uses', () => {
     expect(log.some((l) => l.endsWith(':pause'))).toBe(false);
   });
 
-  it('finds the adapter of an old scene, and takes the new scene off again when it closes', async () => {
+  it('takes the scene off again when it closes, and the scene above is on top again', async () => {
     const { game } = headlessGame();
-    class Old extends OldScene<void> {
-      update(): void {}
-      render(): void {}
-    }
-    const old = new Old();
-    void game.run(old);
     const log: string[] = [];
+    const above = new TestScene(log, 'above');
+    void game.run(above);
     const under = new TestScene(log, 'under');
-    const done = game.runBeneath(under, old);
+    const done = game.runBeneath(under, above);
     expect(game.scene.scenes.length).toBe(2);
     expect(game.scene.scenes[0]).toBe(under);
     under.close();
     await done;
     expect(game.scene.scenes.length).toBe(1);
-    expect(game.top).toBe(old);
+    expect(game.top).toBe(above);
   });
 
   it('rejects when the scene above is not on the stack, and changes nothing', async () => {
@@ -287,72 +282,6 @@ describe('Game.ctx asks a scene for a picture of itself', () => {
     r.h.game.scene.refreshLayout();
     void r.h.game.ctx;
     expect(r.src.legacyPaints).toBe(0);
-  });
-});
-
-describe('LegacyShape.blank: a scene with a stage under it does not upload an empty canvas', () => {
-  class Staged extends OldScene<void> {
-    blank = true;
-    renders = 0;
-    update(): void {}
-    render(): void {
-      this.renders++;
-    }
-  }
-  const imageOf = (game: ReturnType<typeof headlessGame>['game'], scene: object): { visible: boolean; canvas: RecCanvas } => {
-    const w = game.scene.scenes.find((s) => (s as { legacy?: unknown }).legacy === scene) as unknown as { image: { visible: boolean; canvas: RecCanvas } };
-    return w.image;
-  };
-
-  it('leaves its canvas out while there is nothing to paint on it, and does not even draw into it', () => {
-    const h = headlessGame();
-    const s = new Staged();
-    void h.game.run(s);
-    h.frame(17);
-    expect(imageOf(h.game, s).visible).toBe(false);
-    expect(s.renders).toBe(0);
-  });
-
-  it('paints it again while a fade is on, or an overlay has something to show, and leaves it out after', () => {
-    const h = headlessGame();
-    const s = new Staged();
-    void h.game.run(s);
-    h.frame(17);
-    h.game.fadeLevel = 0.5;
-    h.frame(17);
-    expect(imageOf(h.game, s).visible).toBe(true);
-    expect(s.renders).toBe(1);
-    h.game.fadeLevel = 0;
-    h.game.overlayWanted = () => true;
-    h.frame(17);
-    expect(imageOf(h.game, s).visible).toBe(true);
-    h.game.overlayWanted = () => false;
-    h.frame(17);
-    expect(imageOf(h.game, s).visible).toBe(false);
-  });
-
-  it('control: a scene that is not blank always draws', () => {
-    const h = headlessGame();
-    const s = new Staged();
-    s.blank = false;
-    void h.game.run(s);
-    h.frame(17);
-    expect(imageOf(h.game, s).visible).toBe(true);
-    expect(s.renders).toBe(1);
-  });
-
-  it('control: a blank scene that is not the topmost drawn one does not wait for the washes (they are painted on the top one)', () => {
-    const h = headlessGame();
-    const s = new Staged();
-    void h.game.run(s);
-    const top = new Staged();
-    top.blank = false;
-    top.opaque = false;
-    void h.game.run(top);
-    h.game.fadeLevel = 0.5;
-    h.frame(17);
-    expect(imageOf(h.game, s).visible).toBe(false);
-    expect(imageOf(h.game, top).visible).toBe(true);
   });
 });
 

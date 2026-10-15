@@ -1,14 +1,13 @@
 /**
  * The new engine's runtime parts, in plain Node (docs/engine/m1-brief.md tasks 3 to 8, 14): the Phaser scene operations, the load-aware
- * lifecycle, the LegacyScene layers, the clock, the tweens, the camera effects, the loader and the action map.
+ * lifecycle, the canvas scenes, the clock, the tweens, the camera effects, the loader and the action map.
  * The key checks have a control: a case where the thing it guards is broken on purpose, and the check says so.
  *
  * No browser and no GPU: `Game` gets a renderer that draws nothing, and `document.createElement('canvas')` is a recorder, so a test can see which
- * calls a legacy scene's canvas got.
+ * calls a scene's canvas got.
  */
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { reportError } from '../src/engine/errors';
-import { OldScene } from './legacykit';
 import type { Input } from '../src/engine/input';
 import { Container } from '../src/sje/display/container';
 import { CameraEffects, msToTicks, parseColor } from '../src/sje/display/cameraeffects';
@@ -307,65 +306,54 @@ describe('the load-aware lifecycle', () => {
   });
 });
 
-// ---- the legacy layers -------------------------------------------------------------------------------------
+// ---- scenes that paint with Canvas 2D ----------------------------------------------------------------------
 
-describe('LegacyScene: one canvas per scene, a layer above the base starts clear, the topmost scene paints the washes and overlays', () => {
-  class Old extends OldScene<void> {
+describe('canvas scenes: one canvas image per scene, nothing outlives its scene, the game paints the overlay hooks above', () => {
+  /** A native scene that paints with Canvas 2D into a canvas image of its own, as the UI scenes do. */
+  class Painting extends Scene<void> {
     renders = 0;
+    snapshots = 0;
     constructor(opaque: boolean) {
       super();
       this.opaque = opaque;
     }
-    update(): void {}
-    render(): void {
-      this.renders++;
+    override create(): void {
+      const image = this.add.canvasImage(0, 0, 640, 360);
+      this.events.on('prerender', () => {
+        this.renders++;
+        image.refresh();
+      });
     }
+    override paintSnapshot(): void {
+      this.snapshots++;
+    }
+    fixedUpdate(): void {}
   }
 
-  it('the base canvas is never cleared; a scene above it clears its own canvas each frame', () => {
-    const g = newGame();
-    const base = new Old(true);
-    const dialog = new Old(false);
-    void g.run(base);
-    void g.run(dialog);
-    g.draw();
-    const [baseCanvas, dialogCanvas] = allLegacyCanvases(g);
-    expect(baseCanvas?.calls.filter((c) => c === 'clearRect')).toHaveLength(0);
-    expect(dialogCanvas?.calls.filter((c) => c === 'clearRect').length).toBeGreaterThan(0);
-  });
-
-  /** The canvases of the legacy scenes on the stack, bottom first. */
-  function allLegacyCanvases(g: Game): Array<FakeCanvas | undefined> {
-    return g.scene.scenes.map((s) => (s as unknown as { layer: FakeCanvas | null }).layer ?? undefined);
-  }
-
-  it('control: the clearRect probe sees a clear when one happens (a layer above the base does clear)', () => {
-    const g = newGame();
-    void g.run(new Old(false));
-    void g.run(new Old(false));
-    g.draw();
-    const [first, second] = allLegacyCanvases(g);
-    // The first scene is the bottom one, so it is the base even though it is not opaque: it is never cleared. The second one is a layer, and the probe sees its clear.
-    expect(first?.calls.filter((c) => c === 'clearRect')).toHaveLength(0);
-    expect(second?.calls.filter((c) => c === 'clearRect').length).toBeGreaterThan(0);
-  });
-
-  it('the overlay hooks and the game wash paint on the topmost drawn scene, once, after it', () => {
+  it('the overlay hooks run once per draw, into the game overlay layer, however many scenes are drawn', () => {
     const g = newGame();
     const seen: unknown[] = [];
     g.overlays.push((ctx) => seen.push(ctx));
-    void g.run(new Old(true));
-    void g.run(new Old(false));
+    void g.run(new Painting(true));
+    void g.run(new Painting(false));
     g.draw();
-    const [, top] = g.scene.scenes.map((s) => (s as unknown as { image: { ctx: unknown } }).image);
+    const layer = (g as unknown as { overlayLayer: { ctx: unknown } | null }).overlayLayer;
+    expect(layer).not.toBeNull();
     expect(seen).toHaveLength(1);
-    expect(seen[0]).toBe(top?.ctx);
+    expect(seen[0]).toBe(layer?.ctx);
+  });
+
+  it('control: with no overlay hook the game makes no overlay layer', () => {
+    const g = newGame();
+    void g.run(new Painting(true));
+    g.draw();
+    expect((g as unknown as { overlayLayer: unknown }).overlayLayer).toBeNull();
   });
 
   it('a scene under an opaque one is not drawn and not uploaded', () => {
     const g = newGame();
-    const under = new Old(true);
-    const over = new Old(true);
+    const under = new Painting(true);
+    const over = new Painting(true);
     void g.run(under);
     void g.run(over);
     g.draw();
@@ -376,7 +364,7 @@ describe('LegacyScene: one canvas per scene, a layer above the base starts clear
     const g = newGame();
     const before = g.textures.getTextureKeys().length;
     for (let i = 0; i < 10; i++) {
-      const s = new Old(true);
+      const s = new Painting(true);
       void g.run(s);
       g.draw();
       s.close();
@@ -392,15 +380,20 @@ describe('LegacyScene: one canvas per scene, a layer above the base starts clear
     expect(g.textures.getTextureKeys().length).toBe(before + 1);
   });
 
-  it('game.ctx is a snapshot of the drawn legacy layers, in stack order', () => {
+  it('game.ctx asks every visible scene that can paint a picture of itself, in stack order (control: a hidden scene is not asked)', () => {
     const g = newGame();
-    void g.run(new Old(true));
-    void g.run(new Old(false));
+    const base = new Painting(true);
+    const top = new Painting(false);
+    void g.run(base);
+    void g.run(top);
     g.draw();
-    const ctx = g.ctx;
-    expect(ctx).toBeTruthy();
-    const drawn = canvases[canvases.length - 1]?.calls.filter((c) => c === 'drawImage');
-    expect(drawn?.length).toBe(2);
+    expect(g.ctx).toBeTruthy();
+    expect([base.snapshots, top.snapshots]).toEqual([1, 1]);
+    const cover = new Painting(true);
+    void g.run(cover);
+    g.draw();
+    void g.ctx;
+    expect([base.snapshots, top.snapshots, cover.snapshots]).toEqual([1, 1, 1]);
   });
 });
 

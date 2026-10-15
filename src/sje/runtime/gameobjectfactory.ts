@@ -52,8 +52,8 @@ export class GameObjectFactory {
   }
 
   /**
-   * An image that owns a 2D canvas: draw on `.ctx`, then `.refresh()` (docs/engine/scene-graph.md section 2, @ours). The `LegacyScene`
-   * adapter draws today's whole frame into one. It lives in the scene's `world` (or its `ui` with `{ ui: true }`).
+   * An image that owns a 2D canvas: draw on `.ctx`, then `.refresh()` (docs/engine/scene-graph.md section 2, @ours). A scene that paints with
+   * Canvas 2D draws its whole frame into one. It lives in the scene's `world` (or its `ui` with `{ ui: true }`).
    */
   canvasImage(x: number, y: number, w: number, h: number, opts?: { ui?: boolean }): CanvasImage {
     const img = new CanvasImage(this.scene, x, y, w, h);

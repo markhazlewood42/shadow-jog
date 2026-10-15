@@ -1,12 +1,9 @@
 /**
  * GameFx: the game-level fade, shake and flash (docs/engine/interfaces.md section 1: `fadeTo`, `shake`, `flash`).
- * This is the old engine's `Game` fade/shake/flash code, moved here with the same numbers, so a legacy scene sees the same
+ * This is the old engine's `Game` fade/shake/flash code, moved here with the same numbers, so a scene sees the same
  * `shakeX`, `shakeY` and `fadeLevel` it always did. Everything advances by TICKS (`advance()` runs once per tick).
  *
- * How it reaches the screen:
- *  - A LEGACY scene draws on a canvas, so the fade and flash are drawn on the canvas of the topmost drawn legacy scene, after the
- *    scene itself (`paint`). That is the old engine's order, pixel for pixel, and it needs no third canvas.
- *  - When the topmost drawn scene is a native `Scene` (or none), `paintNative` draws them as rectangles in `overlayRoot`.
+ * How it reaches the screen: `paintNative` draws the flash and the fade as rectangles in `overlayRoot`, above every scene.
  *
  * The scene-level versions (a camera fade that washes only that scene's world) are `camera.fadeIn/fadeOut/flash/shake`.
  *
@@ -142,26 +139,9 @@ export class GameFx {
   }
 
   /**
-   * The old engine's order: the flash, then the fade, both over the whole picture. `withFlash` false leaves the flash out: the effects' composite
+   * The flash, then the fade, as rectangles over the whole picture. `withFlash` false leaves the flash out: the effects' composite
    * washes the world with it instead, and the fade and the notices go in the UI layer above it (`FxSystem`).
    */
-  paint(ctx: CanvasRenderingContext2D, flashScale: number, withFlash = true): void {
-    const flashA = withFlash ? this.flashAlpha(flashScale) : 0;
-    if (flashA > 0) {
-      ctx.globalAlpha = flashA;
-      ctx.fillStyle = this.flashColor;
-      ctx.fillRect(0, 0, W, H);
-      ctx.globalAlpha = 1;
-    }
-    if (this.fadeLevel > 0.001) {
-      ctx.globalAlpha = Math.min(1, this.fadeLevel);
-      ctx.fillStyle = this.fadeColor;
-      ctx.fillRect(0, 0, W, H);
-      ctx.globalAlpha = 1;
-    }
-  }
-
-  /** The same two washes as rectangles, for a native scene on top. */
   paintNative(g: Graphics, flashScale: number, withFlash = true): void {
     g.clear();
     const flashA = withFlash ? this.flashAlpha(flashScale) : 0;

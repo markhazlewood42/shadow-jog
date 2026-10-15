@@ -1,7 +1,7 @@
 /**
  * ET pass line 2 (docs/engine/et-brief.md section 4): no old engine in tool code.
  *
- * The old engine was `src/engine/{game,display,postfx,moments}.ts` and `LegacyScene` / `LegacyShape` (the adapter that ran an old-style scene). M8d deleted all of it. What stays is ONE
+ * The old engine was `src/engine/{game,display,postfx,moments}.ts` and the adapter that ran an old-style scene (the legacy scene classes). M8d deleted all of it. What stays is ONE
  * check (it replaces the seven exemption lists of M8c and ET): no tool file reaches a deleted path. This test builds the closure of VALUE imports of every tool file; for each file in
  * it, EVERY import (static, type-only, dynamic `import()`) is resolved by its path, with no need for the file to exist, and the test fails when one points at a deleted path. A
  * type-only import is checked as well: the file is gone, so the import would not compile either. A dynamic `import()` is not followed, but its target is checked.

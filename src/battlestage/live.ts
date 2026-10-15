@@ -2,7 +2,7 @@
  * The stage that draws the SHIPPED battle (M3 task 6; docs/engine/m3-brief.md sections 1 and 4). A `BattleStageScene` (the backdrop, the floor, the figures, the push camera)
  * that also holds the HUD, the floating numbers, the effects layer and the defeat wash, and follows the battle scene (`scenes/battle.ts`) tick by tick.
  *
- * HOW IT FITS. Under `?engine=sje` the battle's routing (`game/systems.ts` `runBattle`) asks the registered provider (`liveopen.ts`) for a stage, which is run FIRST, so it sits
+ * HOW IT FITS. In the game the battle's routing (`game/systems.ts` `runBattle`) asks the registered provider (`liveopen.ts`) for a stage, which is run FIRST, so it sits
  * under the battle scene on the scene stack. The battle scene keeps state and flow, and plays the engine's events through `PlaybackView` as it always did (`battlekit/playback.ts`
  * is unchanged); this scene READS the battle scene (`host`) in its own `fixedUpdate` and `prerender`, as the old renderer did, and shows it:
  *

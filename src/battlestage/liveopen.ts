@@ -1,5 +1,5 @@
 /**
- * Opening the stage for a shipped battle (M3 task 6): the provider the engine's boot glue registers under `?engine=sje` (`src/sje/boot.ts` loads this file with a dynamic
+ * Opening the stage for a shipped battle (M3 task 6): the provider the engine's boot glue registers (`src/sje/boot.ts` loads this file with a dynamic
  * `import()`, so none of it is in the default path's download). `open` is called by `runBattle` (`game/systems.ts`) with the battle scene already made, before it runs:
  *
  *   1. load the stage's data once (the checked JSON files, the rig data) and the crew's pictures once (Mark's sheets when his folder is there, the stand-ins when not: the

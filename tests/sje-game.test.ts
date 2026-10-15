@@ -3,7 +3,7 @@
  *
  *  1. The shared case table of tests/game-cases.ts runs on the `Game`: the fault, abandon, curtain, exit-throw and render-fault cases (until M8d the old engine's `Game`
  *     ran the same table too). Controls: a `Game` with a broken fault counter and a broken render counter must fail the matching case.
- *  2. Close order and microtask timing, for new scenes and legacy scenes. Controls: a close in the wrong order, and a loop that lets promises
+ *  2. Close order and microtask timing. Controls: a close in the wrong order, and a loop that lets promises
  *     run between ticks, must fail.
  *  3. The loop rules: up to 5 catch-up ticks then the backlog drops, and the hidden-tab clamp. Control: a naive loop fails.
  *  4. The `Game` fits the interfaces (a compile-time check, plus a runtime check that it has the surface).
@@ -18,11 +18,9 @@ import { shakeOffset } from '../src/engine/shake';
 import { FixedLoop, type FixedLoopOptions, MAX_TICKS_PER_FRAME } from '../src/sje/core/fixedloop';
 import { TICK_MS } from '../src/sje/core/size';
 import { FAULT_LIMIT, Game } from '../src/sje/runtime/game';
-import type { GameApi, LegacyGameSurface } from '../src/sje/runtime/gameapi';
-import { LegacyScene } from '../src/sje/runtime/legacyscene';
+import type { GameApi } from '../src/sje/runtime/gameapi';
 import { Scene } from '../src/sje/runtime/scene';
 import { caseNamed, defineGameCases, Faulty, noopInput, type Subject } from './game-cases';
-import { OldScene } from './legacykit';
 
 vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
@@ -193,68 +191,6 @@ describe('close order (frame-and-rendering.md section 2, "Scene lifecycle")', ()
     expect(log).toEqual(['b:shutdown', 'b:destroy']);
   });
 
-  it('legacy: a middle scene closing on [A,B,C] still resumes C (as the old Game.remove did); a native top scene hears nothing (control)', () => {
-    class Old extends OldScene<string> {
-      resumes = 0;
-      update(): void {}
-      render(): void {}
-      override resume(): void {
-        this.resumes++;
-      }
-    }
-    const g = newGame();
-    const a = new Old();
-    const b = new Old();
-    const c = new Old();
-    void g.run(a);
-    void g.run(b);
-    void g.run(c);
-    c.resumes = 0;
-    b.close('x');
-    expect(c.resumes).toBe(1);
-    // Control: the same close on native scenes sends no resume to the top (the other test above), so only the legacy flag explains the 1.
-    const log: string[] = [];
-    const n = newGame();
-    const nb = new Logged('b', log);
-    void n.run(new Logged('a', log));
-    void n.run(nb);
-    void n.run(new Logged('c', log));
-    log.length = 0;
-    nb.close('x');
-    expect(log).not.toContain('c:resume');
-  });
-
-  it('a legacy scene closes in the old order too: exit, consume, the scene below resumes, then its promise resolves', async () => {
-    const log: string[] = [];
-    const input = { ...noopInput, consume: () => log.push('consume') } as unknown as Input;
-    const g = newGame(input);
-    class Old extends OldScene<string> {
-      constructor(private name: string) {
-        super();
-      }
-      override enter(): void {
-        log.push(`${this.name}:enter`);
-      }
-      override exit(): void {
-        log.push(`${this.name}:exit`);
-      }
-      override resume(): void {
-        log.push(`${this.name}:resume`);
-      }
-      update(): void {}
-      render(): void {}
-    }
-    const below = new Old('below');
-    const top = new Old('top');
-    void g.run(below);
-    const p = g.run(top).then((r) => log.push(`resolved:${r}`));
-    log.length = 0;
-    top.close('ok');
-    expect(log).toEqual(['top:exit', 'consume', 'below:resume']);
-    await p;
-    expect(log.at(-1)).toBe('resolved:ok');
-  });
-
   it('control: closing in the wrong order (resume before the shutdown) makes the order check fail', () => {
     const log: string[] = [];
     const g = newGame();
@@ -389,32 +325,26 @@ describe('loop rules: catch-up ticks, dropped backlog, hidden-tab clamp', () => 
 // ---- 4. both classes fit the interfaces --------------------------------------------------------------------
 
 describe('the interface seam', () => {
-  it('compile time: the Game fits GameApi and LegacyGameSurface (tsc fails this file otherwise)', () => {
-    // These are type checks. `tsc` is the test: an assignment that does not fit is a compile error.
+  it('compile time: the Game fits GameApi (tsc fails this file otherwise)', () => {
+    // This is a type check. `tsc` is the test: an assignment that does not fit is a compile error.
     const fitsApi = (g: Game): GameApi => g;
-    const fitsSurface = (g: Game): LegacyGameSurface => g;
-    expect([typeof fitsApi, typeof fitsSurface]).toEqual(['function', 'function']);
+    expect(typeof fitsApi).toBe('function');
   });
 
-  it('runtime: the Game has every member of the surface that the legacy scenes call', () => {
-    const members = ['run', 'reset', 'abandon', 'remove', 'wait', 'fadeTo', 'fadeOut', 'fadeIn', 'shake', 'flash'] as const;
+  it('runtime: the Game has every member of the surface that the game code calls', () => {
+    const members = ['run', 'reset', 'abandon', 'wait', 'fadeTo', 'fadeOut', 'fadeIn', 'shake', 'flash'] as const;
     const g = newGame();
     for (const m of members) expect(typeof g[m]).toBe('function');
-    for (const m of ['tickers', 'overlays', 'stack'] as const) expect(Array.isArray(g[m])).toBe(true);
+    for (const m of ['tickers', 'overlays'] as const) expect(Array.isArray(g[m])).toBe(true);
     for (const m of ['frame', 'playFrames', 'speed', 'fadeLevel', 'shakeX', 'shakeY'] as const) expect(typeof g[m]).toBe('number');
   });
 
-  it('wraps a legacy scene: the stack lists the legacy scene, not the adapter, and `top` is the legacy scene', () => {
-    class Old extends OldScene<void> {
-      update(): void {}
-      render(): void {}
-    }
+  it('the top of the stack is the scene itself', () => {
     const g = newGame();
-    const a = new Old();
+    const a = new Faulty(() => false);
     void g.run(a);
-    expect(g.stack).toEqual([a]);
     expect(g.top).toBe(a);
-    expect(g.scene.top).toBeInstanceOf(LegacyScene);
+    expect(g.scene.scenes).toEqual([a]);
   });
 
   it('scene flags are read live: a scene that turns `opaque` off while it runs changes what is drawn', () => {
