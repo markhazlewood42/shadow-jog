@@ -633,7 +633,7 @@ test('39 hex deck: dead, seating the Stingray, booted', async ({ page }) => {
   await advance(page, 1100);
   await shot(page, '40-deck-seat-align');
   // Seat it without the timed press (a script can't aim it reliably): drop, both clips, the boot.
-  await sj(page, '(sj.game.stack.at(-1).go("drop"), true)');
+  await sj(page, '(sj.game.top.go("drop"), true)');
   await advance(page, 700);
   await key(page, 'Enter', 2, 400);
   await advance(page, 3600);

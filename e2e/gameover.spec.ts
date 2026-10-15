@@ -203,10 +203,10 @@ test('A scene that throws every frame recovers to the title instead of freezing'
 test('A scene whose drawing throws every frame recovers too', async ({ page }) => {
   await stage(page, 'town');
   expect(await sj<boolean>(page, 'sj.save(1)')).toBe(true);
-  // A scene that draws by itself: the menu. (The field no longer draws by itself: its stage does, so its own `render` is never called.)
+  // A native scene draws through the engine's per-frame `prerender` event (the old `render` method is gone from the menu). The field's stage draws, so use the menu.
   await sj(page, 'sj.menu()');
   await waitFor(page, "sj.top() === 'MenuScene'", 'menu');
-  await sj(page, "(sj.game.top.render = () => { throw new Error('draw'); }, true)");
+  await sj(page, "(sj.game.top.events.on('prerender', () => { throw new Error('draw'); }), true)");
   await waitFor(page, "sj.top() === 'TitleScene'", 'title after render fault');
   expect((await sj<{ text: string } | null>(page, 'sj.notice()'))?.text).toMatch(/recovered/i);
 });
