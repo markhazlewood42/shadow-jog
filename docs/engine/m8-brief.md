@@ -170,3 +170,25 @@ Groups are commits. M8a = tasks 1 to 3 and 5. M8b = tasks 4, 6 and 7. M8c = task
 - The `onSound` callback maps to sfx.
 - There is no `UiScene` base class yet.
 - The level table in `docs/engine/README.md` lacks level 2.6. Do this in M8d.
+
+### M8b phase 2 (options, dialog, title, shop)
+
+| Step | What | Result | Verdict | Fix or note |
+|---|---|---|---|---|
+| Phase 1 finding | Test that `Game.run` of the old class refuses a native scene | `tests/game.test.ts`, commit `0cf8e68` | done | |
+| Group C | Options, dialog, title and shop are native `UiScene`s | Commit `be3fc23`. Options reads `game.fx.active`, not `postfx`. The old `Game.reset` type takes a native scene | done | Dialog choice highlight is 1 px taller than the old one (the kit `ListMenu` uses `rowH` for it) |
+| Editor items d and e | `snapshot()`, `restore()` and `step(n)` on dialog and shop | `tests/sje-ui-scenes-2.test.ts`, each proof has a control | done | See `m8a-data-format.md` section 8 |
+
+### M8b phase 3 (deck, panels, menu)
+
+| Step | What | Result | Verdict | Fix or note |
+|---|---|---|---|---|
+| Group D | Deck, panels and menu are native `UiScene`s | Commits `e2e2db4` (scenes and `src/scenes/uiview.ts`), `6515abd` (layout test and unit tests). All 13 UI scenes are native: `git grep -n "from '../engine/game'" src/scenes` prints only `battle.ts` and `field.ts` (M8c) | done | Pass line 4 holds for the UI scenes |
+| Build | Pages with many small parts (menu, deck prompt and line box) are built again only when what they show changes. Lists are kit `ListMenu`s, placed per mode. Art (deck, chip, panel frames) is canvas pictures | `ViewBuilder` makes only kit parts, plus the divider and select highlight as plain `Graphics` | done | Panels: the shake follows `game.shakeX` in `prerender`. The deck boot log has no clip: a test proves its lines fit the screen |
+| Layout test | `tests/ui-layout.test.ts` reads the native menu, deck and panels | Menu pages by key presses, deck in 3 modes, 7 comic pages. The deck plate is `DECK_PLATE` in `deck.ts` (it is painted into the art canvas) | done | No test is deleted or loosened |
+| Unit tests | `tests/sje-ui-scenes-3.test.ts`, 16 tests, each proof has a control | Menu flow, toast, page rebuild, deck seating flow, panel flow, shake, title card, 10-cycle leak for all three | done | |
+| Pacing test | `proseChars('src/scenes/panels.ts', true)` | Comments drop out, as for `chapter1.ts` (the new comments pair backticks across lines and inflated the story count to 80 min). Count 2,745 to 2,468 | noted | Rule change, not a budget change |
+| Specs | Pass line 6 list (without `prod.spec`, which needs the preview on 3008) with `CI=1 PW_PORT=3012` | 235 passed, 27 skipped. 3 failed first: `gameover` render fault (the native menu has no `render`: the spec now throws in a `prerender` handler) and `shots` 39 (the deck hook reads `sj.game.top`). Both fixed, then all of `shots.spec.ts` (36) passed | done | Spec fixes in commit `ec1b749` |
+| Pictures | `M8_PICTURES=1`: 36 pictures in `media/m8-ui/` (menu 11, deck 4, panels 4, plus phases 1 and 2) | None missing | for Mark | |
+| Pass lines 10 and 12 | `git diff --stat main...HEAD` over `src/data src/battle src/field src/art src/audio src/story`, and over `src/sje/render src/sje/display src/sje/three` | Both print nothing | holds | No `npm run perf` needed for M8b |
+| Pass line 13 | `npm run budget` | **Over the caps.** First play 410.8 kB (cap 408), total 472.6 kB (cap 468.5), lazy-3d 146.7 kB (cap 160). The caps are not changed here | open | Mark decides: raise the caps (about 2.8 and 4.1 kB over) or trim |

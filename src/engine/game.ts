@@ -15,7 +15,7 @@ import { reportError } from './errors';
 import { postfx } from './postfx';
 import type { Input } from './input';
 import { FPS, H, W } from '../sje/core/size';
-import type { GameApi } from '../sje/runtime/gameapi';
+import type { GameApi, NativeScene } from '../sje/runtime/gameapi';
 
 /** Consecutive faulting ticks before the game gives up on the current flow. */
 export const FAULT_LIMIT = 30;
@@ -139,7 +139,12 @@ export class Game implements GameApi {
     return this.stack[this.stack.length - 1];
   }
 
-  run<R>(scene: Scene<R>): Promise<R> {
+  /**
+   * Push a scene. The type also takes a native `sje` scene (M8b): the game code is typed against this class, but the object at run time is the
+   * sje `Game`, which runs both kinds. This old class cannot run a native scene, so it refuses one.
+   */
+  run<R>(scene: Scene<R> | NativeScene<R>): Promise<R> {
+    if (!(scene instanceof Scene)) throw new Error('the old Game cannot run a native sje scene');
     return new Promise<R>((resolve) => {
       scene.game = this;
       scene._bind(resolve);
@@ -150,7 +155,9 @@ export class Game implements GameApi {
   }
 
   /** Replace the whole stack with one scene. */
-  reset<R>(scene: Scene<R>): Promise<R> {
+  reset<R>(scene: Scene<R> | NativeScene<R>): Promise<R> {
+    // Refuse a native scene BEFORE the stack is torn down, so a wiring mistake does not also wipe the running game (run() has the same guard).
+    if (!(scene instanceof Scene)) throw new Error('the old Game cannot run a native sje scene');
     for (const s of [...this.stack].reverse()) {
       s.closed = true;
       s.exit();

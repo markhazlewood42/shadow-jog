@@ -26,6 +26,11 @@ export interface ActionMap {
   dir(): 'up' | 'down' | 'left' | 'right' | null;
   /** Swallow the current presses so the next scene does not see them. */
   consume(): void;
+  /**
+   * The key bound to an action as a player reads it ('Z'), or the action's own name when it has no key. Follows the player's custom keys.
+   * @deviation from interfaces.md section 8 (M8b): added so a menu's key hint (`keyLegend`, "Press X to continue") shows the player's own binding.
+   */
+  keyName(a: Action): string;
 }
 
 /** The action map over the old `Input`. One per game. */
@@ -36,6 +41,7 @@ export function actionMapOf(input: Input): ActionMap {
     repeat: (a) => input.repeat(a),
     dir: () => input.dir(),
     consume: () => input.consume(),
+    keyName: (a) => input.keyName(a),
   };
 }
 

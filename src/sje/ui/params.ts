@@ -27,7 +27,8 @@ export const UI = {
 } as const;
 
 /** The dim laid over the field behind a full-screen menu (the old `OVERLAY_DIM`). */
-export const OVERLAY_DIM = 'rgba(7,6,13,0.985)';
+export const OVERLAY_DIM_ALPHA = 0.985;
+export const OVERLAY_DIM = `rgba(7,6,13,${OVERLAY_DIM_ALPHA})`;
 
 /** The selection highlight as a Graphics fill: the color of `UI.select` and its alpha. */
 export const SELECT_FILL = { color: 0x3fe0f0, alpha: 0.16 } as const;

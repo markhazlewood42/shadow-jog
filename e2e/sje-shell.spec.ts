@@ -105,7 +105,7 @@ test.describe('the real game on the new engine', () => {
       const g = await openGame(browser, { viewport: viewportFor(k), fakeClock: true });
       try {
         const { page } = g;
-        expect(await waitUntil(page, 'sj.game.stack.length > 0', 30_000)).toBe(true);
+        expect(await waitUntil(page, '!!sj.game.top', 30_000)).toBe(true);
         // No effects: the base picture, as the block test always judged it. The effects have their own pixel tests (e2e/sje-fx.spec.ts).
         await sj(page, 'sj.gpu(false)');
         expect(await sj<string>(page, 'sj.renderer.fxLevel'), 'the page runs with no effects').toBe('none');

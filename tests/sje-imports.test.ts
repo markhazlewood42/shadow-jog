@@ -315,12 +315,17 @@ describe('who may import the engine', () => {
     expect(dev.filter((e) => e.target === 'src/sje/runtime/game' || e.target === 'src/sje/runtime/gameapi')).toEqual([]);
   });
 
+  /** The UI scenes that are native `sje` scenes (M8b) and so import the facade. */
+  const M8B_FACADE_USERS = ['src/scenes/card.ts', 'src/scenes/controls.ts', 'src/scenes/deck.ts', 'src/scenes/dialog.ts', 'src/scenes/ending.ts', 'src/scenes/gameover.ts', 'src/scenes/menu.ts', 'src/scenes/options.ts', 'src/scenes/panels.ts', 'src/scenes/placemap.ts', 'src/scenes/saveload.ts', 'src/scenes/shop.ts', 'src/scenes/title.ts', 'src/scenes/uiscene.ts', 'src/scenes/uisound.ts', 'src/scenes/uiview.ts'];
+
   // A static `import ... from './sje/boot'` (the door must be dynamic, or the engine and Pixi land in the entry chunk).
   const STATIC_DOOR = /^[ \t]*import\b[^(]*\bfrom\s*['"]\.\/sje\/boot['"]/m;
 
-  it('the shipped game reaches the engine through eight files only: the size module, the Rng module, the game font (M3), the effects state, the effects data checks and the particle simulation (all plain code: no Pixi, no Three), a types-only file, and the boot door', () => {
+  it('the shipped game reaches the engine through nine doors only: the size module, the Rng module, the game font (M3), the effects state, the effects data checks and the particle simulation (all plain code: no Pixi, no Three), a types-only file, the boot door, and (M8b) the facade for the ported UI scenes', () => {
     const shipped = all.filter((e) => outsideEngine(e) && !e.file.startsWith('src/sje-lab/') && !isDevTool(e.file));
-    expect([...new Set(shipped.map((e) => e.target))].sort()).toEqual(['src/sje/boot', 'src/sje/core/rng', 'src/sje/core/size', 'src/sje/display/font', 'src/sje/fx/fxdata', 'src/sje/fx/fxstate', 'src/sje/fx/particles', 'src/sje/runtime/gameapi']);
+    expect([...new Set(shipped.map((e) => e.target))].sort()).toEqual(['src/sje', 'src/sje/boot', 'src/sje/core/rng', 'src/sje/core/size', 'src/sje/display/font', 'src/sje/fx/fxdata', 'src/sje/fx/fxstate', 'src/sje/fx/particles', 'src/sje/runtime/gameapi']);
+    // M8b: the UI scenes ported to native scenes take the kit and the scene base from the facade. The list grows with each M8b phase (the other UI scenes), and holds nothing else.
+    expect([...new Set(shipped.filter((e) => e.target === 'src/sje').map((e) => e.file))].sort()).toEqual(M8B_FACADE_USERS);
     // M2: the old PostFx extends the shared state, the old particle module re-exports the shared simulation. (M6 deleted the old presenter, the one file that took SOFTWARE_GL from the GL module.)
     expect([...new Set(shipped.filter((e) => e.target === 'src/sje/fx/fxstate').map((e) => e.file))]).toEqual(['src/engine/postfx.ts']);
     expect(shipped.filter((e) => e.target === 'src/sje/fx/fxdata').map((e) => e.file)).toEqual(['src/engine/fxdata.ts']);

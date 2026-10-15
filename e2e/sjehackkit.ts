@@ -300,7 +300,7 @@ export async function sequence(browser: import('@playwright/test').Browser, styl
   const g = await openGame(browser, { query: `&jack=${style}&fx=full&seed=${seed}`, fakeClock: true });
   try {
     const { page } = g;
-    expect(await waitUntil(page, 'sj.game.stack.length > 0', 30_000)).toBe(true);
+    expect(await waitUntil(page, '!!sj.game.top', 30_000)).toBe(true);
     await advance(page, 700);
     const frames = await capture(page, 'test-short', { over: { ticks: 40 } });
     const keyed: Record<string, string> = {};

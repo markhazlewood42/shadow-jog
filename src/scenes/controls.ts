@@ -1,12 +1,10 @@
-/** Controls: every action's keys and gamepad button, with one rebindable key per action. */
+/** Controls: every action's keys and gamepad button, with one rebindable key per action. Native sje scene (M8b). */
 import { sfx } from '../audio/sfx';
-import type { Ctx } from '../engine/canvas';
-import { drawText, fitText } from '../engine/font';
-import { Scene } from '../engine/game';
-import { W, H } from '../sje/core/size';
-import { ACTIONS, keyLabel, type Action } from '../engine/input';
+import { ACTIONS, type Action, keyLabel } from '../engine/input';
 import { saveSettings, settings } from '../game/settings';
-import { drawCursor, drawSelect, drawWindow, keyLegend, UI, OVERLAY_DIM } from '../ui/draw';
+import { Cursor, fitText, Graphics, NineSlice, SELECT_FILL, TextObject, UI } from '../sje';
+import { H, W } from '../sje/core/size';
+import { UiScene } from './uiscene';
 
 const NAMES: Record<Action, string> = {
   up: 'Up', down: 'Down', left: 'Left', right: 'Right', confirm: 'Confirm', cancel: 'Cancel / Back',
@@ -21,29 +19,98 @@ const PAD: Record<Action, string> = {
 
 type Row = { kind: 'action'; action: Action } | { kind: 'reset' } | { kind: 'back' };
 
-export class ControlsScene extends Scene<void> {
-  override opaque = false;
-  override curtain = true;
+/** The row text colors: the selected row is bright, the others a soft white. */
+const ROW_ON: string = UI.text;
+const ROW_OFF = '#c8c6dc';
+
+export class ControlsScene extends UiScene<void> {
   private idx = 0;
-  private t = 0;
   private note = '';
   private capturing: Action | null = null;
   private rows: Row[] = [...ACTIONS.map((a): Row => ({ kind: 'action', action: a })), { kind: 'reset' }, { kind: 'back' }];
 
-  update(): void {
-    this.t++;
-    if (this.capturing) return; // waiting for the next key (see rebind)
-    const inp = this.game.input;
-    if (inp.pressed('cancel')) {
+  // The window and where its rows sit (the old render worked these out each frame).
+  private readonly w: number;
+  private readonly h: number;
+  private readonly x: number;
+  private readonly y: number;
+
+  private win!: NineSlice;
+  private highlight!: Graphics;
+  private shownIdx = -1;
+  private cursor!: Cursor;
+  private names: TextObject[] = [];
+  private keysText: (TextObject | null)[] = [];
+  private hint!: TextObject;
+
+  constructor() {
+    super();
+    this.opaque = false;
+    this.curtain = true;
+    const w = 360;
+    this.w = w;
+    this.h = this.rows.length * 13 + 46;
+    this.x = (W - w) / 2;
+    this.y = (H - this.h) / 2;
+  }
+
+  override create(): void {
+    const ui = this.sys.ui;
+    this.dim();
+    const { x, y, w, h } = this;
+    this.win = new NineSlice(this, x, y, w, h, { title: 'CONTROLS', footer: this.legend('back', 'rebind') });
+    ui.add(this.win);
+    const head = new TextObject(this, x + 110, y + 10, 'Keyboard', { color: UI.dim });
+    ui.add(head);
+    const headPad = new TextObject(this, x + w - 12, y + 10, 'Gamepad', { align: 'right', color: UI.dim });
+    ui.add(headPad);
+    // The selection highlight is one plain Graphics, moved to the chosen row.
+    this.highlight = new Graphics(this, 0, 0);
+    ui.add(this.highlight);
+    this.rows.forEach((r, i) => {
+      const ry = y + 24 + i * 13;
+      if (r.kind !== 'action') {
+        const label = new TextObject(this, x + 18, ry, r.kind === 'reset' ? 'Reset keys to defaults' : 'Back', { color: ROW_OFF });
+        ui.add(label);
+        this.names.push(label);
+        this.keysText.push(null);
+        return;
+      }
+      const name = new TextObject(this, x + 18, ry, NAMES[r.action], { color: ROW_OFF });
+      ui.add(name);
+      this.names.push(name);
+      const keys = new TextObject(this, x + 110, ry, '', { color: UI.dim });
+      ui.add(keys);
+      this.keysText.push(keys);
+      const pad = new TextObject(this, x + w - 12, ry, fitText(PAD[r.action], 100), { align: 'right', color: UI.dim });
+      ui.add(pad);
+    });
+    this.cursor = new Cursor(this, x + 8, y + 24);
+    ui.add(this.cursor);
+    this.hint = new TextObject(this, W / 2, y + h - 14, '', { align: 'center', color: UI.dim });
+    ui.add(this.hint);
+    this.refreshView();
+  }
+
+  protected tick(): void {
+    if (!this.capturing) this.step();
+    // A closed scene has had its objects destroyed.
+    if (!this.closed) this.refreshView();
+  }
+
+  private step(): void {
+    const keys = this.input.actions;
+    if (keys.justPressed('cancel')) {
       sfx('cancel');
       this.close();
       return;
     }
     const n = this.rows.length;
-    if (inp.repeat('up')) { this.idx = (this.idx + n - 1) % n; sfx('cursor'); }
-    if (inp.repeat('down')) { this.idx = (this.idx + 1) % n; sfx('cursor'); }
-    if (!inp.pressed('confirm')) return;
-    const row = this.rows[this.idx]!;
+    if (keys.repeat('up')) { this.idx = (this.idx + n - 1) % n; sfx('cursor'); }
+    if (keys.repeat('down')) { this.idx = (this.idx + 1) % n; sfx('cursor'); }
+    if (!keys.justPressed('confirm')) return;
+    const row = this.rows[this.idx];
+    if (!row) return;
     if (row.kind === 'back') {
       sfx('cancel');
       this.close();
@@ -79,33 +146,28 @@ export class ControlsScene extends Scene<void> {
     });
   }
 
-  render(ctx: Ctx): void {
-    ctx.fillStyle = OVERLAY_DIM;
-    ctx.fillRect(0, 0, W, H);
-    const w = 360, h = this.rows.length * 13 + 46;
-    const x = (W - w) / 2, y = (H - h) / 2;
-    drawWindow(ctx, x, y, w, h, { title: 'CONTROLS' , footer: keyLegend(this.game.input, 'back', 'rebind') });
-    drawText(ctx, 'Keyboard', x + 110, y + 10, { color: UI.dim });
-    drawText(ctx, 'Gamepad', x + w - 12, y + 10, { align: 'right', color: UI.dim });
+  /** Bring every object up to date with the scene's state. A text object ignores a string it already shows, so this is cheap each tick. */
+  private refreshView(): void {
+    const { x, y, w } = this;
+    // The key legend follows the player's own bindings (a rebind of confirm or cancel changes it).
+    this.win.setStyle({ footer: this.legend('back', 'rebind') });
     const input = this.game.input;
     this.rows.forEach((r, i) => {
-      const ry = y + 24 + i * 13;
       const sel = i === this.idx;
-      if (sel) {
-        drawSelect(ctx, x + 6, ry - 2, w - 12, 12);
-        drawCursor(ctx, x + 8, ry, this.capturing ? 0 : this.t);
-      }
-      if (r.kind !== 'action') {
-        drawText(ctx, r.kind === 'reset' ? 'Reset keys to defaults' : 'Back', x + 18, ry, { color: sel ? UI.text : '#c8c6dc' });
-        return;
-      }
+      this.names[i]?.setStyle({ color: sel ? ROW_ON : ROW_OFF });
+      if (r.kind !== 'action') return;
       const custom = settings.keys[r.action];
-      drawText(ctx, NAMES[r.action], x + 18, ry, { color: sel ? UI.text : '#c8c6dc' });
       const keys = input.keysFor(r.action).map((c) => (c === custom ? `{c}${keyLabel(c)}{/}` : keyLabel(c)));
-      drawText(ctx, fitText(keys.join(' '), 130), x + 110, ry, { color: UI.dim });
-      drawText(ctx, fitText(PAD[r.action], 100), x + w - 12, ry, { align: 'right', color: UI.dim });
+      this.keysText[i]?.setText(fitText(keys.join(' '), 130));
     });
-    const hint = this.note || 'Confirm on an action to give it a key of your own.';
-    drawText(ctx, fitText(hint, w - 24), W / 2, y + h - 14, { align: 'center', color: this.capturing ? UI.amber : UI.dim });
+    if (this.shownIdx !== this.idx) {
+      this.shownIdx = this.idx;
+      const ry = y + 24 + this.idx * 13;
+      this.highlight.clear().fillStyle(SELECT_FILL.color, SELECT_FILL.alpha).fillRect(x + 6, ry - 2, w - 12, 12);
+      this.cursor.setHome(x + 8, ry);
+    }
+    this.cursor.setFrame(this.capturing ? 0 : this.t);
+    this.hint.setText(fitText(this.note || 'Confirm on an action to give it a key of your own.', w - 24));
+    this.hint.setStyle({ color: this.capturing ? UI.amber : UI.dim });
   }
 }

@@ -22,6 +22,7 @@ const NOT_IN_CI: Readonly<Record<string, string>> = {
   'e2e/audio-evidence.spec.ts': 'audio-evidence: renders every song and writes reports under docs/quality/evidence/audio/; it makes files and judges nothing',
   'e2e/playtest.spec.ts': 'playtest: the real-speed hands-off playtest; it has its own workflow, playtest.yml, which runs after a push to main',
   'e2e/sje-pictures.spec.ts': 'sje-pictures: the pictures for the M3 look review; local only, does nothing unless M3_PICTURES=1',
+  'e2e/m8-ui-pictures.spec.ts': 'm8-ui-pictures: the pictures for the M8b look review; local only, does nothing unless M8_PICTURES=1',
 };
 
 /** The shards of a ci.yml text: shard name -> spec files. A small regex, because the repo has no YAML parser. A shard is a matrix entry `- shard: '1/6'` followed by `specs: >-` and the indented spec paths. */

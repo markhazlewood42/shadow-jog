@@ -890,6 +890,10 @@ describe('the action map wraps the old Input (it does not copy it)', () => {
       repeat: (a: string) => (calls.push(`repeat:${a}`), false),
       dir: () => (calls.push('dir'), 'left'),
       consume: () => calls.push('consume'),
+      keyName: (a: string) => {
+        calls.push(`keyName:${a}`);
+        return 'Z';
+      },
     } as unknown as Input;
     const map = actionMapOf(fake);
     expect(map.justPressed('confirm')).toBe(true);
@@ -897,7 +901,8 @@ describe('the action map wraps the old Input (it does not copy it)', () => {
     expect(map.repeat('down')).toBe(false);
     expect(map.dir()).toBe('left');
     map.consume();
-    expect(calls).toEqual(['pressed:confirm', 'down:up', 'repeat:down', 'dir', 'consume']);
+    expect(map.keyName('confirm')).toBe('Z');
+    expect(calls).toEqual(['pressed:confirm', 'down:up', 'repeat:down', 'dir', 'consume', 'keyName:confirm']);
   });
 
   it('a scene reads the same input as the game', () => {

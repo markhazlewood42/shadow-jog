@@ -1,26 +1,26 @@
-/** Title screen: parallax skyline, the crew on a rooftop, neon logo, main menu. */
+/** Title screen: parallax skyline, the crew on a rooftop, neon logo, main menu. Native sje scene (M8b). */
 import { buildChar } from '../art/chars';
 import { audio } from '../audio/engine';
 import { music } from '../audio/music';
 import { sfx } from '../audio/sfx';
 import { LOOKS } from '../data/looks';
-import { silhouette, surface, type Ctx, type Surface } from '../engine/canvas';
+import { silhouette, surface, type Surface } from '../engine/canvas';
 import { mix, rgb } from '../engine/color';
-import { drawText } from '../engine/font';
-import { Scene } from '../engine/game';
-import { W, H } from '../sje/core/size';
-import { BHT as BH, BW } from './battlekit/geom';
-import { CITY, FOOT_MARGIN, LOGO_SCALE, LOGO_Y, MENU_W, MENU_Y, MONORAIL, MONORAIL_LOOP, MOON, PROMPT_Y, RAIN_DROPS, ROOF, SEARCHLIGHT, SKY_FADE_ROWS, SPIRE_X, STAR_BAND_ROWS, STAR_COUNT } from './title-layout';
-import { VERSION_LABEL } from '../version';
-import { flashScale } from '../game/settings';
 import { hash2, Rng } from '../engine/rng';
+import { flashScale } from '../game/settings';
 import { hasAnySave, latestSlot, type SlotId } from '../game/save';
-import { UI } from '../ui/draw';
-import { ListMenu } from '../ui/list';
+import { CanvasImage, ListMenu, TextObject, UI } from '../sje';
+import { H, W } from '../sje/core/size';
+import { VERSION_LABEL } from '../version';
+import { BHT as BH, BW } from './battlekit/geom';
 import { OptionsScene } from './options';
 import { SaveScene } from './saveload';
+import { CITY, FOOT_MARGIN, LOGO_SCALE, LOGO_Y, MENU_W, MENU_Y, MONORAIL, MONORAIL_LOOP, MOON, PROMPT_Y, RAIN_DROPS, ROOF, SEARCHLIGHT, SKY_FADE_ROWS, SPIRE_X, STAR_BAND_ROWS, STAR_COUNT } from './title-layout';
+import { UiScene } from './uiscene';
+import { uiSound } from './uisound';
 
 export type TitleChoice = { kind: 'new' } | { kind: 'load'; slot: SlotId };
+
 
 // The title world shares the battle world's grain (BW×BH, half the screen, drawn at 2x), imported
 // above, so the skyline keeps the same chunky pixel as the fights whatever the screen size is.
@@ -123,20 +123,31 @@ function cityLayer(spec: { seed: number; base: number; minH: number; maxH: numbe
   return { canvas: s.canvas, glow: g.canvas, speed: 0 };
 }
 
-export class TitleScene extends Scene<TitleChoice> {
+
+/** How far the glitching logo slices may shift sideways (the old code shifted by up to 8 px each way), so the logo picture is this much wider on each side. */
+const LOGO_PAD = 8;
+
+export class TitleScene extends UiScene<TitleChoice> {
   private buf: Surface;
   private skyC = sky();
   private far: Layer;
   private mid: Layer;
   private near: Layer;
   private roof: HTMLCanvasElement;
-  private t = 0;
   private started = false;
   private startT = 0;
-  private menu: ListMenu<string>;
   private flashT = 0;
   private logo: Surface;
   private busy = false;
+
+  // The display objects (made in `create`, because they need the running scene).
+  private art!: CanvasImage;
+  private logoImg!: CanvasImage;
+  private logoKey = '';
+  private menu!: ListMenu<string>;
+  private chapter!: TextObject;
+  private prompt!: TextObject;
+  private keyHints!: TextObject;
 
   constructor() {
     super();
@@ -145,20 +156,9 @@ export class TitleScene extends Scene<TitleChoice> {
     this.mid = { ...cityLayer(CITY.mid, '#110b24', ['#ffd98a', '#8ad8ff', '#ff8ad0'], 0.12, 0.35), speed: CITY.mid.speed };
     this.near = { ...cityLayer(CITY.near, '#08060f', ['#ffd98a', '#ff8ad0'], 0.06, 0.25), speed: CITY.near.speed };
     this.roof = this.buildRoof();
-    const saves = hasAnySave();
-    const resumable = latestSlot(true) !== null;
-    this.menu = new ListMenu<string>(
-      [
-        { label: 'New Game', value: 'new' },
-        { label: 'Continue', value: 'continue', enabled: resumable, why: saves ? 'No save can be loaded: see Load Game.' : 'No save yet: start a New Game.' },
-        { label: 'Load Game', value: 'load', enabled: saves, why: 'No saved games yet.' },
-        { label: 'Options', value: 'options' },
-      ],
-      4,
-    );
-    if (saves) this.menu.index = resumable ? 1 : 2;
     this.logo = this.buildLogo();
   }
+
 
   private buildRoof(): HTMLCanvasElement {
     const s = surface(BW, BH);
@@ -245,16 +245,61 @@ export class TitleScene extends Scene<TitleChoice> {
     return s;
   }
 
-  override enter(): void {
+  override create(): void {
     this.game.countPlayTime = false;
     audio.onUnlock(() => music('title', 0));
+    const ui = this.sys.ui;
+    // The skyline, the rain, the searchlights and the menu panel are art: one full-screen canvas picture, repainted each tick.
+    this.art = new CanvasImage(this, 0, 0, W, H);
+    ui.add(this.art);
+    // The logo is its own picture so that it can glitch in and flicker (see `paintLogo`).
+    const lw = this.logo.w;
+    this.logoImg = new CanvasImage(this, Math.round((W - lw) / 2) - LOGO_PAD, LOGO_Y, lw + 2 * LOGO_PAD, this.logo.h).setVisible(false);
+    ui.add(this.logoImg);
+    this.chapter = new TextObject(this, W / 2, LOGO_Y + this.logo.h + 2, 'CHAPTER ONE  ·  MILK RUN', { align: 'center', color: '#b8d8ff' }).setVisible(false);
+    ui.add(this.chapter);
+    this.prompt = new TextObject(this, W / 2, PROMPT_Y, 'PRESS ANY KEY', { align: 'center', color: '#ffffff' }).setVisible(false);
+    ui.add(this.prompt);
+    // The menu: where the old code drew it, inside its panel (the panel is part of the art).
+    const saves = hasAnySave();
+    const resumable = latestSlot(true) !== null;
+    const mx = (W - MENU_W) / 2;
+    this.menu = new ListMenu<string>(
+      this,
+      mx + 22,
+      MENU_Y,
+      [
+        { label: 'New Game', value: 'new' },
+        { label: 'Continue', value: 'continue', enabled: resumable, why: saves ? 'No save can be loaded: see Load Game.' : 'No save yet: start a New Game.' },
+        { label: 'Load Game', value: 'load', enabled: saves, why: 'No saved games yet.' },
+        { label: 'Options', value: 'options' },
+      ],
+      { rows: 4, width: MENU_W - 30, onSound: uiSound },
+    );
+    if (saves) this.menu.index = resumable ? 1 : 2;
+    // The reason a row is locked sits under the panel, centered on the screen.
+    this.menu.setWhyAt(W / 2 - (mx + 22), 52);
+    this.menu.setVisible(false);
+    ui.add(this.menu);
+    // The build stamp, bottom-left (the key hints are bottom-right).
+    const dimmer = mix('#8b8fa8', '#000000', 0.2);
+    ui.add(new TextObject(this, 6, H - FOOT_MARGIN, VERSION_LABEL, { color: dimmer }));
+    this.keyHints = new TextObject(this, W - 6, H - FOOT_MARGIN, '', { align: 'right', color: dimmer });
+    ui.add(this.keyHints);
+    this.paint();
   }
 
-  update(): void {
-    this.t++;
+  protected tick(): void {
+    const t = this.t;
     if (this.flashT > 0) this.flashT--;
-    else if (hash2(Math.floor(this.t / 60), 3) < 0.04 && this.t % 60 === 0) this.flashT = 14;
-    if (this.busy) return;
+    else if (hash2(Math.floor(t / 60), 3) < 0.04 && t % 60 === 0) this.flashT = 14;
+    if (!this.busy) this.play();
+    // A closed scene has had its objects destroyed.
+    if (!this.closed) this.paint();
+  }
+
+  /** The title's rules for one tick: wait for a key, then run the menu. */
+  private play(): void {
     const inp = this.game.input;
     if (!this.started) {
       if (inp.anyPressed && this.t > 30) {
@@ -265,9 +310,9 @@ export class TitleScene extends Scene<TitleChoice> {
       }
       return;
     }
-    const r = this.menu.update(inp);
+    const r = this.menu.update(this.input.actions);
     if (r !== 'confirm') return;
-    const v = this.menu.current!.value;
+    const v = this.menu.current?.value;
     if (v === 'new') this.close({ kind: 'new' });
     else if (v === 'continue') {
       const slot = latestSlot(true);
@@ -284,9 +329,10 @@ export class TitleScene extends Scene<TitleChoice> {
     }
   }
 
-  render(ctx: Ctx): void {
-    const b = this.buf.ctx;
+  /** Paint the art canvas and bring the logo, the texts and the menu up to date with the tick count. */
+  private paint(): void {
     const t = this.t;
+    const b = this.buf.ctx;
     b.drawImage(this.skyC, 0, 0);
     // Searchlights from the spire
     b.save();
@@ -345,51 +391,61 @@ export class TitleScene extends Scene<TitleChoice> {
       b.fillRect(0, 0, BW, BH);
       b.globalAlpha = 1;
     }
+    const ctx = this.art.ctx;
     ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, W, H);
     ctx.drawImage(this.buf.canvas, 0, 0, W, H);
-    // Logo with glitch-in
-    const lt = t - 20;
-    if (lt > 0) {
-      const lw = this.logo.w, lh = this.logo.h;
-      const lx = Math.round((W - lw) / 2), ly = LOGO_Y;
-      const glitch = lt < 40 && hash2(lt, 1) < 0.5;
-      if (glitch) {
-        for (let s = 0; s < 6; s++) {
-          const sy = Math.floor(hash2(lt, s + 2) * lh);
-          const sh = 2 + Math.floor(hash2(lt, s + 9) * 6);
-          ctx.drawImage(this.logo.canvas, 0, sy, lw, sh, lx + Math.round((hash2(lt, s) - 0.5) * 16), ly + sy, lw, sh);
-        }
-      } else {
-        const flick = hash2(Math.floor(t / 4), 5) < 0.03 ? 0.6 : 1;
-        ctx.globalAlpha = flick;
-        ctx.drawImage(this.logo.canvas, lx, ly);
-        ctx.globalAlpha = 1;
-      }
-      if (lt > 40) {
-        ctx.globalAlpha = Math.min(1, (lt - 40) / 30);
-        drawText(ctx, 'CHAPTER ONE  ·  MILK RUN', W / 2, ly + this.logo.h + 2, { align: 'center', color: '#b8d8ff' });
-        ctx.globalAlpha = 1;
-      }
-    }
-    if (!this.started) {
-      if (t > 60 && Math.floor(t / 30) % 2 === 0) drawText(ctx, 'PRESS ANY KEY', W / 2, PROMPT_Y, { align: 'center', color: '#ffffff' });
-    } else {
-      const a = Math.min(1, (t - this.startT) / 15);
-      ctx.globalAlpha = a;
+    // The menu panel fades in once a key was pressed, and the menu with it.
+    const started = this.started;
+    const a = started ? Math.min(1, (t - this.startT) / 15) : 0;
+    if (started) {
       const mw = MENU_W, mx = (W - mw) / 2, my = MENU_Y;
+      ctx.globalAlpha = a;
       ctx.fillStyle = 'rgba(7,6,13,0.7)';
       ctx.fillRect(mx, my - 4, mw, 50);
       ctx.fillStyle = UI.pink;
       ctx.fillRect(mx, my - 4, mw, 1);
       ctx.fillRect(mx, my + 45, mw, 1);
-      this.menu.render(ctx, mx + 22, my, mw - 30);
-      this.menu.renderWhy(ctx, W / 2, my + 52);
       ctx.globalAlpha = 1;
     }
-    // The build stamp, bottom-left (the key hints are bottom-right).
-    drawText(ctx, VERSION_LABEL, 6, H - FOOT_MARGIN, { color: mix('#8b8fa8', '#000000', 0.2) });
+    this.art.refresh();
+    this.menu.setVisible(started);
+    this.menu.setAlpha(a);
+    this.paintLogo(t);
+    this.prompt.setVisible(!started && t > 60 && Math.floor(t / 30) % 2 === 0);
     // The player's own keys: a rebound confirm shows here too.
     const inp = this.game.input;
-    drawText(ctx, `${inp.keyName('confirm', 2)}  confirm   ·   ${inp.keyName('cancel', 2)}  back`, W - 6, H - FOOT_MARGIN, { align: 'right', color: mix('#8b8fa8', '#000000', 0.2) });
+    this.keyHints.setText(`${inp.keyName('confirm', 2)}  confirm   ·   ${inp.keyName('cancel', 2)}  back`);
+  }
+
+  /** The logo with its glitch-in (slices that jump sideways for 40 ticks), its rare flicker, and the chapter line that fades in under it. */
+  private paintLogo(t: number): void {
+    const lt = t - 20;
+    this.logoImg.setVisible(lt > 0);
+    if (lt <= 0) return;
+    const lw = this.logo.w, lh = this.logo.h;
+    const glitch = lt < 40 && hash2(lt, 1) < 0.5;
+    const flick = hash2(Math.floor(t / 4), 5) < 0.03 ? 0.6 : 1;
+    // Repaint only when the picture would differ: every tick of the glitch, otherwise when the flicker flips.
+    const key = glitch ? `g${lt}` : `n${flick}`;
+    if (key !== this.logoKey) {
+      this.logoKey = key;
+      const c = this.logoImg.ctx;
+      c.clearRect(0, 0, lw + 2 * LOGO_PAD, lh);
+      if (glitch) {
+        for (let s = 0; s < 6; s++) {
+          const sy = Math.floor(hash2(lt, s + 2) * lh);
+          const sh = 2 + Math.floor(hash2(lt, s + 9) * 6);
+          c.drawImage(this.logo.canvas, 0, sy, lw, sh, LOGO_PAD + Math.round((hash2(lt, s) - 0.5) * 16), sy, lw, sh);
+        }
+      } else {
+        c.globalAlpha = flick;
+        c.drawImage(this.logo.canvas, LOGO_PAD, 0);
+        c.globalAlpha = 1;
+      }
+      this.logoImg.refresh();
+    }
+    this.chapter.setVisible(lt > 40);
+    if (lt > 40) this.chapter.setAlpha(Math.min(1, (lt - 40) / 30));
   }
 }

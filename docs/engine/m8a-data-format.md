@@ -124,3 +124,14 @@ Where the build differs from sections 1 to 6:
 Not moved (still in `chapter1.ts`): the tutorial cards (`s.tutorial`), `OBJ`, and `annexLog` (the log text is in the map files). Tests changed for the move: `tests/dialog-wrap.test.ts` now also reads the lines of `dialogue.json`, and `tests/pacing.test.ts` counts the prose of the file (story prose 18,896 characters before, 18,468 after).
 
 Deferred to M8b (Mark approved, 2026-10-14): data-layer items (d) `snapshot()` and `restore()`, and (e) `step(n)`. They need the dialog and shop scenes, which M8b ports.
+
+## 8. Built in M8b phase 2 (items d and e)
+
+Both items are on the native scenes. Test: `tests/sje-ui-scenes-2.test.ts`.
+
+| Scene | `snapshot()` holds | `restore(snap)` does | `step(n)` does |
+|---|---|---|---|
+| `DialogScene` | The line (`opts`: speaker, text, choices, cancel, top, face, auto), the page, the characters shown, the pause, the choice cursor, and the box clock (`frame`, `opened`, `autoT`, `blipAcc`, `bufferedPress`). Plain JSON. | Sets the line from the snapshot, rebuilds the objects, and sets the fields. A box built for another line becomes this one. | Runs n ticks with no keys and no sound: the open animation, then the typewriter. It stops at the end of the page. It never pages, never picks a choice, never closes the box. |
+| `ShopScene` | The shop id, the mode, the keeper line, the quantity, the item ids on the open list, the cursor and scroll of each list, and the tick count. Plain JSON. | Rebuilds the lists from the shop data and the player bag, then sets the cursors. An unknown shop id throws. | Runs n ticks of animation with no keys (the highlight eases, the cursor nudges). It changes no game state and no mode. |
+
+The dialog snapshot has no line id, because `DialogScene` is given the resolved record (`resolveLine`), not the id. The text identifies the line. A tool maps the text back to its id in `dialogue.json`.

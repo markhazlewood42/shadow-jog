@@ -126,7 +126,8 @@ describe('pacing', () => {
   const trash = fights - fixed.length;
   const fightS = trash * (TRASH_ROUNDS * ROUND_S + FIGHT_OVERHEAD_S) + fixed.reduce((n, f) => n + (BOSS_ROUNDS[f] ?? 3) * ROUND_S + FIGHT_OVERHEAD_S, 0);
 
-  const story = proseChars('src/story/chapter1.ts', true) + proseCharsDialogue() + proseChars('src/scenes/panels.ts');
+  // The panels file counts as `rest` too (M8b phase 3): the native scene's comments name kit classes in backticks, which would pair across lines and count code as prose.
+  const story = proseChars('src/story/chapter1.ts', true) + proseCharsDialogue() + proseChars('src/scenes/panels.ts', true);
   const optional = mapProse();
   const readS = (story + optional * OPTIONAL_READ) / READ_CPS;
 

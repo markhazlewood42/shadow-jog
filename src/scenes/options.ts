@@ -1,30 +1,49 @@
-/** Options: volumes, text & battle speed, shake, scaling, fullscreen, controls. */
+/** Options: volumes, text & battle speed, shake, scaling, fullscreen, controls. Native sje scene (M8b). */
 import { audio } from '../audio/engine';
 import { previewMusic } from '../audio/music';
 import { sfx } from '../audio/sfx';
-import type { Ctx } from '../engine/canvas';
-import { drawText, fitText } from '../engine/font';
-import { Scene } from '../engine/game';
-import { W, H } from '../sje/core/size';
 import { notice } from '../engine/errors';
+import { type Action, keyLabel } from '../engine/input';
 import { BATTLE_SPEEDS, battleSpeed, gpuWanted, saveSettings, settings, TEXT_SPEEDS, textSpeed } from '../game/settings';
-import { postfx } from '../engine/postfx';
-import { drawBar, drawCursor, drawSelect, drawWindow, UI, OVERLAY_DIM } from '../ui/draw';
-import { keyLabel, type Action } from '../engine/input';
+import { Bar, Container, Cursor, fitText, Graphics, NineSlice, SELECT_FILL, TextObject, UI } from '../sje';
+import { H, W } from '../sje/core/size';
 import { ControlsScene } from './controls';
+import { UiScene } from './uiscene';
 
 type Row = { id: string; label: string; value: () => string; bar?: () => number; adjust?: (d: number) => void; action?: () => void };
 
-export class OptionsScene extends Scene<'back' | 'title'> {
-  override opaque = false;
-  override curtain = true;
+/** The row text color of a row that is not selected (the selected row is bright). */
+const ROW_OFF = '#c8c6dc';
+
+/** The objects of one row, made once. A row that has no bar has no `bar`. */
+interface RowView {
+  label: TextObject;
+  value: TextObject;
+  bar: Bar | null;
+}
+
+export class OptionsScene extends UiScene<'back' | 'title'> {
   private idx = 0;
   private rows: Row[];
-  private t = 0;
   private confirmQuit = false;
+
+  // The window and where its rows sit (the old render worked these out each frame).
+  private readonly w = 280;
+  private readonly h: number;
+  private readonly x: number;
+  private readonly y: number;
+
+  private highlight!: Graphics;
+  private shownIdx = -1;
+  private cursor!: Cursor;
+  private views: RowView[] = [];
+  private legendLines: TextObject[] = [];
+  private popup!: Container;
 
   constructor(inGame: boolean) {
     super();
+    this.opaque = false;
+    this.curtain = true;
     const vol = (k: 'musicVol' | 'sfxVol') => ({
       value: () => `${Math.round(settings[k] * 10)}`,
       bar: () => settings[k],
@@ -53,7 +72,7 @@ export class OptionsScene extends Scene<'back' | 'title'> {
         id: 'timing', label: 'Timed presses', value: () => ({ on: 'On', assist: 'Assist', off: 'Off' })[settings.timing],
         adjust: (d) => {
           const modes = ['on', 'assist', 'off'] as const;
-          settings.timing = modes[(modes.indexOf(settings.timing) + d + 3) % 3]!;
+          settings.timing = modes[(modes.indexOf(settings.timing) + d + 3) % 3] ?? 'on';
         },
       },
       {
@@ -78,7 +97,7 @@ export class OptionsScene extends Scene<'back' | 'title'> {
       },
       {
         // On but not running: the effects system is not active (for example `?fx=none` in the address forces it off).
-        id: 'gpu', label: 'GPU effects', value: () => (!gpuWanted() ? 'Off' : postfx.active ? 'On' : 'Unavailable'),
+        id: 'gpu', label: 'GPU effects', value: () => (!gpuWanted() ? 'Off' : this.game.fx.active ? 'On' : 'Unavailable'),
         adjust: () => {
           settings.fxLevel = gpuWanted() ? 'none' : 'auto';
           window.dispatchEvent(new Event('sj-gpu'));
@@ -93,6 +112,49 @@ export class OptionsScene extends Scene<'back' | 'title'> {
       { id: 'back', label: 'Back', value: () => '', action: () => this.done('back') },
     ];
     if (inGame) this.rows.splice(this.rows.length - 1, 0, { id: 'title', label: 'Quit to title', value: () => '', action: () => (this.confirmQuit = true) });
+    this.h = this.rows.length * 13 + 60;
+    this.x = (W - this.w) / 2;
+    this.y = (H - this.h) / 2;
+  }
+
+  override create(): void {
+    const ui = this.sys.ui;
+    const { x, y, w, h } = this;
+    this.dim();
+    ui.add(new NineSlice(this, x, y, w, h, { title: 'OPTIONS' }));
+    // The selection highlight is one plain Graphics, moved to the chosen row.
+    this.highlight = new Graphics(this, 0, 0);
+    ui.add(this.highlight);
+    this.rows.forEach((r, i) => {
+      const ry = y + 12 + i * 13;
+      const label = new TextObject(this, x + 18, ry, r.label, { color: ROW_OFF });
+      ui.add(label);
+      let bar: Bar | null = null;
+      if (r.bar) {
+        bar = new Bar(this, x + 150, ry + 3, 90, 3, UI.cyan, r.bar());
+        ui.add(bar);
+      }
+      const value = new TextObject(this, x + w - 12, ry, '', { align: 'right', color: UI.dim });
+      ui.add(value);
+      this.views.push({ label, value, bar });
+    });
+    this.cursor = new Cursor(this, x + 8, y + 12);
+    ui.add(this.cursor);
+    // The key reminder block under the rows. Its lines follow the player's own bindings.
+    const cy = y + h - 40;
+    ui.add(new TextObject(this, x + 12, cy, 'CONTROLS', { color: UI.cyan }));
+    for (const dy of [11, 22]) {
+      const line = new TextObject(this, x + 12, cy + dy, '', { color: UI.dim });
+      ui.add(line);
+      this.legendLines.push(line);
+    }
+    // The quit question: a small window with two lines, shown only while it is asked.
+    this.popup = new Container(this, 0, 0, 'quit-confirm');
+    this.popup.add(new NineSlice(this, x + 30, y + h / 2 - 16, w - 60, 32, { accent: UI.red }));
+    this.popup.add(new TextObject(this, x + w / 2, y + h / 2 - 10, 'Quit to title? Unsaved progress is lost.', { align: 'center' }));
+    this.popup.add(new TextObject(this, x + w / 2, y + h / 2 + 2, '{y}Confirm{/} quit · {d}Cancel{/} stay', { align: 'center' }));
+    ui.add(this.popup);
+    this.refreshView();
   }
 
   private done(r: 'back' | 'title'): void {
@@ -100,69 +162,71 @@ export class OptionsScene extends Scene<'back' | 'title'> {
     this.close(r);
   }
 
-  update(): void {
-    this.t++;
-    const inp = this.game.input;
+  protected tick(): void {
+    this.step();
+    // A closed scene has had its objects destroyed.
+    if (!this.closed) this.refreshView();
+  }
+
+  private step(): void {
+    const keys = this.input.actions;
     if (this.confirmQuit) {
-      if (inp.pressed('confirm')) this.done('title');
-      else if (inp.pressed('cancel')) {
+      if (keys.justPressed('confirm')) this.done('title');
+      else if (keys.justPressed('cancel')) {
         sfx('cancel');
         this.confirmQuit = false;
       }
       return;
     }
-    if (inp.pressed('cancel')) {
+    if (keys.justPressed('cancel')) {
       sfx('cancel');
       this.done('back');
       return;
     }
     const n = this.rows.length;
-    if (inp.repeat('up')) { this.idx = (this.idx + n - 1) % n; sfx('cursor'); }
-    if (inp.repeat('down')) { this.idx = (this.idx + 1) % n; sfx('cursor'); }
-    const row = this.rows[this.idx]!;
-    if (row.adjust && (inp.repeat('left') || inp.repeat('right'))) {
-      row.adjust(inp.repeat('left') ? -1 : 1);
+    if (keys.repeat('up')) { this.idx = (this.idx + n - 1) % n; sfx('cursor'); }
+    if (keys.repeat('down')) { this.idx = (this.idx + 1) % n; sfx('cursor'); }
+    const row = this.rows[this.idx];
+    if (!row) return;
+    if (row.adjust && (keys.repeat('left') || keys.repeat('right'))) {
+      row.adjust(keys.repeat('left') ? -1 : 1);
       sfx('cursor');
     }
-    if (inp.pressed('confirm')) {
+    if (keys.justPressed('confirm')) {
       if (row.action) row.action();
       else row.adjust?.(1);
       sfx('confirm');
     }
   }
 
-  render(ctx: Ctx): void {
-    ctx.fillStyle = OVERLAY_DIM;
-    ctx.fillRect(0, 0, W, H);
-    const w = 280, h = this.rows.length * 13 + 60;
-    const x = (W - w) / 2, y = (H - h) / 2;
-    drawWindow(ctx, x, y, w, h, { title: 'OPTIONS' });
+  /** Bring every object up to date with the scene's state. A text object ignores a string it already shows, so this is cheap each tick. */
+  private refreshView(): void {
+    const { x, y, w } = this;
     this.rows.forEach((r, i) => {
-      const ry = y + 12 + i * 13;
+      const view = this.views[i];
+      if (!view) return;
       const sel = i === this.idx;
-      if (sel) {
-        drawSelect(ctx, x + 6, ry - 2, w - 12, 12);
-        drawCursor(ctx, x + 8, ry, this.t);
-      }
-      drawText(ctx, r.label, x + 18, ry, { color: sel ? UI.text : '#c8c6dc' });
-      if (r.bar) {
-        drawBar(ctx, x + 150, ry + 3, 90, 3, r.bar(), UI.cyan);
-        drawText(ctx, r.value(), x + w - 12, ry, { align: 'right', color: UI.dim });
-      } else if (r.value()) drawText(ctx, (r.adjust ? '◀ ' : '') + r.value() + (r.adjust ? ' ▶' : ''), x + w - 12, ry, { align: 'right', color: sel ? UI.cyan : UI.dim });
+      view.label.setStyle({ color: sel ? UI.text : ROW_OFF });
+      view.bar?.setRatio(r.bar?.() ?? 0);
+      const v = r.value();
+      if (r.bar) view.value.setText(v).setStyle({ color: UI.dim });
+      else view.value.setText(v ? (r.adjust ? '◀ ' : '') + v + (r.adjust ? ' ▶' : '') : '').setStyle({ color: sel ? UI.cyan : UI.dim });
     });
-    const cy = y + h - 40;
-    // The legend reads the live bindings, so a rebound key shows here too.
-    const k = (a: Action) => this.game.input.keysFor(a).slice(0, 3).map(keyLabel).join('/');
-    drawText(ctx, 'CONTROLS', x + 12, cy, { color: UI.cyan });
-    const dirs = (['up', 'down', 'left', 'right'] as const).map((a) => this.game.input.keysFor(a).map(keyLabel));
-    const move = [0, 1].map((i) => dirs.map((d) => d[i] ?? '').join('')).filter(Boolean).join(' / ');
-    drawText(ctx, fitText(`Move: ${move} · Confirm: ${k('confirm')}`, w - 24), x + 12, cy + 11, { color: UI.dim });
-    drawText(ctx, fitText(`Cancel: ${k('cancel')} · Menu: ${k('menu')} · Dash: ${k('dash')}`, w - 24), x + 12, cy + 22, { color: UI.dim });
-    if (this.confirmQuit) {
-      drawWindow(ctx, x + 30, y + h / 2 - 16, w - 60, 32, { accent: UI.red });
-      drawText(ctx, 'Quit to title? Unsaved progress is lost.', x + w / 2, y + h / 2 - 10, { align: 'center' });
-      drawText(ctx, '{y}Confirm{/} quit · {d}Cancel{/} stay', x + w / 2, y + h / 2 + 2, { align: 'center' });
+    if (this.shownIdx !== this.idx) {
+      this.shownIdx = this.idx;
+      const ry = y + 12 + this.idx * 13;
+      this.highlight.clear().fillStyle(SELECT_FILL.color, SELECT_FILL.alpha).fillRect(x + 6, ry - 2, w - 12, 12);
+      this.cursor.setHome(x + 8, ry);
     }
+    this.cursor.setFrame(this.t);
+    // The legend reads the live bindings, so a rebound key shows here too.
+    const input = this.game.input;
+    const k = (a: Action) => input.keysFor(a).slice(0, 3).map(keyLabel).join('/');
+    const dirs = (['up', 'down', 'left', 'right'] as const).map((a) => input.keysFor(a).map(keyLabel));
+    const move = [0, 1].map((j) => dirs.map((d) => d[j] ?? '').join('')).filter(Boolean).join(' / ');
+    this.legendLines[0]?.setText(fitText(`Move: ${move} · Confirm: ${k('confirm')}`, w - 24));
+    this.legendLines[1]?.setText(fitText(`Cancel: ${k('cancel')} · Menu: ${k('menu')} · Dash: ${k('dash')}`, w - 24));
+    this.popup.setVisible(this.confirmQuit);
   }
 }
 
