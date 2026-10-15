@@ -35,7 +35,7 @@ import type { BattleScene } from '../battle';
 import { uiSound } from '../uisound';
 import { ViewBuilder } from '../uiview';
 import { drawVictoryBanner } from './banner';
-import { BANNER_H, CARD_H, CARD_RAISE, CARD_W, CMD_W, DECK_CUT_LIFE, HUD, listWindowW, MENU_ABOVE_PANEL, MENU_X, ORDER_BOTTOM, ORDER_FACE, ORDER_LABEL_ABOVE, ORDER_RIGHT, ORDER_STEP_OUT, ORDER_THUMB, ORDER_TOP, orderStripLayout, PANEL_Y, ROUND_MENU_H, WORLD_SCALE } from './geom';
+import { BANNER_H, CARD_H, CARD_RAISE, CARD_W, CMD_W, DECK_CUT_LIFE, HUD, listWindowW, MENU_ABOVE_PANEL, MENU_X, ORDER_BOTTOM, ORDER_FACE, ORDER_LABEL_ABOVE, ORDER_RIGHT, ORDER_STEP_OUT, ORDER_THUMB, ORDER_TOP, orderStripLayout, PANEL_Y, ROUND_MENU_H, VICTORY_ROWS, VICTORY_SCALE, WORLD_SCALE } from './geom';
 import { ELEMENT_COLOR, ELEMENT_ICON, ELEMENT_TAG, ELEMENTS, elementMark, markElements, STATUS_LABEL, statusName } from './tables';
 import { artTop, drawBig, enemyThumb } from './sprites';
 import { applyOps, barPixels, LAG_COLOR, type Op } from '../uiops';
@@ -70,8 +70,14 @@ function shapeOf(o: Op): Op {
 }
 
 /** Bring the parts that `applyOps` made for `ops` up to date: the strings of the text lines and the fill and ghost of the bars. The part for op i is child i of the box. */
-function patchOps(box: Container, ops: readonly Op[]): void {
+function patchOps(box: Container, ops: readonly Op[]): boolean {
   const parts = box.list;
+  // Guard: one part per op, the same kind. Anything else (a card also holds its ring after the ops) is not what `applyOps` made, so the caller builds the box again.
+  if (parts.length < ops.length) return false;
+  for (let i = 0; i < ops.length; i++) {
+    const o = ops[i], part = parts[i];
+    if ((o?.k === 'text' && !(part instanceof TextObject)) || (o?.k === 'bar' && !(part instanceof Bar))) return false;
+  }
   for (let i = 0; i < ops.length; i++) {
     const o = ops[i];
     const part = parts[i];
@@ -81,6 +87,7 @@ function patchOps(box: Container, ops: readonly Op[]): void {
       part.setGhost(o.lag > o.fill && o.w > 0 ? { ratio: o.lag / o.w, color: LAG_COLOR } : null);
     }
   }
+  return true;
 }
 
 export class BattleHud {
@@ -181,10 +188,7 @@ export class BattleHud {
   private rebuild(k: Keyed, ops: readonly Op[] | null, extra = '', inPlace = false): boolean {
     // `inPlace`: the key leaves out what animates (the text of a line, the fill and ghost of a bar). The same key then updates those parts in place; the box is built again only when its structure changes.
     const key = ops ? extra + JSON.stringify(inPlace ? ops.map(shapeOf) : ops) : '';
-    if (key === k.key) {
-      if (inPlace && ops) patchOps(k.box, ops);
-      return false;
-    }
+    if (key === k.key && !(inPlace && ops && !patchOps(k.box, ops))) return false;
     k.key = key;
     k.box.removeAll(true);
     if (ops) applyOps(this.s, k.box, ops);
@@ -845,22 +849,29 @@ export class BattleHud {
   private syncVictoryBanner(): void {
     const s = this.s;
     if (s.bannerStart < 0) {
-      if (this.victoryBanner) this.victoryBanner.setVisible(false);
+      // The banner is over: free its picture (the next fight makes a new one).
+      if (this.victoryBanner) s.sys.ui.remove(this.victoryBanner, true);
+      this.victoryBanner = null;
       this.victoryT = -1;
       return;
     }
+    // The picture is the full width and only the rows the banner touches (the band, the letters and the rule under them), not the whole screen.
+    const band = HUD.victoryBandRect();
+    const top = Math.max(0, band.y), bottom = Math.min(H, Math.max(band.y + band.h, HUD.victoryBannerY + VICTORY_ROWS * VICTORY_SCALE + 4));
     if (!this.victoryBanner) {
-      this.victoryBanner = new CanvasImage(s, 0, 0, W, H);
+      this.victoryBanner = new CanvasImage(s, 0, top, W, bottom - top);
       this.victoryBanner.ctx.imageSmoothingEnabled = false;
       s.sys.ui.add(this.victoryBanner);
     }
     const t = s.frame - s.bannerStart;
-    this.victoryBanner.setVisible(true);
     if (t === this.victoryT) return;
     this.victoryT = t;
     const c = this.victoryBanner.ctx;
-    c.clearRect(0, 0, W, H);
+    c.clearRect(0, 0, W, bottom - top);
+    c.save();
+    c.translate(0, -top);
     drawVictoryBanner(c, t);
+    c.restore();
     this.victoryBanner.refresh();
   }
 }
