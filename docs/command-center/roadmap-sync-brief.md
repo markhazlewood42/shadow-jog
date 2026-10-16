@@ -6,7 +6,7 @@ project: shadow-jog
 
 # Roadmap sync: design brief
 
-Status: draft for Mark, revision 2 (after verifier round 1). Nothing is built. Board checked read-only on 2026-10-16 (`gh` auth has the `project` scope).
+Status: **approved by Mark on 2026-10-16, with all six recommended answers in section 10.** Revision 2 passed verifier round 2. Nothing is built yet. Board checked read-only on 2026-10-16 (`gh` auth has the `project` scope).
 
 ## 1. Purpose and non-goals
 
