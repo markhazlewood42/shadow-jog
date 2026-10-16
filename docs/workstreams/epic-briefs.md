@@ -3,7 +3,7 @@ type: workstream
 title: Epic briefs approved
 branch: epic-briefs
 roadmap: E1
-state: review
+state: merged
 updated: 2026-10-16
 ---
 
