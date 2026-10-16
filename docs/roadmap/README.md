@@ -40,11 +40,11 @@ Now: no milestone.
 | M4 UI scenes | Side paths | 7 | done | M3 | none | Closed 2026-10-16 (Mark). M8b and M8c ported all 13 UI scenes and the battle and field scenes to native sje scenes, so nothing is left to port. |
 | ET Editor port | Side paths | 9 | done | M6 | branch `engine-et-editor-port`, PR #86 (merged 2026-10-14) | Merged 2026-10-14 (PR #86), before M8. Every editor and tool moved to the new engine; the Battle Stage Editor (/stageedit.html) and Battle Test are back. The trailer is deleted (#84). Two exceptions until M8d: the Battle Test glue module and the shared old Input. Record: docs/engine/et-brief.md. |
 | Editors Editor suite | Side paths | 10 | later | ET | none | After Chapter 1. New UI editors so Mark builds the game mostly in tools: troops, database, maps, conversations, animation composer, lights and weather. Plan: docs/TOOLING-UI.md section 4. |
-| P101 Chapter 1 playthrough | Epics before a demo Mark can share | 1 | next | none | none | Step 1. Mark plays Chapter 1, then fixes, release and deploy. Issue https://github.com/markhazlewood42/shadow-jog/issues/101. No epic starts before #101 closes. Next: Mark answers the epic decisions, then plays. |
+| P101 Chapter 1 playthrough | Epics before a demo Mark can share | 1 | gated | none | none | Step 1. Mark plays Chapter 1, then fixes, release and deploy. Issue https://github.com/markhazlewood42/shadow-jog/issues/101. No epic starts before #101 closes. Next: Mark answers the epic decisions, then plays. |
 | E4 Engine docs | Epics before a demo Mark can share | 2 | next | P101 | none | Approved 2026-10-16. Brief: https://github.com/markhazlewood42/shadow-jog/issues/105. Decisions: #127 to #132. Step 2: the comment standard and stale CLAUDE.md lines first. The rest runs beside the other epics. Waits on #101. |
 | E1 2D art and maps | Epics before a demo Mark can share | 3 | next | P101 | none | Approved 2026-10-16. Brief: https://github.com/markhazlewood42/shadow-jog/issues/102. Decisions: #106 to #111. Step 3: WS0 to WS2 (decisions, style checker, tileset format). WS3 to WS5 follow in step 4. Waits on #101. |
 | E2 3D hacking mode | Epics before a demo Mark can share | 4 | next | P101 | none | Approved 2026-10-16. Brief: https://github.com/markhazlewood42/shadow-jog/issues/103. Decisions: #112 to #119. Step 3: WS-A feel prototype beside E1. WS-B to WS-F follow in step 4. Waits on #101. |
-| E3 Editor suite | Epics before a demo Mark can share | 5 | next | E1 | none | Approved 2026-10-16. Brief: https://github.com/markhazlewood42/shadow-jog/issues/104. Decisions: #120 to #126. W0 to W3 in step 4. W4 to W5 in step 5. W5 waits for the approved E1 map format doc. |
+| E3 Editor suite | Epics before a demo Mark can share | 5 | later | E1 | none | Approved 2026-10-16. Brief: https://github.com/markhazlewood42/shadow-jog/issues/104. Decisions: #120 to #126. W0 to W3 in step 4. W4 to W5 in step 5. W5 waits for the approved E1 map format doc. |
 | Demo Final demo | Epics before a demo Mark can share | 6 | later | E3, E2 | none | Step 6. A final integrated playthrough and demo release. Owner: a follow-up issue. Demo cut: #101 + E1 + E2. |
 | archive-tags Archive tags | Needs Mark's go-ahead | 7 | gated | M3 | none | archive/side-battle-<date> and archive/phaser-stage-<date>, then close PRs #3 and #4. Mark approves each tag. They wait until M3 lands (status.md, Next for agents 3). |
 | release-tags Release tags | Needs Mark's go-ahead | 10 | gated | none | none | Annotated v* tags. Cut only after Mark's playtest and go-ahead. Not tied to one milestone. The column is only a place on the chart. |
@@ -54,6 +54,9 @@ Now: no milestone.
 | sprite-fusion Sprite credits | Other open items (no order) | 3 | optional | none | none | Sprite Fusion is now the main art source (PixelLab is out, 2026-10-16). Credits go to the art epic E1. |
 | cc-followups CC follow-ups | Other open items (no order) | 4 | optional | none | none | Command Center items left over (status.md, Next for agents 1b). All optional. |
 | plasma-bug plasma-ui bug report | Other open items (no order) | 5 | optional | none | none | An upstream bug report for the plasma-ui canvas width (R28), if Mark wants one. |
+| #84 Re-create the trailer | Other open items (no order) | 6 | later | none | none | Board item #84. |
+| #93 Command Center: | Other open items (no order) | 7 | later | none | none | Board item #93. |
+| #97 Flaky e2e: sje-hack-a | Other open items (no order) | 8 | later | none | none | Board item #97. |
 
 Statuses: **done** (done and merged), **active** (being built now), **next** (starts next, or waits for mark), **later** (planned, in order), **optional** (optional), **gated** (needs mark's go-ahead).
 

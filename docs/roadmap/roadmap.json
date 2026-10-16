@@ -315,16 +315,23 @@
     },
     {
       "id": "P101",
+      "issue": 101,
       "tag": "#101",
       "label": "Chapter 1 playthrough",
       "lane": "epics",
-      "status": "next",
+      "status": "gated",
       "after": [],
       "column": 0,
-      "notes": "Step 1. Mark plays Chapter 1, then fixes, release and deploy. Issue https://github.com/markhazlewood42/shadow-jog/issues/101. No epic starts before #101 closes. Next: Mark answers the epic decisions, then plays."
+      "notes": "Step 1. Mark plays Chapter 1, then fixes, release and deploy. Issue https://github.com/markhazlewood42/shadow-jog/issues/101. No epic starts before #101 closes. Next: Mark answers the epic decisions, then plays.",
+      "title": "Playthrough of Chapter 1 on the new engine, then release and deploy",
+      "boardKind": "Milestone",
+      "state": "open",
+      "url": "https://github.com/markhazlewood42/shadow-jog/issues/101",
+      "group": "Shareable demo"
     },
     {
       "id": "E1",
+      "issue": 102,
       "tag": "Epic",
       "label": "2D art and maps",
       "lane": "epics",
@@ -333,10 +340,17 @@
         "P101"
       ],
       "column": 2,
-      "notes": "Approved 2026-10-16. Brief: https://github.com/markhazlewood42/shadow-jog/issues/102. Decisions: #106 to #111. Step 3: WS0 to WS2 (decisions, style checker, tileset format). WS3 to WS5 follow in step 4. Waits on #101."
+      "notes": "Approved 2026-10-16. Brief: https://github.com/markhazlewood42/shadow-jog/issues/102. Decisions: #106 to #111. Step 3: WS0 to WS2 (decisions, style checker, tileset format). WS3 to WS5 follow in step 4. Waits on #101.",
+      "title": "Epic E1: 2D art and maps",
+      "boardKind": "Epic",
+      "state": "open",
+      "url": "https://github.com/markhazlewood42/shadow-jog/issues/102",
+      "group": "Shareable demo",
+      "decisions": 6
     },
     {
       "id": "E2",
+      "issue": 103,
       "tag": "Epic",
       "label": "3D hacking mode",
       "lane": "epics",
@@ -345,22 +359,35 @@
         "P101"
       ],
       "column": 3,
-      "notes": "Approved 2026-10-16. Brief: https://github.com/markhazlewood42/shadow-jog/issues/103. Decisions: #112 to #119. Step 3: WS-A feel prototype beside E1. WS-B to WS-F follow in step 4. Waits on #101."
+      "notes": "Approved 2026-10-16. Brief: https://github.com/markhazlewood42/shadow-jog/issues/103. Decisions: #112 to #119. Step 3: WS-A feel prototype beside E1. WS-B to WS-F follow in step 4. Waits on #101.",
+      "title": "Epic E2: 3D hacking mode",
+      "boardKind": "Epic",
+      "state": "open",
+      "url": "https://github.com/markhazlewood42/shadow-jog/issues/103",
+      "group": "Shareable demo",
+      "decisions": 8
     },
     {
       "id": "E3",
+      "issue": 104,
       "tag": "Epic",
       "label": "Editor suite",
       "lane": "epics",
-      "status": "next",
+      "status": "later",
       "after": [
         "E1"
       ],
       "column": 4,
-      "notes": "Approved 2026-10-16. Brief: https://github.com/markhazlewood42/shadow-jog/issues/104. Decisions: #120 to #126. W0 to W3 in step 4. W4 to W5 in step 5. W5 waits for the approved E1 map format doc."
+      "notes": "Approved 2026-10-16. Brief: https://github.com/markhazlewood42/shadow-jog/issues/104. Decisions: #120 to #126. W0 to W3 in step 4. W4 to W5 in step 5. W5 waits for the approved E1 map format doc.",
+      "title": "Epic E3: Editor suite",
+      "boardKind": "Epic",
+      "state": "open",
+      "url": "https://github.com/markhazlewood42/shadow-jog/issues/104",
+      "decisions": 7
     },
     {
       "id": "E4",
+      "issue": 105,
       "tag": "Epic",
       "label": "Engine docs",
       "lane": "epics",
@@ -369,10 +396,16 @@
         "P101"
       ],
       "column": 1,
-      "notes": "Approved 2026-10-16. Brief: https://github.com/markhazlewood42/shadow-jog/issues/105. Decisions: #127 to #132. Step 2: the comment standard and stale CLAUDE.md lines first. The rest runs beside the other epics. Waits on #101."
+      "notes": "Approved 2026-10-16. Brief: https://github.com/markhazlewood42/shadow-jog/issues/105. Decisions: #127 to #132. Step 2: the comment standard and stale CLAUDE.md lines first. The rest runs beside the other epics. Waits on #101.",
+      "title": "Epic E4: Engine docs",
+      "boardKind": "Epic",
+      "state": "open",
+      "url": "https://github.com/markhazlewood42/shadow-jog/issues/105",
+      "decisions": 6
     },
     {
       "id": "Demo",
+      "issue": 134,
       "tag": "Demo",
       "label": "Final demo",
       "lane": "epics",
@@ -382,7 +415,57 @@
         "E2"
       ],
       "column": 5,
-      "notes": "Step 6. A final integrated playthrough and demo release. Owner: a follow-up issue. Demo cut: #101 + E1 + E2."
+      "notes": "Step 6. A final integrated playthrough and demo release. Owner: a follow-up issue. Demo cut: #101 + E1 + E2.",
+      "title": "Final demo: integrated playthrough and demo release",
+      "boardKind": "Milestone",
+      "state": "open",
+      "url": "https://github.com/markhazlewood42/shadow-jog/issues/134",
+      "group": "Shareable demo"
+    },
+    {
+      "id": "#84",
+      "issue": 84,
+      "kind": "task",
+      "label": "Re-create the trailer",
+      "title": "Re-create the trailer tooling on the new engine",
+      "boardKind": "Task",
+      "lane": "other",
+      "status": "later",
+      "state": "open",
+      "after": [],
+      "column": 5,
+      "notes": "Board item #84.",
+      "url": "https://github.com/markhazlewood42/shadow-jog/issues/84"
+    },
+    {
+      "id": "#93",
+      "issue": 93,
+      "kind": "task",
+      "label": "Command Center:",
+      "title": "Command Center: handed-off sessions do not report status to the hosted page",
+      "boardKind": "Bug",
+      "lane": "other",
+      "status": "later",
+      "state": "open",
+      "after": [],
+      "column": 6,
+      "notes": "Board item #93.",
+      "url": "https://github.com/markhazlewood42/shadow-jog/issues/93"
+    },
+    {
+      "id": "#97",
+      "issue": 97,
+      "kind": "task",
+      "label": "Flaky e2e: sje-hack-a",
+      "title": "Flaky e2e: sje-hack-a leak baseline and WebKit gameover save screen",
+      "boardKind": "Bug",
+      "lane": "other",
+      "status": "later",
+      "state": "open",
+      "after": [],
+      "column": 7,
+      "notes": "Board item #97.",
+      "url": "https://github.com/markhazlewood42/shadow-jog/issues/97"
     }
   ]
 }
