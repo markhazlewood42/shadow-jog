@@ -584,6 +584,42 @@ describe('the answer form', () => {
     expect(text()).toContain('Answered');
   });
 
+  it('sends one request when two submits come before the page draws again (the ref guard, not the disabled button)', async () => {
+    await show();
+    await choose('A');
+    holdNext = true;
+    await act(async () => {
+      const form = container.querySelector('form');
+      form?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+      form?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    });
+    await settle();
+    expect(server.posts).toHaveLength(1);
+    await act(async () => {
+      release?.();
+    });
+    await settle();
+  });
+
+  it('leaves "sending" and allows a new try when the send throws', async () => {
+    await show();
+    await choose('A');
+    const real = globalThis.fetch;
+    let throwNext = true;
+    vi.stubGlobal('fetch', (...args: Parameters<typeof fetch>) => {
+      if (throwNext && String(args[1]?.method) === 'POST') {
+        throwNext = false;
+        throw new Error('boom');
+      }
+      return real(...args);
+    });
+    await press(sendButton());
+    expect(sendButton()?.textContent).not.toContain('Sending');
+    expect(sendButton()?.disabled).toBe(false);
+    await press(sendButton());
+    expect(server.posts).toHaveLength(1);
+  });
+
   it('draws the form only for an open decision that has options; an answered one shows the answer and the options without buttons', async () => {
     server.detail = { status: 200, body: good(answered()) };
     await show();

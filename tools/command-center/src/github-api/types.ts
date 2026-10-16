@@ -20,7 +20,7 @@ export type AdapterErrorCode =
   /** The reply has an `errors` list and no `data`. (With usable `data`, the call works and a problem names each error.) */
   | 'graphql-error'
   /** GitHub answered in part (`errors` plus `data` with a null field) twice, so the snapshot could not be read. Trying again later is likely to work. */
-  | 'graphql-partial';
+  | 'graphql-incomplete';
 
 export type AdapterError = {
   code: AdapterErrorCode;

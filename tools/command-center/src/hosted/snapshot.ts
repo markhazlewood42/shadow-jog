@@ -17,7 +17,7 @@ export async function handleSnapshot(request: Request, deps: SnapshotDeps): Prom
     const result = await fetchSnapshot({ token, ...(deps.fetchImpl === undefined ? {} : { fetchImpl: deps.fetchImpl }), ...(deps.now === undefined ? {} : { now: deps.now }) });
     if (!result.ok) {
       // One line for the log: the code, and the message only when it names a field of the reply (never a text from GitHub, the token or a header).
-      const field = result.error.code === 'bad-response' || result.error.code === 'graphql-partial' ? `: ${result.error.message}` : '';
+      const field = result.error.code === 'bad-response' || result.error.code === 'graphql-incomplete' ? `: ${result.error.message}` : '';
       console.error(`snapshot failed: ${result.error.code}${field}`);
       return responseOf(mapAdapterError(result.error));
     }

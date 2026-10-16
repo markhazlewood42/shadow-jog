@@ -32,7 +32,7 @@ export const DECISIONS_WAITING = 50;
 export const DECISIONS_DECIDED = 30;
 export const COMMENTS_PAGE = 100;
 /** How many commits of `main` the CI search looks at (the newest commit that has a run of the CI workflow wins). */
-export const CI_HISTORY = 5;
+export const CI_HISTORY = 10;
 
 // ---- call 1: the branches, the pull requests, the CI result and the decisions ----
 

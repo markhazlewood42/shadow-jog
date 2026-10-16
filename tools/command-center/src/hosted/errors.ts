@@ -25,8 +25,8 @@ export function mapAdapterError(error: Pick<AdapterError, 'code'> & { retryAfter
       return { status: 502, kind: 'bad-response', error: 'GitHub sent a reply that this server does not know' };
     case 'graphql-error':
       return { status: 502, kind: 'graphql-error', error: 'GitHub reported an error' };
-    case 'graphql-partial':
-      return { status: 503, kind: 'graphql-partial', error: 'GitHub answered in part, try again', retryAfter: 5 };
+    case 'graphql-incomplete':
+      return { status: 503, kind: 'graphql-incomplete', error: 'GitHub answered in part, try again', retryAfter: 5 };
   }
 }
 

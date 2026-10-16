@@ -66,27 +66,29 @@ export function useAnswerDraft(number: number, onWritten: () => void): AnswerDra
       inFlight.current = true;
       setStatus('sending');
       setFailure(null);
-      if (HOSTED) {
-        // The hosted page: the function checks the request and writes the answer; its reply carries the answer, which the page shows at once.
-        const sent = await sendHostedAnswer(number, option, text);
-        if (sent.ok) {
-          setAnswered(answerOf(sent.answer));
-          setStatus('sent');
+      // The guard is cleared in `finally`, so a throw can never leave the form stuck in "sending".
+      try {
+        if (HOSTED) {
+          // The hosted page: the function checks the request and writes the answer; its reply carries the answer, which the page shows at once.
+          const sent = await sendHostedAnswer(number, option, text);
+          if (sent.ok) {
+            setAnswered(answerOf(sent.answer));
+            setStatus('sent');
+          } else {
+            setStatus('failed');
+            setFailure(sent.failure);
+          }
         } else {
-          setStatus('failed');
-          setFailure(sent.failure);
-        }
-      } else {
-        try {
           // The token of this run goes with it (postJson reads it from the page). A note that is empty is left out.
           await postJson(`/api/decisions/${number}/answer`, text.trim() === '' ? { option } : { option, note: text });
           setStatus('sent');
-        } catch (error) {
-          setStatus('failed');
-          setFailure(failureOf(error));
         }
+      } catch (error) {
+        setStatus('failed');
+        setFailure(failureOf(error));
+      } finally {
+        inFlight.current = false;
       }
-      inFlight.current = false;
       onWritten();
     },
     [number, onWritten],
