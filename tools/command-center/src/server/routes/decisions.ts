@@ -3,6 +3,7 @@ import { bodyLimit } from 'hono/body-limit';
 import { type AnswerErrorBody, type DecisionDetail, type DecisionIssue, type DecisionsInfo, MAX_NOTE_CHARS, type Panel } from '../../shared/types';
 import type { Config } from '../config';
 import { answerDecision, checkAnswer } from '../decisions/answer';
+import { BAD_NOTE_CHARACTERS, MAX_ISSUE_NUMBER, MAX_OPTION_CHARS } from '../decisions/answer-core';
 import { readDecision } from '../decisions/module';
 import type { DocIndex } from '../docs/index';
 import { apiError, createWriteGuard } from '../guard';
@@ -22,15 +23,6 @@ import { createRefreshGate, registerPanelRoute } from './panel';
 
 /** The most a request to the answer route may carry. A note is at most 2000 characters, which is under 8 KB at four bytes each. */
 const MAX_BODY_BYTES = 16 * 1024;
-
-/** The longest option id that is read. The ids of the template are one letter; this leaves room, and keeps an error message short. */
-const MAX_OPTION_CHARS = 64;
-
-/** Control characters that a note may not have: all of them but the tab and the two line breaks. They have no use in a note, and a null character cannot be sent as an argument. */
-const BAD_NOTE_CHARACTERS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/;
-
-/** The largest number that gh and GitHub take for an issue. A bigger one cannot be an issue, and must not reach gh. */
-const MAX_ISSUE_NUMBER = 2_147_483_647;
 
 export type DecisionsRoutesDeps = {
   config: Config;
