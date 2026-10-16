@@ -1,15 +1,16 @@
 ---
 type: workstream
-title: Roadmap sync brief
+title: Roadmap sync
 branch: roadmap-sync-brief
 roadmap: cc-followups
 state: active
 updated: 2026-10-16
 ---
 
-# Roadmap sync brief
+# Roadmap sync
 
-This branch holds the design brief for `npm run roadmap:sync`: the GitHub project board becomes the source of truth, and the script writes `docs/roadmap/roadmap.json` for the Command Center. Brief: `docs/command-center/roadmap-sync-brief.md`.
+This branch builds `npm run roadmap:sync`: the GitHub project board is the source of truth, and the script writes `docs/roadmap/roadmap.json` for the Command Center. Brief: `docs/command-center/roadmap-sync-brief.md`.
 
-- The brief passed the lean loop in two rounds (one engineer verifier; round 1 found 2 Critical and 7 Important findings, all fixed).
-- Mark approved the brief and its six recommended answers on 2026-10-16. The build comes next on this branch.
+- The brief passed the lean loop in two rounds. Mark approved it and its six recommended answers on 2026-10-16.
+- The script, its tests and a first real run are on the branch. Lean loop round 1: runner and reader each found one Important finding (status-map tests that cannot fail, an open PR frozen in `pr`). A fix round is in progress.
+- Next: fix round check, then a PR for Mark to merge.
