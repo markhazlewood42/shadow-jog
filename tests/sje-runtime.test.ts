@@ -337,7 +337,7 @@ describe('canvas scenes: one canvas image per scene, nothing outlives its scene,
     void g.run(new Painting(true));
     void g.run(new Painting(false));
     g.draw();
-    const layer = (g as unknown as { overlayLayer: { ctx: unknown } | null }).overlayLayer;
+    const layer = g['overlayLayer']; // the private field, read through bracket access: typed, no cast
     expect(layer).not.toBeNull();
     expect(seen).toHaveLength(1);
     expect(seen[0]).toBe(layer?.ctx);
@@ -347,7 +347,7 @@ describe('canvas scenes: one canvas image per scene, nothing outlives its scene,
     const g = newGame();
     void g.run(new Painting(true));
     g.draw();
-    expect((g as unknown as { overlayLayer: unknown }).overlayLayer).toBeNull();
+    expect(g['overlayLayer']).toBeNull();
   });
 
   it('a scene under an opaque one is not drawn and not uploaded', () => {

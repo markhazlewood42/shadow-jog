@@ -676,6 +676,10 @@ async function main(): Promise<void> {
       saving = true;
       try {
         return await saveNow();
+      } catch (e) {
+        // The click and Ctrl+S callers drop the answer (`void save()`), so a throw must be shown here, not left unhandled: the status bar says that the Save failed.
+        bar.say(`Not saved: the Save failed (${e instanceof Error ? e.message : String(e)}). Check the files before you save again.`, 'bad');
+        return false;
       } finally {
         saving = false;
       }

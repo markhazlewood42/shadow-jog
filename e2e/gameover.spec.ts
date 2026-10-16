@@ -18,7 +18,7 @@ async function waitFor(page: Page, expr: string, label: string, timeout = 20_000
     if (await sj<boolean>(page, `!!(${expr})`).catch(() => false)) return;
     if (Date.now() - start > timeout) {
       // What the page was doing, so a timeout names the cause (a stuck scene, a notice) and not only the wait.
-      const where = await sj<string>(page, "JSON.stringify({ top: sj.top(), stack: sj.game.stack.map((x) => x.constructor.name), notice: sj.notice(), tick: sj.game.tick })").catch((e: unknown) => `no state (${String(e).slice(0, 80)})`);
+      const where = await sj<string>(page, "JSON.stringify({ top: sj.top(), stack: sj.game.scene.scenes.map((x) => x.constructor.name), notice: sj.notice(), tick: sj.game.tick })").catch((e: unknown) => `no state (${String(e).slice(0, 80)})`);
       throw new Error(`Timed out waiting for ${label}: ${where}`);
     }
     await page.waitForTimeout(100);

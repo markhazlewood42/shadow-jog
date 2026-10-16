@@ -341,6 +341,13 @@ describe('a flat rect op is a Graphics fill, not a picture of its own (M8c follo
       { k: 'rect', x: 6, y: 20, w: 20, h: 1, color: '#0a0913' },
     ]);
     expect(box.list.filter((o) => o instanceof Graphics)).toHaveLength(3);
+    // M3: not only the count; the fill is the op's color and alpha (the private fields, read through bracket access).
+    const fills = box.list.filter((o): o is Graphics => o instanceof Graphics).map((g) => ({ color: g['fillColor'], alpha: g['fillAlpha'] }));
+    expect(fills).toEqual([
+      { color: 0xffb23a, alpha: 1 },
+      { color: 0x0a0913, alpha: 0.85 },
+      { color: 0x0a0913, alpha: 1 },
+    ]);
     expect(box.list.filter((o) => o instanceof CanvasImage)).toHaveLength(0);
     const faceBox = new Container(game as never, 0, 0, 'faces');
     applyOps(game as never, faceBox, [{ k: 'face', x: 0, y: 0, who: 'rook', face: 'neutral', down: false }]);

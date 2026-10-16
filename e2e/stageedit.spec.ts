@@ -947,3 +947,21 @@ test('a second Save while one is running does nothing: two calls, one POST (ET f
   await page.unroute(STAGES_URL);
   expect(errors).toEqual([]);
 });
+
+test('a throw inside Save is shown in the status line, not left unhandled (M8d fix round 1, F4)', async ({ page }) => {
+  const { errors } = await openEditor(page, scratch);
+  await page.evaluate(() => {
+    window.__stageedit?.session.edit('horizon', (d) => {
+      const s = d.stages.street;
+      if (!s) return;
+      s.backdrop.horizonY = 144;
+      s.floor.y0 = 144;
+    });
+    // Make the first step of the Save throw, as a bug inside it would.
+    const session = window.__stageedit?.session;
+    if (session) session.settle = () => { throw new Error('boom'); };
+  });
+  await page.locator('#b-save').click();
+  await expect(page.locator('#st-msg')).toContainText('Not saved: the Save failed (boom)');
+  expect(errors).toEqual([]);
+});
