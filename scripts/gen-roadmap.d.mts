@@ -13,6 +13,15 @@ export type RoadmapItem = {
   branch?: string;
   pr?: string;
   notes: string;
+  /** Fields that roadmap-sync.mjs owns. The generator ignores them. */
+  issue?: number;
+  title?: string;
+  boardKind?: string;
+  state?: string;
+  url?: string;
+  parent?: number;
+  group?: string;
+  decisions?: number;
 };
 export type RoadmapData = { updated: string; lanes: { id: string; title: string }[]; items: RoadmapItem[] };
 export function readData(dir?: string): RoadmapData;

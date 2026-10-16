@@ -289,6 +289,8 @@ Data:
 - CI on main is new. The GitHub module reads `gh run list --workflow ci.yml --branch main --limit 1` with the PRs, every 60 seconds. This adds one exact command to the allow-list of the `gh` runner.
 - A row whose source failed shows an error label and a Retry button. The other rows stay.
 
+`docs/roadmap/roadmap.json` is synced from the GitHub project board by `npm run roadmap:sync` (`docs/command-center/roadmap-sync-brief.md`). The Command Center still reads only the committed file and makes no board call.
+
 **Known gap (revision 3).** All sessions edit one `status.md`. The panel reads the "Next up for Mark" list under the first "Right now" heading. When a newer state sits under another heading, the panel shows the older list with no error (seen on 2026-10-11). In hosted mode the workstream files (section 5.9) are the source of per-branch state. `status.md` keeps the overview and the roster. Other gaps of the local CC: it reads only the checked-out branch, the page does not show worktrees or the session `gitBranch`, no module reads `docs/roadmap/roadmap.json`, and it is local only.
 
 ### 5.7 Copy and Download (revision 2)

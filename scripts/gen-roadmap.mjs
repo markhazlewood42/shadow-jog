@@ -2,6 +2,7 @@
 // Builds the roadmap chart from the one data file, docs/roadmap/roadmap.json.
 //   node scripts/gen-roadmap.mjs      writes docs/roadmap/roadmap.svg and docs/roadmap/README.md
 // `npm run roadmap` runs it. tests/roadmap.test.ts calls `generate()` and fails when the files on disk differ.
+// Fields added by scripts/roadmap-sync.mjs (issue, title, boardKind, state, url, parent, group, decisions) are not read here.
 // The output is deterministic: no dates from the clock, no random ids. Plain Node, no dependencies.
 
 import { readFileSync, writeFileSync } from 'node:fs';

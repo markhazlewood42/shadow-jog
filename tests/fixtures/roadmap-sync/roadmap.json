@@ -1,0 +1,17 @@
+{
+  "updated": "2026-10-01",
+  "lanes": [
+    { "id": "engine", "title": "Engine path" },
+    { "id": "side", "title": "Side paths" },
+    { "id": "epics", "title": "Epics" },
+    { "id": "gated", "title": "Needs Mark's go-ahead" },
+    { "id": "other", "title": "Other open items" }
+  ],
+  "items": [
+    { "id": "M1", "kind": "milestone", "label": "Shell", "lane": "engine", "status": "done", "after": [], "notes": "Hand-written milestone." },
+    { "id": "M2", "kind": "milestone", "label": "Renderer", "lane": "engine", "status": "done", "after": ["M1"], "branch": "engine-m2", "notes": "Hand-written milestone." },
+    { "id": "P1", "label": "Playthrough", "lane": "epics", "status": "next", "after": [], "column": 0, "branch": "play", "notes": "Hand note on the old playthrough item." },
+    { "id": "old-bug", "label": "Old bug", "lane": "other", "status": "later", "after": [], "column": 0, "notes": "No issue number." },
+    { "id": "gone", "label": "Gone item", "lane": "other", "status": "later", "after": [], "column": 1, "issue": 999, "title": "Left the board", "notes": "Its issue left the board." }
+  ]
+}
