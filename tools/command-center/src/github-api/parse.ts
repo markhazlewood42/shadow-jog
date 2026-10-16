@@ -222,6 +222,44 @@ export function addComments(decision: DecisionRaw, connection: unknown): Decisio
   return { ...decision, raw: { ...decision.raw, comments: [...had, ...more] }, moreCommentsAfter: info.hasNextPage === true && cursor !== '' ? cursor : null };
 }
 
+/** One issue, read for the hosted answer: the decision in the shape of the local parser, and where its later comments and earlier label events go on. */
+export type AnswerIssueRaw = DecisionRaw & {
+  /** The cursor of the label events before the ones read, or null when all of them are read. */
+  moreEventsBefore: string | null;
+  /** True when the issue has more labels than were read. The labels decide whether it is a decision, so a cut list is not trusted. */
+  labelsCut: boolean;
+};
+
+const labeledEventOf = (item: Json): Json => ({ event: 'labeled', label: { name: text(isRecord(item.label) ? item.label.name : '') }, actor: loginObject(item.actor), created_at: text(item.createdAt) });
+
+/** The label events of a timeline connection, as `gh api .../events` prints them, in the order of the connection (the oldest first). */
+function labeledEvents(connection: unknown, where: string): Json[] {
+  return nodesOf(connection, where)
+    .filter((item) => item.__typename === 'LabeledEvent')
+    .map(labeledEventOf);
+}
+
+/** Where the earlier events go on: the cursor of the page before this one, or null when this is the first page. */
+function eventsCursor(connection: unknown, where: string): string | null {
+  const info = record(record(connection, where).pageInfo, `${where}.pageInfo`);
+  const cursor = text(info.startCursor);
+  return info.hasPreviousPage === true && cursor !== '' ? cursor : null;
+}
+
+/** The `issue` field of the first answer read (ANSWER_ISSUE_QUERY). Throws a ShapeError for a shape that this adapter does not know. */
+export function parseAnswerIssue(issue: unknown): AnswerIssueRaw {
+  const node = record(issue, 'issue');
+  const [decision] = parseDecisionRaws({ nodes: [node] }, 'issue');
+  if (decision === undefined) throw new ShapeError('issue is missing');
+  const labels = record(record(node.labels, 'issue.labels').pageInfo, 'issue.labels.pageInfo');
+  return { ...decision, moreEventsBefore: eventsCursor(node.timelineItems, 'issue.timelineItems'), labelsCut: labels.hasNextPage === true };
+}
+
+/** Adds an earlier page of label events (ANSWER_EVENTS_PAGE_QUERY) in front of the ones read. */
+export function addEarlierEvents(decision: AnswerIssueRaw, connection: unknown): AnswerIssueRaw {
+  return { ...decision, events: [...labeledEvents(connection, 'timelineItems'), ...decision.events], moreEventsBefore: eventsCursor(connection, 'timelineItems') };
+}
+
 /**
  * The two lists of the decisions panel. An issue is read once even when it is in both lists (it has both labels). The trust rules are the ones of the local
  * parser: the issue, each comment and the actor of the `decided` label must be Mark's account, or they do not count.

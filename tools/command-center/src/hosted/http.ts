@@ -30,7 +30,7 @@ export function bytesResponse(bytes: ArrayBuffer, contentType: string, cache: st
   return new Response(bytes, { status: 200, headers: { ...baseHeaders(cache), 'Content-Type': contentType, ...extra } });
 }
 
-/** All three functions are read-only. Any other method gets 405. HEAD is allowed (the CDN may send it). */
+/** The three read functions (snapshot, docs, live) only read. Any other method gets 405. HEAD is allowed (the CDN may send it). `/api/answer` writes and has its own method gate (src/hosted/answer.ts). */
 export function methodNotAllowed(request: Request): Response | null {
   return request.method === 'GET' || request.method === 'HEAD' ? null : errorResponse(405, 'method not allowed', 'method', { Allow: 'GET, HEAD' });
 }

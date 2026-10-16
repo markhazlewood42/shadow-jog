@@ -265,7 +265,7 @@ describe('vercel.json', () => {
     expect(rule).toBeDefined();
     // The source is a path-to-regexp pattern with one regex group. As a plain regex it is the same text.
     const regex = new RegExp(`^${rule?.source}$`);
-    for (const api of ['/api', '/api/', '/api/snapshot', '/api/live', '/api/docs', '/api/docs/docs/GDD.md', '/api/anything/else']) expect(regex.test(api), api).toBe(false);
+    for (const api of ['/api', '/api/', '/api/snapshot', '/api/live', '/api/docs', '/api/docs/docs/GDD.md', '/api/answer', '/api/anything/else']) expect(regex.test(api), api).toBe(false);
     for (const page of ['/', '/docs', '/docs/engine/decisions', '/workstreams', '/apis', '/apidocs/x']) expect(regex.test(page), page).toBe(true);
   });
 

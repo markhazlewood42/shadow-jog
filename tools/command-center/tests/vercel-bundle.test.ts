@@ -15,11 +15,22 @@ import { PACKAGE_DIR } from './helpers';
 //   2. IMPORTS each built file in a plain Node ESM process (no vitest, no vite) and calls its default export `fetch`.
 // Step 2 is the check that would have caught the failure. It does not prove how Vercel itself runs a function (that is the first deploy).
 
-const NAMES = ['snapshot', 'live', 'docs'] as const;
+const NAMES = ['snapshot', 'live', 'docs', 'answer'] as const;
 
 /** Packages and server modules that must never be in a function. */
 const FORBIDDEN_PACKAGES = ['hono', '@hono', 'chokidar', 'minisearch', 'markdown-it', 'open', 'tsx', 'react', 'react-dom', 'react-router', 'vite'];
-const FORBIDDEN_FILES = ['src/server/hub.ts', 'src/server/runner.ts', 'src/server/config.ts', 'src/server/app.ts', 'src/server/main.ts', 'src/server/compose.ts', 'src/server/docs/index.ts'];
+// The local executor of an answer (`gh`) and the local read of a decision (`gh`) must not be in any function: the hosted answer has its own executor and its own read.
+const FORBIDDEN_FILES = [
+  'src/server/hub.ts',
+  'src/server/runner.ts',
+  'src/server/config.ts',
+  'src/server/app.ts',
+  'src/server/main.ts',
+  'src/server/compose.ts',
+  'src/server/docs/index.ts',
+  'src/server/decisions/answer.ts',
+  'src/server/decisions/module.ts',
+];
 
 /**
  * The files that went into a bundle. esbuild writes a comment line `// <path>` above each module it inlines (the paths are relative to the package).
@@ -60,12 +71,12 @@ afterAll(() => rmSync(outDir, { recursive: true, force: true }));
 
 describe('the build script', () => {
   it('writes exactly one file for each function', () => {
-    expect(readdirSync(outDir).filter((file) => file.endsWith('.js')).sort()).toEqual(['docs.js', 'live.js', 'snapshot.js']);
+    expect(readdirSync(outDir).filter((file) => file.endsWith('.js')).sort()).toEqual(['answer.js', 'docs.js', 'live.js', 'snapshot.js']);
   });
 
-  it('keeps the sources in functions/, and api/ holds exactly the three built files', () => {
+  it('keeps the sources in functions/, and api/ holds exactly the four built files', () => {
     // Vercel treats every file in api/ as a function, so api/ must hold nothing else. The editable sources are in functions/.
-    expect(readdirSync(API_DIR, { recursive: true }).map(String).sort()).toEqual(['docs.js', 'live.js', 'snapshot.js']);
+    expect(readdirSync(API_DIR, { recursive: true }).map(String).sort()).toEqual(['answer.js', 'docs.js', 'live.js', 'snapshot.js']);
     for (const name of NAMES) expect(readFileSync(join(PACKAGE_DIR, 'functions', `${name}.ts`), 'utf8')).toContain('export default');
   });
 });
@@ -120,6 +131,20 @@ describe('the built bundles', () => {
     }
   });
 
+  it('answer.js holds the shared rules of an answer, the hosted executor and the strict protection check, and only it holds the executor', () => {
+    const paths = inlinedPaths(code('answer'));
+    for (const wanted of ['src/hosted/answer.ts', 'src/hosted/github-rest.ts', 'src/server/decisions/answer-core.ts', 'src/server/publish/protection.ts', 'src/github-api/fetch.ts']) {
+      expect(
+        paths.some((path) => path.endsWith(wanted)),
+        wanted,
+      ).toBe(true);
+    }
+    // The three read functions make no write: the hosted executor is in answer.js alone.
+    for (const name of ['snapshot', 'live', 'docs'] as const) {
+      expect(inlinedPaths(code(name)).some((path) => path.endsWith('src/hosted/github-rest.ts')), `${name}.js must not hold the hosted executor`).toBe(false);
+    }
+  });
+
   it('the checker would notice what it is meant to find (negative controls)', () => {
     expect(problemsIn('// ../../node_modules/hono/dist/hono.js\nexport default 1;')).toEqual(['inlines the package hono (../../node_modules/hono/dist/hono.js)']);
     expect(problemsIn('// src/server/hub.ts\nexport default 1;')).toEqual(['inlines src/server/hub.ts']);
@@ -143,12 +168,12 @@ describe('the built bundles', () => {
  * Imports a file in a plain Node process (ESM, no vitest, no vite, no loader), sets a stub `fetch`, calls `default.fetch(new Request(url))` and prints the status
  * and the body as JSON. The child gets no GITHUB_TOKEN and no KV_ variable unless the test passes them.
  */
-function runInNode(file: string, url: string, env: Record<string, string> = {}, stubReply?: { status: number; body: string; contentType: string }): { status: number; body: string } {
+function runInNode(file: string, url: string, env: Record<string, string> = {}, stubReply?: { status: number; body: string; contentType: string }, method = 'GET'): { status: number; body: string } {
   const script = `
     const stub = ${JSON.stringify(stubReply ?? null)};
     if (stub) globalThis.fetch = async () => new Response(stub.body, { status: stub.status, headers: { 'content-type': stub.contentType } });
     const mod = await import(${JSON.stringify(pathToFileURL(file).href)});
-    const response = await mod.default.fetch(new Request(${JSON.stringify(url)}));
+    const response = await mod.default.fetch(new Request(${JSON.stringify(url)}, { method: ${JSON.stringify(method)} }));
     console.log(JSON.stringify({ status: response.status, body: await response.text() }));
   `;
   const output = execFileSync(process.execPath, ['--input-type=module', '-e', script], {
@@ -202,6 +227,13 @@ describe('running the built files in plain Node ESM (the check that would have c
     );
     expect(result.status).toBe(200);
     expect((JSON.parse(result.body) as { reporter: { state: string } }).reporter.state).toBe('online');
+  });
+
+  it('answer.js: with no environment it answers 405 for a GET and 500 misconfigured for a POST, and writes nothing', () => {
+    expect(runInNode(join(API_DIR, 'answer.js'), 'https://cc.example/api/answer').status).toBe(405);
+    const post = runInNode(join(API_DIR, 'answer.js'), 'https://cc.example/api/answer', {}, undefined, 'POST');
+    expect(post.status).toBe(500);
+    expect(JSON.parse(post.body)).toEqual({ ok: false, error: { code: 'misconfigured', message: 'The hosted setup is incomplete.' } });
   });
 
   it('negative control: the TypeScript source, imported in plain Node, fails the way the first deploy failed', () => {
