@@ -20,9 +20,9 @@ Non-goals:
 
 ## 2. What the real files hold
 
-- `roadmap.json` has `updated`, `lanes` (5), `items` (25). Item fields: `id`, `label`, `lane`, `status`, `after`, `notes` (all 25); `kind` (17); `branch` (9); `pr` (8); `tag` (8); `column` (7).
+- `roadmap.json` has `updated`, `lanes` (6), `items` (31). Item fields: `id`, `label`, `lane`, `status`, `after`, `notes` (all 31); `kind` (17); `branch` (9); `pr` (8); `tag` (14); `column` (13).
 - Statuses: `done active next later optional gated`. Kinds: `milestone task`.
-- 15 items are done milestones (Phase 0 to M8d, ET, M1b). M4 is optional and Editors is later. The rest are gated or other items.
+- 16 items are done milestones (Phase 0 to M8d, ET, M1b, M4). Editors is later. The rest are gated or other items.
 - The board has 36 items: 4 epics (#102 to #105), 24 decisions, milestones #101 and #134, bugs #93 and #97, task #84. Step is set only on epics and milestones. No done engine milestone is on the board.
 - `gh project item-list` returns `content{number,title,url,body}`, `kind`, `status`, `step`, `labels`, `milestone`. It omits the sub-issue parent, linked PRs and issue state (0 of 36 items carry them).
 - `validate()` in `gen-roadmap.mjs` rejects: empty `notes`, a label over 2 lines of 12 characters, a tag over 10 characters, a `kind` other than `milestone` or `task`, and two items in one lane and column. `generate()` throws on any of these.
@@ -70,7 +70,7 @@ Rules that keep `validate()` passing:
 - G2: `Step` has no value on decisions, bugs and tasks.
 - G3: parent, PRs and state need GraphQL.
 - G4: lanes, `after`, `branch`, `optional` and prose notes are not on the board.
-- G5: 24 decisions would swamp a chart of 25 items. See Q1.
+- G5: 24 decisions would swamp a chart of 31 items. See Q1.
 
 ## 4. Ownership and merge
 
@@ -105,7 +105,7 @@ Join and order:
 
 - New `tests/roadmap-sync.test.ts` with fixtures in `tests/fixtures/roadmap-sync/` (trimmed GraphQL response, sample `roadmap.json`). No network. Cases: status map and closed-versus-Status precedence; merge keeps hand fields; adoption by `issue`; stale item; idempotent second run; no board item gets `kind: milestone`; empty-notes default; long title gets a fitting label; column clash resolves; item with no Step; missing auth gives the error with no write (fake runner); output passes `validate()` with `[]`.
 - `tests/roadmap.test.ts` (a) and (b) do not change, because board items are `task`.
-- `milestone-data.test.ts` does not change. The 15 done ids and the not-done `M4` and `Editors` stay hand-written.
+- `milestone-data.test.ts` does not change. The 16 done ids and the not-done `Editors` stay hand-written.
 - Workstream files: `roadmap:` takes any non-empty text (`shared/workstream.ts:195`). An unknown id lands in the unplaced lane (`hosted/workstreams.ts:102`). So a `#N` id is accepted and no validator change is needed. A workstream that names `#N` gets a lane card only if the item exists.
 
 ## 8. Architectural fit
@@ -128,12 +128,12 @@ Not touched: CC server, hosted functions, GraphQL snapshot query.
 6. `validate()` on the written data returns `[]`.
 7. `npm run roadmap` regenerates the SVG and README without a throw.
 8. No board item has `kind: milestone`.
-9. All 25 existing items keep `lane`, `after`, `branch`, `notes`, `label`, `column`.
+9. All 31 existing items keep `lane`, `after`, `branch`, `notes`, `label`, `column`.
 10. Adding `issue: N` to an old item adopts it and changes only the overwrite fields.
 11. Every non-decision board item appears once with the mapped status. Each epic has `decisions`.
 12. A closed issue with a non-Done Status gives `done` plus a warning.
 13. A board-removed item is reported, not deleted.
-14. `npm test` in the root and in the CC passes with no network. The Milestone strip still shows 15 done squares.
+14. `npm test` in the root and in the CC passes with no network. The Milestone strip still shows 16 done squares.
 15. The hosted CC needs no new env var and makes no board call.
 16. No token or private board URL is in the output or the committed files.
 
@@ -142,6 +142,6 @@ Not touched: CC server, hosted functions, GraphQL snapshot query.
 1. Do decisions appear as roadmap items? Recommended: no. Show `decisions: N` on each epic.
 2. How does a board item get a lane? Recommended: epic to `engine`, milestone to `side`, bug and task to `other`, Waiting on Mark to `gated`. A hand edit sticks.
 3. Short label or full title on the chart? Recommended: short `label`, full `title` in the data (the bar fits 12 characters per line).
-4. Move the 15 done milestones onto the board as closed issues? Recommended: no. Keep them hand-written.
+4. Move the 16 done milestones onto the board as closed issues? Recommended: no. Keep them hand-written.
 5. Should the script commit? Recommended: no. The agent commits the diff with its work.
 6. Draw the repo milestone as a group? Recommended: store `group`, do not draw it yet.

@@ -55,7 +55,7 @@ Now: no milestone.
 | cc-followups CC follow-ups | Other open items (no order) | 4 | optional | none | none | Command Center items left over (status.md, Next for agents 1b). All optional. |
 | plasma-bug plasma-ui bug report | Other open items (no order) | 5 | optional | none | none | An upstream bug report for the plasma-ui canvas width (R28), if Mark wants one. |
 | #84 Re-create the trailer | Other open items (no order) | 6 | later | none | none | Board item #84. |
-| #93 Command Center: | Other open items (no order) | 7 | later | none | none | Board item #93. |
+| #93 Command Center | Other open items (no order) | 7 | later | none | none | Board item #93. |
 | #97 Flaky e2e: sje-hack-a | Other open items (no order) | 8 | later | none | none | Board item #97. |
 
 Statuses: **done** (done and merged), **active** (being built now), **next** (starts next, or waits for mark), **later** (planned, in order), **optional** (optional), **gated** (needs mark's go-ahead).

@@ -55,7 +55,7 @@ export function defaultGh(args) {
 }
 
 /** A failed gh call that comes from a missing login or a missing scope. */
-const isAuthError = (error) => /(not logged|gh auth|auth login|scope|credential|authenticat|401|requires? .*token)/i.test(error instanceof Error ? error.message : String(error));
+const isAuthError = (error) => /(not logged|gh auth|auth login|missing required scopes?|required scopes?|insufficient_scopes|credential|authenticat|HTTP 401|requires? .*token)/i.test(error instanceof Error ? error.message : String(error));
 
 class SyncError extends Error {}
 
@@ -135,13 +135,12 @@ function readItemList(gh) {
 
 const dateOf = (iso) => (typeof iso === 'string' ? iso.slice(0, 10) : '');
 
-/** `#98 (merged 2026-10-16)` from the closing PRs, or undefined. */
+/** `#98 (merged 2026-10-16)` from the merged closing PRs, or undefined. An open or closed-unmerged PR gives nothing. */
 function prText(prs) {
   if (!Array.isArray(prs)) return undefined;
   const parts = [];
   for (const pr of prs) {
     if (pr.merged) parts.push(`#${pr.number} (merged ${dateOf(pr.mergedAt)})`);
-    else if (String(pr.state).toUpperCase() === 'OPEN') parts.push(`#${pr.number} (open)`);
   }
   return parts.length === 0 ? undefined : parts.join(', ');
 }
@@ -169,11 +168,12 @@ export function labelFrom(title) {
     .replace(/^(?:Epic|Decision)\b\s*:?\s*/i, '')
     .replace(/^[A-Z]\d+(?:\s+D\d+)?\s*:\s*/, '')
     .replace(/\s+/g, ' ')
+    .replace(/[\s:,-]+$/, '')
     .trim();
   const words = base.split(' ').filter((w) => w !== '');
   while (words.length > 0) {
     const text = words.join(' ');
-    if (fits(text)) return text;
+    if (fits(text)) return text.replace(/[\s:,-]+$/, '');
     words.pop();
   }
   return base.slice(0, LABEL_CHARS) || 'Item';
@@ -240,6 +240,9 @@ export function mergeBoard(current, entries) {
     if (entry === undefined) continue;
     joined.add(entry.number);
     overwrite(item, entry);
+    // `pr` is set once: only when empty and a merged closing PR exists. A hand-set value is never changed.
+    const pr = prText(entry.prs);
+    if (!item.pr && pr !== undefined) item.pr = pr;
   }
   const stale = items.filter((item) => typeof item.issue === 'number' && !byNumber.has(item.issue)).map((item) => `${item.id} (#${item.issue})`);
 
@@ -295,7 +298,7 @@ export function syncRoadmap({ gh = defaultGh, dir = DIR, check = false, today = 
       } catch (inner) {
         if (inner instanceof SyncError) throw inner;
         if (isAuthError(inner)) return fail(`The gh login is missing or has no project scope. Run: ${AUTH_FIX}`);
-        throw new SyncError(`gh failed: ${String(inner instanceof Error ? inner.message : inner).split('\n')[0]}`);
+        throw new SyncError('gh failed on both the GraphQL call and the item-list fallback. The file is unchanged. Run gh by hand to see why.');
       }
     }
     const merged = mergeBoard(current, entries);
@@ -326,7 +329,9 @@ export function syncRoadmap({ gh = defaultGh, dir = DIR, check = false, today = 
       } catch (error) {
         try {
           unlinkSync(tmp);
-        } catch {}
+        } catch {
+          // The temp file may not exist; the write error below is the one to report.
+        }
         throw new SyncError(`Could not write roadmap.json: ${error instanceof Error ? error.message : String(error)}`);
       }
     }

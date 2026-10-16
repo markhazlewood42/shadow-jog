@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1354 902" width="1354" height="902" role="img" aria-labelledby="roadmap-title roadmap-desc">
   <title id="roadmap-title">Shadow Jog roadmap</title>
-  <desc id="roadmap-desc">Order and dependency only. Bar length is not time. Now: no milestone. Items in the same column can run in parallel. Foundations: Phase 0 Platform spike (done), Pre-M0 640x360 move (done), M0 Prepare (done). Engine path: M1 Shell (done), M2 Effects (done), M3 Battle stage (done), M5 Field (done), M6 Flip default (done), M7 3D mode (done), M8a UI kit and data (done), M8b UI scenes (done), M8c Battle and field (done), M8d Delete old engine (done). Side paths: M1b 3D proof (done), M4 UI scenes (done), ET Editor port (done), Editors Editor suite (later). Epics before a demo Mark can share: P101 Chapter 1 playthrough (gated), E4 Engine docs (next), E1 2D art and maps (next), E2 3D hacking mode (next), E3 Editor suite (later), Demo Final demo (later). Needs Mark's go-ahead: archive-tags Archive tags (gated), release-tags Release tags (gated), deploy Deploy site (gated). Other open items (no order): playthrough-notes Playthrough notes edit (next), pixellab-end PixelLab end date (done), sprite-fusion Sprite credits (optional), cc-followups CC follow-ups (optional), plasma-bug plasma-ui bug report (optional), #84 Re-create the trailer (later), #93 Command Center: (later), #97 Flaky e2e: sje-hack-a (later).</desc>
+  <desc id="roadmap-desc">Order and dependency only. Bar length is not time. Now: no milestone. Items in the same column can run in parallel. Foundations: Phase 0 Platform spike (done), Pre-M0 640x360 move (done), M0 Prepare (done). Engine path: M1 Shell (done), M2 Effects (done), M3 Battle stage (done), M5 Field (done), M6 Flip default (done), M7 3D mode (done), M8a UI kit and data (done), M8b UI scenes (done), M8c Battle and field (done), M8d Delete old engine (done). Side paths: M1b 3D proof (done), M4 UI scenes (done), ET Editor port (done), Editors Editor suite (later). Epics before a demo Mark can share: P101 Chapter 1 playthrough (gated), E4 Engine docs (next), E1 2D art and maps (next), E2 3D hacking mode (next), E3 Editor suite (later), Demo Final demo (later). Needs Mark's go-ahead: archive-tags Archive tags (gated), release-tags Release tags (gated), deploy Deploy site (gated). Other open items (no order): playthrough-notes Playthrough notes edit (next), pixellab-end PixelLab end date (done), sprite-fusion Sprite credits (optional), cc-followups CC follow-ups (optional), plasma-bug plasma-ui bug report (optional), #84 Re-create the trailer (later), #93 Command Center (later), #97 Flaky e2e: sje-hack-a (later).</desc>
   <defs>
     <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse"><polygon points="0 0, 8 3, 0 6" fill="#bfc3e4"/></marker>
   </defs>
@@ -304,11 +304,11 @@
     <text x="538" y="789" fill="#bfc3e4" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">LATER</text>
   </g>
   <g id="item--93">
-    <title>#93 Command Center:: later. Board item #93.</title>
+    <title>#93 Command Center: later. Board item #93.</title>
     <rect x="632" y="720" width="90" height="76" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1.2"/>
     <text x="640" y="739" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">#93</text>
     <text x="640" y="757" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">Command</text>
-    <text x="640" y="771" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">Center:</text>
+    <text x="640" y="771" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">Center</text>
     <text x="640" y="789" fill="#bfc3e4" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">LATER</text>
   </g>
   <g id="item--97">

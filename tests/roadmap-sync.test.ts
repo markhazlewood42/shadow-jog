@@ -63,7 +63,7 @@ describe('roadmap sync', () => {
     expect(validate(out)).toEqual([]);
     expect(out.updated).toBe(TODAY);
     // The old order is unchanged. Then #84, #93, #97, #101, #105, #150, #151, sorted by issue number. The decisions (#127, #128) are not items.
-    expect(out.items.map((i) => i.id)).toEqual(['M1', 'M2', 'P1', 'old-bug', 'gone', '#84', '#93', '#97', '#101', '#105', '#150', '#151']);
+    expect(out.items.map((i) => i.id)).toEqual(['M1', 'M2', 'P1', 'old-bug', 'gone', '#84', '#93', '#97', '#101', '#105', '#150', '#151', '#160', '#161', '#162']);
     expect(out.items.some((i) => i.issue === 127 || i.issue === 128)).toBe(false);
     // The chart files follow the data.
     expect(readdirSync(dir).sort()).toEqual(['README.md', 'roadmap.json', 'roadmap.svg']);
@@ -77,6 +77,9 @@ describe('roadmap sync', () => {
     const out = data();
     expect(item(out, '#84').status).toBe('later'); // Backlog
     expect(item(out, '#150').status).toBe('next'); // Next
+    expect(item(out, '#160').status).toBe('active'); // In progress
+    expect(item(out, '#161').status).toBe('active'); // In review
+    expect(item(out, '#162').status).toBe('done'); // Done
     expect(item(out, 'P1').status).toBe('gated'); // Waiting on Mark
     expect(item(out, '#93').status).toBe('done'); // closed, Status Backlog
     expect(item(out, '#93').state).toBe('closed');
@@ -156,6 +159,7 @@ describe('roadmap sync', () => {
     expect(item(out, '#84').label).toBe('Re-create the trailer');
     expect(item(out, '#97').label).toBe('Flaky e2e: sje-hack-a');
     expect(item(out, '#150').label).toBe('Antidisestab'); // one word over 12 characters is cut
+    expect(item(out, '#93').label).toBe('Command Center'); // no trailing colon after the cut
     expect(labelFrom('Decision: E1 D2: the Sprite Fusion credit cap')).toBe('the Sprite Fusion');
   });
 
@@ -179,6 +183,7 @@ describe('roadmap sync', () => {
     expect(item(out, '#105').column).toBe(2);
     // The other lane holds columns 0 and 1. No Step: the next free ones. Step 1 clashes with column 0, so it moves on.
     expect(['#84', '#93', '#97', '#150', '#151'].map((id) => item(out, id).column)).toEqual([2, 3, 4, 5, 6]);
+    expect(['#160', '#161', '#162'].map((id) => item(out, id).column)).toEqual([7, 8, 9]);
     expect(validate(out)).toEqual([]);
   });
 
@@ -292,9 +297,56 @@ describe('roadmap sync', () => {
   });
 
   it('leaks no token or private board URL into the output or the file', () => {
+    const token = 'ghp_FAKE0123456789abcdefghijklmnopqrstuv';
+    const privateUrl = 'https://github.com/users/markhazlewood42/projects/2/views/1';
+    const leaky = (page: string) => JSON.stringify({ ...JSON.parse(page), token, projectUrl: privateUrl, extensions: { note: `${token} ${privateUrl}` } });
     const { dir, text } = setup();
-    const result = syncRoadmap({ gh: fakeGh().gh, dir, today: TODAY });
-    const all = `${result.lines.join('\n')}\n${text()}`;
-    expect(all).not.toMatch(/github\.com\/users\/|\/projects\/2|PVT_|ghp_|gho_|github_pat_/);
+    const { gh } = fakeGh([leaky(page1), leaky(page2)]);
+    const result = syncRoadmap({ gh, dir, today: TODAY });
+    expect(result.code).toBe(0);
+    const all = [...result.lines, text()].join('\n');
+    expect(all).not.toContain('ghp_FAKE');
+    expect(all).not.toContain('/projects/2');
+    // A failure whose gh error text holds the token prints neither.
+    const bad = syncRoadmap({ gh: failing(`boom ${token} ${privateUrl}`), dir: setup().dir, today: TODAY });
+    expect(bad.code).toBe(1);
+    expect(bad.lines.join('\n')).not.toMatch(/ghp_FAKE|\/projects\/2/);
+  });
+
+  describe('pr', () => {
+    /** Page 2 with these closing PRs on issue #84. */
+    const withPr = (nodes: { number: number; merged: boolean; mergedAt?: string; state: string }[]) => {
+      const json = JSON.parse(page2);
+      for (const node of json.data.user.projectV2.items.nodes) {
+        if (node.content.number === 84) node.content.closedByPullRequestsReferences.nodes = nodes;
+      }
+      return JSON.stringify(json);
+    };
+    const open = [{ number: 200, merged: false, state: 'OPEN' }];
+    const merged = [{ number: 200, merged: true, mergedAt: '2026-10-17T08:00:00Z', state: 'MERGED' }];
+
+    it('gives no pr for an open closing PR', () => {
+      expect(withPr(open)).not.toBe(page2);
+      const { dir, data } = setup();
+      syncRoadmap({ gh: fakeGh([page1, withPr(open)]).gh, dir, today: TODAY });
+      expect(item(data(), '#84').pr).toBeUndefined();
+    });
+
+    it('sets pr on a later run once the PR is merged, on an item that already exists', () => {
+      const { dir, data } = setup();
+      syncRoadmap({ gh: fakeGh([page1, withPr(open)]).gh, dir, today: TODAY });
+      syncRoadmap({ gh: fakeGh([page1, withPr(merged)]).gh, dir, today: '2026-10-17' });
+      expect(item(data(), '#84').pr).toBe('#200 (merged 2026-10-17)');
+    });
+
+    it('never changes a hand-set pr', () => {
+      const { dir, put, data } = setup();
+      syncRoadmap({ gh: fakeGh([page1, withPr(open)]).gh, dir, today: TODAY });
+      const edited = data();
+      item(edited, '#84').pr = 'hand PR';
+      put(edited);
+      syncRoadmap({ gh: fakeGh([page1, withPr(merged)]).gh, dir, today: '2026-10-17' });
+      expect(item(data(), '#84').pr).toBe('hand PR');
+    });
   });
 });

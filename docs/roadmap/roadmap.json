@@ -441,7 +441,7 @@
       "id": "#93",
       "issue": 93,
       "kind": "task",
-      "label": "Command Center:",
+      "label": "Command Center",
       "title": "Command Center: handed-off sessions do not report status to the hosted page",
       "boardKind": "Bug",
       "lane": "other",
