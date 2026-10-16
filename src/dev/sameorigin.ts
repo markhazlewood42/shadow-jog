@@ -41,13 +41,26 @@ export function sameOrigin(req: Pick<IncomingMessage, 'headers'>): boolean {
 }
 
 /**
- * Whether a request is a dry run: the query has `dry=1` and nothing else counts (`dry=0`, `dry=10`, `dry=true` and a bare `dry` write for real).
- * One helper for every write endpoint (PR 86 review, R2-2); they used to read the flag three different ways.
+ * How a request names the dry flag: `'real'` (no `dry` key), `'dry'` (one `dry=1`), `'off'` (one `dry=0`), or `'invalid'` (any other form: a bare `dry`, `dry=true`, `dry=%zz`, `DRY=1`, two `dry` keys, an address that cannot be read).
+ * The key is matched without regard to case, so `DRY=1` is read as a dry flag with a bad spelling, not as no flag.
+ */
+export function dryFlag(url: string | undefined): 'real' | 'dry' | 'off' | 'invalid' {
+  try {
+    const hits = [...new URL(url ?? '/', 'http://localhost').searchParams].filter(([k]) => k.toLowerCase() === 'dry');
+    if (hits.length === 0) return 'real';
+    const only = hits[0];
+    if (hits.length > 1 || !only || only[0] !== 'dry') return 'invalid';
+    return only[1] === '1' ? 'dry' : only[1] === '0' ? 'off' : 'invalid';
+  } catch {
+    return 'invalid';
+  }
+}
+
+/**
+ * Whether a request is a dry run. It fails closed: `dry=1` is dry, and so is any flag that is not exactly `dry=0` or no flag at all (see `dryFlag`), so a flag that is spelled wrong never writes.
+ * A write endpoint that wants to refuse a bad flag (the stage endpoint answers 400) asks `dryFlag` first. One helper for every write endpoint (PR 86 review, R2-2).
  */
 export function isDry(url: string | undefined): boolean {
-  try {
-    return new URL(url ?? '/', 'http://localhost').searchParams.get('dry') === '1';
-  } catch {
-    return false; // a request line that is not an address is no dry run (the stage endpoint answers 400 for it first)
-  }
+  const flag = dryFlag(url);
+  return flag === 'dry' || flag === 'invalid';
 }

@@ -16,7 +16,7 @@ import type { AddressInfo } from 'node:net';
 import { join, resolve } from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { StageEntry } from '../src/battlestage/config';
-import { isDry, sameOrigin } from '../src/dev/sameorigin';
+import { dryFlag, isDry, sameOrigin } from '../src/dev/sameorigin';
 import { SET_SCREEN, prepareSave } from '../src/dev/stageedit/save';
 import { MAX_BODY, PART_FILES, stageHandlers } from '../src/dev/stageedit/serve';
 
@@ -129,10 +129,11 @@ describe('reading', () => {
 
   it('a sub-path of an endpoint is a 404 (the mount is a prefix): nothing is read or written', async () => {
     const before = snapshot(dataDir);
-    for (const path of ['/__stage/stages/anything', '/__stage/stages/x/y?scratch=a', '/__stage/hud/anything']) {
+    for (const path of ['/__stage/stages/anything', '/__stage/stages/x/y?scratch=a', '/__stage/hud/anything', '/__stage/stages//evil.com', '/__stage/stages/\\evil.com', '/__stage/hud//evil.com', '/__stage/hud/\\evil.com']) {
       expect((await send('GET', path)).status, `GET ${path}`).toBe(404);
     }
-    for (const path of ['/__stage/stages/anything', '/__stage/stages/anything?dry=1']) {
+    // `//x` and `/\x` reach the handler as they are: the URL parser reads them as a host plus the path `/`, so only the raw path may be compared (F1).
+    for (const path of ['/__stage/stages/anything', '/__stage/stages/anything?dry=1', '/__stage/stages//evil.com', '/__stage/stages/\\evil.com', '/__stage/stages//evil.com?dry=0']) {
       expect((await post(path, body())).status, `POST ${path}`).toBe(404);
     }
     expect(snapshot(dataDir)).toEqual(before);
@@ -158,8 +159,8 @@ describe('reading', () => {
     expect(snapshot(dataDir)).toEqual(before);
     // The server is still there: a good request is answered.
     expect((await send('GET', '/__stage/stages')).status).toBe(200);
-    // isDry reads a bad address as "not a dry run" and does not throw.
-    expect(isDry('//')).toBe(false);
+    // isDry fails closed: a bad address is read as a dry run, so it never writes (and does not throw).
+    expect(isDry('//')).toBe(true);
   });
 
   it('PUT and DELETE are 405', async () => {
@@ -226,25 +227,103 @@ describe('the Host header (DNS rebinding): a page rebound to 127.0.0.1 is same-o
 });
 
 describe('the dry flag is read one way: only dry=1 is dry (isDry)', () => {
-  it('isDry: true for dry=1 among other parameters, false for dry=0, dry=10, dry=true, an empty or bare dry, and no dry', () => {
+  it('isDry fails closed: dry=1 and every malformed flag are dry; only no flag and dry=0 write (dryFlag names which)', () => {
     expect(isDry('/x?dry=1')).toBe(true);
     expect(isDry('/x?scratch=a&dry=1')).toBe(true);
-    for (const u of ['/x?dry=0', '/x?dry=10', '/x?dry=true', '/x?dry=', '/x?dry', '/x?xdry=1', '/x', undefined]) expect(isDry(u), String(u)).toBe(false);
+    for (const u of ['/x?dry=0', '/x?xdry=1', '/x', undefined]) expect(isDry(u), String(u)).toBe(false);
+    for (const u of ['/x?dry=10', '/x?dry=true', '/x?dry=', '/x?dry', '/x?dry=%zz', '/x?DRY=1', '/x?Dry=0', '/x?dry=0&dry=1', '/x?dry=1&dry=1', '//']) expect(isDry(u), u).toBe(true);
+    expect(dryFlag('/x?dry=0')).toBe('off');
+    expect(dryFlag('/x?dry=%zz')).toBe('invalid');
+    expect(dryFlag('/x')).toBe('real');
   });
 
-  it('the stage endpoint writes for ?dry=0 and ?dry=10 (control: ?dry=1 still writes nothing)', async () => {
+  it('the stage endpoint writes for ?dry=0 and for no flag (control: ?dry=1 still writes nothing)', async () => {
     const stages = JSON.parse(read('stages-640.json')) as Record<string, StageEntry>;
     (stages.street as StageEntry).party[0] = { x: 22, row: 2 };
     const before = snapshot(dataDir);
     expect((await post('/__stage/stages?dry=1', body({ stages }))).status).toBe(200);
     expect(snapshot(dataDir)).toEqual(before);
-    for (const q of ['?dry=0', '?dry=10']) {
+    for (const q of ['?dry=0', '']) {
       const r = await post(`/__stage/stages${q}`, body({ stages }));
       expect(r.status, q).toBe(200);
       expect(r.body.dry, q).toBe(false);
       expect(readFileSync(join(dataDir, 'stages-640.json'), 'utf8'), q).toContain('"x": 22');
       writeFileSync(join(dataDir, 'stages-640.json'), read('stages-640.json'));
     }
+  });
+
+  it('F2: a malformed dry flag is a 400 and writes nothing (dry=%zz, DRY=1, dry=true, dry=10, a bare dry, dry=0&dry=1)', async () => {
+    const stages = JSON.parse(read('stages-640.json')) as Record<string, StageEntry>;
+    (stages.street as StageEntry).party[0] = { x: 23, row: 2 };
+    const before = snapshot(dataDir);
+    for (const q of ['?dry=%zz', '?DRY=1', '?dry=true', '?dry=10', '?dry', '?dry=', '?dry=0&dry=1', '?dry=1&dry=1']) {
+      const r = await post(`/__stage/stages${q}`, body({ stages }));
+      expect(r.status, q).toBe(400);
+      expect(r.body.problems.join(' '), q).toMatch(/dry must be 0 or 1/);
+      expect(snapshot(dataDir), q).toEqual(before);
+    }
+  });
+});
+
+describe('F3: the body must be sent as application/json', () => {
+  it('text/plain, a form type and no type are 415 and write nothing; application/json with or without a charset is read', async () => {
+    const before = snapshot(dataDir);
+    for (const type of ['text/plain', 'application/x-www-form-urlencoded', 'application/jsonx', 'text/json']) {
+      expect((await post('/__stage/stages', body(), { ...SAME, 'content-type': type })).status, type).toBe(415);
+    }
+    const bare = await new Promise<number>((done, fail) => {
+      const req = request({ host: '127.0.0.1', port, method: 'POST', path: '/__stage/stages', headers: { host: `127.0.0.1:${port}`, ...SAME } }, (res) => {
+        res.resume();
+        res.on('end', () => done(res.statusCode ?? 0));
+      });
+      req.on('error', fail);
+      req.end(body());
+    });
+    expect(bare).toBe(415);
+    expect(snapshot(dataDir)).toEqual(before);
+    for (const type of ['application/json', 'application/json; charset=utf-8', 'Application/JSON;charset=UTF-8']) {
+      expect((await post('/__stage/stages?dry=1', body(), { ...SAME, 'content-type': type })).status, type).toBe(200);
+    }
+  });
+});
+
+describe('task 19: the stage POST goes through withBody (a failure in the handler is a 500 and the server stays up)', () => {
+  it('a prepare that returns nothing (its result is read outside the handler own try) is answered 500, and the server answers the next request', async () => {
+    const lone = stageHandlers({ dataDir, prepare: (() => undefined) as never, screen: SET_SCREEN });
+    const second = createServer((req, res) => lone.stages(req, res));
+    await new Promise<void>((done) => second.listen(0, '127.0.0.1', done));
+    const p = (second.address() as AddressInfo).port;
+    const hit = (method: string, text?: string): Promise<number> =>
+      new Promise((done, fail) => {
+        const req = request({ host: '127.0.0.1', port: p, method, path: '/', headers: { host: `127.0.0.1:${p}`, 'content-type': 'application/json' } }, (res) => {
+          res.resume();
+          res.on('end', () => done(res.statusCode ?? 0));
+        });
+        req.on('error', fail);
+        req.end(text);
+      });
+    try {
+      expect(await hit('POST', body())).toBe(500);
+      expect(await hit('GET')).toBe(200); // the server is still up
+    } finally {
+      await new Promise<void>((done) => second.close(() => done()));
+    }
+  });
+});
+
+describe('F6: a 500 tells the client nothing about paths', () => {
+  it('the answer of a failed write has no absolute path and no raw error text', async () => {
+    rmSync(join(dataDir, 'axes.json'));
+    mkdirSync(join(dataDir, 'axes.json'));
+    writeFileSync(join(dataDir, 'axes.json', 'keep.txt'), 'x');
+    const stages = JSON.parse(read('stages-640.json')) as Record<string, StageEntry>;
+    (stages.street as StageEntry).party[0] = { x: 21, row: 2 };
+    const r = await post('/__stage/stages', body({ stages }));
+    expect(r.status).toBe(500);
+    const text = r.body.problems.join(' ');
+    expect(text).toMatch(/none was changed/);
+    expect(text).not.toContain(dataDir);
+    expect(text).not.toMatch(/ENOENT|EPERM|EISDIR|EEXIST|ENOTEMPTY|[A-Za-z]:[\\/]/);
   });
 });
 

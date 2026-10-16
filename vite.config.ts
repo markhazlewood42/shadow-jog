@@ -70,7 +70,8 @@ function fxLab(): Plugin {
               if (!isDry(req.url)) writeFileSync(FX_FILE, text);
               reply(200, { ok: true, text });
             } catch (e) {
-              reply(500, { ok: false, problems: [`couldn't write fx.json: ${String(e)}`] });
+              console.error('[dev server] could not write fx.json:', e);
+              reply(500, { ok: false, problems: ["couldn't write fx.json (the detail is in the dev server console)"] });
             }
           },
         });
@@ -103,7 +104,8 @@ function stageEdit(): Plugin {
           if (res.headersSent) return;
           res.statusCode = 500;
           res.setHeader('Content-Type', 'application/json');
-          res.end(JSON.stringify({ ok: false, problems: [`${what}: ${String(e)}`] }));
+          console.error(`[dev server] ${what}:`, e); // the detail stays on the server: it can name absolute paths
+          res.end(JSON.stringify({ ok: false, problems: [`${what} (the detail is in the dev server console)`] }));
         };
         void load().then(
           (save) => {
@@ -199,7 +201,8 @@ function artPass(): Plugin {
           }
           reply(404, { ok: false, problem: 'GET /data or POST /review' });
         } catch (e) {
-          reply(500, { ok: false, problem: String(e) });
+          console.error('[dev server] the review endpoint failed:', e);
+          reply(500, { ok: false, problem: 'the review endpoint failed (the detail is in the dev server console)' });
         }
       });
     },
@@ -273,7 +276,8 @@ function rigEdit(): Plugin {
 `);
               reply(200, { ok: true });
             } catch (e) {
-              reply(500, { ok: false, problem: `couldn't write skeleton.json: ${String(e)}` });
+              console.error('[dev server] could not write skeleton.json:', e);
+              reply(500, { ok: false, problem: "couldn't write skeleton.json (the detail is in the dev server console)" });
             }
           },
         });

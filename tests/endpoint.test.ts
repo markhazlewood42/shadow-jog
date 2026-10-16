@@ -5,13 +5,15 @@
 import { createServer, request, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { type BodyOptions, withBody } from '../src/dev/endpoint';
+import { BODY_TIMEOUT_MS, type BodyOptions, withBody } from '../src/dev/endpoint';
 
 const MAX = 1000;
 let server: Server;
 let port: number;
 /** What the handler of the next request does. */
 let handle: BodyOptions['handle'];
+/** The body timeout of the next request (the default is 10 s; the 408 test sets a short one). */
+let timeoutMs: number = BODY_TIMEOUT_MS;
 const seen: string[] = [];
 
 beforeAll(async () => {
@@ -23,6 +25,7 @@ beforeAll(async () => {
     };
     withBody(req, res, {
       max: MAX,
+      timeoutMs,
       reply,
       tooBig: { ok: false, problem: 'too big' },
       failed: (message) => ({ ok: false, problem: `could not check: ${message}` }),
@@ -70,14 +73,15 @@ describe('withBody', () => {
     expect(seen).toEqual([text]);
   });
 
-  it('a handler that rejects (ssrLoadModule on a file with a syntax error) is answered 500 with its message, not left unhandled', async () => {
+  it('a handler that rejects (ssrLoadModule on a file with a syntax error) is answered 500 with a generic message (the detail goes to the console, not the client), not left unhandled', async () => {
     handle = async () => {
       await Promise.resolve();
       throw new Error('Transform failed: syntax error');
     };
     const r = await post('{}');
     expect(r.status).toBe(500);
-    expect(r.body).toEqual({ ok: false, problem: 'could not check: Transform failed: syntax error' });
+    expect(r.body.problem).toMatch(/^could not check: the server could not handle the request/);
+    expect(r.body.problem).not.toContain('Transform failed');
   });
 
   it('a handler that throws at once is answered 500 too', async () => {
@@ -86,7 +90,31 @@ describe('withBody', () => {
     };
     const r = await post('{}');
     expect(r.status).toBe(500);
-    expect(r.body.problem).toBe('could not check: boom');
+    expect(r.body.problem).not.toContain('boom');
+  });
+
+  it('F5: a body that stalls is answered 408 and the socket is freed; the handler never runs', async () => {
+    seen.length = 0;
+    handle = () => {};
+    timeoutMs = 150;
+    try {
+      const r = await new Promise<{ status: number; closed: boolean }>((done, fail) => {
+        const req = request({ host: '127.0.0.1', port, method: 'POST', path: '/', headers: { 'content-type': 'application/json', 'content-length': '100' } }, (res) => {
+          res.resume();
+          const status = res.statusCode ?? 0;
+          // The server destroys the request a moment after the answer: the connection ends, though the client never sent the rest of the body.
+          res.on('close', () => done({ status, closed: true }));
+        });
+        req.on('error', () => undefined);
+        req.write('{"a":'); // part of a body, then silence
+        setTimeout(() => fail(new Error('no answer')), 3000).unref();
+      });
+      expect(r.status).toBe(408);
+      expect(r.closed).toBe(true);
+      expect(seen).toEqual([]);
+    } finally {
+      timeoutMs = BODY_TIMEOUT_MS;
+    }
   });
 
   it('a multibyte character split across two chunks stays whole (the chunks are decoded once, not one by one)', async () => {
