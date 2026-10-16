@@ -15,7 +15,12 @@ export async function handleSnapshot(request: Request, deps: SnapshotDeps): Prom
   if (token === null) return notConfigured();
   try {
     const result = await fetchSnapshot({ token, ...(deps.fetchImpl === undefined ? {} : { fetchImpl: deps.fetchImpl }), ...(deps.now === undefined ? {} : { now: deps.now }) });
-    if (!result.ok) return responseOf(mapAdapterError(result.error));
+    if (!result.ok) {
+      // One line for the log: the code, and the message only when it names a field of the reply (never a text from GitHub, the token or a header).
+      const field = result.error.code === 'bad-response' || result.error.code === 'graphql-partial' ? `: ${result.error.message}` : '';
+      console.error(`snapshot failed: ${result.error.code}${field}`);
+      return responseOf(mapAdapterError(result.error));
+    }
     return jsonResponse(result.data, 200, CACHE.snapshot);
   } catch (error) {
     // Only the name of the error is logged: its message could hold anything.

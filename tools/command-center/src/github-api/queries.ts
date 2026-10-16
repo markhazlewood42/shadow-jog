@@ -27,12 +27,12 @@ export const MAIN_FILES = [
 /** The page sizes. GitHub allows 100 for a connection. */
 export const REFS_PAGE = 100;
 export const OPEN_PRS = 50;
-export const RECENT_PRS = 100;
+export const RECENT_PRS = 30;
 export const DECISIONS_WAITING = 50;
 export const DECISIONS_DECIDED = 30;
 export const COMMENTS_PAGE = 100;
 /** How many commits of `main` the CI search looks at (the newest commit that has a run of the CI workflow wins). */
-export const CI_HISTORY = 10;
+export const CI_HISTORY = 5;
 
 // ---- call 1: the branches, the pull requests, the CI result and the decisions ----
 

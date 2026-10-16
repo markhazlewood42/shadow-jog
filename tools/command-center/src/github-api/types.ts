@@ -18,7 +18,9 @@ export type AdapterErrorCode =
   /** The reply is not JSON, or has a shape that this adapter does not know. */
   | 'bad-response'
   /** The reply has an `errors` list and no `data`. (With usable `data`, the call works and a problem names each error.) */
-  | 'graphql-error';
+  | 'graphql-error'
+  /** GitHub answered in part (`errors` plus `data` with a null field) twice, so the snapshot could not be read. Trying again later is likely to work. */
+  | 'graphql-partial';
 
 export type AdapterError = {
   code: AdapterErrorCode;

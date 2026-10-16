@@ -8053,11 +8053,11 @@ var MAIN_FILES = [
 ];
 var REFS_PAGE = 100;
 var OPEN_PRS = 50;
-var RECENT_PRS = 100;
+var RECENT_PRS = 30;
 var DECISIONS_WAITING = 50;
 var DECISIONS_DECIDED = 30;
 var COMMENTS_PAGE = 100;
-var CI_HISTORY = 10;
+var CI_HISTORY = 5;
 var REFS_FRAGMENT = `
 fragment RefsPage on RefConnection {
   totalCount
@@ -8473,6 +8473,8 @@ function rowsFromFiles(plans, repository) {
 // src/github-api/fetch.ts
 var ENDPOINT = "https://api.github.com/graphql";
 var DEFAULT_TIMEOUT_MS = 2e4;
+var SNAPSHOT_BUDGET_MS = 24e3;
+var RETRY_MIN_MS = 8e3;
 var MAX_REFS_PAGES = 20;
 var MAX_COMMENT_PAGES = 20;
 var isRecord3 = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
@@ -8547,6 +8549,19 @@ function retryAfterOf(response) {
   const seconds = Number(response.headers.get("retry-after"));
   return Number.isFinite(seconds) && seconds >= 0 && response.headers.get("retry-after") !== null && response.headers.get("retry-after") !== "" ? { retryAfter: seconds } : {};
 }
+function parseFirstPage(repository, now) {
+  return {
+    refs: parseRefsPage(repository.refs),
+    open: parsePullRequests(repository.open, "open pull requests"),
+    recent: parsePullRequests(repository.recent, "recent pull requests"),
+    openMore: isRecord3(repository.open) && isRecord3(repository.open.pageInfo) && repository.open.pageInfo.hasNextPage === true,
+    recentCut: recentIsCut(repository.recent, now),
+    waitingCut: listIsCut(repository.waiting),
+    decidedCut: listIsCut(repository.decided),
+    ci: parseCi(repository.ci),
+    decisions: [...parseDecisionRaws(repository.waiting, "decisions waiting"), ...parseDecisionRaws(repository.decided, "decisions answered")]
+  };
+}
 var badShape = (label, message) => fail("bad-response", `The reply of GitHub has a shape that this adapter does not know (${label}): ${message}`);
 var repositoryOf = (data) => isRecord3(data.repository) ? data.repository : null;
 async function fetchSnapshot(options) {
@@ -8562,22 +8577,33 @@ async function fetchSnapshot(options) {
     problems.push(...result.data.problems);
     return { ok: true, data: result.data.data };
   };
-  const first = await call("call 1: branches, pull requests, CI, decisions", SNAPSHOT_QUERY, snapshotVariables(owner, repo));
-  if (!first.ok) return first;
-  const repository = repositoryOf(first.data);
-  if (repository === null) return badShape("call 1", "the repository is missing (is the name right, and can the token read it?)");
-  const parsed = shaped(() => ({
-    refs: parseRefsPage(repository.refs),
-    open: parsePullRequests(repository.open, "open pull requests"),
-    recent: parsePullRequests(repository.recent, "recent pull requests"),
-    openMore: isRecord3(repository.open) && isRecord3(repository.open.pageInfo) && repository.open.pageInfo.hasNextPage === true,
-    recentCut: recentIsCut(repository.recent, now),
-    waitingCut: listIsCut(repository.waiting),
-    decidedCut: listIsCut(repository.decided),
-    ci: parseCi(repository.ci),
-    decisions: [...parseDecisionRaws(repository.waiting, "decisions waiting"), ...parseDecisionRaws(repository.decided, "decisions answered")]
-  }));
-  if (!parsed.ok) return badShape("call 1", parsed.message);
+  const startedAt = Date.now();
+  const callTimeout = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  let first = null;
+  let parsed = null;
+  let repository = null;
+  for (let attempt = 1; first === null; attempt += 1) {
+    const left = SNAPSHOT_BUDGET_MS - (Date.now() - startedAt);
+    const result = await graphql({ ...options, timeoutMs: Math.max(1e3, Math.min(callTimeout, left)) }, "call 1: branches, pull requests, CI, decisions", SNAPSHOT_QUERY, snapshotVariables(owner, repo));
+    if (!result.ok) {
+      const gatewayTrouble = result.error.code === "http-error" && [502, 503, 504].includes(result.error.status ?? 0);
+      if (gatewayTrouble && attempt < 2 && SNAPSHOT_BUDGET_MS - (Date.now() - startedAt) >= RETRY_MIN_MS) continue;
+      return result;
+    }
+    cost.push(result.data.cost);
+    repository = repositoryOf(result.data.data);
+    parsed = repository === null ? { ok: false, message: "the repository is missing (is the name right, and can the token read it?)" } : shaped(() => parseFirstPage(repository, now));
+    if (parsed.ok) {
+      first = result.data;
+      break;
+    }
+    if (result.data.problems.length === 0) return badShape("call 1", parsed.message);
+    if (attempt >= 2 || SNAPSHOT_BUDGET_MS - (Date.now() - startedAt) < RETRY_MIN_MS) {
+      return fail("graphql-partial", `GitHub answered in part (call 1: ${parsed.message}). Try again.`);
+    }
+  }
+  if (parsed === null || !parsed.ok) return badShape("call 1", "no reply");
+  problems.push(...first.problems);
   const page = parsed.value;
   problems.push(...page.refs.problems, ...pullRequestProblems([...page.open, ...page.recent]));
   if (page.recentCut) problems.push({ code: "recent-prs-truncated", message: "More recent pull requests exist than the first page holds, and the last one on it is newer than 14 days. A merged pull request may be missing." });
@@ -8704,6 +8730,8 @@ function mapAdapterError(error) {
       return { status: 502, kind: "bad-response", error: "GitHub sent a reply that this server does not know" };
     case "graphql-error":
       return { status: 502, kind: "graphql-error", error: "GitHub reported an error" };
+    case "graphql-partial":
+      return { status: 503, kind: "graphql-partial", error: "GitHub answered in part, try again", retryAfter: 5 };
   }
 }
 function responseOf(map) {
@@ -8718,7 +8746,11 @@ async function handleSnapshot(request, deps) {
   if (token === null) return notConfigured();
   try {
     const result = await fetchSnapshot({ token, ...deps.fetchImpl === void 0 ? {} : { fetchImpl: deps.fetchImpl }, ...deps.now === void 0 ? {} : { now: deps.now } });
-    if (!result.ok) return responseOf(mapAdapterError(result.error));
+    if (!result.ok) {
+      const field = result.error.code === "bad-response" || result.error.code === "graphql-partial" ? `: ${result.error.message}` : "";
+      console.error(`snapshot failed: ${result.error.code}${field}`);
+      return responseOf(mapAdapterError(result.error));
+    }
     return jsonResponse(result.data, 200, CACHE.snapshot);
   } catch (error) {
     console.error(`snapshot failed: ${error instanceof Error ? error.name : "unknown error"}`);
