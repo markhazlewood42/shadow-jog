@@ -50,11 +50,11 @@ describe('the real milestone data', () => {
       if (milestones[index]?.done && index !== current) expect(state, milestones[index]?.id).toBe('done');
     });
     // Milestones that are finished and merged stay done (a milestone never goes back), so a status file that says `none` still draws them.
-    for (const id of ['Phase 0', 'Pre-M0', 'M0', 'M1', 'M1b', 'M2', 'M3', 'M5', 'M6', 'M7', 'ET', 'M8a', 'M8b']) {
+    for (const id of ['Phase 0', 'Pre-M0', 'M0', 'M1', 'M1b', 'M2', 'M3', 'M5', 'M6', 'M7', 'ET', 'M8a', 'M8b', 'M8c']) {
       expect(milestones.find((milestone) => milestone.id === id)?.done, `${id} is done in roadmap.json`).toBe(true);
     }
-    // M4 is optional and M8c, M8d and Editors have not finished: they are not done.
-    for (const id of ['M4', 'M8c', 'M8d', 'Editors']) expect(milestones.find((milestone) => milestone.id === id)?.done, `${id} is not done`).toBe(false);
+    // M4 is optional and M8d and Editors have not finished: they are not done.
+    for (const id of ['M4', 'M8d', 'Editors']) expect(milestones.find((milestone) => milestone.id === id)?.done, `${id} is not done`).toBe(false);
     // With the key on `none` there is no current square.
     if (key.current === null) expect(states).not.toContain('current');
     expect(states).toContain('done');
