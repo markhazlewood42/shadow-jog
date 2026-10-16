@@ -51,7 +51,7 @@ export async function startStageLab(): Promise<StageLab> {
   const parent = must(document.getElementById('stage'), '#stage');
   const fx = params.get('fx') ?? 'none';
   assert(fx === 'none' || fx === 'auto' || fx === 'full' || fx === 'lite', `?fx= must be none, auto, full or lite, not "${fx}"`);
-  // The lab has no keyboard or gamepad: the game's input object is a stand-in with the three calls the loop makes. (The type is the old engine's `Input`, taken from `GameConfig`.)
+  // The lab has no keyboard or gamepad: the game's input object is a stand-in with the three calls the loop makes. (The type is the `Input` class of `inputdevice.ts`, taken from `GameConfig`.)
   const input = { update: () => undefined, endFrame: () => undefined, consume: () => undefined } as unknown as GameConfig['input'];
   const game = await Game.create({ parent, input, dev: true, fxLevel: fx as FxRequest });
   assert(game.renderer instanceof GlRenderer, 'the stage lab needs the GL renderer');

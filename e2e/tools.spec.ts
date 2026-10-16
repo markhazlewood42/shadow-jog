@@ -316,6 +316,19 @@ test.describe('the dry run of the animation editor save (POST /__rig/skeleton?dr
     expect(hashOf(FILE)).toBe(before);
   });
 
+  test('an invalid dry flag gets 400 (not a silent dry 200), and nothing is written', async ({ request }) => {
+    const before = hashOf(FILE);
+    const got = (await (await request.get('/__rig/skeleton')).json()) as { data: Record<string, unknown> };
+    const body = JSON.stringify(got.data); // a good body: only the flag is wrong
+    for (const flag of ['dry=true', 'dry=%zz', 'DRY=1', 'dry=0&dry=1']) {
+      const r = await request.post(`/__rig/skeleton?${flag}`, { data: body });
+      expect(r.status(), flag).toBe(400);
+      expect(((await r.json()) as { ok: boolean }).ok).toBe(false);
+    }
+    expect(hashOf(FILE)).toBe(before);
+  });
+
+
   test('control: a bad body gets 400 with a problem, with and without the dry flag, and nothing is written', async ({ request }) => {
     const before = hashOf(FILE);
     for (const url of ['/__rig/skeleton?dry=1', '/__rig/skeleton']) {
@@ -370,6 +383,18 @@ test.describe('the dry run of the art review save (POST /__artpass/review?dry=1)
     expect(hashOf(FILE)).toBe(before);
   });
 
+  test('an invalid dry flag gets 400 (not a silent dry 200), and nothing is written', async ({ request }) => {
+    const before = hashOf(FILE);
+    const body = JSON.stringify({ assets: {} }); // a good body: only the flag is wrong
+    for (const flag of ['dry=true', 'dry=%zz', 'DRY=1', 'dry=0&dry=1']) {
+      const r = await request.post(`/__artpass/review?${flag}`, { data: body });
+      expect(r.status(), flag).toBe(400);
+      expect(((await r.json()) as { ok: boolean }).ok).toBe(false);
+    }
+    expect(hashOf(FILE)).toBe(before);
+  });
+
+
   test('control: a bad body gets 400 with a problem, with and without the dry flag, and nothing is written', async ({ request }) => {
     const before = hashOf(FILE);
     for (const url of ['/__artpass/review?dry=1', '/__artpass/review']) {
@@ -408,6 +433,19 @@ test.describe('the dry run of the art review save (POST /__artpass/review?dry=1)
 
 test.describe('the FX lab save (POST /__fxlab/fx)', () => {
   const FILE = 'src/data/fx.json';
+
+  test('an invalid dry flag gets 400 (not a silent dry 200), and nothing is written', async ({ request }) => {
+    const before = hashOf(FILE);
+    const file = (await (await request.get('/__fxlab/fx')).json()) as { text: string };
+    const body = file.text; // a good body: only the flag is wrong
+    for (const flag of ['dry=true', 'dry=%zz', 'DRY=1', 'dry=0&dry=1']) {
+      const r = await request.post(`/__fxlab/fx?${flag}`, { data: body });
+      expect(r.status(), flag).toBe(400);
+      expect(((await r.json()) as { ok: boolean }).ok).toBe(false);
+    }
+    expect(hashOf(FILE)).toBe(before);
+  });
+
 
   test('a body over the limit gets 413 (not a dropped connection), dry or not, and nothing is written', async ({ request }) => {
     const before = hashOf(FILE);

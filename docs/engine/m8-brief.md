@@ -365,3 +365,10 @@ The runner, reader and attacker reports are in `media/verification/m8d/`. Caps: 
 | M2 | `docs/ARCHITECTURE.md` says that `sje/boot.ts` is the one `sje` file that imports the game | Text only | fixed |
 | M3 | The rect test also reads the fill color and alpha of each `Graphics` | `tests/battle-hud.test.ts` | fixed |
 | M4 | The two casts in `tests/sje-runtime.test.ts` are gone. The test reads `g['overlayLayer']` through a typed bracket access | `tests/sje-runtime.test.ts` 79 tests with `battle-hud` pass | fixed |
+
+### M8d verification
+
+| Round | Scores | Result | Fixes |
+|---|---|---|---|
+| 1 | Runner 8.0, reader 7.8, attacker 8.4 | Gate not met: 3 Important, 1 runner Major, Minors | `fe07872`, `d5a12a6`, `5202afd` |
+| 2 | Fix-round verifier 8.5, rubric average 8.65, none below 7 | PASS: no Critical or Important | Minors N1 (stale comments) and N2 (invalid `dry` flag gives 400) fixed in the commit that adds this table |

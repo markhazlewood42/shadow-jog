@@ -65,7 +65,7 @@ export type { FxLevel };
 export interface GameConfig {
   /** Where the canvas goes. It must be positioned (fixed, absolute or relative) and fill the window. */
   parent: HTMLElement;
-  /** The old `Input` (keyboard, gamepad, touch). The new engine wraps it, it does not copy it. */
+  /** The `Input` class of `inputdevice.ts` (keyboard, gamepad, touch). The engine wraps it, it does not copy it. */
   input: Input;
   /** Effects level, from `settings.fxLevel`, or forced (`?fx=full`). `auto` picks `lite` on software GL. @ours */
   fxLevel?: FxRequest;
@@ -73,7 +73,7 @@ export interface GameConfig {
   seed?: number;
   /** Dev builds: the hook, extra checks. @ours */
   dev?: boolean;
-  /** The old engine's reportError, shake motion and the like. */
+  /** The report-error hook, the shake motion and the like. */
   compat?: Partial<LegacyCompat>;
 }
 
@@ -236,7 +236,7 @@ export class Game implements DisplayHost, GameApi {
     this.loop.speed = v;
   }
 
-  /** The tick counter, under the name the old engine used. */
+  /** The tick counter, under the name that story code and scenes use. */
   get frame(): number {
     return this.tick;
   }

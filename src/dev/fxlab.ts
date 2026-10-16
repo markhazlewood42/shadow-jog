@@ -127,7 +127,7 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Record<string,
 /**
  * The lab is a Scene of the new engine (ET, docs/engine/et-brief.md decision 1). It draws its picture with Canvas 2D through the viewers' base (`viewers/base.ts`), plays on
  * `game.fx`, the engine's own effects system, and hands every edit to it through `game.fx.loadData` (the editor contract, principle 11): `loadData` checks the data, and a
- * bad edit leaves the last good data in place there. It imports nothing from the old engine (src/engine/{game,display,postfx,moments}, which M8 deletes).
+ * bad edit leaves the last good data in place there. It imports nothing from the game's scenes or story code.
  */
 export class FxLabScene extends CanvasViewScene {
   private panel: HTMLDivElement | null = null;

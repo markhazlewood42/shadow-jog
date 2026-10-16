@@ -732,7 +732,7 @@ export class FieldScene extends Scene<void> implements FieldStageSource {
 
   // ------------------------------------------------------------------ render
   /**
-   * The `prerender` handler: paint `render` into the scene's canvas image and upload it. A scene above the base starts each frame clear, as a legacy scene did. With a stage
+   * The `prerender` handler: paint `render` into the scene's canvas image and upload it. A scene above the base starts each frame clear. With a stage
    * under it and no dev overlay, the canvas is cleared once and left out (no 921,600-byte upload). A throw still uploads the picture, then reaches the engine's guard.
    */
   private paint(): void {

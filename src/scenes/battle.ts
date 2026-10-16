@@ -151,7 +151,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
 
   /**
    * One frame of this scene's own canvas: the whole picture when there is no stage, else the art that the stage cannot draw (battlekit/render.ts). The canvas of
-   * `image` starts clear every frame, as a legacy scene above the base did. The effects layer `game.fx` takes the glow when it is on. The windows are not in this canvas: they are kit parts in the ui layer.
+   * `image` starts clear every frame, as every scene above the base does. The effects layer `game.fx` takes the glow when it is on. The windows are not in this canvas: they are kit parts in the ui layer.
    */
   render(ctx: Ctx): void {
     this.renderer.render(ctx);

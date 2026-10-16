@@ -4,7 +4,7 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Plugin } from 'vite';
 import { withBody } from './src/dev/endpoint';
-import { isDry, sameOrigin } from './src/dev/sameorigin';
+import { dryFlag, isDry, sameOrigin } from './src/dev/sameorigin';
 import { stageHandlers } from './src/dev/stageedit/serve';
 import { DEV_TOOLS } from './src/dev/tools';
 import { defineConfig } from 'vitest/config';
@@ -41,6 +41,10 @@ function fxLab(): Plugin {
         }
         if (!sameOrigin(req)) {
           reply(403, { ok: false, problems: ['writes only from the dev server’s own pages'] });
+          return;
+        }
+        if (dryFlag(req.url) === 'invalid') {
+          reply(400, { ok: false, problems: ['dry must be 0 or 1, once, or left out'] });
           return;
         }
         // An oversize body is answered 413 at once and no more of it is read, a failure of the handler (fxdata.ts with a syntax error mid-edit makes ssrLoadModule reject) is answered 500: see withBody.
@@ -132,7 +136,7 @@ const ART_PASS = resolve(import.meta.dirname, process.env.SJ_ART_PASS_DIR ?? 'me
  * Mark picks). GET /__artpass/data gathers every generated asset's meta.json with the saved review
  * and the pass's spend; POST /__artpass/review saves the review (picks, verdicts, notes) to
  * media/art-pass/review.json. The review page is artreview.html; see scripts/pixellab/.
- * `POST /review?dry=1` (see `isDry`: the value must be `1`) checks the body and writes nothing (the tests use it): `{ ok: true, dry: true }` or the same 400 as a real save.
+ * `POST /review?dry=1` (see `dryFlag`: only the value `1`; `dry=0` or no flag writes; any other form is a 400) checks the body and writes nothing (the tests use it): `{ ok: true, dry: true }` or the same 400 as a real save.
  */
 function artPass(): Plugin {
   const readJson = (path: string): unknown => (existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : null);
@@ -170,6 +174,10 @@ function artPass(): Plugin {
           if (req.method === 'POST' && route === '/review') {
             if (!sameOrigin(req)) {
               reply(403, { ok: false, problem: 'writes only from the dev server’s own pages' });
+              return;
+            }
+            if (dryFlag(req.url) === 'invalid') {
+              reply(400, { ok: false, problem: 'dry must be 0 or 1, once, or left out' });
               return;
             }
             // An oversize body is answered 413 at once and no more of it is read; a failure of the handler is answered 500: see withBody.
@@ -238,6 +246,10 @@ function rigEdit(): Plugin {
         }
         if (!sameOrigin(req)) {
           reply(403, { ok: false, problem: 'writes only from the dev server’s own pages' });
+          return;
+        }
+        if (dryFlag(req.url) === 'invalid') {
+          reply(400, { ok: false, problem: 'dry must be 0 or 1, once, or left out' });
           return;
         }
         // An oversize body is answered 413 at once and no more of it is read; a failure of the handler is answered 500: see withBody.
