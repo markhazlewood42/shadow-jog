@@ -52,7 +52,7 @@ This file gives the path from today's engine and from the Phaser spike to the ne
 | **M1b** 3D proof (parallel with M2) | A spinning cube in a `Scene3D`, with the hand-off, leak, and loss tests | `src/sje/three/`, `src/sje/render/glhandoff.ts`, the lab page |
 | **M2** Effects | `FxSystem` with the `postfx` facade, composite filter, particles | `src/sje/display/` and `src/sje/render/shaders/`. The old `src/engine/postfx.ts` routes to it under the flag. `fx.json`, `moments.ts` and `fxdata.ts` do not change |
 | **M3** Battle stage | Port the spike's `src/stage` | `src/battlestage/`, `battle.ts`, `src/battle/fx.ts`, the stage data, and the enemy data (it moves to a data file) |
-| **M4** UI scenes (optional) | `NineSlice` windows, `ListMenu`, bars, cursor, `TextObject` | The UI scenes that port. Each keeps its e2e spec |
+| **M4** UI scenes (closed 2026-10-16) | `NineSlice` windows, `ListMenu`, bars, cursor, `TextObject` | The UI scenes that port. Each keeps its e2e spec |
 | **M5** Field | The field map, actors, camera, lights, weather | `src/field/`, the `src/art/` painters, and the maps (they move to data files) |
 | **M6** Flip default | `?engine=sje` becomes the default. Remove the old presenter | `src/main.ts`, `src/engine/gl/`, `src/dev/fxlab.ts`, `scripts/bundle-budget.mjs`, and the specs that used `#fx` |
 | **M7** 3D mode | `ThreeHost`, `Frame3D`, `Scene3D`, the minimal test scene, `s.hack()` | `src/sje/three/`, `src/hack3d/`, `src/game/script.ts` (`ScriptApi.hack`) |
