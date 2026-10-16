@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-14",
+  "updated": "2026-10-16",
   "lanes": [
     {
       "id": "foundations",
@@ -12,6 +12,10 @@
     {
       "id": "side",
       "title": "Side paths"
+    },
+    {
+      "id": "epics",
+      "title": "Epics before a demo Mark can share"
     },
     {
       "id": "gated",
@@ -211,11 +215,11 @@
       "kind": "milestone",
       "label": "UI scenes",
       "lane": "side",
-      "status": "optional",
+      "status": "done",
       "after": [
         "M3"
       ],
-      "notes": "Optional. A UI scene ports only when it needs a camera, a filter, a mask or a transition."
+      "notes": "Closed 2026-10-16 (Mark). M8b and M8c ported all 13 UI scenes and the battle and field scenes to native sje scenes, so nothing is left to port."
     },
     {
       "id": "archive-tags",
@@ -263,10 +267,10 @@
       "tag": "Decision 5",
       "label": "PixelLab end date",
       "lane": "other",
-      "status": "next",
+      "status": "done",
       "after": [],
       "column": 1,
-      "notes": "Decision 5 in docs/PHASE-0.2.md is open. The PixelLab plan ends about 2026-10-30."
+      "notes": "Decided 2026-10-16 (Mark): PixelLab is out. New 2D art comes from Sprite Fusion or other sources."
     },
     {
       "id": "sprite-fusion",
@@ -276,7 +280,7 @@
       "status": "optional",
       "after": [],
       "column": 2,
-      "notes": "Sprite Fusion. Mark spends the next credits on the shopping list when he is ready."
+      "notes": "Sprite Fusion is now the main art source (PixelLab is out, 2026-10-16). Credits go to the art epic E1."
     },
     {
       "id": "cc-followups",
@@ -308,6 +312,46 @@
         "ET"
       ],
       "notes": "After Chapter 1. New UI editors so Mark builds the game mostly in tools: troops, database, maps, conversations, animation composer, lights and weather. Plan: docs/TOOLING-UI.md section 4."
+    },
+    {
+      "id": "E1",
+      "tag": "Epic",
+      "label": "2D art and maps",
+      "lane": "epics",
+      "status": "next",
+      "after": [],
+      "column": 0,
+      "notes": "Redo all 2D assets in the Sprite Fusion style, with one quality bar across 2D mode. Find or make a real tileset for maps at two scales (in-town and overworld), learning heavily from RPG Maker. Ends with a full game walkthrough with Mark's notes."
+    },
+    {
+      "id": "E2",
+      "tag": "Epic",
+      "label": "3D hacking mode",
+      "lane": "epics",
+      "status": "next",
+      "after": [],
+      "column": 1,
+      "notes": "Design a first draft of hacking in 3D mode: find or make 3D assets, build the gameplay (Mark has notes on visuals and gameplay), and add at least one hacking mission to the Chapter 1 story."
+    },
+    {
+      "id": "E3",
+      "tag": "Epic",
+      "label": "Editor suite",
+      "lane": "epics",
+      "status": "next",
+      "after": [],
+      "column": 2,
+      "notes": "An RPG Maker-like editor suite. First review and improve every existing tool and editor for use and clarity (a clear purpose and workflow each). Then add tools to build more chapters. Builds on the Editors milestone."
+    },
+    {
+      "id": "E4",
+      "tag": "Epic",
+      "label": "Engine docs",
+      "lane": "epics",
+      "status": "next",
+      "after": [],
+      "column": 3,
+      "notes": "Side project. Document and diagram the engine architecture, add code comments so Mark can read the code, and simplify the docs."
     }
   ]
 }

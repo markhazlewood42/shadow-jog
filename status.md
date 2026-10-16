@@ -18,6 +18,15 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 - **CI:** GitHub Actions, on pushes to `main` and on pull requests: three jobs at the same time (`check`, `e2e`, `e2e-engines`), all three required on `main` by the ruleset "Main branch protection" (2026-10-06). A docs-only change skips their steps. The real-speed playtest runs in `playtest.yml` after a merge and from the Actions button.
 - **Since 2026-10-01** work goes on a branch per major feature, with a PR for the Claude Code Review Action, and Mark merges.
 
+## Epics before a demo Mark can share (2026-10-16)
+
+Mark's list, tracked as epics in `docs/roadmap/roadmap.json` (lane "Epics"). Order is not set. Each epic needs a brief with pass lines before any build (ask Mark first). **PixelLab is out** (Mark, 2026-10-16): new 2D art comes from Sprite Fusion or other sources. **M4 is closed**: M8 ported every UI scene.
+
+- **E1 2D art and maps.** Redo all 2D assets in the Sprite Fusion style, one quality bar for 2D mode. A real tileset for maps at two scales (in-town, overworld); learn heavily from RPG Maker. Ends with a full game walkthrough with Mark's notes.
+- **E2 3D hacking mode.** First-draft design of hacking in 3D: find or make 3D assets, build the gameplay (Mark has notes on visuals and gameplay), add at least one hacking mission to Chapter 1.
+- **E3 Editor suite.** An RPG Maker-like suite. First review and improve every existing tool for use and clarity (clear purpose and workflow each). Then add tools to build more chapters. Builds on the "Editors" milestone.
+- **E4 Engine docs (side project).** Document and diagram the engine, add code comments Mark can read, simplify the docs.
+
 ## M8d "Remove legacy" is merged (2026-10-16)
 
 **M8 is done.** [PR #98](https://github.com/markhazlewood42/shadow-jog/pull/98) merged at 6bf70cf (Mark, 2026-10-16). CI was green and all Claude reviews were triaged as false positives (record: `docs/engine/m8-brief.md` "M8d PR 98 review triage"). Flaky e2e `sje-hack-a`: [#97](https://github.com/markhazlewood42/shadow-jog/issues/97). The next milestone is Mark's pick.

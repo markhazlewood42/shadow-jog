@@ -3,7 +3,7 @@ type: reference
 title: Shadow Jog roadmap
 project: shadow-jog
 created: 2026-10-09
-updated: 2026-10-14
+updated: 2026-10-16
 tags: [roadmap, planning]
 ---
 
@@ -37,15 +37,19 @@ Now: no milestone.
 | M8c Battle and field | Engine path | 12 | done | M8b | none | Port the battle and field scenes. Merged in PR #96 (2026-10-15). |
 | M8d Delete old engine | Engine path | 13 | done | M8c | none | Delete the old engine, LegacyScene and the exemptions. Move the kept src/engine files into src/sje. Docs and the PR #86 follow-ups. Merged in PR #98 (6bf70cf, 2026-10-16); the old engine and src/engine are gone. GPU timing check passed. |
 | M1b 3D proof | Side paths | 5 | done | M1 | none | Parallel with M2. A spinning cube in a Scene3D, with the hand-off, leak and loss tests. |
-| M4 UI scenes | Side paths | 7 | optional | M3 | none | Optional. A UI scene ports only when it needs a camera, a filter, a mask or a transition. |
+| M4 UI scenes | Side paths | 7 | done | M3 | none | Closed 2026-10-16 (Mark). M8b and M8c ported all 13 UI scenes and the battle and field scenes to native sje scenes, so nothing is left to port. |
 | ET Editor port | Side paths | 9 | done | M6 | branch `engine-et-editor-port`, PR #86 (merged 2026-10-14) | Merged 2026-10-14 (PR #86), before M8. Every editor and tool moved to the new engine; the Battle Stage Editor (/stageedit.html) and Battle Test are back. The trailer is deleted (#84). Two exceptions until M8d: the Battle Test glue module and the shared old Input. Record: docs/engine/et-brief.md. |
 | Editors Editor suite | Side paths | 10 | later | ET | none | After Chapter 1. New UI editors so Mark builds the game mostly in tools: troops, database, maps, conversations, animation composer, lights and weather. Plan: docs/TOOLING-UI.md section 4. |
+| E1 2D art and maps | Epics before a demo Mark can share | 1 | next | none | none | Redo all 2D assets in the Sprite Fusion style, with one quality bar across 2D mode. Find or make a real tileset for maps at two scales (in-town and overworld), learning heavily from RPG Maker. Ends with a full game walkthrough with Mark's notes. |
+| E2 3D hacking mode | Epics before a demo Mark can share | 2 | next | none | none | Design a first draft of hacking in 3D mode: find or make 3D assets, build the gameplay (Mark has notes on visuals and gameplay), and add at least one hacking mission to the Chapter 1 story. |
+| E3 Editor suite | Epics before a demo Mark can share | 3 | next | none | none | An RPG Maker-like editor suite. First review and improve every existing tool and editor for use and clarity (a clear purpose and workflow each). Then add tools to build more chapters. Builds on the Editors milestone. |
+| E4 Engine docs | Epics before a demo Mark can share | 4 | next | none | none | Side project. Document and diagram the engine architecture, add code comments so Mark can read the code, and simplify the docs. |
 | archive-tags Archive tags | Needs Mark's go-ahead | 7 | gated | M3 | none | archive/side-battle-<date> and archive/phaser-stage-<date>, then close PRs #3 and #4. Mark approves each tag. They wait until M3 lands (status.md, Next for agents 3). |
 | release-tags Release tags | Needs Mark's go-ahead | 10 | gated | none | none | Annotated v* tags. Cut only after Mark's playtest and go-ahead. Not tied to one milestone. The column is only a place on the chart. |
 | deploy Deploy site | Needs Mark's go-ahead | 11 | gated | none | none | Site: shadowjog.com. The last alpha step, with the secure email sign-up. Only with Mark's explicit go-ahead. Not tied to one milestone. The column is only a place on the chart. |
 | playthrough-notes Playthrough notes edit | Other open items (no order) | 1 | next | none | none | Mark's uncommitted edit to docs/mark-playthrough-notes.md waits for him. |
-| pixellab-end PixelLab end date | Other open items (no order) | 2 | next | none | none | Decision 5 in docs/PHASE-0.2.md is open. The PixelLab plan ends about 2026-10-30. |
-| sprite-fusion Sprite credits | Other open items (no order) | 3 | optional | none | none | Sprite Fusion. Mark spends the next credits on the shopping list when he is ready. |
+| pixellab-end PixelLab end date | Other open items (no order) | 2 | done | none | none | Decided 2026-10-16 (Mark): PixelLab is out. New 2D art comes from Sprite Fusion or other sources. |
+| sprite-fusion Sprite credits | Other open items (no order) | 3 | optional | none | none | Sprite Fusion is now the main art source (PixelLab is out, 2026-10-16). Credits go to the art epic E1. |
 | cc-followups CC follow-ups | Other open items (no order) | 4 | optional | none | none | Command Center items left over (status.md, Next for agents 1b). All optional. |
 | plasma-bug plasma-ui bug report | Other open items (no order) | 5 | optional | none | none | An upstream bug report for the plasma-ui canvas width (R28), if Mark wants one. |
 
