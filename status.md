@@ -15,6 +15,7 @@ Browser JRPG: a cyberpunk-fantasy setting with the Phantasy Star IV game loop. C
 K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 
 **GitHub:** [markhazlewood42/shadow-jog](https://github.com/markhazlewood42/shadow-jog) (public).
+**Tracking:** GitHub project [Shadow Jog](https://github.com/users/markhazlewood42/projects/2) (epics, milestones, decisions, tasks); demo cut in the milestone [Shareable demo](https://github.com/markhazlewood42/shadow-jog/milestone/1).
 - **CI:** GitHub Actions, on pushes to `main` and on pull requests: three jobs at the same time (`check`, `e2e`, `e2e-engines`), all three required on `main` by the ruleset "Main branch protection" (2026-10-06). A docs-only change skips their steps. The real-speed playtest runs in `playtest.yml` after a merge and from the Actions button.
 - **Since 2026-10-01** work goes on a branch per major feature, with a PR for the Claude Code Review Action, and Mark merges.
 
@@ -40,6 +41,8 @@ Order:
 Demo cut: #101 + E1 + E2. Local brief copies: `media/epic-briefs/` (git-ignored).
 
 **Next: Mark answers the decisions and plays Chapter 1 (#101).**
+
+**Housekeeping (2026-10-16).** Work tracking moved to the GitHub project board (36 items: Kind, Step, Status; decisions are sub-issues of their epics; final demo is #134; repo milestone "Shareable demo"). README refresh on branch `readme-refresh` (fresh pictures in `docs/readme/`), PR next. Mark chose the roadmap sync: the board is the source of truth, and a script `npm run roadmap:sync` will write `docs/roadmap/roadmap.json` for the Command Center (brief first, then Mark approves).
 
 ## M8d "Remove legacy" is merged (2026-10-16)
 

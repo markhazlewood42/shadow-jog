@@ -168,7 +168,7 @@ Kit is the protagonist. Rook is the mentor (PSIV's Alys analog). Hex is the brai
 | Confirm / talk | Z · Enter · Space | A / Cross |
 | Cancel (opens the menu in the field) | X · Esc · Backspace | B / Circle |
 | Menu | C · Tab | Y / Triangle · Start |
-| Dash (hold) | Shift | X / Square · RB |
+| Dash (hold) | Shift | X / Square · RB · RT |
 | Fullscreen | F | — |
 
 Every keyboard action can be rebound in Options → Controls (the in-game Controls page is the reference; this table
