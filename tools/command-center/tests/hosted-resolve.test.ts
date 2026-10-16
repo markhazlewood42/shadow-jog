@@ -107,7 +107,7 @@ describe('the panels made from the snapshot', () => {
     expect(byId.get('M8a')).toBe(true);
     expect(byId.get('M8b')).toBe(true);
     expect(byId.get('M8c')).toBe(true);
-    expect(byId.get('M8d')).toBe(false);
+    expect(byId.get('M8d')).toBe(true);
   });
 
   it('says that the roadmap is missing or unreadable, with the status riding along, when main has no usable roadmap.json', async () => {
