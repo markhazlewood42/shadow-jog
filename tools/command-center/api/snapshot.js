@@ -8053,7 +8053,7 @@ var MAIN_FILES = [
 ];
 var REFS_PAGE = 100;
 var OPEN_PRS = 50;
-var RECENT_PRS = 30;
+var RECENT_PRS = 100;
 var DECISIONS_WAITING = 50;
 var DECISIONS_DECIDED = 30;
 var COMMENTS_PAGE = 100;
@@ -8475,6 +8475,7 @@ var ENDPOINT = "https://api.github.com/graphql";
 var DEFAULT_TIMEOUT_MS = 2e4;
 var SNAPSHOT_BUDGET_MS = 25e3;
 var RETRY_MIN_MS = 8e3;
+var RETRY_BACKOFF_MS = 1e3;
 var MIN_CALL_MS = 500;
 var MAX_REFS_PAGES = 20;
 var MAX_COMMENT_PAGES = 20;
@@ -8571,12 +8572,14 @@ async function fetchSnapshot(options) {
   const repo = options.repo ?? REPO;
   const cost = [];
   const problems = [];
-  const startedAt = Date.now();
+  const clock = () => options.now === void 0 ? Date.now() : options.now().getTime();
+  const sleep = options.sleep ?? ((ms) => new Promise((done) => setTimeout(done, ms)));
+  const startedAt = clock();
   const callTimeout = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-  const timeLeft = () => SNAPSHOT_BUDGET_MS - (Date.now() - startedAt);
+  const timeLeft = () => SNAPSHOT_BUDGET_MS - (clock() - startedAt);
   const withinDeadline = (label) => {
     const left = timeLeft();
-    return left < MIN_CALL_MS ? fail("network", `The time limit of the snapshot ran out before this call (${label}). Try again.`) : { ok: true, options: { ...options, timeoutMs: Math.min(callTimeout, left) } };
+    return left < MIN_CALL_MS ? fail("deadline", `The snapshot ran out of time before GitHub answered (${label}). Try again.`) : { ok: true, options: { ...options, timeoutMs: Math.min(callTimeout, left) } };
   };
   const call = async (label, query, variables) => {
     const allowed = withinDeadline(label);
@@ -8595,7 +8598,10 @@ async function fetchSnapshot(options) {
     const result = await graphql(allowed.options, "call 1: branches, pull requests, CI, decisions", SNAPSHOT_QUERY, snapshotVariables(owner, repo));
     if (!result.ok) {
       const gatewayTrouble = result.error.code === "http-error" && [502, 503, 504].includes(result.error.status ?? 0);
-      if (gatewayTrouble && attempt < 2 && timeLeft() >= RETRY_MIN_MS) continue;
+      if (gatewayTrouble && attempt < 2 && timeLeft() >= RETRY_MIN_MS + RETRY_BACKOFF_MS) {
+        await sleep(RETRY_BACKOFF_MS);
+        continue;
+      }
       return result;
     }
     cost.push(result.data.cost);
@@ -8608,9 +8614,10 @@ async function fetchSnapshot(options) {
       break;
     }
     if (result.data.problems.length === 0) return badShape("call 1", parsed.message);
-    if (attempt >= 2 || timeLeft() < RETRY_MIN_MS) {
+    if (attempt >= 2 || timeLeft() < RETRY_MIN_MS + RETRY_BACKOFF_MS) {
       return fail("graphql-incomplete", `GitHub answered in part (call 1: ${parsed.message}). Try again.`);
     }
+    await sleep(RETRY_BACKOFF_MS);
   }
   problems.push(...first.problems);
   problems.push(...page.refs.problems, ...pullRequestProblems([...page.open, ...page.recent]));
@@ -8738,6 +8745,8 @@ function mapAdapterError(error) {
       return { status: 502, kind: "bad-response", error: "GitHub sent a reply that this server does not know" };
     case "graphql-error":
       return { status: 502, kind: "graphql-error", error: "GitHub reported an error" };
+    case "deadline":
+      return { status: 504, kind: "deadline", error: "The snapshot ran out of time before GitHub answered", retryAfter: 5 };
     case "graphql-incomplete":
       return { status: 503, kind: "graphql-incomplete", error: "GitHub answered in part, try again", retryAfter: 5 };
   }
@@ -8747,16 +8756,20 @@ function responseOf(map) {
 }
 
 // src/hosted/snapshot.ts
+function fieldLabelOf(message) {
+  const found = /\(call 1(?:: |\): )([\w. -]{1,60}?)(?: is missing| has no)/.exec(message);
+  return found?.[1] ?? "unknown";
+}
 async function handleSnapshot(request, deps) {
   const refused = methodNotAllowed(request);
   if (refused !== null) return refused;
   const token = readGithubToken(deps.env);
   if (token === null) return notConfigured();
   try {
-    const result = await fetchSnapshot({ token, ...deps.fetchImpl === void 0 ? {} : { fetchImpl: deps.fetchImpl }, ...deps.now === void 0 ? {} : { now: deps.now } });
+    const result = await fetchSnapshot({ token, ...deps.fetchImpl === void 0 ? {} : { fetchImpl: deps.fetchImpl }, ...deps.now === void 0 ? {} : { now: deps.now }, ...deps.sleep === void 0 ? {} : { sleep: deps.sleep } });
     if (!result.ok) {
-      const field = result.error.code === "bad-response" || result.error.code === "graphql-incomplete" ? `: ${result.error.message}` : "";
-      console.error(`snapshot failed: ${result.error.code}${field}`);
+      const label = result.error.code === "bad-response" || result.error.code === "graphql-incomplete" ? ` (field: ${fieldLabelOf(result.error.message)})` : "";
+      console.error(`snapshot failed: ${result.error.code}${label}`);
       return responseOf(mapAdapterError(result.error));
     }
     return jsonResponse(result.data, 200, CACHE.snapshot);

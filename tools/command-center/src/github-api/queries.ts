@@ -27,7 +27,7 @@ export const MAIN_FILES = [
 /** The page sizes. GitHub allows 100 for a connection. */
 export const REFS_PAGE = 100;
 export const OPEN_PRS = 50;
-export const RECENT_PRS = 30;
+export const RECENT_PRS = 100;
 export const DECISIONS_WAITING = 50;
 export const DECISIONS_DECIDED = 30;
 export const COMMENTS_PAGE = 100;

@@ -56,6 +56,8 @@ export type FetchOptions = {
   repo?: string;
   /** The limit for one call, in milliseconds. In `fetchSnapshot` it is cut further to what is left of the deadline of the whole snapshot. */
   timeoutMs?: number;
+  /** Waits before the retry of `fetchSnapshot`. A test replaces it, so that it does not wait. */
+  sleep?: (ms: number) => Promise<void>;
 };
 
 const DEFAULT_TIMEOUT_MS = 20_000;
@@ -63,6 +65,8 @@ const DEFAULT_TIMEOUT_MS = 20_000;
 const SNAPSHOT_BUDGET_MS = 25_000;
 /** A retry of call 1 starts only when at least this much of the deadline is left. */
 const RETRY_MIN_MS = 8_000;
+/** The short wait before the one retry, so that GitHub has a moment to recover. The retry gate counts it. */
+const RETRY_BACKOFF_MS = 1_000;
 /** A call is not started with less than this left of the deadline. */
 const MIN_CALL_MS = 500;
 /** The most pages of branches (100 each) that one snapshot reads. A repo past this has 2,000 branches, and a problem says so. */
@@ -211,12 +215,15 @@ export async function fetchSnapshot(options: FetchOptions): Promise<Result<Snaps
   const problems: SnapshotProblem[] = [];
 
   // One deadline for the whole snapshot. Each call gets the smaller of its own limit and what is left. With nothing left, the call is not made.
-  const startedAt = Date.now();
+  // The clock is the one of the caller (`options.now`, which a test sets) and Date.now when there is none.
+  const clock = (): number => (options.now === undefined ? Date.now() : options.now().getTime());
+  const sleep = options.sleep ?? ((ms: number) => new Promise<void>((done) => setTimeout(done, ms)));
+  const startedAt = clock();
   const callTimeout = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-  const timeLeft = (): number => SNAPSHOT_BUDGET_MS - (Date.now() - startedAt);
+  const timeLeft = (): number => SNAPSHOT_BUDGET_MS - (clock() - startedAt);
   const withinDeadline = (label: string): { ok: true; options: FetchOptions } | { ok: false; error: AdapterError } => {
     const left = timeLeft();
-    return left < MIN_CALL_MS ? fail('network', `The time limit of the snapshot ran out before this call (${label}). Try again.`) : { ok: true, options: { ...options, timeoutMs: Math.min(callTimeout, left) } };
+    return left < MIN_CALL_MS ? fail('deadline', `The snapshot ran out of time before GitHub answered (${label}). Try again.`) : { ok: true, options: { ...options, timeoutMs: Math.min(callTimeout, left) } };
   };
 
   const call = async (label: string, query: string, variables: Record<string, unknown>): Promise<Result<Record<string, unknown>>> => {
@@ -242,7 +249,10 @@ export async function fetchSnapshot(options: FetchOptions): Promise<Result<Snaps
     if (!result.ok) {
       // GitHub answers 502, 503 or 504 when a heavy query runs out of time on its side. One more try often works.
       const gatewayTrouble = result.error.code === 'http-error' && [502, 503, 504].includes(result.error.status ?? 0);
-      if (gatewayTrouble && attempt < 2 && timeLeft() >= RETRY_MIN_MS) continue;
+      if (gatewayTrouble && attempt < 2 && timeLeft() >= RETRY_MIN_MS + RETRY_BACKOFF_MS) {
+        await sleep(RETRY_BACKOFF_MS);
+        continue;
+      }
       return result;
     }
     cost.push(result.data.cost);
@@ -257,9 +267,10 @@ export async function fetchSnapshot(options: FetchOptions): Promise<Result<Snaps
     }
     if (result.data.problems.length === 0) return badShape('call 1', parsed.message);
     // Partial data (GitHub left a field null and said why). Try once more, but only if the first try was the first and enough time is left.
-    if (attempt >= 2 || timeLeft() < RETRY_MIN_MS) {
+    if (attempt >= 2 || timeLeft() < RETRY_MIN_MS + RETRY_BACKOFF_MS) {
       return fail('graphql-incomplete', `GitHub answered in part (call 1: ${parsed.message}). Try again.`);
     }
+    await sleep(RETRY_BACKOFF_MS);
   }
   problems.push(...first.problems);
   problems.push(...page.refs.problems, ...pullRequestProblems([...page.open, ...page.recent]));

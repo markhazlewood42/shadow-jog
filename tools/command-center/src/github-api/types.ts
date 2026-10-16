@@ -20,7 +20,9 @@ export type AdapterErrorCode =
   /** The reply has an `errors` list and no `data`. (With usable `data`, the call works and a problem names each error.) */
   | 'graphql-error'
   /** GitHub answered in part (`errors` plus `data` with a null field) twice, so the snapshot could not be read. Trying again later is likely to work. */
-  | 'graphql-incomplete';
+  | 'graphql-incomplete'
+  /** The one deadline of the snapshot ran out before a call could start. Trying again later is likely to work. */
+  | 'deadline';
 
 export type AdapterError = {
   code: AdapterErrorCode;
