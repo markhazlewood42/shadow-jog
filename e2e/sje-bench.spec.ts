@@ -267,8 +267,8 @@ test.describe('M1 bench (local only, real GPU)', () => {
       // The upload counter, per frame. Every frame has one upload that no scene owns: the game's overlay layer (`game-overlays`, 640x360, `Game.paintNative`).
       // `src/sje/boot.ts` registers `drawNotice` as an overlay, so the layer is cleared, repainted and uploaded each frame, also when no notice shows.
       // Then each canvas image that a scene repaints adds one upload:
-      //   A  the title: its art canvas (`TitleScene.paint`, once a tick) + the overlay layer = 2. (The small logo canvas uploads only on a glitch frame: 5 in 20.)
-      //   B  the probe's canvas + the overlay layer = 2. The title does not tick while a scene runs over it, so its art canvas is not uploaded.
+      //   A  the title: its art canvas (`TitleScene.paint`, once a tick) + the overlay layer = 2. (The small logo canvas can add a fraction: the measured 2.01 is not exactly 2.)
+      //   B  the probe's canvas + the overlay layer = 2. The measured count (2.00) shows that the title art canvas does not upload while the probe runs over it.
       //   B3 two probe canvases + the overlay layer = 3. The control: a third upload IS seen, so a stray extra canvas would fail B and A.
       // M8d triage (2026-10-15): A read 2.01 on main and on the branch alike. The old premise ("one canvas per drawn scene", A = 1) was written when the notice overlay was
       // not a canvas of its own.
