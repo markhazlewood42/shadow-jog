@@ -1,6 +1,6 @@
 import { Button, Label, Radio, RadioGroup, TextArea, TextField } from '@heroui/react';
 import { LoaderCircle, Send, TriangleAlert } from 'lucide-react';
-import { type FormEvent, useCallback, useState } from 'react';
+import { type FormEvent, useCallback, useRef, useState } from 'react';
 import { type AnswerStep, type DecisionAnswer, type DecisionIssue, MAX_NOTE_CHARS } from '../../shared/types';
 import { ApiError, postJson } from '../api';
 import { answerOf, sendHostedAnswer } from '../hosted/answer';
@@ -57,9 +57,13 @@ export function useAnswerDraft(number: number, onWritten: () => void): AnswerDra
   const [status, setStatus] = useState<AnswerDraft['status']>('idle');
   const [failure, setFailure] = useState<AnswerFailure | null>(null);
   const [answered, setAnswered] = useState<DecisionAnswer | null>(null);
+  // Set at once, before React re-renders: a fast double click would otherwise send two answers, and post two comments.
+  const inFlight = useRef(false);
 
   const send = useCallback(
     async (option: string, text: string) => {
+      if (inFlight.current) return;
+      inFlight.current = true;
       setStatus('sending');
       setFailure(null);
       if (HOSTED) {
@@ -82,6 +86,7 @@ export function useAnswerDraft(number: number, onWritten: () => void): AnswerDra
           setFailure(failureOf(error));
         }
       }
+      inFlight.current = false;
       onWritten();
     },
     [number, onWritten],

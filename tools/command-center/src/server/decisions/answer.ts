@@ -1,10 +1,10 @@
+import type { AnswerStep } from '../../shared/types';
 import type { Config } from '../config';
 import { classifyGhError } from '../github/errors';
 import { say } from '../messages';
 import type { RunResult, Runner } from '../runner';
 import { type AnswerExecutor, type AnswerResult, type RunRequest, type StepError, runAnswer } from './answer-core';
 import { LABEL_DECIDED, LABEL_DECISION } from './parse';
-import type { AnswerStep } from '../../shared/types';
 
 // Mark's answer to a decision: the one write of the local command center. It posts one comment, swaps the label `decision` for
 // `decided`, and closes the issue, through `gh`, in that order. Nothing else is written: no file, and no git operation. The
