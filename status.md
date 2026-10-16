@@ -42,6 +42,8 @@ Demo cut: #101 + E1 + E2. Local brief copies: `media/epic-briefs/` (git-ignored)
 
 **Next: Mark answers the decisions and plays Chapter 1 (#101).**
 
+**Housekeeping (2026-10-16).** Work tracking moved to the GitHub project board (36 items: Kind, Step, Status; decisions are sub-issues of their epics; final demo is #134; repo milestone "Shareable demo"). README refresh on branch `readme-refresh` (fresh pictures in `docs/readme/`), PR next. Mark chose the roadmap sync: the board is the source of truth, and a script `npm run roadmap:sync` will write `docs/roadmap/roadmap.json` for the Command Center (brief first, then Mark approves).
+
 ## M8d "Remove legacy" is merged (2026-10-16)
 
 **M8 is done.** [PR #98](https://github.com/markhazlewood42/shadow-jog/pull/98) merged at 6bf70cf (Mark, 2026-10-16). CI was green and all Claude reviews were triaged as false positives (record: `docs/engine/m8-brief.md` "M8d PR 98 review triage"). Flaky e2e `sje-hack-a`: [#97](https://github.com/markhazlewood42/shadow-jog/issues/97). The next milestone is Mark's pick.
