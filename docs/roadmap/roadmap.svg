@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1354 902" width="1354" height="902" role="img" aria-labelledby="roadmap-title roadmap-desc">
   <title id="roadmap-title">Shadow Jog roadmap</title>
-  <desc id="roadmap-desc">Order and dependency only. Bar length is not time. Now: no milestone. Items in the same column can run in parallel. Foundations: Phase 0 Platform spike (done), Pre-M0 640x360 move (done), M0 Prepare (done). Engine path: M1 Shell (done), M2 Effects (done), M3 Battle stage (done), M5 Field (done), M6 Flip default (done), M7 3D mode (done), M8a UI kit and data (done), M8b UI scenes (done), M8c Battle and field (done), M8d Delete old engine (done). Side paths: M1b 3D proof (done), M4 UI scenes (done), ET Editor port (done), Editors Editor suite (later). Epics before a demo Mark can share: E1 2D art and maps (next), E2 3D hacking mode (next), E3 Editor suite (next), E4 Engine docs (next). Needs Mark's go-ahead: archive-tags Archive tags (gated), release-tags Release tags (gated), deploy Deploy site (gated). Other open items (no order): playthrough-notes Playthrough notes edit (next), pixellab-end PixelLab end date (done), sprite-fusion Sprite credits (optional), cc-followups CC follow-ups (optional), plasma-bug plasma-ui bug report (optional).</desc>
+  <desc id="roadmap-desc">Order and dependency only. Bar length is not time. Now: no milestone. Items in the same column can run in parallel. Foundations: Phase 0 Platform spike (done), Pre-M0 640x360 move (done), M0 Prepare (done). Engine path: M1 Shell (done), M2 Effects (done), M3 Battle stage (done), M5 Field (done), M6 Flip default (done), M7 3D mode (done), M8a UI kit and data (done), M8b UI scenes (done), M8c Battle and field (done), M8d Delete old engine (done). Side paths: M1b 3D proof (done), M4 UI scenes (done), ET Editor port (done), Editors Editor suite (later). Epics before a demo Mark can share: P101 Chapter 1 playthrough (next), E4 Engine docs (next), E1 2D art and maps (next), E2 3D hacking mode (next), E3 Editor suite (next), Demo Final demo (later). Needs Mark's go-ahead: archive-tags Archive tags (gated), release-tags Release tags (gated), deploy Deploy site (gated). Other open items (no order): playthrough-notes Playthrough notes edit (next), pixellab-end PixelLab end date (done), sprite-fusion Sprite credits (optional), cc-followups CC follow-ups (optional), plasma-bug plasma-ui bug report (optional).</desc>
   <defs>
     <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse"><polygon points="0 0, 8 3, 0 6" fill="#bfc3e4"/></marker>
   </defs>
@@ -60,6 +60,12 @@
   <path d="M 620 302 H 626 V 416 H 632" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
   <path d="M 620 302 H 626 V 644 H 632" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
   <path d="M 926 416 H 938" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <path d="M 110 530 H 116 V 575 H 218 V 530 H 224" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <path d="M 110 530 H 116 V 575 H 320 V 530 H 326" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <path d="M 314 530 H 320 V 575 H 422 V 530 H 428" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <path d="M 110 530 H 122" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <path d="M 518 530 H 530" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <path d="M 416 530 H 422 V 575 H 524 V 530 H 530" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
   <g id="item-Phase-0">
     <title>Phase 0 Platform spike: done. Mark approved the final engine design on 2026-10-05. Record: docs/spikes/engine-platform.md.</title>
     <rect x="20" y="150" width="90" height="76" rx="6" fill="#14382e" stroke="#4cc38a" stroke-width="1.2"/>
@@ -244,35 +250,50 @@
     <text x="946" y="415" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">Editor suite</text>
     <text x="946" y="447" fill="#bfc3e4" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">LATER</text>
   </g>
-  <g id="item-E1">
-    <title>E1 2D art and maps: next. Redo all 2D assets in the Sprite Fusion style, with one quality bar across 2D mode. Find or make a real tileset for maps at two scales (in-town and overworld), learning heavily from RPG Maker. Ends with a full game walkthrough with Mark's notes.</title>
+  <g id="item-P101">
+    <title>P101 Chapter 1 playthrough: next. Step 1. Mark plays Chapter 1, then fixes, release and deploy. Issue https://github.com/markhazlewood42/shadow-jog/issues/101. No epic starts before #101 closes. Next: Mark answers the epic decisions, then plays.</title>
     <rect x="20" y="492" width="90" height="76" rx="6" fill="#16304d" stroke="#5fb3ff" stroke-width="1.2"/>
-    <text x="28" y="511" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">Epic</text>
-    <text x="28" y="529" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">2D art and</text>
-    <text x="28" y="543" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">maps</text>
+    <text x="28" y="511" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">#101</text>
+    <text x="28" y="529" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">Chapter 1</text>
+    <text x="28" y="543" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">playthrough</text>
     <text x="28" y="561" fill="#d4e8ff" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">NEXT</text>
   </g>
-  <g id="item-E2">
-    <title>E2 3D hacking mode: next. Design a first draft of hacking in 3D mode: find or make 3D assets, build the gameplay (Mark has notes on visuals and gameplay), and add at least one hacking mission to the Chapter 1 story.</title>
-    <rect x="122" y="492" width="90" height="76" rx="6" fill="#16304d" stroke="#5fb3ff" stroke-width="1.2"/>
-    <text x="130" y="511" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">Epic</text>
-    <text x="130" y="529" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">3D hacking</text>
-    <text x="130" y="543" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">mode</text>
-    <text x="130" y="561" fill="#d4e8ff" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">NEXT</text>
-  </g>
-  <g id="item-E3">
-    <title>E3 Editor suite: next. An RPG Maker-like editor suite. First review and improve every existing tool and editor for use and clarity (a clear purpose and workflow each). Then add tools to build more chapters. Builds on the Editors milestone.</title>
+  <g id="item-E1">
+    <title>E1 2D art and maps: next. Approved 2026-10-16. Brief: https://github.com/markhazlewood42/shadow-jog/issues/102. Decisions: #106 to #111. Step 3: WS0 to WS2 (decisions, style checker, tileset format). WS3 to WS5 follow in step 4. Waits on #101.</title>
     <rect x="224" y="492" width="90" height="76" rx="6" fill="#16304d" stroke="#5fb3ff" stroke-width="1.2"/>
     <text x="232" y="511" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">Epic</text>
-    <text x="232" y="529" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">Editor suite</text>
+    <text x="232" y="529" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">2D art and</text>
+    <text x="232" y="543" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">maps</text>
     <text x="232" y="561" fill="#d4e8ff" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">NEXT</text>
   </g>
-  <g id="item-E4">
-    <title>E4 Engine docs: next. Side project. Document and diagram the engine architecture, add code comments so Mark can read the code, and simplify the docs.</title>
+  <g id="item-E2">
+    <title>E2 3D hacking mode: next. Approved 2026-10-16. Brief: https://github.com/markhazlewood42/shadow-jog/issues/103. Decisions: #112 to #119. Step 3: WS-A feel prototype beside E1. WS-B to WS-F follow in step 4. Waits on #101.</title>
     <rect x="326" y="492" width="90" height="76" rx="6" fill="#16304d" stroke="#5fb3ff" stroke-width="1.2"/>
     <text x="334" y="511" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">Epic</text>
-    <text x="334" y="529" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">Engine docs</text>
+    <text x="334" y="529" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">3D hacking</text>
+    <text x="334" y="543" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">mode</text>
     <text x="334" y="561" fill="#d4e8ff" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">NEXT</text>
+  </g>
+  <g id="item-E3">
+    <title>E3 Editor suite: next. Approved 2026-10-16. Brief: https://github.com/markhazlewood42/shadow-jog/issues/104. Decisions: #120 to #126. W0 to W3 in step 4. W4 to W5 in step 5. W5 waits for the approved E1 map format doc.</title>
+    <rect x="428" y="492" width="90" height="76" rx="6" fill="#16304d" stroke="#5fb3ff" stroke-width="1.2"/>
+    <text x="436" y="511" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">Epic</text>
+    <text x="436" y="529" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">Editor suite</text>
+    <text x="436" y="561" fill="#d4e8ff" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">NEXT</text>
+  </g>
+  <g id="item-E4">
+    <title>E4 Engine docs: next. Approved 2026-10-16. Brief: https://github.com/markhazlewood42/shadow-jog/issues/105. Decisions: #127 to #132. Step 2: the comment standard and stale CLAUDE.md lines first. The rest runs beside the other epics. Waits on #101.</title>
+    <rect x="122" y="492" width="90" height="76" rx="6" fill="#16304d" stroke="#5fb3ff" stroke-width="1.2"/>
+    <text x="130" y="511" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">Epic</text>
+    <text x="130" y="529" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">Engine docs</text>
+    <text x="130" y="561" fill="#d4e8ff" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">NEXT</text>
+  </g>
+  <g id="item-Demo">
+    <title>Demo Final demo: later. Step 6. A final integrated playthrough and demo release. Owner: a follow-up issue. Demo cut: #101 + E1 + E2.</title>
+    <rect x="530" y="492" width="90" height="76" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1.2"/>
+    <text x="538" y="511" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">Demo</text>
+    <text x="538" y="529" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">Final demo</text>
+    <text x="538" y="561" fill="#bfc3e4" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">LATER</text>
   </g>
   <line x1="20" y1="814" x2="1334" y2="814" stroke="#7a80c4" stroke-opacity="0.28"/>
   <text x="20" y="832" fill="#8f94bd" font-size="11" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.12em">LEGEND</text>

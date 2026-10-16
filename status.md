@@ -18,14 +18,28 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 - **CI:** GitHub Actions, on pushes to `main` and on pull requests: three jobs at the same time (`check`, `e2e`, `e2e-engines`), all three required on `main` by the ruleset "Main branch protection" (2026-10-06). A docs-only change skips their steps. The real-speed playtest runs in `playtest.yml` after a merge and from the Actions button.
 - **Since 2026-10-01** work goes on a branch per major feature, with a PR for the Claude Code Review Action, and Mark merges.
 
-## Epics before a demo Mark can share (2026-10-16)
+## Epics before a demo Mark can share (approved 2026-10-16)
 
-Mark's list, tracked as epics in `docs/roadmap/roadmap.json` (lane "Epics"). Order is not set. Each epic needs a brief with pass lines before any build (ask Mark first). **PixelLab is out** (Mark, 2026-10-16): new 2D art comes from Sprite Fusion or other sources. **M4 is closed**: M8 ported every UI scene.
+Mark approved the four epic briefs on 2026-10-16. Their open decisions are decision issues that Mark answers in the Command Center. **PixelLab is out**: new 2D art comes from Sprite Fusion or other sources. **M4 is closed**.
 
-- **E1 2D art and maps.** Redo all 2D assets in the Sprite Fusion style, one quality bar for 2D mode. A real tileset for maps at two scales (in-town, overworld); learn heavily from RPG Maker. Ends with a full game walkthrough with Mark's notes.
-- **E2 3D hacking mode.** First-draft design of hacking in 3D: find or make 3D assets, build the gameplay (Mark has notes on visuals and gameplay), add at least one hacking mission to Chapter 1.
-- **E3 Editor suite.** An RPG Maker-like suite. First review and improve every existing tool for use and clarity (clear purpose and workflow each). Then add tools to build more chapters. Builds on the "Editors" milestone.
-- **E4 Engine docs (side project).** Document and diagram the engine, add code comments Mark can read, simplify the docs.
+| Epic | Brief | Decisions |
+|---|---|---|
+| E1 2D art and maps | [#102](https://github.com/markhazlewood42/shadow-jog/issues/102) | #106 to #111 |
+| E2 3D hacking mode | [#103](https://github.com/markhazlewood42/shadow-jog/issues/103) | #112 to #119 |
+| E3 Editor suite | [#104](https://github.com/markhazlewood42/shadow-jog/issues/104) | #120 to #126 |
+| E4 Engine docs | [#105](https://github.com/markhazlewood42/shadow-jog/issues/105) | #127 to #132 |
+
+Order:
+1. [#101](https://github.com/markhazlewood42/shadow-jog/issues/101): Mark plays Chapter 1, then fixes, release and deploy. No epic starts before #101 closes.
+2. E4 slice: the comment standard and stale CLAUDE.md lines. The rest of E4 runs beside the other epics.
+3. E1 WS0 to WS2 (decisions, style checker, tileset format), with E2 WS-A (feel prototype) in parallel.
+4. E1 WS3 to WS5 and E2 WS-B to WS-F. E3 W0 to W3. E3 W5 waits for E1's approved map format doc.
+5. E3 W4 to W5 (Dialogue, Map and Event editors, slice).
+6. A final integrated playthrough and demo release (owner: a follow-up issue).
+
+Demo cut: #101 + E1 + E2. Local brief copies: `media/epic-briefs/` (git-ignored).
+
+**Next: Mark answers the decisions and plays Chapter 1 (#101).**
 
 ## M8d "Remove legacy" is merged (2026-10-16)
 
