@@ -9,6 +9,7 @@
 //   functions/snapshot.ts -> api/snapshot.js     GET /api/snapshot
 //   functions/live.ts     -> api/live.js         GET /api/live
 //   functions/docs.ts     -> api/docs.js         GET /api/docs?path=<repo path>  (vercel.json rewrites /api/docs/:path* to it)
+//   functions/answer.ts   -> api/answer.js       POST /api/answer  (the one function that writes: Mark's answer to a decision)
 //
 // Run:  node scripts/build-functions.mjs [outDir]      (outDir defaults to api/). Run it after every edit of functions/ or src/, and commit api/*.js.
 
@@ -29,6 +30,7 @@ export const FUNCTIONS = [
   { name: 'snapshot', source: 'functions/snapshot.ts' },
   { name: 'live', source: 'functions/live.ts' },
   { name: 'docs', source: 'functions/docs.ts' },
+  { name: 'answer', source: 'functions/answer.ts' },
 ];
 
 /**

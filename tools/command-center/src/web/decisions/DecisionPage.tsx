@@ -1,5 +1,5 @@
 import { Link, useParams } from 'react-router';
-import { type DecisionDetail, type DecisionDocLink, type DocsListing, type ModuleName, type Panel } from '../../shared/types';
+import { type DecisionAnswer, type DecisionDetail, type DecisionDocLink, type DocsListing, type ModuleName, type Panel } from '../../shared/types';
 import { PanelFrame } from '../PanelFrame';
 import { docPath } from '../docs/paths';
 import { useDocumentTitle } from '../docs/useDocumentTitle';
@@ -92,20 +92,25 @@ function LinkedDocs({ detail }: { detail: DecisionDetail }) {
   );
 }
 
-// The hosted build (VITE_HOSTED=1) never writes: the form, the draft and the call to /api/decisions/<n>/answer are left out of it when it is built. Vite writes the flag into
-// the code as a constant, so this one test removes them (a test scans the hosted build for the address of the write). The local build is as it was.
-const HOSTED = import.meta.env.VITE_HOSTED === '1';
+/**
+ * The decision as the page shows it. On the hosted page, right after Mark's answer is written, the function's reply is the truth and the snapshot can be 15 s old (the CDN
+ * keeps it that long), so the decision is shown as answered from the reply until the snapshot says so itself. The local page never has such a reply (`answered` is null).
+ */
+function shownDecision(detail: DecisionDetail, answered: DecisionAnswer | null): DecisionDetail {
+  return answered !== null && detail.state === 'open' ? { ...detail, state: 'answered', answer: answered } : detail;
+}
 
 /** A decision in full: what the issue says, the form (or the options, when it cannot be answered), and the links to the docs under it. */
-function DecisionView({ detail, draft }: { detail: DecisionDetail; draft: ReturnType<typeof useAnswerDraft> | null }) {
-  // The hosted page only reads (design 2.2): answering writes to GitHub with the token of the local server. A hosted decision shows its options and a note.
-  const answerable = !HOSTED && draft !== null && detail.state === 'open' && detail.options.length > 0;
+function DecisionView({ detail, draft }: { detail: DecisionDetail; draft: ReturnType<typeof useAnswerDraft> }) {
+  const shown = shownDecision(detail, draft.answered);
+  const answerable = shown.state === 'open' && shown.options.length > 0;
   return (
     <div className="flex flex-col gap-8">
-      <DecisionCard issue={detail} />
-      {HOSTED && detail.state === 'open' && <Notice>Read-only on the hosted page. Answer on the local Command Center.</Notice>}
-      {answerable && draft !== null ? <AnswerForm issue={detail} draft={draft} /> : <OptionList issue={detail} />}
-      <LinkedDocs detail={detail} />
+      <DecisionCard issue={shown} />
+      {/* Two tabs can post different options, and the newest comment wins, so the page asks Mark to confirm what GitHub holds. */}
+      {draft.answered !== null && <Notice>Reload to confirm.</Notice>}
+      {answerable ? <AnswerForm issue={shown} draft={draft} /> : <OptionList issue={shown} />}
+      <LinkedDocs detail={shown} />
     </div>
   );
 }
@@ -121,8 +126,7 @@ function DecisionView({ detail, draft }: { detail: DecisionDetail; draft: Return
 export function DecisionPage({ number }: { number: number }) {
   useDocumentTitle(`Decision #${number}`);
   const result = usePanel<DecisionDetail>(`/api/decisions/${number}`, DECISION_MODULES);
-  // The flag is a constant of the build, so a build always calls the hook or never does: the order of hooks does not change between two draws.
-  const draft = HOSTED ? null : useAnswerDraft(number, result.reload);
+  const draft = useAnswerDraft(number, result.reload);
 
   return (
     <div className="min-h-screen">

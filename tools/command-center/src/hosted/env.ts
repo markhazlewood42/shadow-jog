@@ -3,8 +3,21 @@
 
 export type Env = Record<string, string | undefined>;
 
-/** The Vercel environment variable with the read-only GitHub token (a fine-grained token for markhazlewood42/shadow-jog). */
+/**
+ * The Vercel environment variable with the GitHub token: a fine-grained token of Mark's account for markhazlewood42/shadow-jog only. It needs "Issues: Read and write",
+ * because `/api/answer` writes the answer with it (a comment, the labels, the close). `snapshot` and `docs` still only read with it.
+ * A fine-grained token acts as the account that made it, so a write with it is a write by `markhazlewood42`.
+ */
 export const GITHUB_TOKEN_VAR = 'GITHUB_TOKEN';
+/** The address of the hosted page, no path and no trailing slash (for example `https://shadow-jog-command-center.vercel.app`). `/api/answer` serves only requests that arrive on this host. */
+export const CC_ORIGIN_VAR = 'CC_ORIGIN';
+/**
+ * The system variable that Vercel adds to a project when "Protection Bypass for Automation" is on: it holds the secret that skips Vercel Authentication.
+ * The name is confirmed in the Vercel documentation (last updated 2026-09-16):
+ * https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection/protection-bypass-automation
+ * ("Vercel automatically sets one secret as the `VERCEL_AUTOMATION_BYPASS_SECRET` system environment variable in your deployments.")
+ */
+export const BYPASS_SECRET_VAR = 'VERCEL_AUTOMATION_BYPASS_SECRET';
 /** The Marketplace names of the Upstash variables. The URL and the READ-ONLY token are the only ones that the functions use. */
 export const UPSTASH_URL_VAR = 'KV_REST_API_URL';
 export const UPSTASH_READ_ONLY_TOKEN_VAR = 'KV_REST_API_READ_ONLY_TOKEN';
@@ -24,6 +37,27 @@ const valueOf = (env: Env, name: string): string | null => {
 
 /** The GitHub token, or null when it is not set. */
 export const readGithubToken = (env: Env): string | null => valueOf(env, GITHUB_TOKEN_VAR);
+
+/** True when the bypass variable exists in the environment (even when empty). Looks at the name only, never at the value: the secret is never read. */
+export const bypassSecretIn = (env: Env): boolean => env[BYPASS_SECRET_VAR] !== undefined;
+
+export type OriginSettings = { ok: true; origin: string; host: string } | { ok: false };
+
+/**
+ * The hosted address from `CC_ORIGIN`. It must be exactly an origin: `https`, a host, and nothing else (no path, no trailing slash, no query, no user name). Anything else is
+ * `ok: false`, and the answer function then refuses to run (it cannot tell which host is the right one). `host` is the part that a `Host` header must match.
+ */
+export function readOrigin(env: Env): OriginSettings {
+  const value = valueOf(env, CC_ORIGIN_VAR);
+  if (value === null) return { ok: false };
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== 'https:' || parsed.origin !== value) return { ok: false };
+    return { ok: true, origin: parsed.origin, host: parsed.host };
+  } catch {
+    return { ok: false };
+  }
+}
 
 export type UpstashSettings = { ok: true; url: string; token: string } | { ok: false; reason: 'not-configured' | 'misconfigured'; /** For `misconfigured`: why, as a sentence with the name of the variable and never its value. */ detail?: string };
 

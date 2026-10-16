@@ -1,12 +1,31 @@
+import type { DecisionRead } from '../server/decisions/module';
+import { readDecisionIssue } from '../server/decisions/parse';
 import { STALE_AFTER_DAYS } from '../shared/workstream';
-import { buildFilesQuery, COMMENTS_PAGE_QUERY, commentsPageVariables, OWNER, REFS_PAGE_QUERY, REPO, refsPageVariables, SNAPSHOT_QUERY, snapshotVariables } from './queries';
+import {
+  ANSWER_EVENTS_PAGE_QUERY,
+  ANSWER_ISSUE_QUERY,
+  ANSWER_MAX_PAGES,
+  answerEventsVariables,
+  answerIssueVariables,
+  buildFilesQuery,
+  COMMENTS_PAGE_QUERY,
+  commentsPageVariables,
+  OWNER,
+  REFS_PAGE_QUERY,
+  REPO,
+  refsPageVariables,
+  SNAPSHOT_QUERY,
+  snapshotVariables,
+} from './queries';
 import {
   type DecisionRaw,
   type PrMeta,
   addComments,
+  addEarlierEvents,
   decisionsInfoOf,
   githubInfoOf,
   parseCi,
+  parseAnswerIssue,
   parseDecisionRaws,
   parsePullRequests,
   parseRefsPage,
@@ -282,4 +301,51 @@ export async function fetchSnapshot(options: FetchOptions): Promise<Result<Snaps
   snapshot.main = rows.value.main;
   problems.push(...rows.value.problems);
   return { ok: true, data: snapshot };
+}
+
+/**
+ * One decision issue as GitHub holds it now, for the hosted answer (the same facts as `readDecision` of the local server reads with `gh`). The result's data is
+ *   - a `DecisionRead` (the issue as a decision, with how far its answer has got),
+ *   - `null` when there is no such issue, it is a pull request, or it is not a decision of Mark's (the answer treats all three as "not found"), or
+ *   - `'too-many'` when the issue has more comments or label events than ANSWER_MAX_PAGES pages (100 each), or more labels than one page: nothing is decided on a part of an issue.
+ * The comments are read from the first page on, and the label events from the newest back, because the answer is the newest comment and the newest `decided` event.
+ */
+export async function fetchDecisionForAnswer(options: FetchOptions, number: number): Promise<Result<DecisionRead | null | 'too-many'>> {
+  const owner = options.owner ?? OWNER;
+  const repo = options.repo ?? REPO;
+
+  const first = await graphql(options, 'answer: the issue', ANSWER_ISSUE_QUERY, answerIssueVariables(number, owner, repo));
+  if (!first.ok) return first;
+  const repository = repositoryOf(first.data.data);
+  if (repository === null) return badShape('answer: the issue', 'the repository is missing (is the name right, and can the token read it?)');
+  // A number that is a pull request, or no issue at all, gives `issue: null` (and an error of type NOT_FOUND, which is not a failure here).
+  if (repository.issue === null) return { ok: true, data: null };
+  const parsed = shaped(() => parseAnswerIssue(repository.issue));
+  if (!parsed.ok) return badShape('answer: the issue', parsed.message);
+  let decision = parsed.value;
+  if (decision.labelsCut) return { ok: true, data: 'too-many' };
+
+  let pages = 1;
+  while (decision.moreCommentsAfter !== null) {
+    if (pages >= ANSWER_MAX_PAGES) return { ok: true, data: 'too-many' };
+    const more = await graphql(options, 'answer: comments', COMMENTS_PAGE_QUERY, commentsPageVariables(number, decision.moreCommentsAfter, owner, repo));
+    if (!more.ok) return more;
+    const issue = repositoryOf(more.data.data)?.issue;
+    const added = shaped(() => ({ ...decision, ...addComments(decision, isRecord(issue) ? issue.comments : undefined) }));
+    if (!added.ok) return badShape('answer: comments', added.message);
+    decision = added.value;
+    pages += 1;
+  }
+  pages = 1;
+  while (decision.moreEventsBefore !== null) {
+    if (pages >= ANSWER_MAX_PAGES) return { ok: true, data: 'too-many' };
+    const more = await graphql(options, 'answer: events', ANSWER_EVENTS_PAGE_QUERY, answerEventsVariables(number, decision.moreEventsBefore, owner, repo));
+    if (!more.ok) return more;
+    const issue = repositoryOf(more.data.data)?.issue;
+    const added = shaped(() => addEarlierEvents(decision, isRecord(issue) ? issue.timelineItems : undefined));
+    if (!added.ok) return badShape('answer: events', added.message);
+    decision = added.value;
+    pages += 1;
+  }
+  return { ok: true, data: readDecisionIssue(decision.raw, decision.events) };
 }

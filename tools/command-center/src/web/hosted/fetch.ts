@@ -16,6 +16,10 @@ export type HostedError = {
   message: string;
   /** The HTTP status, when there was an answer. */
   status?: number;
+  /** For a failed POST: the word of the server's own error (`wrong-host`, `protection-unproven`, ...), when it sent one. `code` is then the same word. */
+  serverCode?: string;
+  /** For a failed answer: the write that failed (`comment`, `label` or `close`), when the server named one. */
+  step?: string;
 };
 
 export type FetchResult<T> = { ok: true; data: T } | { ok: false; error: HostedError };
@@ -86,6 +90,67 @@ export async function fetchHostedJson<T>(url: string, fetchImpl: FetchFn = (targ
       code: `http-${res.status}`,
       message: sentence === null ? `The server answered ${res.status}.` : `The server answered ${res.status}: ${sentence}.`,
       status: res.status,
+    },
+  };
+}
+
+/**
+ * POSTs JSON to a function of this site (the answer to a decision, the only write of the hosted page). It is sorted like a read: a redirect, a 401 or an HTML page is the lost
+ * Vercel login, and nothing throws. An error answer keeps the word of the server (`serverCode`), its sentence, and the `step` of a write that failed, because the form shows each
+ * of them in its own way. The browser adds `Origin` and `Sec-Fetch-Site` by itself, and the function checks both.
+ */
+export async function postHostedJson<T>(url: string, payload: unknown, fetchImpl: FetchFn = (target, init) => fetch(target, init)): Promise<FetchResult<T>> {
+  let res: Awaited<ReturnType<FetchFn>>;
+  try {
+    res = await fetchImpl(url, {
+      method: 'POST',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      cache: 'no-store',
+      credentials: 'same-origin',
+      redirect: 'manual',
+    });
+  } catch {
+    return { ok: false, error: { kind: 'network', code: 'network', message: NETWORK_MESSAGE } };
+  }
+  if (res.type === 'opaqueredirect' || res.status === 401 || (res.status >= 300 && res.status < 400)) return { ok: false, error: loginError(res.status) };
+
+  let text: string;
+  try {
+    text = await res.text();
+  } catch {
+    return { ok: false, error: { kind: 'network', code: 'network', message: NETWORK_MESSAGE } };
+  }
+  let body: unknown = null;
+  let isJson = false;
+  try {
+    body = JSON.parse(text);
+    isJson = true;
+  } catch {
+    isJson = false;
+  }
+
+  if (res.ok) {
+    if (!isJson) {
+      const html = (res.headers.get('content-type') ?? '').toLowerCase().includes('text/html') || text.trimStart().startsWith('<');
+      return { ok: false, error: html ? loginError(res.status) : NOT_JSON_ERROR(res.status) };
+    }
+    return { ok: true, data: body as T };
+  }
+  // An error answer of the function: `{ ok: false, error: { code, message }, step? }`. A platform page (HTML) has none of these.
+  const info = isJson && isRecord(body) && isRecord(body.error) ? body.error : null;
+  const serverCode = info !== null && typeof info.code === 'string' ? info.code : undefined;
+  const sentence = info !== null && typeof info.message === 'string' ? info.message.replace(/\s+/g, ' ').trim().slice(0, 200) : '';
+  const step = isJson && isRecord(body) && typeof body.step === 'string' ? body.step : undefined;
+  return {
+    ok: false,
+    error: {
+      kind: 'http',
+      code: serverCode ?? `http-${res.status}`,
+      message: sentence === '' ? `The server answered ${res.status}.` : sentence,
+      status: res.status,
+      ...(serverCode === undefined ? {} : { serverCode }),
+      ...(step === undefined ? {} : { step }),
     },
   };
 }

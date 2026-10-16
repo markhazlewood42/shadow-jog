@@ -175,6 +175,59 @@ export function commentsPageVariables(number: number, after: string, owner = OWN
   return { owner, name, number, after, first: COMMENTS_PAGE };
 }
 
+// ---- the read of one decision issue, for the hosted answer ----
+
+/** The most pages of comments, and the most pages of label events (100 each), that the hosted answer reads before it gives up. At the cap it writes nothing. */
+export const ANSWER_MAX_PAGES = 10;
+
+/**
+ * The first read of one issue for the hosted answer (`POST /api/answer`). It has the same fields as the decision fragment of the snapshot, plus the
+ * page info that the answer needs: whether more comments follow the first 100, whether more label events come before the last 100, and whether the issue has
+ * more labels than were read. `issue(number:)` is null for a pull request or a number that is no issue, so the answer treats both as "not found".
+ * The later pages of the comments use COMMENTS_PAGE_QUERY, and the earlier pages of the events use ANSWER_EVENTS_PAGE_QUERY.
+ */
+export const ANSWER_ISSUE_QUERY = `
+query AnswerIssue($owner: String!, $name: String!, $number: Int!, $first: Int!) {
+  rateLimit { cost remaining }
+  repository(owner: $owner, name: $name) {
+    issue(number: $number) {
+      number title url state body createdAt
+      author { login }
+      labels(first: $first) { pageInfo { hasNextPage } nodes { name } }
+      comments(first: $first) {
+        pageInfo { hasNextPage endCursor }
+        nodes { author { login } body createdAt }
+      }
+      timelineItems(itemTypes: [LABELED_EVENT], last: $first) {
+        pageInfo { hasPreviousPage startCursor }
+        nodes { __typename ... on LabeledEvent { createdAt label { name } actor { login } } }
+      }
+    }
+  }
+}`;
+
+export function answerIssueVariables(number: number, owner = OWNER, name = REPO): Record<string, unknown> {
+  return { owner, name, number, first: COMMENTS_PAGE };
+}
+
+/** The label events that come before the ones already read (the events are read from the newest back). */
+export const ANSWER_EVENTS_PAGE_QUERY = `
+query AnswerEvents($owner: String!, $name: String!, $number: Int!, $before: String!, $first: Int!) {
+  rateLimit { cost remaining }
+  repository(owner: $owner, name: $name) {
+    issue(number: $number) {
+      timelineItems(itemTypes: [LABELED_EVENT], last: $first, before: $before) {
+        pageInfo { hasPreviousPage startCursor }
+        nodes { __typename ... on LabeledEvent { createdAt label { name } actor { login } } }
+      }
+    }
+  }
+}`;
+
+export function answerEventsVariables(number: number, before: string, owner = OWNER, name = REPO): Record<string, unknown> {
+  return { owner, name, number, before, first: COMMENTS_PAGE };
+}
+
 // ---- call 2: the files ----
 
 /** The alias of the file of the branch at the place `index` of the list. A counter, so a branch name never reaches the query text. */

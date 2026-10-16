@@ -38,6 +38,26 @@ function isVercelLogin(location: string | null, base: string): boolean {
   return [...url.searchParams.keys()].some((key) => /^(?:next|redirect\w*)$/i.test(key));
 }
 
+/**
+ * The strict rule for the hosted ANSWER (src/hosted/answer.ts), which writes to GitHub only after it has proved that the page is private. It is narrower than
+ * `isVercelLogin` above, which stays as it is for the reporter: a wrong "protected" there only keeps the reporter running, but here it would let a write through.
+ * A Location counts only when ALL of these hold:
+ *   - the address is https, on the host `vercel.com` exactly (not a subdomain such as `evil.vercel.com`), with no port and no user name, and
+ *   - the path is exactly `/sso-api`, `/sso` or `/login`, or one of them followed by `/` and more (so `/ssoX` and `/login-help` fail).
+ * A `next=` query, which `isVercelLogin` accepts on any path of vercel.com, proves nothing here: `https://vercel.com/?next=x` is not a login.
+ */
+export function isStrictVercelLogin(location: string | null, base: string): boolean {
+  if (location === null) return false;
+  let url: URL;
+  try {
+    url = new URL(location, base);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== 'https:' || url.hostname !== 'vercel.com' || url.port !== '' || url.username !== '' || url.password !== '') return false;
+  return /^\/(?:sso-api|sso|login)(?:\/|$)/.test(url.pathname);
+}
+
 /** The place a redirect goes to, without its query (a query can hold addresses with ids). For a log line only. */
 function describeLocation(location: string | null, base: string): string {
   if (location === null) return 'no Location header';
