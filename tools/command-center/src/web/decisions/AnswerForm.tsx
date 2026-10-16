@@ -1,6 +1,6 @@
 import { Button, Label, Radio, RadioGroup, TextArea, TextField } from '@heroui/react';
 import { LoaderCircle, Send, TriangleAlert } from 'lucide-react';
-import { type FormEvent, useCallback, useState } from 'react';
+import { type FormEvent, useCallback, useRef, useState } from 'react';
 import { type AnswerStep, type DecisionAnswer, type DecisionIssue, MAX_NOTE_CHARS } from '../../shared/types';
 import { ApiError, postJson } from '../api';
 import { answerOf, sendHostedAnswer } from '../hosted/answer';
@@ -57,30 +57,37 @@ export function useAnswerDraft(number: number, onWritten: () => void): AnswerDra
   const [status, setStatus] = useState<AnswerDraft['status']>('idle');
   const [failure, setFailure] = useState<AnswerFailure | null>(null);
   const [answered, setAnswered] = useState<DecisionAnswer | null>(null);
+  // Set at once, before React re-renders: a fast double click would otherwise send two answers, and post two comments.
+  const inFlight = useRef(false);
 
   const send = useCallback(
     async (option: string, text: string) => {
+      if (inFlight.current) return;
+      inFlight.current = true;
       setStatus('sending');
       setFailure(null);
-      if (HOSTED) {
-        // The hosted page: the function checks the request and writes the answer; its reply carries the answer, which the page shows at once.
-        const sent = await sendHostedAnswer(number, option, text);
-        if (sent.ok) {
-          setAnswered(answerOf(sent.answer));
-          setStatus('sent');
+      // The guard is cleared in `finally`, so a throw can never leave the form stuck in "sending".
+      try {
+        if (HOSTED) {
+          // The hosted page: the function checks the request and writes the answer; its reply carries the answer, which the page shows at once.
+          const sent = await sendHostedAnswer(number, option, text);
+          if (sent.ok) {
+            setAnswered(answerOf(sent.answer));
+            setStatus('sent');
+          } else {
+            setStatus('failed');
+            setFailure(sent.failure);
+          }
         } else {
-          setStatus('failed');
-          setFailure(sent.failure);
-        }
-      } else {
-        try {
           // The token of this run goes with it (postJson reads it from the page). A note that is empty is left out.
           await postJson(`/api/decisions/${number}/answer`, text.trim() === '' ? { option } : { option, note: text });
           setStatus('sent');
-        } catch (error) {
-          setStatus('failed');
-          setFailure(failureOf(error));
         }
+      } catch (error) {
+        setStatus('failed');
+        setFailure(failureOf(error));
+      } finally {
+        inFlight.current = false;
       }
       onWritten();
     },

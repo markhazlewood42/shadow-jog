@@ -145,6 +145,10 @@ function mapAdapterError(error) {
       return { status: 502, kind: "bad-response", error: "GitHub sent a reply that this server does not know" };
     case "graphql-error":
       return { status: 502, kind: "graphql-error", error: "GitHub reported an error" };
+    case "deadline":
+      return { status: 504, kind: "deadline", error: "The snapshot ran out of time before GitHub answered", retryAfter: 5 };
+    case "graphql-incomplete":
+      return { status: 503, kind: "graphql-incomplete", error: "GitHub answered in part, try again", retryAfter: 5 };
   }
 }
 function responseOf(map) {

@@ -54,11 +54,21 @@ export type FetchOptions = {
   now?: () => Date;
   owner?: string;
   repo?: string;
-  /** The limit for one call, in milliseconds. */
+  /** The limit for one call, in milliseconds. In `fetchSnapshot` it is cut further to what is left of the deadline of the whole snapshot. */
   timeoutMs?: number;
+  /** Waits before the retry of `fetchSnapshot`. A test replaces it, so that it does not wait. */
+  sleep?: (ms: number) => Promise<void>;
 };
 
 const DEFAULT_TIMEOUT_MS = 20_000;
+/** One deadline for the whole snapshot (every call, every page), so that it ends inside the 30 s limit of the Vercel function (vercel.json). */
+const SNAPSHOT_BUDGET_MS = 25_000;
+/** A retry of call 1 starts only when at least this much of the deadline is left. */
+const RETRY_MIN_MS = 8_000;
+/** The short wait before the one retry, so that GitHub has a moment to recover. The retry gate counts it. */
+const RETRY_BACKOFF_MS = 1_000;
+/** A call is not started with less than this left of the deadline. */
+const MIN_CALL_MS = 500;
 /** The most pages of branches (100 each) that one snapshot reads. A repo past this has 2,000 branches, and a problem says so. */
 const MAX_REFS_PAGES = 20;
 /** The most pages of comments (100 each) that one decision issue is followed for. */
@@ -171,6 +181,21 @@ function retryAfterOf(response: { headers: Headers }): { retryAfter?: number } {
   return Number.isFinite(seconds) && seconds >= 0 && response.headers.get('retry-after') !== null && response.headers.get('retry-after') !== '' ? { retryAfter: seconds } : {};
 }
 
+/** Everything that call 1 reads from the repository, parsed. Throws a ShapeError for a field that is missing or null. */
+function parseFirstPage(repository: Record<string, unknown>, now: Date) {
+  return {
+    refs: parseRefsPage(repository.refs),
+    open: parsePullRequests(repository.open, 'open pull requests'),
+    recent: parsePullRequests(repository.recent, 'recent pull requests'),
+    openMore: isRecord(repository.open) && isRecord(repository.open.pageInfo) && repository.open.pageInfo.hasNextPage === true,
+    recentCut: recentIsCut(repository.recent, now),
+    waitingCut: listIsCut(repository.waiting),
+    decidedCut: listIsCut(repository.decided),
+    ci: parseCi(repository.ci),
+    decisions: [...parseDecisionRaws(repository.waiting, 'decisions waiting'), ...parseDecisionRaws(repository.decided, 'decisions answered')],
+  };
+}
+
 const badShape = (label: string, message: string) => fail('bad-response', `The reply of GitHub has a shape that this adapter does not know (${label}): ${message}`);
 
 /** The `repository` field of a reply, or null when it is not an object (a repo that GitHub does not know gives null). */
@@ -189,8 +214,22 @@ export async function fetchSnapshot(options: FetchOptions): Promise<Result<Snaps
   const cost: CallCost[] = [];
   const problems: SnapshotProblem[] = [];
 
+  // One deadline for the whole snapshot. Each call gets the smaller of its own limit and what is left. With nothing left, the call is not made.
+  // The clock is the one of the caller (`options.now`, which a test sets) and Date.now when there is none.
+  const clock = (): number => (options.now === undefined ? Date.now() : options.now().getTime());
+  const sleep = options.sleep ?? ((ms: number) => new Promise<void>((done) => setTimeout(done, ms)));
+  const startedAt = clock();
+  const callTimeout = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const timeLeft = (): number => SNAPSHOT_BUDGET_MS - (clock() - startedAt);
+  const withinDeadline = (label: string): { ok: true; options: FetchOptions } | { ok: false; error: AdapterError } => {
+    const left = timeLeft();
+    return left < MIN_CALL_MS ? fail('deadline', `The snapshot ran out of time before GitHub answered (${label}). Try again.`) : { ok: true, options: { ...options, timeoutMs: Math.min(callTimeout, left) } };
+  };
+
   const call = async (label: string, query: string, variables: Record<string, unknown>): Promise<Result<Record<string, unknown>>> => {
-    const result = await graphql(options, label, query, variables);
+    const allowed = withinDeadline(label);
+    if (!allowed.ok) return allowed;
+    const result = await graphql(allowed.options, label, query, variables);
     if (!result.ok) return result;
     cost.push(result.data.cost);
     problems.push(...result.data.problems);
@@ -198,24 +237,42 @@ export async function fetchSnapshot(options: FetchOptions): Promise<Result<Snaps
   };
 
   // ---- call 1 ----
-  const first = await call('call 1: branches, pull requests, CI, decisions', SNAPSHOT_QUERY, snapshotVariables(owner, repo));
-  if (!first.ok) return first;
-  const repository = repositoryOf(first.data);
-  if (repository === null) return badShape('call 1', 'the repository is missing (is the name right, and can the token read it?)');
-
-  const parsed = shaped(() => ({
-    refs: parseRefsPage(repository.refs),
-    open: parsePullRequests(repository.open, 'open pull requests'),
-    recent: parsePullRequests(repository.recent, 'recent pull requests'),
-    openMore: isRecord(repository.open) && isRecord(repository.open.pageInfo) && repository.open.pageInfo.hasNextPage === true,
-    recentCut: recentIsCut(repository.recent, now),
-    waitingCut: listIsCut(repository.waiting),
-    decidedCut: listIsCut(repository.decided),
-    ci: parseCi(repository.ci),
-    decisions: [...parseDecisionRaws(repository.waiting, 'decisions waiting'), ...parseDecisionRaws(repository.decided, 'decisions answered')],
-  }));
-  if (!parsed.ok) return badShape('call 1', parsed.message);
-  const page = parsed.value;
+  // GitHub sometimes answers a heavy query in part: `errors` plus `data` with a null field (a timeout, or SERVICE_UNAVAILABLE). The strict parsers then fail on
+  // the null field. That is not an unknown shape, so the call is tried once more, if the time limit of the function leaves room for it. A reply with an
+  // unknown shape and no `errors` is a true bad-response and is not tried again.
+  let first: Reply | null = null;
+  let page!: ReturnType<typeof parseFirstPage>;
+  for (let attempt = 1; first === null; attempt += 1) {
+    const allowed = withinDeadline('call 1');
+    if (!allowed.ok) return allowed;
+    const result = await graphql(allowed.options, 'call 1: branches, pull requests, CI, decisions', SNAPSHOT_QUERY, snapshotVariables(owner, repo));
+    if (!result.ok) {
+      // GitHub answers 502, 503 or 504 when a heavy query runs out of time on its side. One more try often works.
+      const gatewayTrouble = result.error.code === 'http-error' && [502, 503, 504].includes(result.error.status ?? 0);
+      if (gatewayTrouble && attempt < 2 && timeLeft() >= RETRY_MIN_MS + RETRY_BACKOFF_MS) {
+        await sleep(RETRY_BACKOFF_MS);
+        continue;
+      }
+      return result;
+    }
+    cost.push(result.data.cost);
+    const repository = repositoryOf(result.data.data);
+    // A repo that is missing is not a passing trouble, so it is not tried again, whatever `errors` says.
+    if (repository === null) return badShape('call 1', 'the repository is missing (is the name right, and can the token read it?)');
+    const parsed = shaped(() => parseFirstPage(repository, now));
+    if (parsed.ok) {
+      first = result.data;
+      page = parsed.value;
+      break;
+    }
+    if (result.data.problems.length === 0) return badShape('call 1', parsed.message);
+    // Partial data (GitHub left a field null and said why). Try once more, but only if the first try was the first and enough time is left.
+    if (attempt >= 2 || timeLeft() < RETRY_MIN_MS + RETRY_BACKOFF_MS) {
+      return fail('graphql-incomplete', `GitHub answered in part (call 1: ${parsed.message}). Try again.`);
+    }
+    await sleep(RETRY_BACKOFF_MS);
+  }
+  problems.push(...first.problems);
   problems.push(...page.refs.problems, ...pullRequestProblems([...page.open, ...page.recent]));
   if (page.recentCut) problems.push({ code: 'recent-prs-truncated', message: 'More recent pull requests exist than the first page holds, and the last one on it is newer than 14 days. A merged pull request may be missing.' });
   if (page.waitingCut) problems.push({ code: 'decisions-waiting-truncated', message: 'More decision issues with the label decision exist than the first page holds. The list is not complete.' });
