@@ -189,11 +189,11 @@
       "kind": "milestone",
       "label": "Delete old engine",
       "lane": "engine",
-      "status": "active",
+      "status": "done",
       "after": [
         "M8c"
       ],
-      "notes": "Delete the old engine, LegacyScene and the exemptions. Move the kept src/engine files into src/sje. Docs and the PR #86 follow-ups. Built on branch engine-m8d-remove-legacy (2026-10-15); the old engine and src/engine are gone. The PR, the GPU timing check (npm run perf, Mark machine) and the merge are pending."
+      "notes": "Delete the old engine, LegacyScene and the exemptions. Move the kept src/engine files into src/sje. Docs and the PR #86 follow-ups. Merged in PR #98 (6bf70cf, 2026-10-16); the old engine and src/engine are gone. GPU timing check passed."
     },
     {
       "id": "M1b",
