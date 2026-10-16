@@ -279,7 +279,7 @@ export declare class CameraManager { readonly main: Camera; readonly ui: Camera;
 
 ## 5. Effects and filters
 
-`Effect` wraps one Pixi filter, so a Pixi upgrade or a community filter never reaches game code. `createEffect` builds an `Effect` from your GLSL. `FxSystem` keeps today's `postfx` names **and signatures** (copied from `src/engine/postfx.ts`), so `fx.json`, `moments.ts`, and the FX lab still work.
+`Effect` wraps one Pixi filter, so a Pixi upgrade or a community filter never reaches game code. `createEffect` builds an `Effect` from your GLSL. `FxSystem` keeps today's `postfx` names **and signatures** (copied from the old `postfx.ts`, deleted in M8d), so `fx.json`, `moments.ts`, and the FX lab still work.
 
 ```ts
 export interface Effect {                              // ours
@@ -399,7 +399,7 @@ The 10 second timeout and the per-asset stand-in path from `src/art/drawn.ts` st
 
 ## 8. Input actions
 
-Phaser has no action map. This follows Godot `InputMap` and Unity action maps. Semantics match `src/engine/input.ts` today: nine actions, one-tick presses, repeat after 16 ticks then every 4, `consume()` on every scene push and pop.
+Phaser has no action map. This follows Godot `InputMap` and Unity action maps. Semantics match `src/sje/runtime/inputdevice.ts` today: nine actions, one-tick presses, repeat after 16 ticks then every 4, `consume()` on every scene push and pop.
 
 ```ts
 export type Action = 'up' | 'down' | 'left' | 'right' | 'confirm' | 'cancel' | 'menu' | 'dash' | 'fullscreen';
@@ -417,7 +417,7 @@ export interface SceneInput {
   /** Dev and editor builds only. */
   on?(ev: 'pointerdown' | 'pointermove' | 'pointerup', fn: (p: { x: number; y: number }) => void): void;
 }
-export interface InputManager {                        // ours. Today's surface in src/sje/runtime/input.ts
+export interface InputManager {                        // ours. Today's surface in src/sje/runtime/inputdevice.ts
   readonly actions: ActionMap;
   lastDevice: InputDevice;                             // 'keyboard' | 'gamepad' | 'touch'. Picks the on-screen hint text
   /** Rebind. Returns null if the change would leave an action with no key. */

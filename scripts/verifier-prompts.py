@@ -8,6 +8,7 @@ writes <out_dir>/verifier_r13_<n>.txt for n = 1..11 (out_dir defaults to ./revie
 which is gitignored). Each file is handed to a fresh
 reviewer subagent ("Read this file and follow it exactly"). When a round adds screenshots or
 evidence files, add them to that area's lists here.
+Note (M8d): the area lists name files as they were in the 12 grading rounds. The old `src/engine/` paths are gone: the kept files moved to `src/sje/` and the rest was deleted. The lists stay as the record of what each round read. The grading loop has ended, so the script is not run any more.
 """
 import json
 import re

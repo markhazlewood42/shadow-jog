@@ -5,8 +5,8 @@
  * the shipped game holds the door but not the 3D chunk: the chunk is behind the door's one dynamic `import()`, and a player who never hacks never downloads it.
  * `tests/sje-imports.test.ts` pins both rules.
  *
- * The game's own `Game` type is the old engine class in `src/game`, and the runtime object is the new engine's `Game` (`src/sje/boot.ts` joins them), so the cast
- * from one to the other happens once, here (the same cast `src/devroutes.ts` makes for the FX lab).
+ * The game code passes the running game as a plain `object` (`src/sje/boot.ts` joins the game to the engine's `Game`), so the cast to the engine's `Game` (`HackGame`)
+ * happens once, here (the same kind of cast `src/devroutes.ts` makes for the FX lab).
  */
 import { type DoorEnv, type HackGame, type HackOptions, hackDoor, hackWithPolicy, realDoorEnv } from '../hack3d/door';
 import type { HackDef, HackOutcome } from '../hack3d/result';
@@ -55,7 +55,7 @@ export function hackDevOverride(): HackDevOverride | null {
  * Run a hack the way a story does (decision D4): one try through the door, the author's policy applied, one retry after a lost context, the 2D alternative when
  * 3D is unsupported. Resolves a `HackOutcome`; never rejects because of the hack. `via: 'dropped'` means the player dropped the story (a loaded save, the title screen):
  * the story must stop.
- * @param game the running game (typed as the old `Game` in `src/game`; it is the engine's `Game` at run time).
+ * @param game the running game (an `object` here; it is the engine's `Game` at run time).
  * @param how the author's choice for a browser without 3D: `{ playAlternative }` or `{ onUnsupported: 'win' }` (required, see `HackHandling`).
  */
 export function runHack(game: object, def: HackDef, how: HackHandling): Promise<HackOutcome> {

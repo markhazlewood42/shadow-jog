@@ -103,7 +103,7 @@ function problemsOf(src: Source, entry: string): string[] {
       const p = pathOf(f, spec);
       if (p !== null && DELETED.includes(p)) out.add(`${entry} reaches ${p}`);
     }
-    // The classes of the legacy adapter, named in code (the engine's own files are not scanned: the facade re-exports the adapter until it goes).
+    // The classes of the legacy adapter, named in code (the engine's own files under `src/sje/` are not scanned).
     if (!f.startsWith('src/sje/') && LEGACY_NAMES.test(code(text))) out.add(`${entry}: ${f} names a legacy adapter class`);
   }
   return [...out].sort();

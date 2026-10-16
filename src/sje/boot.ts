@@ -1,11 +1,11 @@
 /**
  * Boot of the engine: what `src/main.ts` runs (docs/engine/m1-brief.md task 12).
  *
- * `main.ts` loads this file with a dynamic `import()`, so it is its own chunk and holds all of Pixi. It is the one file under src/sje that may import the old input and the game: it joins them.
+ * `main.ts` loads this file with a dynamic `import()`, so it is its own chunk and holds all of Pixi. It is the one file under src/sje that may import the game: it joins the engine and the game.
  *
  *   1. Make the `Game` (canvas, WebGL2 context, Pixi renderer). No WebGL2 means `Game.create` rejects with a plain message and the page shows
  *      its "failed to start" text (`main.ts` `fail`), not a blank page.
- *   2. Hand it the `Input` (keyboard, gamepad, touch, the player's own keys) and the shake motion, error notice and perf record of `src/engine`.
+ *   2. Hand it the `Input` (keyboard, gamepad, touch, the player's own keys) and the shake motion, error notice and perf record of `src/sje`.
  *   3. Run the game's own boot (`src/boot.ts`) on it: the title, field, battle and shop, the art loading, the autosave and tab rules. The game code takes the `Game` as it is, plus a
  *      thin adapter over the real `Display` (`PageDisplay`: `game.scale`, integer scale only).
  *      Before that, the effects (M2): the presets and moments of `fx.json` are loaded into `game.fx` (`loadData`), so `FxSystem.playMoment` works by name. No `#fx` overlay canvas exists.

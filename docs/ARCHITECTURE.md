@@ -42,7 +42,7 @@ scripts/             bundle budget, evidence runner, reviewer-prompt generator, 
 docs/                GDD, glossary, setting bible, this file, DEVELOPING, quality/ (rubric, scorecard, grading)
 ```
 
-Dependency direction (enforced by habit, checked by reviewers): `sje/` imports nothing else; `battle/` imports
+Dependency direction (enforced by habit, checked by reviewers): `sje/` imports nothing else (one file, `sje/boot.ts`, joins the engine to the game and imports the game); `battle/` imports
 `sje/` and `data/`; `data/` imports types and `sje/core/assert`; `field/` imports `sje/`, `art/`, `data/`;
 `scenes/` import everything below them; `game/systems.ts` wires scenes together at boot. Cycles are avoided with
 **late-bound hooks** (`game/hooks.ts`) and **lazy imports** (the battle chunk, dev routes).
