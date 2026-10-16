@@ -372,3 +372,6 @@ The runner, reader and attacker reports are in `media/verification/m8d/`. Caps: 
 |---|---|---|---|
 | 1 | Runner 8.0, reader 7.8, attacker 8.4 | Gate not met: 3 Important, 1 runner Major, Minors | `fe07872`, `d5a12a6`, `5202afd` |
 | 2 | Fix-round verifier 8.5, rubric average 8.65, none below 7 | PASS: no Critical or Important | Minors N1 (stale comments) and N2 (invalid `dry` flag gives 400) fixed in the commit that adds this table |
+| Perf triage (local GPU run, 2026-10-15) | `perf.spec.ts:86` field: `__SJ__` undefined in the title baseline | Not M8d: same on `main`. Load-order race (lazy game chunk, cold Vite, fixed wait) | `openGame` waits for `__SJ__.perf`; 7 of 7 pass |
+| Perf triage | `sje-bench.spec.ts:269` (1000 objects): title uploads 2.01 canvases, test expects 1 | Not M8d: same on `main`. Stale premise: art canvas + `game-overlays` layer (uploaded every frame) | Spec expects 2 (A, B) and 3 (B3 control); passes |
+| Perf triage | `sje-bench.spec.ts:331` (title, fx full): uploads 2.01, test expects 1 | Not M8d: same on `main`. Same cause as above | Spec expects art canvas + overlay layer (+ UI, glow when used); passes |

@@ -17,6 +17,16 @@ async function sj<T>(page: Page, fn: string): Promise<T> {
   return page.evaluate(`(async () => { const sj = window.__SJ__; return ${fn}; })()`) as Promise<T>;
 }
 
+/**
+ * Open the game and wait until its DEV hook exists. The game code is a lazy chunk (main.ts imports ./sje/boot), so on a cold Vite start
+ * (dependency pre-bundling) `window.__SJ__` appears more than 1.5 s after `goto`. A fixed wait raced that load (M8d triage: the title baseline
+ * threw "Cannot read properties of undefined (reading 'perf')" on main and on the branch alike). The settle waits after this call stay as they were.
+ */
+async function openGame(page: Page): Promise<void> {
+  await page.goto('/?debug');
+  await page.waitForFunction(() => !!(window as unknown as { __SJ__?: { perf?: unknown } }).__SJ__?.perf, undefined, { timeout: 30_000 });
+}
+
 type Stats = { frames: number; mean: number; p95: number; max: number };
 
 async function measure(page: Page, ms: number): Promise<Stats & { sim: Stats }> {
@@ -70,7 +80,7 @@ const P95_MS = SOFTWARE ? 11 : 6;
 // The title's cost, logged for context in the evidence (the machine's floor), not gated.
 test.beforeAll(async ({ browser }) => {
   const page = await browser.newPage();
-  await page.goto('/?debug');
+  await openGame(page);
   await page.waitForTimeout(1500);
   console.log('title baseline', JSON.stringify(await measure(page, 2500)));
   await page.close();
@@ -84,7 +94,7 @@ function gate(s: Stats & { sim: Stats }): void {
 }
 
 test('field (Lantern Row plaza, rain, crowds) stays inside the frame budget', async ({ page }) => {
-  await page.goto('/?debug');
+  await openGame(page);
   await page.waitForTimeout(800);
   await sj(page, "sj.stage('town')");
   await page.waitForTimeout(1500);
@@ -96,7 +106,7 @@ test('field (Lantern Row plaza, rain, crowds) stays inside the frame budget', as
 });
 
 test('a live battle stays inside the frame budget', async ({ page }) => {
-  await page.goto('/?debug');
+  await openGame(page);
   await page.waitForTimeout(800);
   await sj(page, "sj.stage('annex')");
   await page.waitForTimeout(1500);
@@ -120,7 +130,7 @@ test('a live battle stays inside the frame budget', async ({ page }) => {
  * menu both answer on the next tick; the gate allows two frames plus a frame of measurement slack.
  */
 test('input answers within two frames (field movement, opening the menu)', async ({ page }) => {
-  await page.goto('/?debug');
+  await openGame(page);
   await page.waitForTimeout(800);
   await sj(page, "sj.stage('town')");
   await page.waitForTimeout(1500);
