@@ -11,11 +11,11 @@ tags: [roadmap, planning]
 
 # Shadow Jog roadmap
 
-Now: M8c Battle and field.
+Now: M8d Delete old engine.
 
 **Order and dependency only. Bar length is not time.** Mark wants no hour or day estimates. A column is a step in the order. Items in the same column can run in parallel.
 
-![The roadmap as a Gantt-style chart. Order and dependency only. Bar length is not time. Now: M8c Battle and field. The table below lists the same items.](roadmap.svg)
+![The roadmap as a Gantt-style chart. Order and dependency only. Bar length is not time. Now: M8d Delete old engine. The table below lists the same items.](roadmap.svg)
 
 *Source: [roadmap.json](roadmap.json). The chart is [roadmap.svg](roadmap.svg).*
 
@@ -34,8 +34,8 @@ Now: M8c Battle and field.
 | M7 3D mode | Engine path | 9 | done | M6, M1b | branch `engine-m7-3d-mode`, PR #80 (merged 2026-10-13), review fixes #82 (merged 2026-10-13) | Needs both the 3D proof (M1b) and the default flip (M6). GPU timing check (npm run perf) once at the end, not in CI. |
 | M8a UI kit and data | Engine path | 10 | done | M7, ET | branch `engine-m8a-ui-kit`, PR #94 (merged 2026-10-14) | Merged 2026-10-14 (PR #94). The UI kit is in src/sje/ui (TextObject, NineSlice, ListMenu, bar, cursor), and the shop and dialogue content moved to data files. Mark ran the GPU timing check (npm run perf) on 2026-10-14: it passed. Record: docs/engine/m8-brief.md. |
 | M8b UI scenes | Engine path | 11 | done | M8a | none | Port the 13 UI scenes to native scenes, small to big. All 13 are native. Merged in PR #95 (2026-10-15). Follows the diff rule for the GPU timing check. |
-| M8c Battle and field | Engine path | 12 | active | M8b | none | Port the battle and field scenes. Active on branch engine-m8c-battle-field. Follows the diff rule for the GPU timing check. |
-| M8d Delete old engine | Engine path | 13 | later | M8c | none | Delete the old engine, LegacyScene and the exemptions. Move the kept src/engine files into src/sje. Docs and the PR #86 follow-ups. Follows the diff rule for the GPU timing check. |
+| M8c Battle and field | Engine path | 12 | done | M8b | none | Port the battle and field scenes. Merged in PR #96 (2026-10-15). |
+| M8d Delete old engine | Engine path | 13 | active | M8c | none | Delete the old engine, LegacyScene and the exemptions. Move the kept src/engine files into src/sje. Docs and the PR #86 follow-ups. Built on branch engine-m8d-remove-legacy (2026-10-15); the old engine and src/engine are gone. The PR, the GPU timing check (npm run perf, Mark machine) and the merge are pending. |
 | M1b 3D proof | Side paths | 5 | done | M1 | none | Parallel with M2. A spinning cube in a Scene3D, with the hand-off, leak and loss tests. |
 | M4 UI scenes | Side paths | 7 | optional | M3 | none | Optional. A UI scene ports only when it needs a camera, a filter, a mask or a transition. |
 | ET Editor port | Side paths | 9 | done | M6 | branch `engine-et-editor-port`, PR #86 (merged 2026-10-14) | Merged 2026-10-14 (PR #86), before M8. Every editor and tool moved to the new engine; the Battle Stage Editor (/stageedit.html) and Battle Test are back. The trailer is deleted (#84). Two exceptions until M8d: the Battle Test glue module and the shared old Input. Record: docs/engine/et-brief.md. |

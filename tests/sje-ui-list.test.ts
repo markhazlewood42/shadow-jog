@@ -7,7 +7,7 @@
  * and alignment), and the highlight rectangle. Controls: a list with one changed number (a row height) fails the same comparison.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Input } from '../src/engine/input';
+import type { Input } from '../src/sje/runtime/inputdevice';
 import { ListMenu as OldList } from '../src/ui/list';
 import { ListMenu, type ListAction, type ListInput, type ListItem, listRows, scrollFor, stepIndex, type UiSound } from '../src/sje/ui/listmenu';
 import { TEXT } from '../src/sje/display/font';
@@ -26,12 +26,14 @@ interface TextCall {
   color: string | undefined;
 }
 const drawn: TextCall[] = [];
-vi.mock('../src/engine/font', async (importOriginal) => {
-  const real = await importOriginal<typeof import('../src/engine/font')>();
+// Only the old list's own render is recorded: the new list draws through the same font module now (M8d), and its calls are not the old list's.
+let capturing = false;
+vi.mock('../src/sje/display/font', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../src/sje/display/font')>();
   return {
     ...real,
     drawText: (ctx: never, text: string, x: number, y: number, opts: NonNullable<Parameters<typeof real.drawText>[4]> = {}) => {
-      drawn.push({ text, x, y, align: opts.align ?? 'left', color: opts.color });
+      if (capturing) drawn.push({ text, x, y, align: opts.align ?? 'left', color: opts.color });
       return real.drawText(ctx, text, x, y, opts);
     },
   };
@@ -220,7 +222,9 @@ describe('parity with the old ListMenu on a random script', () => {
           drawn.length = 0;
           ctx.log.length = 0;
           const r1 = old.update(oldInput(a));
+          capturing = true;
           old.render(ctx.ctx as never, 0, 0, cfg.width, focused, cfg.empty);
+          capturing = false;
           const r2 = now.update(newInput(a));
           // What the old list drew, and what the new one shows.
           expect(r2, `tick ${tick} ${a}`).toBe(r1);
@@ -248,7 +252,9 @@ describe('parity with the old ListMenu on a random script', () => {
     const ctx = recorder();
     old.update(oldInput('down'));
     drawn.length = 0;
+    capturing = true;
     old.render(ctx.ctx as never, 0, 0, 150, true);
+    capturing = false;
     now.update(newInput('down'));
     expect(sceneOf(now).map(key).sort()).not.toEqual(drawn.map(key).sort());
   });

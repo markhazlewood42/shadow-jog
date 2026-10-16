@@ -11,14 +11,14 @@
  * Initiative is rolled when a round's orders open (`rollInitiative`), so the turn order the menu
  * previews is the order the round plays.
  */
-import { must } from '../engine/assert';
+import { must } from '../sje/core/assert';
 import { ABILITIES, COMBOS, ability } from '../data/abilities';
 
 /** Combos, largest first (findCombos matches triples before pairs). */
 const COMBOS_BY_SIZE = [...COMBOS].sort((a, b) => b.parts.length - a.parts.length);
 import { ENEMIES, FAMILY_IMMUNE, FAMILY_WEAK, type EnemyDef } from '../data/enemies';
 import { ITEMS } from '../data/items';
-import type { Rng } from '../engine/rng';
+import type { Rng } from '../sje/core/rng';
 import { chooseEnemyAction } from './ai';
 import type {
   Ability, BattleEvent, Combatant, Command, Effect, Element, Outcome, Stats, StatusId,

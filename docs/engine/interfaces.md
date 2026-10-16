@@ -18,7 +18,7 @@ This file shows the key public TypeScript interfaces. Each block has a short exp
 
 **Strict types.** Phaser members that we do not implement are absent from the types, so a call to them is a compile error. The list is in [conventions.md](conventions.md).
 
-**Types that are not shown.** Some names come from the real code and are not part of this design. Examples: `Ctx` (`src/engine/canvas.ts`), `Fighter`, `StageData`, `HackDef`, `SceneDump`, `EmitterPreset`. The block below defines the small value types that the sketches share. Points are plain `{ x, y }` objects. There is no `Vec2` class.
+**Types that are not shown.** Some names come from the real code and are not part of this design. Examples: `Ctx` (`src/sje/core/canvas.ts`), `Fighter`, `StageData`, `HackDef`, `SceneDump`, `EmitterPreset`. The block below defines the small value types that the sketches share. Points are plain `{ x, y }` objects. There is no `Vec2` class.
 
 ```ts
 export interface Rect { x: number; y: number; w: number; h: number; }
@@ -279,7 +279,7 @@ export declare class CameraManager { readonly main: Camera; readonly ui: Camera;
 
 ## 5. Effects and filters
 
-`Effect` wraps one Pixi filter, so a Pixi upgrade or a community filter never reaches game code. `createEffect` builds an `Effect` from your GLSL. `FxSystem` keeps today's `postfx` names **and signatures** (copied from `src/engine/postfx.ts`), so `fx.json`, `moments.ts`, and the FX lab still work.
+`Effect` wraps one Pixi filter, so a Pixi upgrade or a community filter never reaches game code. `createEffect` builds an `Effect` from your GLSL. `FxSystem` keeps today's `postfx` names **and signatures** (copied from the old `postfx.ts`, deleted in M8d), so `fx.json`, `moments.ts`, and the FX lab still work.
 
 ```ts
 export interface Effect {                              // ours
@@ -322,7 +322,7 @@ export declare class FxSystem {                       // ours. Keeps the postfx 
   update(): void;
   clear(): void;
   warm(): void;                                        // new. Compile shaders off screen
-  /** Today's call shape, kept for LegacyScene. A Pixi-side glow layer is a new method beside it. */
+  /** Today's call shape. A Pixi-side glow layer is a new method beside it. */
   glowLayer(): Ctx | null;
 }
 ```
@@ -399,7 +399,7 @@ The 10 second timeout and the per-asset stand-in path from `src/art/drawn.ts` st
 
 ## 8. Input actions
 
-Phaser has no action map. This follows Godot `InputMap` and Unity action maps. Semantics match `src/engine/input.ts` today: nine actions, one-tick presses, repeat after 16 ticks then every 4, `consume()` on every scene push and pop.
+Phaser has no action map. This follows Godot `InputMap` and Unity action maps. Semantics match `src/sje/runtime/inputdevice.ts` today: nine actions, one-tick presses, repeat after 16 ticks then every 4, `consume()` on every scene push and pop.
 
 ```ts
 export type Action = 'up' | 'down' | 'left' | 'right' | 'confirm' | 'cancel' | 'menu' | 'dash' | 'fullscreen';
@@ -417,7 +417,7 @@ export interface SceneInput {
   /** Dev and editor builds only. */
   on?(ev: 'pointerdown' | 'pointermove' | 'pointerup', fn: (p: { x: number; y: number }) => void): void;
 }
-export interface InputManager {                        // ours. Today's surface in src/engine/input.ts
+export interface InputManager {                        // ours. Today's surface in src/sje/runtime/inputdevice.ts
   readonly actions: ActionMap;
   lastDevice: InputDevice;                             // 'keyboard' | 'gamepad' | 'touch'. Picks the on-screen hint text
   /** Rebind. Returns null if the change would leave an action with no key. */
@@ -623,16 +623,16 @@ export interface GlHandoff {                           // ours
   drainErrors(): number[];                             // dev and tests: the GL errors, cleared
 }
 
-/** Story code and scenes type against this. The legacy Game and the new Game both implement it. */
+/** Story code and scenes type against this. The `Game` implements it (until M8d the old engine's `Game` did too). */
 export interface GameApi {
-  run<R>(s: Scene<R> | LegacyScene<R>): Promise<R>;
+  run<R>(s: Scene<R>): Promise<R>;
   wait(frames: number): Promise<void>;
   fadeTo: Game['fadeTo']; shake: Game['shake']; flash: Game['flash'];
   readonly top: unknown; readonly tick: number; speed: number;
 }
 ```
 
-`LegacyScene` has today's shape: `enter`, `exit`, `resume`, `update()`, `render(ctx)`, `opaque`, `curtain`, `passUpdate`, `close(result)`. It owns a 640x360 `CanvasImage` (921,600 bytes) and calls `render(ctx)` into it each frame. See [migration.md](migration.md).
+From M1 to M8c an adapter (`LegacyScene`) ran scenes of the old shape (`enter`, `exit`, `resume`, `update()`, `render(ctx)`, `opaque`, `curtain`, `passUpdate`, `close(result)`) in a 640x360 `CanvasImage`. M8d deleted it with the old engine; every scene is a native `Scene`. See [migration.md](migration.md).
 
 ---
 

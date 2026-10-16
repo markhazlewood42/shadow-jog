@@ -2,7 +2,7 @@
 import type { Pose } from '../../art/battlers';
 import type { Ability, Combatant, StatusId } from '../../battle/types';
 import { ENCOUNTERS } from '../../data/enemies';
-import { streams } from '../../engine/rng';
+import { streams } from '../../sje/core/rng';
 
 export const STATUS_LABEL: Partial<Record<StatusId, [string, string]>> = {
   poison: ['PSN', '#b07cff'], burn: ['BRN', '#ff8a4a'], stun: ['STN', '#ffe07a'], blind: ['BLD', '#8b8fa8'],

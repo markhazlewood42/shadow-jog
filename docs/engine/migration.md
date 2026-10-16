@@ -59,8 +59,8 @@ This file gives the path from today's engine and from the Phaser spike to the ne
 | **ET** Editor port | Bring every existing editor and tool onto the new engine: FX lab (M6), Battle Stage Editor and Battle Test (M3), animation editor, art review, DEV menu. They need the editor contract (principle 11) from each system. No new tool features. **Done. Built on branch `engine-et-editor-port` (2026-10-13) and merged in PR #86 on 2026-10-14, before M8 (see `docs/engine/et-brief.md` section 9):** 13 tools on the engine, the trailer deleted (decision 3, #84), the Battle Stage Editor and Battle Test built on it (the fight is the game's own `BattleScene`, decision 2 B), the 640 set only (decision 4). One exemption stays until M8d: Battle Test's glue module and `scenes/battle.ts` (pass line 2). | `src/dev/` (incl. `viewers/`, `stageedit/`), `src/battlestage/`, `src/sje-lab/`, `docs/TOOLING-UI.md` section 4.5 |
 | **M8a** UI kit and data | Build the UI kit (`TextObject`, `NineSlice`, `ListMenu`, bar, cursor) in `src/sje/ui`. Move shop and dialogue content to data files, with a format Mark approves first. Runs the GPU timing check once at its end. Exit check: kit unit tests and the 10-cycle leak test green, values identical to the old content. | `src/sje/ui/`, `src/data/` (new shop and dialogue files and their loader), `tests/` |
 | **M8b** UI scenes | Port the 13 UI scenes to native `sje` scenes, small to big: card, controls, gameover, ending, placemap, saveload; then options, dialog, title, shop; then deck, panels, menu. Exit check: the layout tests and every spec for these scenes green. **Done (2026-10-15): all 13 scenes are native, merged in PR #95.** | `src/scenes/` (the UI scenes), `src/ui/`, `tests/ui-layout.test.ts` |
-| **M8c** Battle and field | Port the battle and field scenes (and their kits) to native `sje` scenes over `BattleStageScene` and `FieldStageScene`. Exit check: the seed 7 battle trace holds and the playthrough spec is green. **Active (2026-10-15) on branch `engine-m8c-battle-field`.** | `src/scenes/{battle,field}.ts`, `src/scenes/{battlekit,fieldkit}/`, `src/battlestage/`, `src/fieldstage/` |
-| **M8d** Delete old engine | Delete `game`, `display`, `postfx` and `moments`, `LegacyScene` and the exemptions. Move the 11 kept `src/engine` files into `src/sje`, so `src/engine` is gone. Update the docs. Do the 5 follow-ups from the PR #86 reviews. Exit check: `tsc`, Biome and all specs green, and nothing imports a deleted file. | `src/engine/`, `src/sje/runtime/`, `src/dev/`, `tests/`, `ARCHITECTURE.md`, `DEVELOPING.md` |
+| **M8c** Battle and field | Port the battle and field scenes (and their kits) to native `sje` scenes over `BattleStageScene` and `FieldStageScene`. Exit check: the seed 7 battle trace holds and the playthrough spec is green. **Done (2026-10-15): merged in PR #96.** | `src/scenes/{battle,field}.ts`, `src/scenes/{battlekit,fieldkit}/`, `src/battlestage/`, `src/fieldstage/` |
+| **M8d** Delete old engine | Delete `game`, `display`, `postfx` and `moments`, `LegacyScene` and the exemptions. Move the 11 kept `src/engine` files into `src/sje`, so `src/engine` is gone. Update the docs. Do the 5 follow-ups from the PR #86 reviews. Exit check: `tsc`, Biome and all specs green, and nothing imports a deleted file. **Built (2026-10-15) on branch `engine-m8d-remove-legacy`: the old engine is deleted and `src/engine/` is gone. The PR, the GPU timing check (`npm run perf`, Mark's machine) and the merge are pending.** | `src/engine/`, `src/sje/runtime/`, `src/dev/`, `tests/`, `ARCHITECTURE.md`, `DEVELOPING.md` |
 | **Editors** (after Chapter 1) | New editors, so that Mark builds the game mostly in UI: troops and encounters, database (enemies, skills, items), maps and level editor, conversation editor, animation composer, lights and weather, game-system config. Post-Chapter 1 work. Plan and order: `docs/TOOLING-UI.md` section 4. | New tools under `src/dev/`, data files from "Content moves to data files" |
 
 The Pre-M0 move merges to `main` before M0 starts. M0 builds on the 640x360 game. The milestones diagram starts at M0 and does not show it.
@@ -196,6 +196,7 @@ Mark decided on 2026-10-14 that M8 ports every scene to a native `sje` scene (th
 - Move the 11 kept `src/engine` files into `src/sje`, update every importer, and remove `src/engine/`.
 - Update `ARCHITECTURE.md` and `DEVELOPING.md`. Do the 5 follow-ups from the PR #86 reviews. Add the changelog entry.
 - **Exit check:** `tsc`, Biome, and all specs are green. A scan shows that nothing imports a deleted file, and no `src/engine` folder is left.
+- **Status (2026-10-15):** built on branch `engine-m8d-remove-legacy`. Tasks 10 to 21 are done and recorded in the Record of [m8-brief.md](m8-brief.md) ("M8d build"). Pending: the PR, `npm run perf` once on Mark's machine (`display/canvasimage.ts` changed), and the merge.
 
 ### Content moves to data files (the editor rule)
 
@@ -204,10 +205,10 @@ An editor can only open and save data. Much of the game's content is TypeScript 
 | Content today | Becomes | Milestone | Why there |
 |---|---|---|---|
 | Stage, HUD and effect values | Already data: `stages.json`, `hud.json`, `fx.json` | Done | The Battle Stage Editor and the FX lab use them |
-| Enemies and troops (`src/data/enemies.ts`) | A data file | M3 | The stage port reads them. The troop and encounter editor is the next tool (`docs/TOOLING-UI.md` section 4.1) |
-| Maps (`src/data/maps/*.ts`) | Data files | M5 | M5 builds the field from maps. A level editor needs them as data (`docs/TOOLING-UI.md` section 4.4) |
-| Shops and dialogue | Data files | M8a (Mark, 2026-10-14; was M4) | A conversation editor needs the text as data. M8a builds the UI kit, and the data format comes first for Mark to approve |
-| Hack definitions | Plain data from the start (a condition of E3) | M7 | A later tool must be able to save them |
+| Enemies and troops (`src/data/enemies.ts`) | A data file (`enemies.json`, `encounters.json`) | M3 (done) | The stage port reads them. The troop and encounter editor is the next tool (`docs/TOOLING-UI.md` section 4.1) |
+| Maps (`src/data/maps/*.ts`) | Data files (`src/data/maps/*.json`) | M5 (done) | M5 builds the field from maps. A level editor needs them as data (`docs/TOOLING-UI.md` section 4.4) |
+| Shops and dialogue | Data files | M8a (Mark, 2026-10-14; was M4; done 2026-10-15) | A conversation editor needs the text as data. M8a builds the UI kit, and the data format comes first for Mark to approve |
+| Hack definitions | Plain data from the start (a condition of E3) | M7 (done) | A later tool must be able to save them |
 | Abilities and items (`abilities.ts`, `items.ts`) | Not scheduled | A separate decision for you | A database editor needs them as JSON (`docs/TOOLING-UI.md` section 4.3) |
 
 **Why this order.**
@@ -319,6 +320,8 @@ Not tested: Safari on macOS, and a real GPU context reset.
 
 ## 4. Moving scenes in: the LegacyScene adapter
 
+*History (M8d, 2026-10-15): `LegacyScene` and the legacy scene types are deleted. Every scene is native. This section stays as the record of how the move worked.*
+
 A legacy scene is one that has `enter`, `exit`, `resume`, `update()`, and `render(ctx)`. It runs inside `LegacyScene`, a `Scene` subclass.
 
 | Legacy | In `LegacyScene` |
@@ -343,17 +346,22 @@ A legacy scene is one that has `enter`, `exit`, `resume`, `update()`, and `rende
 
 ## 5. From today's engine
 
-| Today | New home | Step |
+*Status (M8d, 2026-10-15): `src/engine/` is deleted. The last column says where each file went.*
+
+| Today (file in `src/engine/`) | New home | Step |
 |---|---|---|
-| `src/engine/game.ts` (`W`, `H`, `FPS`) | `src/sje/core/size.ts` | M0 (done 2026-10-09: `W` and `H` live in `size.ts`, `game.ts` re-exports them, every importer of the old game moved to `size.ts`; `FPS` is defined in `size.ts` and re-exported too) |
-| `src/engine/game.ts` (`Game`, `Scene`) | `src/sje/runtime/` | M1 |
-| `src/main.ts` loop | `FixedLoop` | M1 |
-| `src/engine/display.ts` | `Display` | M1 |
-| `src/engine/input.ts` | `ActionMap`, `InputManager` | M1 |
-| `src/engine/rng.ts`, `assert.ts` | `src/sje/core/`. The Phase 0 hack simulation still imports the old `Rng`. | M1 |
-| `src/engine/postfx.ts`, `gl/presenter.ts`, `moments.ts` | `FxSystem`, `CompositeFilter` | M2 |
-| `src/engine/font.ts` | Moves into `src/sje` before M8. `TextObject` itself stays in M4. The Phase 0 3D HUD imports it. | M3 |
-| `src/engine/canvas.ts`, `ui/draw.ts` | Stay. `TextObject` and painters call them. | M4 |
+| `game.ts` (`W`, `H`, `FPS`) | `src/sje/core/size.ts` | M0 (done) |
+| `game.ts` (`Game`, `Scene`) | `src/sje/runtime/` | M1; the old file was deleted in M8d |
+| `display.ts` | `src/sje/runtime/display.ts` (`Display`) | M1; the old file was deleted in M8d |
+| `input.ts` | `src/sje/runtime/inputdevice.ts` (`Input`; `ActionMap` stays its own file) | M1; moved in M8d (the old path is gone) |
+| `rng.ts`, `assert.ts` | `src/sje/core/` | M1; the shims were deleted in M8d |
+| `postfx.ts`, `gl/presenter.ts`, `moments.ts` | `FxSystem` (`src/sje/fx/`), `CompositeFilter` | M2; the façade files were deleted in M8d (with `src/sje/fx/route.ts`) |
+| `font.ts` | `src/sje/display/font.ts` | M3; the shim was deleted in M8d |
+| `fxdata.ts`, `particles.ts` | `src/sje/fx/` | M2; the shims were deleted in M8d |
+| `canvas.ts` | `src/sje/core/canvas.ts` | Moved in M8d |
+| `color.ts`, `errors.ts`, `perf.ts` | `src/sje/core/` | Moved in M8d |
+| `shake.ts` | `src/sje/fx/shake.ts` | Moved in M8d |
+| `ui/draw.ts` | Stays in `src/ui/`. Painters call it. | none |
 | `src/art/*` painters | Stay. Output canvases become textures. | M3 to M5 |
 | `src/audio/*` | Unchanged. `game.audio` wraps it. | M1 |
 | `src/game/*` (state, save, settings, script) | Unchanged in shape. `gpuFx` becomes `fxLevel` with a `backfill()` mapping. `ScriptApi` gains `hack()`. | M1 and M7 |
@@ -363,9 +371,9 @@ A legacy scene is one that has `enter`, `exit`, `resume`, `update()`, and `rende
 | `src/scenes/{mapview,chartest,portraittest,bestiarytest,fonttest}.ts` (the five art viewers) | Moved to `src/dev/viewers/` on a scene base of the new engine. | ET (done) |
 | `src/dev/` trailer tooling and its script | Deleted. Re-created on the new engine under issue #84. | ET (done) |
 | The Battle Stage Editor and Battle Test (the archive tag `archive/phaser-stage-2026-10-09`) | Built on the engine in `src/dev/stageedit/`: `StageHost` over `BattleStageScene`, the page `stageedit.html`, the save endpoint `/__stage/stages`; Battle Test over the game's own `BattleScene`. | ET (done) |
-| `src/dev/stageedit/battleglue.ts` and `src/scenes/battle.ts` as Battle Test's dynamic imports | The pass line 2 exemption list in `tests/et-tools.test.ts`. | Removed in M8d |
-| `src/dev/stageedit/boot.ts` (imports the old `Input` from `src/engine/input`) | M8d moves it off `src/engine/input` onto the new engine's input, together with `src/sje/boot.ts`, and removes the glue exemption. | M8d |
-| `src/engine/*` after M6 | Deleted. | M8d |
+| `src/dev/stageedit/battleglue.ts` and `src/scenes/battle.ts` as Battle Test's dynamic imports | An ordinary tool file now. The exemption lists of `tests/et-tools.test.ts` are one check that no tool reaches a deleted path. | Done in M8d |
+| `src/dev/stageedit/boot.ts` | Uses the engine's own `Input` (`src/sje/runtime/inputdevice.ts`). | Done in M8d |
+| `src/engine/*` after M6 | Deleted. | Done in M8d |
 
 **Roughly 60% of the raw canvas calls are bake-time painters** (props, backdrops, enemies, buildings). They output canvases and become textures unchanged. The code that must change is the per-frame scene, UI, lighting, and effect drawing: about 600 raw calls, plus the `drawText` and `drawWindow` sites that M4 handles on demand. Part of the field's animated look (about 10 prop animation closures, water shimmer, weather) draws every frame. It needs a `CanvasImage` path, not a bake.
 

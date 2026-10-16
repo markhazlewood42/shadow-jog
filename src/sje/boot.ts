@@ -1,32 +1,25 @@
 /**
- * Boot of the new engine: what `src/main.ts` runs under `?engine=sje` (docs/engine/m1-brief.md task 12).
+ * Boot of the engine: what `src/main.ts` runs (docs/engine/m1-brief.md task 12).
  *
- * `main.ts` loads this file with a dynamic `import()`, so it is its own chunk and holds all of Pixi. Without the flag no byte of it
- * downloads. It is the one file under src/sje that may import the old engine and the game: it joins the two.
+ * `main.ts` loads this file with a dynamic `import()`, so it is its own chunk and holds all of Pixi. It is the one file under src/sje that may import the game: it joins the engine and the game.
  *
  *   1. Make the `Game` (canvas, WebGL2 context, Pixi renderer). No WebGL2 means `Game.create` rejects with a plain message and the page shows
  *      its "failed to start" text (`main.ts` `fail`), not a blank page.
- *   2. Hand it the OLD `Input` (keyboard, gamepad, touch, the player's own keys) and the old engine's shake motion, error notice and perf record.
- *   3. Run the game's own boot (`src/boot.ts`) on it: the same title, field, battle and shop, the same art loading, the same autosave and tab
- *      rules. It sees the new `Game` as `LegacyGameSurface` (see gameapi.ts), which is the old `Game` as far as the game code uses it, and a thin
- *      adapter over the real `Display` (`game.scale`, integer scale only) in the shape of the old one. That cast is the one unchecked seam of
- *      the migration; `tests/sje-game.test.ts` pins both sides to the interface.
- *      Before that, the effects (M2): `postfx`, the singleton that scenes and `moments.ts` call, is routed to `game.fx` (`fx/route.ts`), and the
- *      presets and moments of `fx.json` are loaded into it (`loadData`), so `FxSystem.playMoment` works by name. No `#fx` overlay canvas exists on this path.
+ *   2. Hand it the `Input` (keyboard, gamepad, touch, the player's own keys) and the shake motion, error notice and perf record of `src/sje`.
+ *   3. Run the game's own boot (`src/boot.ts`) on it: the title, field, battle and shop, the art loading, the autosave and tab rules. The game code takes the `Game` as it is, plus a
+ *      thin adapter over the real `Display` (`PageDisplay`: `game.scale`, integer scale only).
+ *      Before that, the effects (M2): the presets and moments of `fx.json` are loaded into `game.fx` (`loadData`), so `FxSystem.playMoment` works by name. No `#fx` overlay canvas exists.
  *      And the battle stage (M3): the battle's routing (`game/systems.ts`) asks for a stage, and the provider registered here makes one (`src/battlestage/liveopen.ts`, loaded
- *      with a dynamic `import()` the first time a battle starts, so a session that never fights downloads none of it). Without the flag nothing is registered and the battle draws itself.
+ *      with a dynamic `import()` the first time a battle starts, so a session that never fights downloads none of it).
  *      And the field stage (M5): the field asks for a stage when it enters, and the provider registered here (`src/fieldstage/fieldopen.ts`, a dynamic `import()` too, fetched ahead) puts a
- *      `FieldStageScene` UNDER the field scene. Without the flag nothing is registered and the field draws itself.
+ *      `FieldStageScene` UNDER the field scene.
  *   4. In a DEV build only, add the engine's members to `window.__SJ__` (`src/sje-lab/devhook.ts`, interfaces.md section 14). A shipped build
  *      never loads that file (the import sits behind `import.meta.env.DEV`).
  */
-import type { Display as OldDisplay } from '../engine/display';
-import { currentNotice, notice, reportError } from '../engine/errors';
-import { SHAKE_PIXEL_GAIN, type Game as OldGame } from '../engine/game';
-import { Input } from '../engine/input';
-import { perf } from '../engine/perf';
-import { postfx } from '../engine/postfx';
-import { shakeOffset } from '../engine/shake';
+import { notice, reportError } from './core/errors';
+import { Input } from './runtime/inputdevice';
+import { perf } from './core/perf';
+import { shakeOffset } from './fx/shake';
 import { FX } from '../data/fx';
 import { showGpuNoticeOnce } from '../game/gpunotice';
 import { settings } from '../game/settings';
@@ -34,10 +27,11 @@ import { drawNotice } from '../noticeoverlay';
 import { lazyStageProvider, setBattleStageProvider } from '../scenes/battlekit/stageseam';
 import { fieldStages, lazyFieldStageProvider, setFieldStageProvider } from '../scenes/fieldkit/fieldseam';
 import type { FxRequest } from './fx/fxsystem';
-import { routePostfx } from './fx/route';
 import { SOFTWARE_GL } from './render/glcontext';
 import { pageSeed } from './runtime/devseed';
 import { Game } from './runtime/game';
+import type { PageDisplay } from './runtime/display';
+import { SHAKE_PIXEL_GAIN } from './runtime/screenfx';
 
 /**
  * `?fx=full|lite|none` forces the effects level (tests, and a look at what a software renderer gets). Anything else leaves the setting alone.
@@ -61,17 +55,6 @@ function forcedSeed(): number | undefined {
 function seedOption(): { seed?: number } {
   const seed = forcedSeed();
   return seed === undefined ? {} : { seed };
-}
-
-/** The part of the old `Display` that `src/boot.ts` and the dev routes call, over the new `Display`. */
-interface DisplayAdapter {
-  /** Always `integer`. `boot()` assigns `settings.scale` (also `integer`) to it. */
-  mode: 'integer';
-  resize(): void;
-  setGpu(on: boolean): boolean;
-  readonly fxLevel: 'full' | 'lite' | 'none';
-  toGame(clientX: number, clientY: number): { x: number; y: number };
-  readonly element: HTMLCanvasElement;
 }
 
 export async function startSje(markStarted: () => void): Promise<void> {
@@ -106,7 +89,7 @@ export async function startSje(markStarted: () => void): Promise<void> {
     document.getElementById('screen')?.remove();
     const canvas = stage.querySelector('canvas');
     if (!canvas) throw new Error('The new engine made no canvas');
-    const display: DisplayAdapter = {
+    const display: PageDisplay = {
       mode: 'integer',
       resize: () => game.scale.refit(),
       // Switches the effects (M2). On means the level the ?fx= override (dev and test only) or the player asked for; `auto` there can still end up as `lite` on a software renderer.
@@ -120,10 +103,9 @@ export async function startSje(markStarted: () => void): Promise<void> {
       toGame: (x, y) => game.scale.toGame(x, y),
       element: canvas,
     };
-    // The effects: `postfx` becomes `game.fx`, and `game.fx` gets the data. `src/boot.ts` sets the comfort settings and calls `postfx.update()` once a tick.
+    // The effects: `game.fx` gets the data. `src/boot.ts` sets the comfort settings and calls `game.fx.update()` once a tick.
     const problems = game.fx.loadData(FX);
     if (problems.length > 0) throw new Error(`src/data/fx.json is not valid: ${problems.join('; ')}`);
-    routePostfx(postfx, () => game.fx);
     // The battle stage: loaded when the first battle asks for it (src/scenes/battlekit/stageseam.ts).
     // A failed load is a notice and the legacy renderer, never a fight that does not start (battlekit/stageseam.ts).
     setBattleStageProvider(lazyStageProvider(async () => (await import('../battlestage/liveopen')).liveProvider));
@@ -133,10 +115,8 @@ export async function startSje(markStarted: () => void): Promise<void> {
     fieldStages.warm();
     // The notice overlay, as `main.ts` registers it on the old path.
     game.overlays.push(drawNotice);
-    // The notice bar is the one overlay: a legacy scene that draws nothing of its own (the staged field) paints its canvas only while a notice shows.
-    game.overlayWanted = () => currentNotice() !== null;
     const { boot: bootGame } = await gameBoot;
-    bootGame(game as unknown as OldGame, display as unknown as OldDisplay);
+    bootGame(game, display);
     dev?.attach(game);
     const bootEl = document.getElementById('boot');
     if (bootEl) bootEl.style.display = 'none';

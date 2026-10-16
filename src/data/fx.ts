@@ -1,9 +1,9 @@
 /**
  * The GPU effects' particle presets and moments: the data is src/data/fx.json (shapes and checks in
- * engine/fxdata.ts). Tune them in the FX lab: `npm run dev`, then http://localhost:3007/?scene=fxlab.
+ * src/sje/fx/fxdata.ts). Tune them in the FX lab: `npm run dev`, then http://localhost:3007/?scene=fxlab.
  * Saving there rewrites fx.json, and a running dev game takes the new data at once (below).
  */
-import type { FxData, FxPreset } from '../engine/fxdata';
+import type { FxData, FxPreset } from '../sje/fx/fxdata';
 import raw from './fx.json';
 
 export const FX: FxData = raw as unknown as FxData;

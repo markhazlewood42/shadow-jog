@@ -8,11 +8,13 @@
  * `POST /__stage/stages`  ONE Save. The body is `{ stages, axes, hud, facing, heroes, write }` (see `save.ts`). Answers:
  *     403  the request did not come from the dev server's own pages (`sameOrigin`), so a web page on another site cannot write project files;
  *     413  the body is bigger than a Save can be;
- *     400  the body is not JSON, or a check of `prepareSave` refused it (the words are in `problems`); nothing was written;
+ *     415  the body was not sent as `application/json` (a charset is allowed);
+ *     408  the body did not arrive in time (see `withBody`);
+ *     400  the `dry` flag is not `0` or `1` (once), or the body is not JSON, or a check of `prepareSave` refused it (the words are in `problems`); nothing was written;
  *     500  the files could not be written; none was changed (or, if putting an old file back failed too, the message names the files in an unknown state);
  *     200  the files were written ALL TOGETHER (`writeTogether`: a temporary file for each, then a rename for each, the old text put back if one rename fails);
  *          `{ ok: true, written: [...], stages, ... }` with the text of each file written.
- *     `?dry=1` (only the value `1`: see `isDry`) checks and formats and answers 200 with the text and `dry: true`, and writes nothing. The answer then has `wouldWrite` (the parts a real Save would write) and no `written` or `file`. The tests use it.
+ *     `?dry=1` (only the value `1`; `dry=0` or no flag writes; any other form is a 400: see `dryFlag`) checks and formats and answers 200 with the text and `dry: true`, and writes nothing. The answer then has `wouldWrite` (the parts a real Save would write) and no `written` or `file`. The tests use it.
  * `GET  /__stage/hud`     the HUD file as text. A POST there is refused (405): the HUD is saved together with the stages, which checks it against them.
  *
  * WHICH FILES. Only the 640x360 set the game reads, by FIXED paths (decision 4 of ET): `stages-640.json`, `hud-640.json`, and the shared `axes.json`, `enemyfacing.json`, `heroes.json`.
@@ -26,9 +28,10 @@
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { join } from 'node:path';
-import { isDry, sameOrigin } from '../sameorigin';
+import { withBody } from '../endpoint';
+import { dryFlag, isDry, sameOrigin } from '../sameorigin';
 import type { Prepared, SaveOptions, SavePart } from './save';
-import { saveFailureMessage, writeTogether } from './writeset';
+import { WriteSetError, writeTogether } from './writeset';
 
 /** The most a Save may post. A full set is about 30 kB; this leaves room and stops a runaway body. */
 export const MAX_BODY = 1_000_000;
@@ -60,7 +63,33 @@ type Handler = (req: IncomingMessage, res: ServerResponse) => void;
  * `/__stage/stages/anything` reaches the handler with the url `/anything`. Only the endpoint itself (`/`, with or without a query) is answered; any sub-path is a 404 (PR 86 review, round 3, finding 2).
  */
 function isRoot(url: string | undefined): boolean {
-  return new URL(url ?? '/', 'http://localhost').pathname === '/';
+  // The RAW path is compared, not `new URL(...).pathname`: the URL parser reads `//evil.com` and `/\evil.com` as a host with the path `/`, which would pass for the endpoint itself.
+  const raw = (url ?? '/').split(/[?#]/)[0];
+  return raw === '/' || raw === '';
+}
+
+/** Whether the request's address can be read at all. `new URL` throws for a line such as `//`; the handlers answer 400 for it and the server stays up (ET follow-up 3). */
+function badUrl(url: string | undefined): boolean {
+  try {
+    new URL(url ?? '/', 'http://localhost');
+    return false;
+  } catch {
+    return true;
+  }
+}
+
+const BAD_URL = { ok: false, problems: ['the request address is not valid'] };
+
+const NOT_JSON = { ok: false, problems: ['the body must be sent as application/json'] };
+const BAD_DRY = { ok: false, problems: ['dry must be 0 or 1, once, or left out'] };
+
+/** What the client is told when a write failed. The detail (it can name absolute paths) goes to the server console. */
+function writeFailure(e: unknown): string {
+  console.error('[dev server] the stage Save failed:', e);
+  if (e instanceof WriteSetError) {
+    return "couldn't write the files, and putting the old text back failed too. The state of the stage files is unknown: check them (git diff) before you save again. The detail is in the dev server console.";
+  }
+  return "couldn't write the files, and none was changed. The detail is in the dev server console.";
 }
 
 function reply(res: ServerResponse, code: number, body: unknown): void {
@@ -95,6 +124,10 @@ function readPart(part: SavePart, dir: string | null, opts: StageServeOptions): 
 /** The handlers for `/__stage/stages` and `/__stage/hud`. */
 export function stageHandlers(opts: StageServeOptions): { stages: Handler; hud: Handler } {
   const stages: Handler = (req, res) => {
+    if (badUrl(req.url)) {
+      reply(res, 400, BAD_URL);
+      return;
+    }
     if (!isRoot(req.url)) {
       reply(res, 404, { ok: false, problems: ['no such endpoint: use /__stage/stages'] });
       return;
@@ -112,7 +145,8 @@ export function stageHandlers(opts: StageServeOptions): { stages: Handler; hud: 
       try {
         reply(res, 200, { ok: true, problems: [], stages: readPart('stages', dir, opts), axes: readPart('axes', dir, opts), facing: readPart('facing', dir, opts), heroes: readPart('heroes', dir, opts), scratch: dir !== null });
       } catch (e) {
-        reply(res, 500, { ok: false, problems: [`could not read the stage files: ${String(e)}`] });
+        console.error('[dev server] could not read the stage files:', e);
+        reply(res, 500, { ok: false, problems: ['could not read the stage files (the detail is in the dev server console)'] });
       }
       return;
     }
@@ -124,30 +158,24 @@ export function stageHandlers(opts: StageServeOptions): { stages: Handler; hud: 
       reply(res, 403, { ok: false, problems: ['writes only from the dev server’s own pages'] });
       return;
     }
-    const chunks: Buffer[] = [];
-    let size = 0;
-    let tooBig = false;
-    req.on('data', (chunk: Buffer) => {
-      if (tooBig) return;
-      size += chunk.length;
-      if (size > MAX_BODY) {
-        // Past the limit: answer 413 at once and stop reading, so a huge body is not read to its end (PR 86 review, R1-2). The request is paused (no more of the body is taken in) and
-        // destroyed a moment after the answer has gone out: destroying at once would reset the connection before a client that is still sending has read the 413.
-        tooBig = true;
-        chunks.length = 0;
-        req.pause();
-        res.setHeader('Connection', 'close'); // the connection is not reused: the timer below would otherwise cut the next request that rides on it
-        res.once('finish', () => setTimeout(() => req.destroy(), 250).unref());
-        reply(res, 413, { ok: false, problems: [`the body is bigger than ${MAX_BODY} bytes`] });
-        return;
-      }
-      chunks.push(chunk);
-    });
-    req.on('end', () => {
-      if (tooBig) return; // already answered 413 above
+    if (!/^application\/json\s*(;\s*charset=utf-8)?\s*$/i.test(String(req.headers['content-type'] ?? ''))) {
+      reply(res, 415, NOT_JSON);
+      return;
+    }
+    if (dryFlag(req.url) === 'invalid') {
+      reply(res, 400, BAD_DRY);
+      return;
+    }
+    // The body is read by the shared `withBody` (`../endpoint`): 413 at once past MAX_BODY with no more read, and a throw or rejection of the handler is a 500.
+    withBody(req, res, {
+      max: MAX_BODY,
+      reply: (code, body) => reply(res, code, body),
+      tooBig: { ok: false, problems: [`the body is bigger than ${MAX_BODY} bytes`] },
+      failed: (message) => ({ ok: false, problems: [message] }),
+      handle: (text) => {
       let data: unknown;
       try {
-        data = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        data = JSON.parse(text);
       } catch {
         reply(res, 400, { ok: false, problems: ['not valid JSON'] });
         return;
@@ -186,12 +214,17 @@ export function stageHandlers(opts: StageServeOptions): { stages: Handler; hud: 
           ...(dry ? { wouldWrite: made.write } : { written: made.write, file: dir ? `scratch copy ${url.searchParams.get('scratch')}` : 'src/data' }),
         });
       } catch (e) {
-        reply(res, 500, { ok: false, problems: [saveFailureMessage(e)] });
+        reply(res, 500, { ok: false, problems: [writeFailure(e)] });
       }
+      },
     });
   };
 
   const hud: Handler = (req, res) => {
+    if (badUrl(req.url)) {
+      reply(res, 400, BAD_URL);
+      return;
+    }
     if (!isRoot(req.url)) {
       reply(res, 404, { ok: false, problems: ['no such endpoint: use /__stage/hud'] });
       return;
@@ -207,7 +240,8 @@ export function stageHandlers(opts: StageServeOptions): { stages: Handler; hud: 
       try {
         reply(res, 200, { ok: true, problems: [], hud: readPart('hud', dir, opts), scratch: dir !== null });
       } catch (e) {
-        reply(res, 500, { ok: false, problems: [`could not read the HUD file: ${String(e)}`] });
+        console.error('[dev server] could not read the HUD file:', e);
+        reply(res, 500, { ok: false, problems: ['could not read the HUD file (the detail is in the dev server console)'] });
       }
       return;
     }

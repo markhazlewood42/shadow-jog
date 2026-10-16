@@ -1,6 +1,6 @@
 /**
- * ONE table of state cases for the effects (docs/engine/m2-brief.md pass line 2), run against every `FxState`: the old `postfx` (tests/gpufx.test.ts)
- * and the new `FxSystem`, plain and routed (tests/sje-fx.test.ts). The logic is one copy (src/sje/fx/fxstate.ts), so the table is one copy too.
+ * ONE table of state cases for the effects (docs/engine/m2-brief.md pass line 2), run against an `FxState`: the headless `FxSystem` (tests/gpufx.test.ts)
+ * and the same class with mutants (tests/sje-fx.test.ts). The logic is one copy (src/sje/fx/fxstate.ts), so the table is one copy too.
  * A case throws (a failed `expect`) when the state is wrong. `runCases` returns the names of the cases that threw, which is how the mutant
  * controls ask "did the matching case fail?".
  */

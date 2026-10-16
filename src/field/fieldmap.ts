@@ -1,8 +1,8 @@
 /** Runtime map: parses a MapDef and bakes its layers once. */
-import { pixelSurface, surface, type Ctx } from '../engine/canvas';
-import { mix, rgba } from '../engine/color';
+import { pixelSurface, surface, type Ctx } from '../sje/core/canvas';
+import { mix, rgba } from '../sje/core/color';
 import { H, W } from '../sje/core/size';
-import { hash2 } from '../engine/rng';
+import { hash2 } from '../sje/core/rng';
 import type { AnimFx, BakeCtx, BakedLight, SortedSprite } from './bake';
 import { paintBuilding } from './buildings';
 import { occupiedRects, type Rect } from './overrects';

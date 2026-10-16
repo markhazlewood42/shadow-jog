@@ -2,7 +2,7 @@
  * New engine core (level 0) pieces that M1 touched (docs/engine/m1-brief.md tasks 5 and 11): the moved Rng and the loop's record hook.
  */
 import { describe, expect, it } from 'vitest';
-import * as oldPath from '../src/engine/rng';
+import * as oldPath from '../src/sje/core/rng';
 import { FixedLoop } from '../src/sje/core/fixedloop';
 import * as moved from '../src/sje/core/rng';
 import { TICK_MS } from '../src/sje/core/size';

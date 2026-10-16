@@ -2,8 +2,8 @@
  * Tiny pixel-painting kit for procedural sprites: hard-edged shapes, volumetric shading with
  * ordered dithering (light from the upper left), and auto-outline. No antialiasing anywhere.
  */
-import { pixelSurface, surface } from '../engine/canvas';
-import { rgb, shade } from '../engine/color';
+import { pixelSurface, surface } from '../sje/core/canvas';
+import { rgb, shade } from '../sje/core/color';
 
 const BAYER = [
   [0, 8, 2, 10],

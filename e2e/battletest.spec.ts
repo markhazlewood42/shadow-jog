@@ -257,10 +257,15 @@ test('the same seed and the same ticks give the same fight, tick for tick', asyn
       // One row per tick, taken as the tick starts (the state the last tick left). `advance(1)` in a loop would draw a frame after every tick, and a software renderer
       // (the CI runner) takes most of the time there; one `advance` with the sampler in `until` draws once. The rows are the same state, tick for tick.
       const rows: unknown[] = [];
-      await bt.advance(600, () => {
-        rows.push([hook.battleStage, bt.status().foes.map((f) => f.hp), bt.status().party.map((p) => p.hp)]);
+      const state = (): unknown => [hook.battleStage, bt.status().foes.map((f) => f.hp), bt.status().party.map((p) => p.hp)];
+      const played = await bt.advance(600, () => {
+        rows.push(state());
         return false;
       });
+      // The sample point (ET follow-up 5): 600 ticks give 601 rows, the state before the first tick and after each of the 600, so the last row is what the last tick left.
+      // With the old point the sampler ran 600 times and the last row was the state before the last tick.
+      if (played !== 600 || rows.length !== 601) throw new Error(`sampler ran ${rows.length} times for ${played} ticks, expected 601 for 600`);
+      if (JSON.stringify(rows[600]) !== JSON.stringify(state())) throw new Error('the last row is not the state the last tick left');
       return JSON.stringify([rows, bt.trace]);
     });
     await page.evaluate(() => window.__stageedit?.stopBattle());

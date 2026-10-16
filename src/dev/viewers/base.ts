@@ -1,11 +1,11 @@
 /**
  * The base of the art viewers (`?scene=mapview|chars|portraits|bestiary|font`): a scene of the new engine that draws its whole picture with Canvas 2D.
  *
- * ET moved the five viewers from the old `Scene` (`engine/game`, deleted in M8) onto this. It does what the `LegacyScene` adapter did for them, and no more: one
+ * ET moved the five viewers from the old engine's `Scene` (deleted in M8d) onto this. It does what the old adapter did for them, and no more: one
  * `CanvasImage` of the screen's size, repainted on every frame by `render(ctx)`, then uploaded. A viewer fills the whole canvas itself, so nothing is cleared here.
  * Follows: Phaser `Scene` with a `CanvasTexture` (docs/engine/scene-graph.md).
  */
-import type { Ctx } from '../../engine/canvas';
+import type { Ctx } from '../../sje/core/canvas';
 import { type CanvasImage, H, Scene, W } from '../../sje';
 
 export abstract class CanvasViewScene extends Scene<void> {

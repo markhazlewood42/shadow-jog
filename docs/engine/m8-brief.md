@@ -320,3 +320,68 @@ Groups are commits. M8a = tasks 1 to 3 and 5. M8b = tasks 4, 6 and 7. M8c = task
 | review 6 #4 small banner text fades | Not real | The old `render.ts` also fades it: `ctx.globalAlpha = a` is set before the banner, and `drawWindow` (`src/ui/draw.ts`) wraps its alpha changes in `save`/`restore`, so the alpha returns to `a` for `drawText`. The window sets its own alpha, so the frame stays solid. The kit version matches | none |
 | review 6 #5 `face` op key lacks portrait readiness | Not real | `getPortrait` (`src/art/portraits.ts:364`) paints on demand and returns at once; null only for an unknown key. The drawn rig portraits are applied in `boot.ts` before any scene. Only the dev tool `replacePortrait` swaps one mid-session | none |
 | review 6 #1-3, #6-10 | Repeats or M8d (casts: task 10; economy timeouts; render entry point; definite-assignment menus) | Triage closed by Mark 2026-10-15 | none |
+
+### M8d build
+
+| Task or group | What | Result | Verdict | Fix or note |
+|---|---|---|---|---|
+| 10 (32c7bbb) | `game/systems.ts`, `story/newgame.ts`, `boot.ts`, `sje/boot.ts` use the sje `Game`; `PageDisplay` and `SHAKE_PIXEL_GAIN` come from `src/sje`; effects are `game.fx` | 9 files. The `as unknown as SjeGame` casts are gone | done | |
+| 11 (8331203) | The seven ET exemption lists become one deleted-path check in `tests/et-tools.test.ts`; tests and e2e probes leave the old engine files | 26 files. Control: a dynamic import of `engine/postfx` in `src/dev/fxlab.ts` made et-tools red, then reverted | holds | |
+| 12 (116368a) | Delete `engine/game`, `display`, `postfx`, `moments` | 20 files, 626 lines out. Also deleted `src/sje/fx/route.ts` (it served only `postfx`). Pass line 2 scan prints nothing; the same scan on `main` prints 89 lines | holds | |
+| 13 (3ca2368) | Remove `LegacyScene`, `LegacyShape`, `LegacyGameSurface`, their tests and every `engine=sje` comment | 37 files. Pass line 3 scan prints nothing | holds | |
+| 14 (048b400, 43d947a, 0811967) | 048b400: 6 renames, no content change. 43d947a: 102 files, import paths only. 0811967: merges `assert`, wires `Input` into `sje/runtime/inputdevice.ts`, deletes the shims and `src/engine/`. Before the move: 3ca2368 | `git diff --stat 3ca2368..0811967 -- src/sje/render src/sje/display src/sje/three` prints nothing. Pass lines 2, 3 and 15 print nothing | holds | Main-session ruling: a one-line comment edit in `src/art/worldsize.ts` is a named exception to pass line 10, needed by the pass line 2 scan. The other `src/art`, `src/battle`, `src/data`, `src/field` and `src/story` lines in `git diff main...HEAD` are import paths (checked: no other changed line) |
+| A: follow-up 2 (1b7f590) | `save()` in `stageedit.ts` has an in-flight guard | `e2e/stageedit.spec.ts` "a second Save while one is running does nothing": two calls, one POST; control: a Save after the first one runs. Without the fix: `Expected: false, Received: true` on the second call | holds | |
+| A: follow-up 3 (1b7f590) | `serve.ts` answers 400 for a bad request address (`badUrl`); `isRoot` and `isDry` no longer throw | `tests/stageedit-save.test.ts` "a request line that is not an address": `GET` and `POST` to `/__stage/stages//` and `/__stage/hud//` give 400, no file changes, a good request after them gives 200. Without the fix: "Test timed out in 5000ms" and an unhandled `Invalid URL` error (the server ended) | holds | |
+| A: follow-up 4 (1b7f590) | The `serve.ts` POST body goes through `withBody` | The 413 and 500 tests of `tests/stageedit-save.test.ts` stay green (53 tests) | holds | |
+| A: follow-up 5 (1b7f590) | `BattleTest.advance` asks `until` after the last tick too (n + 1 calls). The sampler saw the states 0 to n - 1 and never the state after the last tick | `e2e/battletest.spec.ts` determinism test throws unless 600 ticks give 601 rows and the last row equals the state after. Without the fix: `sampler ran 600 times for 600 ticks, expected 601 for 600`. `battletest.spec.ts`: 12 passed | holds | |
+| B: `uiops.ts` flat rects (6ec3c89) | A `rect` op is one `Graphics` fill (`ViewBuilder.rect`, `rectColor` reads `#hex` and `rgba()`), not one `CanvasImage` | `tests/battle-hud.test.ts`: 3 rect ops make 3 `Graphics` and 0 `CanvasImage`; control: a `face` op still makes 1. Specs `sje-battle`, `battletest`, `gameover`, `sje-field` green. No change in `src/sje/render`, `display` or `three` | done | The `face` op stays a picture (art) |
+| B: double `hud.sync()` (6ec3c89) | The sync in `BattleScene.paint` is removed. The sync at the end of `fixedUpdate` stays | `battle-hud`, `battle-native`, `ui-layout`, `playback` unit tests green; `sje-battle`, `battletest`, `sje-stage-parity` specs green (60 passed, 7 skipped) | done | Trade-off: unit tests read the windows after ticks with no draw, so the tick sync must stay. A flow that changes state after the last tick of a frame shows in the windows one tick later, at most (before: at the next draw) |
+| B: `tests/cssscale.ts` (6ec3c89) | The helper and the pins that test only it are removed | `tests/display.test.ts` keeps the 640x360 pin and loses: "Fill mode: the common windows are exact multiples" (5 rows), "snaps a window a little off a whole multiple (the 90% rule)", "Fill mode: an awkward window..." (4 rows), "is decided at the 90% line", "never snaps a window smaller than the screen", "Pixel-perfect mode always snaps" (8 rows), "snaps to a whole number of DEVICE pixels". `tests/sje-display.test.ts` loses "control: the old `fit` rule gives a fractional scale on 1536x864". The shipped display keeps its 9-window table and the integer-mode pin | done | |
+| B: comments (6ec3c89) | Comments that named `src/engine/*` now name `src/sje` paths (`boot.ts`, `state.ts`, `font.ts`, `screenfx.ts`, 4 specs and tests, `interface-check.mjs`, `interfaces.md` with `sync-interface-check.mjs`) | `src/data/fx.ts` line 3 still names `engine/fxdata.ts`: pass line 10 forbids a change under `src/data` | done | The line of `src/data/fx.ts` was fixed in fix round 1 (see M8d fix round 1) |
+| C: docs (da74051) | `ARCHITECTURE.md`, `DEVELOPING.md`, `migration.md`, `TOOLING-UI.md`, `CLAUDE.md`, `et-brief.md` pass line 17 (passed 2026-10-14, Mark), `roadmap.json`, bundle comments, `changelog.d/engine-m8d-remove-legacy.md` | `npx vitest run tests/roadmap.test.ts` 8 passed; `tools/command-center` `workstream-files.test.ts` 18 passed | done | |
+| D: bundle caps | `npm run budget` measures first play 410.017 kB and total 473.783 kB. New caps: 410.6 kB and 474.3 kB (measured + 0.5 kB, rounded up to 0.1 kB). Were 412 kB and 475.5 kB | `npm run budget` exits 0 | holds | Both caps went down. No cap went up |
+| Checks | `npm run check` exit 0 (115 files, 2013 tests). Pass line 2, 3 and 15 scans print nothing | | holds | |
+| Pass line 12 | `git diff --stat main...HEAD -- src/sje/render src/sje/display src/sje/three` names `display/canvasimage.ts` (a doc comment) and `display/font.ts` (a comment) | `npm run perf` runs once on Mark's machine | pending | |
+| Known on `main` | The default-path title and options goldens (`e2e/default-path.spec.ts`: 4 tests) and `e2e/sje-bench.spec.ts` (title uploads) fail locally on `main` too | Not M8d | none | |
+
+### M8d fix round 1
+
+The runner, reader and attacker reports are in `media/verification/m8d/`. Caps: the main session chose +0.5 kB of headroom for the M8d caps (earlier caps used about +1 kB). No cap was raised.
+
+| Finding | Fix | Proof | Verdict |
+|---|---|---|---|
+| Default-path (runner) | None. The 4 golden tests and 2 controls pass on `main` and on this branch: 10 passed on each side. The failure came from a stray old server on port 3012 (PID 12208, a vite of this repo). I stopped it by PID | Outputs saved in `media/verification/m8d/default-path-main.txt` and `default-path-branch.txt` (git-ignored, local only) | not a regression |
+| I1 | `docs/DEVELOPING.md` calls `battleglue.ts` an ordinary tool file. The exemption list is gone | Text only | fixed |
+| I2 | `e2e/gameover.spec.ts` reads `sj.game.scene.scenes`, not the removed `Game.stack` | Same API as `SceneManager.scenes` | fixed |
+| I3 | Test "task 19" in `tests/stageedit-save.test.ts`: a `prepare` that returns nothing gives 500, and the next request is answered | Without the catch in `withBody`: "Test timed out in 5000ms" and an unhandled "Cannot read properties of undefined (reading 'ok')". Then restored | fixed |
+| F1 | `isRoot` compares the raw path. `/__stage/stages//evil.com` and the same with a backslash give 404 | Test cases with two slashes and with a backslash for GET and POST, both endpoints. Without the fix: "GET /__stage/stages//evil.com: expected 200 to be 404" | fixed |
+| F2 | `dryFlag` and a fail-closed `isDry`. Any `dry` that is not one `0` or one `1` gives 400. The key is read in any letter case | Tests for `dry=%zz`, `DRY=1`, `dry=true`, `dry=10`, a bare `dry`, `dry=0&dry=1`. Without the fix: "?dry=%zz: expected 200 to be 400" | fixed |
+| F3 | A POST without `application/json` (a charset is allowed) gives 415. The editor's `save()` sends `application/json` | Test with `text/plain`, a form type and no type. Without the fix: "text/plain: expected 200 to be 415" | fixed |
+| F4 | `save()` catches a throw of `saveNow` and shows "Not saved: the Save failed (...)" in the status line | `e2e/stageedit.spec.ts` forces `session.settle` to throw and reads `#st-msg`. The unit harness does not reach the editor's `save()`. Playwright run: see the check lines | fixed |
+| F5 | `withBody` has a body timeout (`BODY_TIMEOUT_MS`, 10 s, option `timeoutMs`). A stalled body gives 408 and the request is destroyed | `tests/endpoint.test.ts` with a 150 ms timeout and a body that stops. Without the fix: the test failed (no 408) | fixed |
+| F6 | A 500 sends a short generic sentence. The detail goes to the dev server console (`serve.ts`, `withBody`, `vite.config.ts`) | Test: the answer holds no data path, no error code. Without the fix: it failed on the raw error text | fixed |
+| M1 | Stale comments fixed: `src/data/fx.ts:3`, `src/sje/boot.ts`, `src/game/hackseam.ts`, `tests/et-tools.test.ts`, `docs/engine/interfaces.md` (`inputdevice.ts`), `src/sje/interfaces.check.ts` (regenerated), `scripts/verifier-prompts.py` (a note, the script was not run) | `npm run check` | fixed |
+| M1, pass line 10 | The comment-only edit in `src/data/fx.ts` is a named exception to pass line 10, like the one in `src/art/worldsize.ts` (main-session ruling) | One comment line | exception |
+| M2 | `docs/ARCHITECTURE.md` says that `sje/boot.ts` is the one `sje` file that imports the game | Text only | fixed |
+| M3 | The rect test also reads the fill color and alpha of each `Graphics` | `tests/battle-hud.test.ts` | fixed |
+| M4 | The two casts in `tests/sje-runtime.test.ts` are gone. The test reads `g['overlayLayer']` through a typed bracket access | `tests/sje-runtime.test.ts` 79 tests with `battle-hud` pass | fixed |
+
+### M8d verification
+
+| Round | Scores | Result | Fixes |
+|---|---|---|---|
+| 1 | Runner 8.0, reader 7.8, attacker 8.4 | Gate not met: 3 Important, 1 runner Major, Minors | `fe07872`, `d5a12a6`, `5202afd` |
+| 2 | Fix-round verifier 8.5, rubric average 8.65, none below 7 | PASS: no Critical or Important | Minors N1 (stale comments) and N2 (invalid `dry` flag gives 400) fixed in the commit that adds this table |
+| Perf triage (local GPU run, 2026-10-15) | `perf.spec.ts:86` field: `__SJ__` undefined in the title baseline | Not M8d: same on `main`. Load-order race (lazy game chunk, cold Vite, fixed wait) | `openGame` waits for `__SJ__.perf`; 7 of 7 pass |
+| Perf triage | `sje-bench.spec.ts:269` (1000 objects): title uploads 2.01 canvases, test expects 1 | Not M8d: same on `main`. Stale premise: art canvas + `game-overlays` layer (uploaded every frame) | Spec expects 2 (A, B) and 3 (B3 control); passes |
+| Perf triage | `sje-bench.spec.ts:331` (title, fx full): uploads 2.01, test expects 1 | Not M8d: same on `main`. Same cause as above | Spec expects art canvas + overlay layer (+ UI, glow when used); passes |
+
+### M8d PR 98 review triage
+
+| Finding | Verdict | Change | Commit |
+|---|---|---|---|
+| Review 1, 2 and 3: `CLAUDE.md` line 4 names `src/engine/game.ts` for `W` and `H` | Not real: the branch `CLAUDE.md` names `src/sje/core/size.ts`. The review read the diff backwards | None | none |
+| Review 1, 2 and 3: `CLAUDE.md` line 76 names `src/engine/` for the `!` rule | Not real: the branch line names `src/sje/` and `src/battle/`. Same cause | None | none |
+| Review 3: `CLAUDE.md` reverts a doc fix | Not real: same cause | None | none |
+| CI `command-center` pinned M8c as not done | Real | Pins updated; 2065 command-center tests green locally | `2b351db`, `e5a7a65` |
+| CI `e2e (4/8)` `sje-hack-a` "texture" count leak | Not M8d: the known flake of issue #97 | Failed job re-run | none |

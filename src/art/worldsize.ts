@@ -1,6 +1,6 @@
 /**
  * The battle world's size, defined once. This is a leaf module: it imports only the screen size
- * (`W` and `H`, engine/game.ts), so both the backdrops (`art/battlebg.ts`) and the battle scene
+ * (`W` and `H`, src/sje/core/size.ts), so both the backdrops (`art/battlebg.ts`) and the battle scene
  * kit (`scenes/battlekit/geom.ts`, which re-exports these names) can import it without `art`
  * reaching up into `scenes`. The new engine's size module takes all of this over at M0
  * (`grain(2)`).

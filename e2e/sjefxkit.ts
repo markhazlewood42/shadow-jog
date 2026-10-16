@@ -12,13 +12,18 @@ export type Level = 'full' | 'lite' | 'none';
 /** Page-side helpers: the probe scene and the pixel comparison. Installed once per page. */
 export const INSTALL = `(async () => {
   const sj = window.__SJ__;
-  const { Scene } = await import('/src/engine/game.ts');
-  const postfx = sj.postfx; // the routed singleton the game's own scenes use
+  const { Scene } = await import('/src/sje/index.ts');
   const probe = { glow: null, ui: { x: 10, y: 10, w: 30, h: 30 } };
   window.__probe = probe;
   class Probe extends Scene {
-    update() {}
-    render(ctx) {
+    create() {
+      this.image = this.add.canvasImage(0, 0, ${W}, ${H});
+      this.events.on('prerender', () => this.paint(this.image.ctx));
+    }
+    fixedUpdate() {}
+    paint(ctx) {
+      // The effects system is read each frame: the game replaces it when the level changes.
+      const postfx = sj.game.fx;
       for (let cy = 0; cy < ${H} / 8; cy++) {
         for (let cx = 0; cx < ${W} / 8; cx++) {
           ctx.fillStyle = 'rgb(' + ((cx * 37 + cy * 91) % 150 + 80) + ',' + ((cx * 53 + cy * 17) % 150 + 80) + ',' + ((cx * 29 + cy * 61) % 150 + 80) + ')';
@@ -29,6 +34,7 @@ export const INSTALL = `(async () => {
       if (g) { g.fillStyle = '#ffffff'; g.fillRect(probe.glow.x, probe.glow.y, probe.glow.w, probe.glow.h); }
       const ui = probe.ui && postfx.ui;
       if (ui) { ui.fillStyle = '#00ff00'; ui.fillRect(probe.ui.x, probe.ui.y, probe.ui.w, probe.ui.h); }
+      this.image.refresh();
     }
   }
   window.__Probe = Probe;

@@ -1,7 +1,7 @@
 /**
  * The battle stage on the Shadow Jog Engine: game code that runs on `src/sje` (docs/engine/migration.md section 6; built in the engine-platform spike, promoted in M3
  * task 4). Imports the engine only through its facade (`../sje`). Nothing the shipped game's default path loads imports this folder: the engine's boot glue loads it
- * behind `?engine=sje` (M3 task 11), and tests/sje-imports.test.ts checks.
+ * lazily (M3 task 11), and tests/sje-imports.test.ts checks.
  */
 export { chooseSprites, haveMarksSheets, loadStageAssets, loadStageData, type SpriteChoice, type StageData, withSeed } from './boot';
 export { checkStageConfig } from './config';

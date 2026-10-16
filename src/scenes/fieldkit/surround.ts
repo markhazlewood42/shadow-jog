@@ -27,7 +27,7 @@
  * plain values. It sits in code for now because PL6 forbids data edits in this package; it moves
  * into the map data (`MapDef`) once Mark gives his written yes. The drawing code never names a map.
  */
-import type { Ctx } from '../../engine/canvas';
+import type { Ctx } from '../../sje/core/canvas';
 import { H, W } from '../../sje/core/size';
 import { drawSurroundArt } from './surround-art';
 import { VOID } from './void';

@@ -18,7 +18,7 @@ import type { Pose } from '../../art/battlers';
 import type { Disp, Floater } from './types';
 import { WINDOWS } from './timing';
 import { PARTY_POSE_T } from './motion';
-import { direction } from '../../engine/shake';
+import { direction } from '../../sje/fx/shake';
 import { gpuCast, gpuDown, gpuHeal, gpuHit, gpuPhase, gpuSpell } from './gpufx';
 
 import type { TimingProfile } from '../../battle/engine';

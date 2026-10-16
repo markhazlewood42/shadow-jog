@@ -1,5 +1,5 @@
 /** Player preferences, persisted separately from save files. */
-import type { Action } from '../engine/input';
+import type { Action } from '../sje/runtime/inputdevice';
 
 export interface Settings {
   musicVol: number;
@@ -21,7 +21,7 @@ export interface Settings {
   timing: 'on' | 'assist' | 'off';
   /** The player's own key for an action (on top of the defaults), by KeyboardEvent.code. */
   keys: Partial<Record<Action, string>>;
-  /** GPU effects (engine/postfx.ts): bloom, shockwaves, particles. `none`, or without WebGL 2, the
+  /** GPU effects (src/sje/fx/fxsystem.ts): bloom, shockwaves, particles. `none`, or without WebGL 2, the
    *  game draws exactly as before. `auto` picks the level the machine can hold; `full` asks for all of it.
    *  Replaces the old `gpuFx` flag (`backfill()` maps true to `auto`, false to `none`). */
   fxLevel: FxSetting;

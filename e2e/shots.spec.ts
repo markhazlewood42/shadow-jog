@@ -12,7 +12,7 @@
  *    16 ms frames, exactly as many as last time. Every wait in this file is such a step, never a
  *    real-time wait. Rain, water, lamp flicker, blinking cursors and idle motion land on the same
  *    frame in every run.
- * 2. `Date.now()` is fixed too, so `src/engine/rng.ts` (which seeds the gameplay streams from the
+ * 2. `Date.now()` is fixed too, so `src/sje/core/rng.ts` (which seeds the gameplay streams from the
  *    wall clock when it loads) draws the same seed every run: the same encounter roll, the same
  *    battle rolls. The random encounter tables are also pinned to one real line-up each
  *    (`PINNED`, through `battle()`), so a shot's enemies are named in this file rather than rolled.
@@ -31,7 +31,7 @@ const OUT = 'docs/screenshots';
 
 /**
  * The fixed wall clock of every capture: 2026-10-06 12:00 UTC. The game reads it once, when
- * `src/engine/rng.ts` loads, to seed the gameplay streams. Change it and every fight rolls differently.
+ * `src/sje/core/rng.ts` loads, to seed the gameplay streams. Change it and every fight rolls differently.
  */
 const CLOCK = Date.UTC(2026, 9, 6, 12, 0, 0);
 /** The seed of the page's replacement `Math.random` (a mulberry32 generator, the same formula as `Rng`). */

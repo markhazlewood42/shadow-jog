@@ -2,9 +2,9 @@
  * Battle backgrounds at the 240×135 battle resolution (displayed 2×). Each has a static bake
  * and an optional per-frame animation layer (rain, flicker, water, embers).
  */
-import { surface, type Ctx } from '../engine/canvas';
-import { mix, rgb, shade } from '../engine/color';
-import { hash2, Rng } from '../engine/rng';
+import { surface, type Ctx } from '../sje/core/canvas';
+import { mix, rgb, shade } from '../sje/core/color';
+import { hash2, Rng } from '../sje/core/rng';
 
 export const BW = 240;
 export const BH = 135;

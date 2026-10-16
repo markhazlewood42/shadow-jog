@@ -1,5 +1,5 @@
 /**
- * Custom proportional bitmap font. (Moved from src/engine/font.ts in M3, task 3; the old path re-exports this file. `TextObject` is M4, E14.)
+ * Custom proportional bitmap font. (Moved here from the old engine folder in M3, task 3; M8d deleted the old path. `TextObject` is M4, E14.)
  * Cap height 7px, 2px descenders, 1px letter spacing.
  * Rows are authored top-down; a glyph with 9 rows uses the descender area.
  *
@@ -13,8 +13,8 @@ import { must } from '../core/assert';
 type Ctx = CanvasRenderingContext2D;
 
 /**
- * A canvas of this size with smoothing off (the glyph atlas and its tinted copies). The engine's own copy of the old `surface` in
- * src/engine/canvas.ts, because the new engine never imports the old one; the same two lines, so the atlas pixels do not change.
+ * A canvas of this size with smoothing off (the glyph atlas and its tinted copies). The engine's own copy of the old `surface` helper, now in
+ * `src/sje/core/canvas.ts`, because the new engine never imports the old one; the same two lines, so the atlas pixels do not change.
  */
 function surface(w: number, h: number): { canvas: HTMLCanvasElement; ctx: Ctx; w: number; h: number } {
   const canvas = document.createElement('canvas');

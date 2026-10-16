@@ -1,6 +1,6 @@
 /** Character appearance definitions (field sprites). */
 import type { CharLook } from '../art/chars';
-import { Rng } from '../engine/rng';
+import { Rng } from '../sje/core/rng';
 
 export const LOOKS = {
   kit: {

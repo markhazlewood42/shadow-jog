@@ -1,6 +1,6 @@
 /** Enemy decision-making: weighted move tables with conditions, plus scripted boss routines. */
 import { ABILITIES, ability } from '../data/abilities';
-import { must } from '../engine/assert';
+import { must } from '../sje/core/assert';
 import { ENEMIES, type EnemyMove } from '../data/enemies';
 import type { Battle } from './engine';
 import type { Ability, Combatant } from './types';

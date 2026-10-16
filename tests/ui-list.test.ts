@@ -1,6 +1,6 @@
 /** ListMenu: wrap-around, scrolling window, disabled rows, empty lists. */
 import { describe, expect, it } from 'vitest';
-import type { Input } from '../src/engine/input';
+import type { Input } from '../src/sje/runtime/inputdevice';
 import { ListMenu } from '../src/ui/list';
 
 /** A scripted input: one action "pressed" for the next update() call. */

@@ -2,10 +2,10 @@
 import type { Dir } from '../art/chars';
 import { sfx } from '../audio/sfx';
 import { placeMusic } from '../audio/music';
-import type { Ctx } from '../engine/canvas';
+import type { Ctx } from '../sje/core/canvas';
 import { CanvasImage, measure, Scene } from '../sje';
 import { W, H } from '../sje/core/size';
-import { Rng } from '../engine/rng';
+import { Rng } from '../sje/core/rng';
 import { Actor, DIRS, opposite } from '../field/actor';
 import type { SortedSprite } from '../field/bake';
 import { FieldMap } from '../field/fieldmap';
@@ -21,7 +21,7 @@ import { getMap } from '../data/maps';
 import { chestHalo, chestSprites } from '../field/chests';
 import { bandGradient, UI } from '../ui/draw';
 import { fieldHooks } from '../game/hooks';
-import { notice, reportError } from '../engine/errors';
+import { notice, reportError } from '../sje/core/errors';
 import { scriptApi } from './fieldkit/api';
 import { bannerAlpha, FieldHud } from './fieldkit/hud';
 import { cameraOrigin, LEADER_FOCUS_LIFT } from './fieldkit/camera';
@@ -203,7 +203,7 @@ export class FieldScene extends Scene<void> implements FieldStageSource {
 
   // ------------------------------------------------------------------ the stage (fieldkit/fieldseam.ts)
   /**
-   * Under `?engine=sje` a stage scene draws this field (fieldkit/fieldseam.ts): it stands UNDER this scene on the stack and shows the map, the actors and the lights
+   * A stage scene draws this field (fieldkit/fieldseam.ts): it stands UNDER this scene on the stack and shows the map, the actors and the lights
    * as engine objects. This scene keeps every rule and draws only the dev overlay. Null without the flag, or when the stage could not be made: the field then draws itself.
    */
   private stage: FieldStage | null = null;
@@ -732,7 +732,7 @@ export class FieldScene extends Scene<void> implements FieldStageSource {
 
   // ------------------------------------------------------------------ render
   /**
-   * The `prerender` handler: paint `render` into the scene's canvas image and upload it. A scene above the base starts each frame clear, as a legacy scene did. With a stage
+   * The `prerender` handler: paint `render` into the scene's canvas image and upload it. A scene above the base starts each frame clear. With a stage
    * under it and no dev overlay, the canvas is cleared once and left out (no 921,600-byte upload). A throw still uploads the picture, then reaches the engine's guard.
    */
   private paint(): void {

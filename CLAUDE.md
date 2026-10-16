@@ -1,7 +1,7 @@
 # Shadow Jog: instructions for AI sessions
 
 A browser JRPG (cyberpunk-fantasy, Phantasy Star IV loop), Chapter 1 "Milk Run", built to an indie-alpha bar.
-Vite + TypeScript strict, Canvas 2D at 640×360 (moved from 480×270 on 2026-10-05; `W` and `H` in `src/engine/game.ts`). No runtime dependencies today (a build choice, not a rule: see Rules). Art: **drawn picks from the PixelLab art pass** (`public/art/`, loaded by `src/art/drawn.ts`) over the game's own **code-drawn art**, which stays as the fallback for everything; audio all generated in code.
+Vite + TypeScript strict, Canvas 2D at 640×360 (moved from 480×270 on 2026-10-05; `W` and `H` in `src/sje/core/size.ts`). No runtime dependencies today (a build choice, not a rule: see Rules). Art: **drawn picks from the PixelLab art pass** (`public/art/`, loaded by `src/art/drawn.ts`) over the game's own **code-drawn art**, which stays as the fallback for everything; audio all generated in code.
 Repo: `markhazlewood42/shadow-jog` (**public**). Owner: Mark Hazlewood (he/him).
 
 ## Start here, in this order
@@ -73,7 +73,7 @@ Repo: `markhazlewood42/shadow-jog` (**public**). Owner: Mark Hazlewood (he/him).
 - **Concepts rule (Mark, 2026-09-30):** when a game-dev or JRPG concept comes up (in the work or in conversation:
   a technique, a genre convention, a tool idea, like Wang tiles or hitstop), add it to `docs/CONCEPTS.md` in plain
   words with where it shows up in this game. Mark wants to learn the craft from this project.
-- No non-null assertions (`!`) in `src/engine/` or `src/battle/`: use a guard or `must(value, 'what')`.
+- No non-null assertions (`!`) in `src/sje/` or `src/battle/`: use a guard or `must(value, 'what')`.
 - After combat, item or encounter changes, run `npx vitest run tests/balance.test.ts tests/economy.test.ts`.
 - Keep your branch's workstream file (`docs/workstreams/<branch>.md`) current before a session ends. `status.md` changes only by a PR to `main`.
 

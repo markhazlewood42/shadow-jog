@@ -8,8 +8,8 @@
  * GPU numbers. The GPU line of pass line 10 needs a run on Mark's machine.
  *
  * What it measures, in one page (`/?debug`), with the game's own loop stopped and the test driving ticks and draws frame by frame:
- *   A  the title alone, effects off (`?fx=none`): one legacy canvas (`CanvasImage`, 921,600 bytes) uploaded each frame.
- *   B  two drawn legacy scenes (a transparent probe over the title): two canvases uploaded. A third is the line the design worries about.
+ *   A  the title alone, effects off (`?fx=none`): two 640x360 canvases (921,600 bytes each) uploaded each frame: its art canvas and the game overlay layer.
+ *   B  a transparent probe scene over the title: the probe canvas and the overlay layer upload. A third canvas is the line the design worries about.
  *   C  A plus 1,000 `ImageObject`s moved by the wrapper (x and y setters, with the pixel snap) every tick.
  *   D  A plus the same 1,000 sprites moved on the raw Pixi node (`position.set`): the wrapper's cost is C minus D.
  * For each: the frame interval p95 (requestAnimationFrame to requestAnimationFrame), the JavaScript work (tick + draw), the cost with the wait for
@@ -143,9 +143,9 @@ test.describe('M1 bench (local only, real GPU)', () => {
           const gl = (window as unknown as { __gl: { draws: number; binds: number; uploads: number; uploadBytes: number } }).__gl;
           // The dev server's own modules (the same instances the game runs). The names are variables so TypeScript does not look for the files.
           const imageObjectUrl = '/src/sje/display/imageobject.ts';
-          const oldGameUrl = '/src/engine/game.ts';
+          const sjeUrl = '/src/sje/index.ts';
           const { ImageObject } = await import(/* @vite-ignore */ imageObjectUrl);
-          const { Scene } = await import(/* @vite-ignore */ oldGameUrl);
+          const { Scene } = await import(/* @vite-ignore */ sjeUrl);
           // The shared measuring loop (see benchKit): evaluated here so it runs in the page.
           const { pct, measure } = new Function(`return (${kitSrc})`)()(game, gl, frames, warmup);
           const none = () => undefined;
@@ -154,17 +154,23 @@ test.describe('M1 bench (local only, real GPU)', () => {
           // A: the title alone.
           result.A = await measure(none);
 
-          // B: a transparent probe scene over the title: two legacy canvases are drawn. C3 (control): a third.
+          // B: a transparent probe scene over the title: two canvases are drawn. C3 (control): a third. The probe is a native scene with a canvas image of its own,
+          // which it repaints and uploads each frame, like a scene that draws with Canvas 2D.
           class Probe extends Scene {
             constructor() {
               super();
               this.opaque = false;
             }
-            update(): void {}
-            render(ctx: CanvasRenderingContext2D): void {
-              ctx.fillStyle = 'rgba(40, 90, 160, 0.4)';
-              ctx.fillRect(8, 8, 60, 30);
+            create(): void {
+              const image = this.add.canvasImage(0, 0, 640, 360);
+              this.events.on('prerender', () => {
+                image.ctx.clearRect(0, 0, 640, 360);
+                image.ctx.fillStyle = 'rgba(40, 90, 160, 0.4)';
+                image.ctx.fillRect(8, 8, 60, 30);
+                image.refresh();
+              });
             }
+            fixedUpdate(): void {}
           }
           const probe1 = new Probe();
           void game.run(probe1);
@@ -247,9 +253,9 @@ test.describe('M1 bench (local only, real GPU)', () => {
         `${x.drawsPerFrame.toFixed(1)} draws, ${x.bindsPerFrame.toFixed(1)} binds, ${x.uploadsPerFrame.toFixed(2)} uploads (${Math.round(x.uploadBytesPerFrame)} bytes) per frame`;
       const lines = [
         `SJE bench [${label}], bare rAF page p95 ${bareP95.toFixed(2)} ms`,
-        `  A title alone (1 canvas): ${fmt(s.A)}`,
-        `  B two legacy canvases:    ${fmt(s.B)}`,
-        `  B3 three canvases (control): ${fmt(s.B3)}`,
+        `  A title alone (art canvas + overlay): ${fmt(s.A)}`,
+        `  B probe + overlay:          ${fmt(s.B)}`,
+        `  B3 two probes + overlay (control): ${fmt(s.B3)}`,
         `  C ${OBJECTS} objects, wrapper: ${fmt(s.C)}`,
         `  D ${OBJECTS} objects, raw Pixi: ${fmt(s.D)}`,
         `  moving ${OBJECTS} objects, JS only: wrapper p50/p95 ${s.move.wrapperP50.toFixed(3)}/${s.move.wrapperP95.toFixed(3)} ms, raw p50/p95 ${s.move.rawP50.toFixed(3)}/${s.move.rawP95.toFixed(3)} ms, empty loop p50 ${s.move.idleP50.toFixed(4)} ms`,
@@ -258,12 +264,20 @@ test.describe('M1 bench (local only, real GPU)', () => {
       console.log(lines.join('\n'));
       writeFileSync(`${OUT}/bench.json`, JSON.stringify({ label, renderer, software, bareP95, ...s }, null, 2));
 
-      // The upload counter: one canvas per drawn legacy scene, exactly. The third canvas (control) is seen too.
+      // The upload counter, per frame. Every frame has one upload that no scene owns: the game's overlay layer (`game-overlays`, 640x360, `Game.paintNative`).
+      // `src/sje/boot.ts` registers `drawNotice` as an overlay, so the layer is cleared, repainted and uploaded each frame, also when no notice shows.
+      // Then each canvas image that a scene repaints adds one upload:
+      //   A  the title: its art canvas (`TitleScene.paint`, once a tick) + the overlay layer = 2. (The small logo canvas can add a fraction: the measured 2.01 is not exactly 2.)
+      //   B  the probe's canvas + the overlay layer = 2. The measured count (2.00) shows that the title art canvas does not upload while the probe runs over it.
+      //   B3 two probe canvases + the overlay layer = 3. The control: a third upload IS seen, so a stray extra canvas would fail B and A.
+      // M8d triage (2026-10-15): A read 2.01 on main and on the branch alike. The old premise ("one canvas per drawn scene", A = 1) was written when the notice overlay was
+      // not a canvas of its own.
       const canvasBytes = 640 * 360 * 4;
-      expect(s.A.uploadsPerFrame).toBeCloseTo(1, 1);
-      expect(s.B.uploadsPerFrame).toBeCloseTo(2, 1);
-      expect(s.B.uploadBytesPerFrame).toBeCloseTo(2 * canvasBytes, -3);
-      expect(s.B3.uploadsPerFrame, 'control: three drawn legacy scenes upload three canvases').toBeCloseTo(3, 1);
+      const OVERLAY_UPLOADS = 1;
+      expect(s.A.uploadsPerFrame, 'title: art canvas + game overlay layer').toBeCloseTo(1 + OVERLAY_UPLOADS, 1);
+      expect(s.B.uploadsPerFrame, 'probe canvas + game overlay layer').toBeCloseTo(1 + OVERLAY_UPLOADS, 1);
+      expect(s.B.uploadBytesPerFrame).toBeCloseTo((1 + OVERLAY_UPLOADS) * canvasBytes, -3);
+      expect(s.B3.uploadsPerFrame, 'control: two probe canvases + the overlay layer upload three canvases').toBeCloseTo(2 + OVERLAY_UPLOADS, 1);
       // The objects really draw: their pink is in the picture while they live and (up to the title's own pink) gone after. Control for the whole bench.
       expect(s.pinkWith, 'the 1,000 objects are in the picture').toBeGreaterThan(s.pinkWithout + 500);
       // Control for the wrapper reading: an empty loop costs about nothing, so a reading above it means the objects moved.
@@ -282,7 +296,7 @@ test.describe('M1 bench (local only, real GPU)', () => {
     }
   });
 
-  test('the title with the effects on (fx full): uploads are the scene canvas plus the UI canvas (plus glow when used), and the speed line', async ({ browser }) => {
+  test('the title with the effects on (fx full): uploads are the art canvas plus the overlay layer (plus UI and glow canvases when used), and the speed line', async ({ browser }) => {
     test.setTimeout(120_000);
     const g = await openGame(browser, { init: installGlCounters, query: '&fx=full' });
     try {
@@ -320,10 +334,10 @@ test.describe('M1 bench (local only, real GPU)', () => {
           `glow used ${glowUsed}, UI canvas used ${uiUsed}`,
       );
       writeFileSync(`${OUT}/bench-fx-full.json`, JSON.stringify({ label, renderer, software, bareP95, title, glowUsed, uiUsed }, null, 2));
-      // The scene canvas always uploads; the UI canvas when a scene drew into it; the glow canvas only when something glowed this frame.
-      const expectedUploads = 1 + (uiUsed ? 1 : 0) + (glowUsed ? 1 : 0);
-      expect(title.uploadsPerFrame, `uploads = scene canvas + UI canvas${glowUsed ? ' + glow canvas' : ''}`).toBeCloseTo(expectedUploads, 1);
-      expect(title.uploadsPerFrame, 'the effects add canvas uploads over the fx none title (control: this can fail)').toBeGreaterThan(1.5);
+      // The scene's art canvas and the game's overlay layer (`game-overlays`, uploaded every frame, see the first bench test) always upload; the UI canvas when a scene drew into it; the glow canvas only when something glowed this frame.
+      const expectedUploads = 2 + (uiUsed ? 1 : 0) + (glowUsed ? 1 : 0);
+      expect(title.uploadsPerFrame, `uploads = art canvas + overlay layer${uiUsed ? ' + UI canvas' : ''}${glowUsed ? ' + glow canvas' : ''}`).toBeCloseTo(expectedUploads, 1);
+      expect(title.uploadsPerFrame, 'control: the art canvas and the overlay layer both upload (a lost layer would read about 1)').toBeGreaterThan(1.5);
       // The speed line (cost p95 at most 8 ms, interval p95 within 5% of a bare page) on a real GPU; on software only the stuck-loop rule.
       const misses = speedLineMisses({ bareP95, sceneP95: title.intervalP95, costP95: title.costP95, software });
       expect(misses, `the speed line (${label})`).toEqual([]);

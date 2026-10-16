@@ -7,8 +7,8 @@
  * j/J/o right arm+hand · p/P pants · q/Q upper leg (pants or coat) · b/B boots ·
  * h/H/l hair · g/G goggles frame/lens · v visor (emissive) · w tusk/bone · x cut.
  */
-import { pixelSurface, surface } from '../engine/canvas';
-import { rgb, shade } from '../engine/color';
+import { pixelSurface, surface } from '../sje/core/canvas';
+import { rgb, shade } from '../sje/core/color';
 import { rigSprite } from './rig2/rig';
 import { TRACED } from './rig2/data';
 

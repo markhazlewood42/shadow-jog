@@ -2,8 +2,8 @@
  * Dialogue portraits (48×48). A parametric bust painter: background, torso, neck, head,
  * layered hair, expressive eyes/brows/mouth, and character accessories.
  */
-import { surface } from '../engine/canvas';
-import { mix, shade } from '../engine/color';
+import { surface } from '../sje/core/canvas';
+import { mix, shade } from '../sje/core/color';
 import { Pix } from './pix';
 
 export type Face = 'neutral' | 'happy' | 'angry' | 'sad' | 'surprised' | 'smirk' | 'hurt';

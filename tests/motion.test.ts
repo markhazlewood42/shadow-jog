@@ -1,7 +1,7 @@
 /** How bodies and the frame move: the swing's beats, shake as motion, presses kept through a freeze. */
 import { describe, expect, it } from 'vitest';
-import { Input } from '../src/engine/input';
-import { direction, shakeOffset } from '../src/engine/shake';
+import { Input } from '../src/sje/runtime/inputdevice';
+import { direction, shakeOffset } from '../src/sje/fx/shake';
 import { PARTY_POSE_T, swingBeat } from '../src/scenes/battlekit/motion';
 
 describe('the swing', () => {

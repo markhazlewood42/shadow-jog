@@ -8,7 +8,7 @@
     { "file": "scripts/bundle-budget.mjs", "token": 480, "match": "CHUNK_MAX", "reason": "kilobytes, the chunk cap (inventory row 213)" },
     { "file": "src/data/items.ts", "token": [480, 320, 360, 180], "reason": "prices and heal amounts (the nodachi's price is inventory row 14)" },
     { "file": "src/game/stages.ts", "token": 640, "match": "state.cred", "reason": "money for a stage preset" },
-    { "file": "src/engine/color.ts", "token": [180, 240, 360], "reason": "hue in degrees (HSL math)" },
+    { "file": "src/sje/core/color.ts", "token": [180, 240, 360], "reason": "hue in degrees (HSL math)" },
     { "file": "src/sje/fx/particles.ts", "token": [180, 360], "reason": "degrees: launch angle and spread, converted to radians" },
     { "file": "src/art/rig2/battle.ts", "token": [180, 360], "reason": "degrees: joint angles and the radian conversion" },
     { "file": "src/art/rig2/rig.ts", "token": 180, "reason": "degrees to radians" },

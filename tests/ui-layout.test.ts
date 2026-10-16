@@ -36,8 +36,8 @@ import {
 } from './recorder';
 
 // The font and window drawing go through the recorder's taps (the game's own code is not changed).
-vi.mock('../src/engine/font', async (importOriginal) => {
-  const real = await importOriginal<typeof import('../src/engine/font')>();
+vi.mock('../src/sje/display/font', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../src/sje/display/font')>();
   const r = await import('./recorder');
   return { ...real, drawText: r.tapText(real.drawText as never, real.measure), drawParagraph: r.tapParagraph(real.drawParagraph as never, real.wrap, real.measure) };
 });
@@ -81,10 +81,10 @@ const LONG =
 async function drawAll(size: { W: number; H: number } | null): Promise<{ shots: Shot[]; W: number; H: number }> {
   vi.resetModules();
   if (size) {
-    // The size has one source (src/sje/core/size.ts, M0), and engine/game.ts re-exports it, so mocking the source changes both.
+    // The size has one source (src/sje/core/size.ts, M0), so mocking it changes every scene that is imported after.
     vi.doMock('../src/sje/core/size', async (importOriginal) => ({ ...(await importOriginal<typeof import('../src/sje/core/size')>()), ...size }));
   } else vi.doUnmock('../src/sje/core/size');
-  const { W, H } = await import('../src/engine/game');
+  const { W, H } = await import('../src/sje/core/size');
   const { applyStage } = await import('../src/game/stages');
   const { ITEMS } = await import('../src/data/items');
   const stateMod = await import('../src/game/state');
@@ -464,7 +464,7 @@ describe('every screen draws inside the frame (PL4)', () => {
 
   it('a text wider than its window fails check 2 (the control)', async () => {
     const { drawWindow } = await import('../src/ui/draw');
-    const { drawText } = await import('../src/engine/font');
+    const { drawText } = await import('../src/sje/display/font');
     const layout = new Layout();
     setLayout(layout);
     const ctx = recordingContext();

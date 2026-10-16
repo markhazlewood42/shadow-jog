@@ -85,7 +85,6 @@ export abstract class Scene<R = unknown> implements DisplayHost {
 
   /**
    * When true, scenes below this one are not drawn. They stay alive.
-   * (An accessor, so the `LegacyScene` adapter can read the flag from the legacy scene it wraps.)
    */
   get opaque(): boolean {
     return this._opaque;
@@ -126,14 +125,6 @@ export abstract class Scene<R = unknown> implements DisplayHost {
   closed = false;
   /** @internal Set by `pause` and `sleep` (Phaser's operations). The stack's own pausing (a scene under one that does not pass updates) is separate. */
   _hold: 'none' | 'paused' | 'sleeping' = 'none';
-
-  /**
-   * @internal Native scenes hear `resume` only when a `push` paused them (Phaser style). A LegacyScene overrides this to true: the old
-   * `Game.remove` called `resume` on the top scene after ANY close, even a scene in the middle of the stack.
-   */
-  get resumesOnAnyClose(): boolean {
-    return false;
-  }
 
   /** @internal True once a `SceneManager` has attached this scene (it is running or was). */
   get attached(): boolean {
@@ -204,11 +195,6 @@ export abstract class Scene<R = unknown> implements DisplayHost {
     if (this.closed) return;
     this.closed = true;
     this.game.scene.remove(this);
-    this.resolver?.(result);
-  }
-
-  /** @internal Resolve the promise `game.run` gave back, without touching the stack. The legacy adapter needs this: the old `close` removes the scene itself. */
-  _settle(result: R): void {
     this.resolver?.(result);
   }
 

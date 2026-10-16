@@ -1,7 +1,7 @@
 /** UI drawing primitives: framed windows, bars, cursors, icons. */
-import type { Ctx } from '../engine/canvas';
-import { drawText, measure } from '../engine/font';
-import type { Input } from '../engine/input';
+import type { Ctx } from '../sje/core/canvas';
+import { drawText, measure } from '../sje/display/font';
+import type { Input } from '../sje/runtime/inputdevice';
 
 /**
  * The dim laid over the field behind a full-screen menu (menu, map, shop, saves, options,

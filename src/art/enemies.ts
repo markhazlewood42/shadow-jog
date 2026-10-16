@@ -6,8 +6,8 @@ import { ENEMY_TRACED } from './rig2/data';
 import { rigEnemy } from './rig2/enemy';
 import { buildChar, type CharLook } from './chars';
 import { Pix, scale2x } from './pix';
-import { surface } from '../engine/canvas';
-import { mix, shade } from '../engine/color';
+import { surface } from '../sje/core/canvas';
+import { mix, shade } from '../sje/core/color';
 
 export interface EnemyArt {
   canvas: HTMLCanvasElement;

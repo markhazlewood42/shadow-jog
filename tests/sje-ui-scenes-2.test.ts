@@ -6,7 +6,7 @@
  * trip, and a deterministic `step(n)`. Every proof has a control: a case that must come out DIFFERENT, so the comparison is known to be able to fail.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Input } from '../src/engine/input';
+import type { Input } from '../src/sje/runtime/inputdevice';
 import { ListMenu, TextObject } from '../src/sje';
 import type { DialogOpts } from '../src/scenes/dialog';
 import { Game } from '../src/sje/runtime/game';

@@ -2,17 +2,17 @@
  * Input actions for the new scenes (docs/engine/interfaces.md section 8).
  * Follows: Godot `InputMap` and Unity action maps (Phaser has no action map). `ActionMap` is ours.
  *
- * This file WRAPS `src/engine/input.ts`, it does not copy it: keyboard, gamepad and touch, the nine actions, one-tick presses,
+ * This file WRAPS `src/sje/runtime/inputdevice.ts`, it does not copy it: keyboard, gamepad and touch, the nine actions, one-tick presses,
  * repeat after 16 ticks then every 4, `consume()` on every scene push and pop, and the player's custom keys all stay in the
- * old `Input` class. `Game` runs its `update()` and `endFrame()` at the places the design names (frame-and-rendering.md
- * section 2), and a scene reads it through `scene.input.actions`. The legacy scenes read `game.input` (the same object) as before.
+ * `Input` class of `inputdevice.ts`. `Game` runs its `update()` and `endFrame()` at the places the design names (frame-and-rendering.md
+ * section 2), and a scene reads it through `scene.input.actions`.
  *
- * Only a type of the old `Input` is imported (the runtime never runs old engine code), so this file adds no old code to the 3D or lab builds.
+ * Only a type of `Input` is imported, so this file adds no device code to the 3D or lab builds.
  *
- * @deviation from interfaces.md section 8: `justReleased` is not built (the old `Input` has no release edge, and no scene asks for
+ * @deviation from interfaces.md section 8: `justReleased` is not built (`Input` has no release edge, and no scene asks for
  * one), and `SceneInput.context` is not built (no scene needs parallel action maps yet). Both are absent from the types.
  */
-import type { Action, Input } from '../../engine/input';
+import type { Action, Input } from './inputdevice';
 
 export type { Action };
 

@@ -1,12 +1,9 @@
 /**
  * GameFx: the game-level fade, shake and flash (docs/engine/interfaces.md section 1: `fadeTo`, `shake`, `flash`).
- * This is the old engine's `Game` fade/shake/flash code, moved here with the same numbers, so a legacy scene sees the same
+ * This is the old engine's `Game` fade/shake/flash code, moved here with the same numbers, so a scene sees the same
  * `shakeX`, `shakeY` and `fadeLevel` it always did. Everything advances by TICKS (`advance()` runs once per tick).
  *
- * How it reaches the screen:
- *  - A LEGACY scene draws on a canvas, so the fade and flash are drawn on the canvas of the topmost drawn legacy scene, after the
- *    scene itself (`paint`). That is the old engine's order, pixel for pixel, and it needs no third canvas.
- *  - When the topmost drawn scene is a native `Scene` (or none), `paintNative` draws them as rectangles in `overlayRoot`.
+ * How it reaches the screen: `paintNative` draws the flash and the fade as rectangles in `overlayRoot`, above every scene.
  *
  * The scene-level versions (a camera fade that washes only that scene's world) are `camera.fadeIn/fadeOut/flash/shake`.
  *
@@ -19,13 +16,20 @@ import { parseColor } from '../display/cameraeffects';
 import type { Graphics } from '../display/graphics';
 import type { ShakeDirection } from './gameapi';
 
+/**
+ * Shake strengths are authored in game pixels (callers pass 1 to 5), and they were tuned when the screen was 480 pixels wide. A game pixel is now 3/4 as wide on the
+ * player's screen, so every strength is multiplied by 4/3 to keep the same size on screen (D10 of docs/PIVOT-640.md). Glow and haze are tied to the art, not the screen,
+ * so they are not scaled. `src/sje/boot.ts` passes it as `compat.shakeGain`.
+ */
+export const SHAKE_PIXEL_GAIN = 4 / 3;
+
 /** What the legacy code supplies. The new `Game` has a default for each, so a test or a lab needs none. */
 export interface LegacyCompat {
   /** Show an error as the on-screen notice. Default: `console.error`. */
   reportError(error: unknown): void;
   /** Tell the player something in plain words (a file that did not load). Default: `console.warn`. */
   warn(message: string): void;
-  /** The shake motion: this frame's offset in whole pixels (src/engine/shake.ts). Default: no motion. */
+  /** The shake motion: this frame's offset in whole pixels (src/sje/fx/shake.ts). Default: no motion. */
   shakeOffset(s: { t: number; len: number; mag: number; dir: ShakeDirection | null }): { x: number; y: number };
   /** Multiplier from the caller's shake strength to today's pixels (`SHAKE_PIXEL_GAIN`, 4/3). */
   shakeGain: number;
@@ -135,26 +139,9 @@ export class GameFx {
   }
 
   /**
-   * The old engine's order: the flash, then the fade, both over the whole picture. `withFlash` false leaves the flash out: the effects' composite
+   * The flash, then the fade, as rectangles over the whole picture. `withFlash` false leaves the flash out: the effects' composite
    * washes the world with it instead, and the fade and the notices go in the UI layer above it (`FxSystem`).
    */
-  paint(ctx: CanvasRenderingContext2D, flashScale: number, withFlash = true): void {
-    const flashA = withFlash ? this.flashAlpha(flashScale) : 0;
-    if (flashA > 0) {
-      ctx.globalAlpha = flashA;
-      ctx.fillStyle = this.flashColor;
-      ctx.fillRect(0, 0, W, H);
-      ctx.globalAlpha = 1;
-    }
-    if (this.fadeLevel > 0.001) {
-      ctx.globalAlpha = Math.min(1, this.fadeLevel);
-      ctx.fillStyle = this.fadeColor;
-      ctx.fillRect(0, 0, W, H);
-      ctx.globalAlpha = 1;
-    }
-  }
-
-  /** The same two washes as rectangles, for a native scene on top. */
   paintNative(g: Graphics, flashScale: number, withFlash = true): void {
     g.clear();
     const flashA = withFlash ? this.flashAlpha(flashScale) : 0;

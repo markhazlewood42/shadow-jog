@@ -12,11 +12,11 @@ import { ABILITIES, COMBOS } from '../data/abilities';
 import { ENEMIES } from '../data/enemies';
 import { ITEMS } from '../data/items';
 import { LOOKS } from '../data/looks';
-import { must } from '../engine/assert';
-import { surface, type Ctx, type Surface } from '../engine/canvas';
+import { must } from '../sje/core/assert';
+import { surface, type Ctx, type Surface } from '../sje/core/canvas';
 import { type CanvasImage, type ListMenu, Scene } from '../sje';
 import { W, H } from '../sje/core/size';
-import { Rng, streams } from '../engine/rng';
+import { Rng, streams } from '../sje/core/rng';
 import { equipRegen, grantXp, levelProgress, type LevelUp } from '../game/party';
 import { battleSpeed, settings } from '../game/settings';
 import { flags, removeItem, state, type MemberId } from '../game/state';
@@ -127,7 +127,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   private readonly hud = new BattleHud(this);
 
   /**
-   * The stage that draws the battle under `?engine=sje` (battlekit/stageseam.ts), or null: the renderer then draws everything, as it always did. With a stage the
+   * The stage that draws the battle (battlekit/stageseam.ts), or null: the renderer then draws everything, as it always did. With a stage the
    * renderer draws only the effects of the old picture (the impact frame, the intro, the bloom's light) on a clear canvas, and the windows are kit parts (battlekit/hud.ts), so this scene lets the stage show through and the stage scene below keep running.
    */
   stage: BattleStage | null = null;
@@ -151,7 +151,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
 
   /**
    * One frame of this scene's own canvas: the whole picture when there is no stage, else the art that the stage cannot draw (battlekit/render.ts). The canvas of
-   * `image` starts clear every frame, as a legacy scene above the base did. The effects layer `game.fx` takes the glow when it is on. The windows are not in this canvas: they are kit parts in the ui layer.
+   * `image` starts clear every frame, as every scene above the base does. The effects layer `game.fx` takes the glow when it is on. The windows are not in this canvas: they are kit parts in the ui layer.
    */
   render(ctx: Ctx): void {
     this.renderer.render(ctx);
@@ -171,8 +171,8 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     if (was) ctx.clearRect(0, 0, W, H);
     ctx.save();
     try {
-      // The windows are display objects: bring them up to date with the state as it stands for this frame (a flow that ran after the tick may have changed it).
-      this.hud.sync();
+      // The windows are display objects that `fixedUpdate` brought up to date at the end of the tick, so paint does not sync them again (M8c follow-up). A flow that changes the
+      // state after the last tick shows in the windows one tick later, at most; the old canvas drew from the state on every frame.
       this.canvasDirty = this.renderer.render(ctx);
     } finally {
       ctx.restore();

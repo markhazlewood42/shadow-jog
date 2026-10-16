@@ -1,5 +1,5 @@
-import type { Ctx } from '../../engine/canvas';
-import { drawParagraph, drawText } from '../../engine/font';
+import type { Ctx } from '../../sje/core/canvas';
+import { drawParagraph, drawText } from '../../sje/display/font';
 import { CanvasViewScene } from './base';
 import { W, H } from '../../sje/core/size';
 import { drawBar, drawCursor, drawWindow, hpColor, UI } from '../../ui/draw';

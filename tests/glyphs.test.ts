@@ -6,7 +6,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { hasGlyph } from '../src/engine/font';
+import { hasGlyph } from '../src/sje/display/font';
 
 /** Where on-screen text is authored. Dev-only test scenes are skipped (they're not shipped). */
 const ROOTS = ['src/data', 'src/story', 'src/scenes', 'src/ui', 'src/game'];

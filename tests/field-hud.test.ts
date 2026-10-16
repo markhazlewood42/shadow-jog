@@ -10,7 +10,7 @@
  *   4. Ten fields in a row leave no texture and no object behind.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Input } from '../src/engine/input';
+import type { Input } from '../src/sje/runtime/inputdevice';
 import { type Container, type GameObject, NineSlice, TextObject } from '../src/sje';
 import { Game } from '../src/sje/runtime/game';
 import { installCanvasStub } from './recorder';

@@ -8,7 +8,7 @@ import { Battle } from '../src/battle/engine';
 import { enemyParty, partyCombatant } from '../src/battle/setup';
 import type { BattleEvent, Combatant } from '../src/battle/types';
 import type { Pt } from '../src/battle/fx';
-import { Rng } from '../src/engine/rng';
+import { Rng } from '../src/sje/core/rng';
 import { createMember } from '../src/game/party';
 import { state } from '../src/game/state';
 import { playEvent, type PlaybackView } from '../src/scenes/battlekit/playback';

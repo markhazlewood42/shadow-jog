@@ -2,9 +2,9 @@
  * The pure state of the GPU effects, with no GL and no Pixi: which shockwaves, hazes and glitches are alive and how far through their
  * life, the color split, the pulse, the stage dim, the delayed calls, the particle simulation, and the player's comfort settings.
  *
- * ONE copy of this logic serves both paths (docs/engine/m2-brief.md section 2, point 1). The old `PostFx` (src/engine/postfx.ts) extends it
- * and the GL presenter draws it; the new `FxSystem` (fxsystem.ts) extends it and draws it with Pixi. So the two can never drift: a moment
- * (src/engine/moments.ts) calls the same methods and gets the same state on either.
+ * Until M8d ONE copy of this logic served both paths (docs/engine/m2-brief.md section 2, point 1): the old `PostFx` extended it and the GL presenter drew it, and the
+ * `FxSystem` (fxsystem.ts) extends it and draws it with Pixi. The old path is gone; `FxSystem` is the one subclass. The state stays a class of its own, so tests can run
+ * the state table on a system with no GPU (tests/fxstate-cases.ts).
  *
  * Coordinates are the back buffer's (W×H from core/size.ts, y down). Durations are frames at 60/s.
  */

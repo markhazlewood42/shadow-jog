@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { ABILITIES, COMBOS } from '../src/data/abilities';
 import { MEMBERS } from '../src/data/party';
 import { H, W } from '../src/sje/core/size';
-import { measure, stripCodes, wrap } from '../src/engine/font';
+import { measure, stripCodes, wrap } from '../src/sje/display/font';
 import { OBJ } from '../src/story/chapter1';
 import { COMBO_TEXT_W, EQUIP_DESC_LINES, EQUIP_DESC_W, FIELD_OBJ_W, LEVELUP_TEXT_W, MENU_OBJ_W, SHOP_COMPARE_W, TARGET_INFO_W } from '../src/ui/layout';
 import { ITEMS } from '../src/data/items';
@@ -92,7 +92,7 @@ describe('comic panels', () => {
 
   it('all 17 panels lie inside the frame 8..W-8 by 8..H-18 (PL4), and every portrait is pinned and fits its panel', async () => {
     const { PANEL_FRAME, portraitRect } = await import('../src/scenes/panels');
-    const { W, H } = await import('../src/engine/game');
+    const { W, H } = await import('../src/sje/core/size');
     const panels = await allPanels();
     expect(panels.length).toBe(17);
     expect(PANEL_FRAME).toEqual({ x0: 8, y0: 8, x1: W - 8, y1: H - 18 });
@@ -129,7 +129,7 @@ describe('place map', () => {
   it('exit labels stay on screen and never overlap, on every map, with the story at its start and its end', async () => {
     const { exitLabels } = await import('../src/scenes/placemap');
     const { getMap, mapIds } = await import('../src/data/maps');
-    const { W, H } = await import('../src/engine/game');
+    const { W, H } = await import('../src/sje/core/size');
     const bad: string[] = [];
     // Warps can appear with story flags: check with none set and with everything a warp asks for.
     const everything = new Proxy({}, { get: () => true, has: () => true }) as Record<string, unknown>;
@@ -314,7 +314,7 @@ describe('title composition (WP5, D9)', () => {
 
   it('the logo, its caption, the prompt and the menu fit the screen in order at 4x', async () => {
     const L = await import('../src/scenes/title-layout');
-    const { W, H } = await import('../src/engine/game');
+    const { W, H } = await import('../src/sje/core/size');
     // The logo's glyph strip is 70 columns (see buildLogo) and has 12 px of glow margin each side.
     const k = L.LOGO_SCALE;
     const logoW = 70 * k + 24, logoH = 9 * k + 24;

@@ -14,7 +14,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Input } from '../src/engine/input';
+import type { Input } from '../src/sje/runtime/inputdevice';
 import { Container, type GameObject, Scene } from '../src/sje';
 import { Game } from '../src/sje/runtime/game';
 import { installCanvasStub } from './recorder';
@@ -95,11 +95,11 @@ describe('the field scene is a native sje scene', () => {
 
   it('control: the scan finds an import of each of the four files, and ignores a comment', () => {
     for (const name of ['game', 'display', 'postfx', 'moments']) {
-      expect(`import { x } from '../engine/${name}';`).toMatch(OLD_ENGINE);
-      expect(`const m = () => import('../../engine/${name}');`).toMatch(OLD_ENGINE);
+      expect(`import { x } from '../${'engine'}/${name}';`).toMatch(OLD_ENGINE);
+      expect(`const m = () => import('../../${'engine'}/${name}');`).toMatch(OLD_ENGINE);
     }
-    expect(code("// import { postfx } from '../engine/postfx';")).not.toMatch(OLD_ENGINE);
-    expect(`import { shake } from '../engine/shake';`).not.toMatch(OLD_ENGINE);
+    expect(code(`// import { postfx } from '../${'engine'}/${'postfx'}';`)).not.toMatch(OLD_ENGINE);
+    expect(`import { shake } from '../${'engine'}/shake';`).not.toMatch(OLD_ENGINE);
   });
 });
 

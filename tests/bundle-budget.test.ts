@@ -33,7 +33,7 @@ const ENGINE_CHUNK: Chunk = { file: 'assets/sje.js', modules: ['../../node_modul
 const THREE_CHUNK: Chunk = { file: 'assets/hack3d.js', src: 'src/hack3d/index.ts', modules: ['../../node_modules/three/build/three.module.js', '../../src/hack3d/index.ts'] };
 
 /**
- * A game with a boot chunk, the `?engine=sje` chunk (M1) and one lazy chunk; a lab with a boot chunk, a lazy 2D chunk and a lazy 3D chunk.
+ * A game with a boot chunk, the engine chunk (M1) and one lazy chunk; a lab with a boot chunk, a lazy 2D chunk and a lazy 3D chunk.
  * `gameChunks` replaces the game's lazy chunks (a control leaves the engine chunk out). The shipped game's lazy 3D chunk is added unless a control says `no3d` (M7: the game must have one).
  */
 function run(bootModules: string[] | null, chunks: Chunk[] = [ENGINE_CHUNK, { file: 'assets/battle.js', modules: ['../../src/battle/index.ts'] }], o: { no3d?: boolean } = {}): { code: number | null; out: string } {

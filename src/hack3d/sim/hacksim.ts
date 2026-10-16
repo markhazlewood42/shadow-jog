@@ -17,7 +17,7 @@
  * Coordinates are Three's: x to the right, y up, and the persona runs toward -z. The persona stays
  * at z = 0 and the WORLD moves toward it, so no value in here ever grows large.
  */
-// The engine's seeded generator, from its core (level 0: no Pixi, no Three, no DOM). The sim must import nothing from `src/engine`, which M8 deletes.
+// The engine's seeded generator, from its core (level 0: no Pixi, no Three, no DOM). The sim must import nothing that needs Pixi, Three, or the DOM.
 import { Rng } from '../../sje/core/rng';
 
 /** The shapes of ICE the look draws. The simulation only names them. */

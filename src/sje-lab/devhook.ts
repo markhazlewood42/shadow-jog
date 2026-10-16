@@ -1,7 +1,7 @@
 /**
  * The DEV hook of the real game on the new engine (docs/engine/interfaces.md section 14, m1-brief.md task 13).
  *
- * `src/main.ts` runs `?engine=sje` through `src/sje/boot.ts`, which loads THIS file only in a DEV build (`import.meta.env.DEV`; the
+ * `src/main.ts` runs the game through `src/sje/boot.ts`, which loads THIS file only in a DEV build (`import.meta.env.DEV`; the
  * shipped build removes that branch, and `e2e/prod.spec.ts` checks that `window.__SJ__` is absent). The game's own boot has already put
  * its members on `window.__SJ__` (game, top, state, tp, battle, field, idle, ... and `display`, which here is the adapter over `game.scale`).
  * This file adds the engine's:

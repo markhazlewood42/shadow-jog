@@ -178,22 +178,22 @@
       "kind": "milestone",
       "label": "Battle and field",
       "lane": "engine",
-      "status": "active",
+      "status": "done",
       "after": [
         "M8b"
       ],
-      "notes": "Port the battle and field scenes. Active on branch engine-m8c-battle-field. Follows the diff rule for the GPU timing check."
+      "notes": "Port the battle and field scenes. Merged in PR #96 (2026-10-15)."
     },
     {
       "id": "M8d",
       "kind": "milestone",
       "label": "Delete old engine",
       "lane": "engine",
-      "status": "later",
+      "status": "active",
       "after": [
         "M8c"
       ],
-      "notes": "Delete the old engine, LegacyScene and the exemptions. Move the kept src/engine files into src/sje. Docs and the PR #86 follow-ups. Follows the diff rule for the GPU timing check."
+      "notes": "Delete the old engine, LegacyScene and the exemptions. Move the kept src/engine files into src/sje. Docs and the PR #86 follow-ups. Built on branch engine-m8d-remove-legacy (2026-10-15); the old engine and src/engine are gone. The PR, the GPU timing check (npm run perf, Mark machine) and the merge are pending."
     },
     {
       "id": "M1b",

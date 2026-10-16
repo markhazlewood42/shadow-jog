@@ -1,5 +1,5 @@
 /** Shared bake context used by structure and prop painters. */
-import type { Ctx } from '../engine/canvas';
+import type { Ctx } from '../sje/core/canvas';
 
 export interface BakedLight {
   x: number;

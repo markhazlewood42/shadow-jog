@@ -1,14 +1,11 @@
 /** Boot: build generated assets, install debug hooks, route to the first scene. */
-import type { Display } from './engine/display';
 import { audio } from './audio/engine';
-import type { Game } from './engine/game';
+import type { Game, PageDisplay } from './sje';
 import { FieldScene } from './scenes/field';
 import { autosave, autosavePolicy, installSystems, loadIntoGame } from './game/systems';
 import { TitleScene } from './scenes/title';
 import { loadSave, slotStatus, unsavedFrames, writeSave } from './game/save';
 import { newGame } from './story/newgame';
-import type { Game as GameT } from './engine/game';
-import type { Game as SjeGame } from './sje';
 import { flashScale, gpuWanted, saveSettings, settings, shakeScale } from './game/settings';
 import { debug, debugBattleDriver } from './game/debug';
 import { setBattleDriver } from './scenes/battlekit/driver';
@@ -17,9 +14,9 @@ import type { ScriptFn } from './game/script';
 import { ENCOUNTERS } from './data/enemies';
 import * as stateMod from './game/state';
 import { applyStage } from './game/stages';
-import { perf } from './engine/perf';
-import { currentNotice, notice } from './engine/errors';
-import { streams } from './engine/rng';
+import { perf } from './sje/core/perf';
+import { currentNotice, notice } from './sje/core/errors';
+import { streams } from './sje/core/rng';
 import { CardScene } from './scenes/card';
 import { ControlsScene } from './scenes/controls';
 import { EndingScene } from './scenes/ending';
@@ -28,7 +25,6 @@ import { OptionsScene } from './scenes/options';
 import { PlaceMapScene } from './scenes/placemap';
 import { SaveScene } from './scenes/saveload';
 import { fieldHooks } from './game/hooks';
-import { postfx } from './engine/postfx';
 import { FX } from './data/fx';
 import { ALL_DRAWN, DEFAULT_DRAWN, loadDrawnArt } from './art/drawn';
 import { APP_VERSION, BUILD_SHA, VERSION_LABEL } from './version';
@@ -42,11 +38,9 @@ declare global {
   }
 }
 
-export function boot(game: Game, display: Display): void {
+export function boot(game: Game, display: PageDisplay): void {
   const params = new URLSearchParams(location.search);
-  // The field is a native sje scene, so it is not in the old `game.stack`. The object behind `game` is the sje `Game`; this cast goes when this file takes that type (M8d task 10).
-  const sje = game as unknown as SjeGame;
-  const field = () => sje.scene.scenes.find((s): s is FieldScene => s instanceof FieldScene) ?? null;
+  const field = () => game.scene.scenes.find((s): s is FieldScene => s instanceof FieldScene) ?? null;
   // Debug/test hook: dev server only (E2E and screenshot tooling), never in a production build.
   // Test harness hooks exist only in DEV builds: a shipped build's battles have no driver.
   if (import.meta.env.DEV) setBattleDriver(debugBattleDriver);
@@ -63,24 +57,21 @@ export function boot(game: Game, display: Display): void {
       return stateMod.state;
     },
     field,
-    top: () => sje.top?.constructor.name ?? null,
+    top: () => game.top?.constructor.name ?? null,
     idle: () => {
       const f = field();
-      return !!f && sje.top === f && f.busy === 0 && !f.leader.moving;
+      return !!f && game.top === f && f.busy === 0 && !f.leader.moving;
     },
     tp: (map: string, x: number, y: number, dir: 'up' | 'down' | 'left' | 'right' = 'down') => field()?.warp(map, x, y, dir, false),
     newGame: () => newGame(game),
     /** Put the field in a fixed state (map, tile, story-flag preset, flags, ambient, weather) and read its state back: the parity harness and the field specs (src/dev/fieldshow.ts). */
-    // The tools take the new engine's `Game` (the facade type); the glue hands the same object over typed as the old one (src/sje/boot.ts), so it is cast back here.
     fieldShow: async (c: import('./dev/fieldshow').FieldShowCase) => {
       const m = await import('./dev/fieldshow');
-      // Cast kept: a typed handoff needs an import of src/sje/boot.ts here, and tests/sje-imports.test.ts allows that door to src/main.ts only (the eight-files rule).
-      return m.fieldShow(game as unknown as Parameters<typeof m.fieldShow>[0], c);
+      return m.fieldShow(game, c);
     },
     fieldInfo: async () => {
       const m = await import('./dev/fieldshow');
-      // Cast kept: same reason as fieldShow above (the old Game type is cast to the facade type).
-      return m.fieldInfo(game as unknown as Parameters<typeof m.fieldInfo>[0]);
+      return m.fieldInfo(game);
     },
     /** Jump to a preset point in the chapter on a fresh field. */
     stage: async (name: string) => {
@@ -103,7 +94,7 @@ export function boot(game: Game, display: Display): void {
     shop: (id: string) => void field()?.runScript((s) => s.shop(id)),
     run: (fn: ScriptFn) => void field()?.runScript(fn),
     save: (slot: 1 | 2 | 3 | 'auto') => writeSave(slot, game.playFrames),
-    /** Frame-work timing (see engine/perf.ts). */
+    /** Frame-work timing (see src/sje/core/perf.ts). */
     perf,
     notice: () => currentNotice(),
     /** The end-of-chapter results and next-chapter card, without the comic pages. */
@@ -117,9 +108,11 @@ export function boot(game: Game, display: Display): void {
       else if (kind === 'placemap') void game.run(new PlaceMapScene(stateMod.state.map));
       else void game.run(new SaveScene(kind));
     },
-    /** GPU effects: the façade (engine/postfx.ts), the live presets and moments (data/fx.ts), and
+    /** GPU effects: the effects system of the engine (`game.fx`, src/sje/fx/fxsystem.ts; the key keeps its old name for the tests), the live presets and moments (data/fx.ts), and
      *  the switch as Options flips it. */
-    postfx,
+    get postfx() {
+      return game.fx; // read each time: the effects system is replaced when the level changes (Game.fxLevel)
+    },
     fx: FX,
     gpu: (on: boolean) => {
       settings.fxLevel = on ? 'full' : 'none';
@@ -148,7 +141,7 @@ export function boot(game: Game, display: Display): void {
     }
     audio.suspend();
     // Tabbing away (or a phone locking) is the moment progress is most at risk: save if it's safe.
-    const f = sje.top;
+    const f = game.top;
     if (f instanceof FieldScene && f.busy === 0 && game.countPlayTime && unsavedFrames(game.playFrames) > 60 * 20) autosave(game);
   });
   // Closing the tab with unsaved progress asks first. (Not under ?debug: the test harness
@@ -208,9 +201,9 @@ export function boot(game: Game, display: Display): void {
     if (gpuWanted() && display.fxLevel === 'lite') notice('This browser draws with software graphics, so the GPU effects run in a lighter form here.', 'warn');
   });
   game.tickers.push(() => {
-    postfx.motion = [0, 0.6, 1][settings.shake] ?? 1;
-    postfx.intensity = [0, 0.5, 1][settings.flash] ?? 1;
-    postfx.update();
+    game.fx.motion = [0, 0.6, 1][settings.shake] ?? 1;
+    game.fx.intensity = [0, 0.5, 1][settings.flash] ?? 1;
+    game.fx.update();
   });
   game.onFault = () => {
     game.abandon();
@@ -223,8 +216,7 @@ export function boot(game: Game, display: Display): void {
   const start = () => {
     if (import.meta.env.DEV && scene) {
       void import('./devroutes').then((m) => {
-        // Cast kept: same reason as fieldShow (old Game type to the facade type, no import of src/sje/boot.ts allowed here).
-        if (!m.runDevScene(game as unknown as Parameters<typeof m.runDevScene>[0], scene, params)) void startTitle(game);
+        if (!m.runDevScene(game, scene, params)) void startTitle(game);
       });
     } else void startTitle(game);
   };
@@ -275,7 +267,7 @@ export function boot(game: Game, display: Display): void {
 }
 
 /** Show the title (fading in over `fadeIn` frames) and act on the choice. */
-export async function startTitle(game: GameT, fadeIn = 0): Promise<void> {
+export async function startTitle(game: Game, fadeIn = 0): Promise<void> {
   const title = game.reset(new TitleScene());
   void game.fadeTo(0, fadeIn);
   const choice = await title;

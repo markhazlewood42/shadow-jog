@@ -11,11 +11,16 @@ export interface BodyOptions {
   reply: (code: number, body: unknown) => void;
   /** The JSON body of the 413 answer. */
   tooBig: unknown;
-  /** The JSON body of the 500 answer, from a readable sentence about what failed. */
+  /** The JSON body of the 500 and 408 answers, from a short generic sentence. The detail of a failure (it can name absolute paths) goes to the server console, never to the client. */
   failed: (message: string) => unknown;
+  /** The most milliseconds the whole body may take to arrive. Past it the answer is 408 and the socket is freed. Default: `BODY_TIMEOUT_MS`. */
+  timeoutMs?: number;
   /** Runs once the whole body is in and it is not too big. A rejection or a throw is answered 500 (never left unhandled). */
   handle: (body: string) => void | Promise<void>;
 }
+
+/** How long a body may take to arrive (a client that sends part of a body and stops would otherwise hold the socket for ever). */
+export const BODY_TIMEOUT_MS = 10_000;
 
 /**
  * Read the body to its end, then run `handle`. The chunks are kept as Buffers, counted in bytes, and decoded once at the end, so a multibyte character split across two chunks stays whole.
@@ -27,8 +32,21 @@ export function withBody(req: IncomingMessage, res: Pick<ServerResponse, 'header
   const chunks: Buffer[] = [];
   let size = 0;
   let tooBig = false;
+  let timedOut = false;
+  // A body that stalls is answered 408 and the request is destroyed after the answer has gone out, as for a 413.
+  const timer = setTimeout(() => {
+    if (res.headersSent) return;
+    timedOut = true;
+    chunks.length = 0;
+    req.pause();
+    res.setHeader('Connection', 'close');
+    res.once('finish', () => setTimeout(() => req.destroy(), 250).unref());
+    o.reply(408, o.failed('the request body took too long to arrive'));
+  }, o.timeoutMs ?? BODY_TIMEOUT_MS);
+  timer.unref();
+  req.on('close', () => clearTimeout(timer));
   req.on('data', (chunk: Buffer | string) => {
-    if (tooBig) return;
+    if (tooBig || timedOut) return;
     const part = typeof chunk === 'string' ? Buffer.from(chunk) : chunk;
     size += part.length;
     if (size > o.max) {
@@ -43,12 +61,15 @@ export function withBody(req: IncomingMessage, res: Pick<ServerResponse, 'header
     chunks.push(part);
   });
   const fail = (e: unknown): void => {
+    clearTimeout(timer);
+    console.error('[dev server] a write endpoint failed:', e); // the detail stays on the server: it can name absolute paths
     if (res.headersSent) return;
-    o.reply(500, o.failed(e instanceof Error ? e.message : String(e)));
+    o.reply(500, o.failed('the server could not handle the request (the detail is in the dev server console)'));
   };
   req.on('error', fail);
   req.on('end', () => {
-    if (tooBig) return; // already answered 413 above
+    clearTimeout(timer);
+    if (tooBig || timedOut) return; // already answered 413 or 408 above
     try {
       Promise.resolve(o.handle(Buffer.concat(chunks).toString('utf8'))).catch(fail);
     } catch (e) {

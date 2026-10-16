@@ -1,7 +1,7 @@
 /**
  * The effects section of the DEV tab, on the new engine only (docs/engine/m2-brief.md task 8, playable checkpoint 1).
  *
- * `src/dev/devmenu.ts` builds the DEV tab and its list of tools. When the game runs on the new engine (`?engine=sje`), the DEV hook calls
+ * `src/dev/devmenu.ts` builds the DEV tab and its list of tools. When the game runs on the new engine (the only engine since M6), the DEV hook calls
  * `mountFxPanel`, which adds a section to that list: a level picker (`auto`, `full`, `lite`, `none`), one button for every moment in
  * `fx.json` that `playMoment` can fire (it fires at the screen center), and a line of live counts. So a person can look at each hit on demand.
  *

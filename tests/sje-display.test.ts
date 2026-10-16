@@ -2,10 +2,9 @@
  * The new engine's Display (src/sje/runtime/display.ts): integer scale only (Mark dropped `fit` on 2026-10-09). In plain Node: with no canvas
  * the Display only computes the layout, and a stand-in target stands for the canvas where the pointer mapping is tested.
  *
- * Every check has a control: the same check on a stand-in that has the trap (the old `fit` rule, a mapping that ignores the bars) must fail.
+ * Every check has a control: the same check on a stand-in that has the trap (a mapping that ignores the bars) must fail.
  */
 import { describe, expect, it } from 'vitest';
-import { cssScaleFor } from '../src/engine/display';
 import { H, W } from '../src/sje/core/size';
 import { deviceSize, type PictureLayout, pictureLayout } from '../src/sje/render/presenter';
 import { Display, type ScaleTarget } from '../src/sje/runtime/display';
@@ -46,12 +45,6 @@ describe('Display: integer scale, the whole window', () => {
 
   it('the mode is integer and cannot be anything else (`fit` is gone)', () => {
     expect(new Display().mode).toBe('integer');
-  });
-
-  it('control: the old `fit` rule gives a fractional scale on 1536x864, which this Display never does', () => {
-    // The old Display in fit mode: 1536x864 is a 2.4 fit that does not snap (2 is under 90% of 2.4). A whole k is what the new one gives.
-    expect(Number.isInteger(cssScaleFor(1536, 864, 1, 'fit'))).toBe(false);
-    expect(Number.isInteger(new Display().resizeTo(1536, 864, 1).k)).toBe(true);
   });
 
   it('on("resize") fires after each fit with the new layout already in place, and off() stops it', () => {

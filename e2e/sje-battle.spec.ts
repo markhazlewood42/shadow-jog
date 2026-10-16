@@ -258,7 +258,7 @@ test.describe('controls', () => {
       const { page } = g;
       // The stage's code is a lazy chunk (dev: /src/battlestage/liveopen.ts, built: assets/liveopen-*.js): cut it off before the first fight asks for it.
       await page.route(/liveopen/, (route) => route.abort());
-      // The bar clears itself 6 seconds after the failure was posted (`currentNotice` in src/engine/errors.ts, real time, by design), and the failure is posted a moment after the
+      // The bar clears itself 6 seconds after the failure was posted (`currentNotice` in src/sje/core/errors.ts, real time, by design), and the failure is posted a moment after the
       // battle opens (the stage's code is a lazy chunk). On a slow runner `fight()` and a later poll can together take longer than 6 s, and a read after the 60 s wait found the bar
       // empty (CI runs 38185184825 and 38183421640). So a recorder starts in the page BEFORE the fight, keeps the first notice about the stage, and the test reads that record.
       await sj(page, "(window.__stageNotice = null, setInterval(() => { const n = sj.notice(); if (n && n.text.includes('battle stage could not load') && !window.__stageNotice) window.__stageNotice = { text: n.text, tone: n.tone }; }, 50), true)");

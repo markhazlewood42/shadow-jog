@@ -5,11 +5,11 @@
  */
 import { describe, expect, it } from 'vitest';
 import { getMap, mapIds } from '../src/data/maps';
-import { measure } from '../src/engine/font';
+import { measure } from '../src/sje/display/font';
 import { H, W } from '../src/sje/core/size';
 import { TS } from '../src/field/tiles';
 import { SURROUND, surroundFor, voidShows, type SurroundEntry, type SurroundTheme, type SurroundView } from '../src/scenes/fieldkit/surround';
-import { mix, rgb } from '../src/engine/color';
+import { mix, rgb } from '../src/sje/core/color';
 import { THEMES, YARD, pictureKey } from '../src/scenes/fieldkit/surround-art';
 import { arrivals, distances, grid } from './mapgraph';
 
@@ -109,7 +109,7 @@ describe('font coverage', () => {
   it('every character in the game’s text has a glyph (no fallback boxes on screen)', async () => {
     const { readFileSync, readdirSync, statSync } = await import('node:fs');
     const { join } = await import('node:path');
-    const { hasGlyph } = await import('../src/engine/font');
+    const { hasGlyph } = await import('../src/sje/display/font');
     const skip = new Set(['font.ts', 'fonttest.ts']);
     const files: string[] = [];
     const walk = (d: string) => {

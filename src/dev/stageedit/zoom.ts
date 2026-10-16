@@ -7,7 +7,7 @@
  * pixels per game pixel: some game pixels get 2 device pixels and some 3, and that uneven shimmer is
  * exactly what pixel art must not have. The fix is to count in DEVICE pixels: choose a whole number `k`
  * of device pixels per game pixel, then ask the page for the CSS size that makes it so (`k / dpr`).
- * The game's own `src/engine/display.ts` does the same thing for the same reason.
+ * The game's own display (`src/sje/runtime/display.ts`) does the same thing for the same reason.
  *
  * Pure maths (no Phaser, no DOM) so a test can try 100%, 125%, 150% and 200% displays.
  */

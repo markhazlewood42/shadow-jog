@@ -1,5 +1,5 @@
 /** Dust kicked up by dashing and by stopping out of a dash: pooled, in world coordinates. */
-import type { Ctx } from '../../engine/canvas';
+import type { Ctx } from '../../sje/core/canvas';
 
 const MAX = 40;
 const LIFE = 22;

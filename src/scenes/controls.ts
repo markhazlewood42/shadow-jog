@@ -1,6 +1,6 @@
 /** Controls: every action's keys and gamepad button, with one rebindable key per action. Native sje scene (M8b). */
 import { sfx } from '../audio/sfx';
-import { ACTIONS, type Action, keyLabel } from '../engine/input';
+import { ACTIONS, type Action, keyLabel } from '../sje/runtime/inputdevice';
 import { saveSettings, settings } from '../game/settings';
 import { Cursor, fitText, Graphics, NineSlice, SELECT_FILL, TextObject, UI } from '../sje';
 import { H, W } from '../sje/core/size';

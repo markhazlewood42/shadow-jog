@@ -1,8 +1,8 @@
 /** Procedural 3/4-view buildings: roofs with clutter, facades with windows, doors, signage. */
-import { disc, type Ctx } from '../engine/canvas';
-import { mix, shade } from '../engine/color';
-import { drawText, measure } from '../engine/font';
-import { hash2, Rng } from '../engine/rng';
+import { disc, type Ctx } from '../sje/core/canvas';
+import { mix, shade } from '../sje/core/color';
+import { drawText, measure } from '../sje/display/font';
+import { hash2, Rng } from '../sje/core/rng';
 import type { BakeCtx } from './bake';
 import { TS } from './tiles';
 import type { BuildingDef, BuildingStyle, SignDef } from './types';

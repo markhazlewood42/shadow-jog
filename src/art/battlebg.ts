@@ -2,9 +2,9 @@
  * Battle backgrounds at the battle world's resolution (BW×BH, half the screen, displayed at 2×).
  * Each has a static bake and an optional per-frame animation layer (rain, flicker, water, embers).
  */
-import { surface, type Ctx } from '../engine/canvas';
-import { mix, rgb, shade } from '../engine/color';
-import { hash2, Rng } from '../engine/rng';
+import { surface, type Ctx } from '../sje/core/canvas';
+import { mix, rgb, shade } from '../sje/core/color';
+import { hash2, Rng } from '../sje/core/rng';
 // The backdrop size is the battle world's (art/worldsize.ts, the one place it is defined), under
 // the names the makers below use, so the world and its backdrops can never disagree on their size.
 import { BHT as BH, BW } from './worldsize';

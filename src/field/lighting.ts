@@ -2,8 +2,8 @@
  * Light map: ambient color × additive colored lights, multiplied over the lit layers.
  * Sprites are lit individually (so emissive details can be interleaved in depth order).
  */
-import { surface, type Ctx, type Surface } from '../engine/canvas';
-import { rgb } from '../engine/color';
+import { surface, type Ctx, type Surface } from '../sje/core/canvas';
+import { rgb } from '../sje/core/color';
 import { H, W } from '../sje/core/size';
 import type { BakedLight } from './bake';
 import { clipToScreen, type Rect } from './overrects';

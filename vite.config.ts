@@ -4,7 +4,7 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Plugin } from 'vite';
 import { withBody } from './src/dev/endpoint';
-import { isDry, sameOrigin } from './src/dev/sameorigin';
+import { dryFlag, isDry, sameOrigin } from './src/dev/sameorigin';
 import { stageHandlers } from './src/dev/stageedit/serve';
 import { DEV_TOOLS } from './src/dev/tools';
 import { defineConfig } from 'vitest/config';
@@ -43,6 +43,10 @@ function fxLab(): Plugin {
           reply(403, { ok: false, problems: ['writes only from the dev server’s own pages'] });
           return;
         }
+        if (dryFlag(req.url) === 'invalid') {
+          reply(400, { ok: false, problems: ['dry must be 0 or 1, once, or left out'] });
+          return;
+        }
         // An oversize body is answered 413 at once and no more of it is read, a failure of the handler (fxdata.ts with a syntax error mid-edit makes ssrLoadModule reject) is answered 500: see withBody.
         withBody(req, res, {
           max: 1_000_000,
@@ -70,7 +74,8 @@ function fxLab(): Plugin {
               if (!isDry(req.url)) writeFileSync(FX_FILE, text);
               reply(200, { ok: true, text });
             } catch (e) {
-              reply(500, { ok: false, problems: [`couldn't write fx.json: ${String(e)}`] });
+              console.error('[dev server] could not write fx.json:', e);
+              reply(500, { ok: false, problems: ["couldn't write fx.json (the detail is in the dev server console)"] });
             }
           },
         });
@@ -103,7 +108,8 @@ function stageEdit(): Plugin {
           if (res.headersSent) return;
           res.statusCode = 500;
           res.setHeader('Content-Type', 'application/json');
-          res.end(JSON.stringify({ ok: false, problems: [`${what}: ${String(e)}`] }));
+          console.error(`[dev server] ${what}:`, e); // the detail stays on the server: it can name absolute paths
+          res.end(JSON.stringify({ ok: false, problems: [`${what} (the detail is in the dev server console)`] }));
         };
         void load().then(
           (save) => {
@@ -130,7 +136,7 @@ const ART_PASS = resolve(import.meta.dirname, process.env.SJ_ART_PASS_DIR ?? 'me
  * Mark picks). GET /__artpass/data gathers every generated asset's meta.json with the saved review
  * and the pass's spend; POST /__artpass/review saves the review (picks, verdicts, notes) to
  * media/art-pass/review.json. The review page is artreview.html; see scripts/pixellab/.
- * `POST /review?dry=1` (see `isDry`: the value must be `1`) checks the body and writes nothing (the tests use it): `{ ok: true, dry: true }` or the same 400 as a real save.
+ * `POST /review?dry=1` (see `dryFlag`: only the value `1`; `dry=0` or no flag writes; any other form is a 400) checks the body and writes nothing (the tests use it): `{ ok: true, dry: true }` or the same 400 as a real save.
  */
 function artPass(): Plugin {
   const readJson = (path: string): unknown => (existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : null);
@@ -170,6 +176,10 @@ function artPass(): Plugin {
               reply(403, { ok: false, problem: 'writes only from the dev server’s own pages' });
               return;
             }
+            if (dryFlag(req.url) === 'invalid') {
+              reply(400, { ok: false, problem: 'dry must be 0 or 1, once, or left out' });
+              return;
+            }
             // An oversize body is answered 413 at once and no more of it is read; a failure of the handler is answered 500: see withBody.
             withBody(req, res, {
               max: 2_000_000,
@@ -199,7 +209,8 @@ function artPass(): Plugin {
           }
           reply(404, { ok: false, problem: 'GET /data or POST /review' });
         } catch (e) {
-          reply(500, { ok: false, problem: String(e) });
+          console.error('[dev server] the review endpoint failed:', e);
+          reply(500, { ok: false, problem: 'the review endpoint failed (the detail is in the dev server console)' });
         }
       });
     },
@@ -235,6 +246,10 @@ function rigEdit(): Plugin {
         }
         if (!sameOrigin(req)) {
           reply(403, { ok: false, problem: 'writes only from the dev server’s own pages' });
+          return;
+        }
+        if (dryFlag(req.url) === 'invalid') {
+          reply(400, { ok: false, problem: 'dry must be 0 or 1, once, or left out' });
           return;
         }
         // An oversize body is answered 413 at once and no more of it is read; a failure of the handler is answered 500: see withBody.
@@ -273,7 +288,8 @@ function rigEdit(): Plugin {
 `);
               reply(200, { ok: true });
             } catch (e) {
-              reply(500, { ok: false, problem: `couldn't write skeleton.json: ${String(e)}` });
+              console.error('[dev server] could not write skeleton.json:', e);
+              reply(500, { ok: false, problem: "couldn't write skeleton.json (the detail is in the dev server console)" });
             }
           },
         });

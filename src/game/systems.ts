@@ -2,17 +2,16 @@
  * Installs the field hooks: items, party changes, random encounters, battles (with retry),
  * shops, inn, clinic, save prompts, tutorials and the menu.
  */
-import { notice, reportError } from '../engine/errors';
+import { notice, reportError } from '../sje/core/errors';
 import { popMusic, pushMusic } from '../audio/music';
 import { sfx } from '../audio/sfx';
 import { ENCOUNTERS } from '../data/enemies';
 import { ABILITIES } from '../data/abilities';
 import { ITEMS } from '../data/items';
 import { MEMBERS } from '../data/party';
-import { surface } from '../engine/canvas';
-import { streams } from '../engine/rng';
-import type { Game } from '../engine/game';
-import type { Game as SjeGame } from '../sje';
+import { surface } from '../sje/core/canvas';
+import { streams } from '../sje/core/rng';
+import type { Game } from '../sje';
 import { TS } from '../field/tiles';
 import { battleStages } from '../scenes/battlekit/stageseam';
 import { CardScene } from '../scenes/card';
@@ -151,7 +150,7 @@ export function installSystems(game: Game, h: SystemHandlers): void {
   // ---------------------------------------------------------------- encounters
   fieldHooks.onStep = (f) => {
     // Long stretches inside one map (a dungeon floor) still get saved every few minutes.
-    if (unsavedFrames(game.playFrames) > AUTOSAVE_EVERY && (game as unknown as SjeGame).top === f && f.busy === 0) autosave(game);
+    if (unsavedFrames(game.playFrames) > AUTOSAVE_EVERY && game.top === f && f.busy === 0) autosave(game);
     const zones = f.def.encounters;
     if (!zones?.length || flags.has('noEncounters')) return false;
     const l = f.leader;
@@ -364,8 +363,7 @@ export async function runBattle(
     const [{ BattleScene }] = await Promise.all([loadBattle(), game.wait(18)]);
     const scene = new BattleScene({ encounter: enc, bg: opts.bg, canRun: opts.canRun, boss: opts.boss, music: opts.music, intro });
     // A stage scene is put under the battle and draws it (battlekit/stageseam.ts); if it cannot be made, the battle draws itself.
-    // The object behind `game` is the sje `Game`, which the stage seam is typed against. This cast goes when this file takes the sje `Game` type (M8d task 10).
-    const stage = await battleStages.open(game as unknown as SjeGame, scene);
+    const stage = await battleStages.open(game, scene);
     if (stage) scene.attachStage(stage);
     let result: BattleResult;
     try {

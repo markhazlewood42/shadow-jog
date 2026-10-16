@@ -56,6 +56,14 @@ export class ViewBuilder {
     this.box.add(g);
   }
 
+  /** A flat one-color plate or chip: one kit `Graphics` fill, not a picture of its own (the `rect` ops of `uiops.ts`). `color` is 0xRRGGBB. */
+  rect(x: number, y: number, w: number, h: number, color: number, alpha = 1): Graphics {
+    const g = new Graphics(this.scene, 0, 0).fillStyle(color, alpha).fillRect(x, y, w, h);
+    g.name = 'plate';
+    this.box.add(g);
+    return g;
+  }
+
   /** A bar (the kit's `Bar`, the same pixels as the old `drawBar`). */
   bar(x: number, y: number, w: number, h: number, ratio: number, color: string): Bar {
     const b = new Bar(this.scene, x, y, w, h, color, ratio);
@@ -64,8 +72,7 @@ export class ViewBuilder {
   }
 
   /**
-   * A canvas picture, for ART (a portrait, a character sprite, a boss portrait box) and for the flat one-color plates under kit text (the `rect` ops of `uiops.ts`: the kit has no
-   * flat-plate part). Drawn with smoothing off, as the game's own canvas was. A plate that is semi-clear and on the field is NOT made here: the field parity pictures pin its
+   * A canvas picture, for ART (a portrait, a character sprite, a boss portrait box) . Drawn with smoothing off, as the game's own canvas was. A plate that is semi-clear and on the field is NOT made here: the field parity pictures pin its
    * blend (see `fieldkit/hud.ts`).
    */
   pic(x: number, y: number, w: number, h: number, draw: (ctx: CanvasRenderingContext2D) => void): CanvasImage {

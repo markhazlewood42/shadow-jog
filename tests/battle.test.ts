@@ -8,7 +8,7 @@ import { ITEMS } from '../src/data/items';
 import { levelForXp, xpFor } from '../src/data/party';
 import { createMember, grantXp, isWounded, knownAbilities, maxUses, memberStats } from '../src/game/party';
 import { flags, type MemberId } from '../src/game/state';
-import { Rng } from '../src/engine/rng';
+import { Rng } from '../src/sje/core/rng';
 
 function party(ids: MemberId[], level: number): Combatant[] {
   return ids.map((id, i) => partyCombatant(createMember(id, level), i, i));

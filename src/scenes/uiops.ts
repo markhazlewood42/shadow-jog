@@ -31,6 +31,21 @@ export function barPixels(w: number, shown: number, lag: number): { fill: number
   return { fill, lag: b > Math.round(w * Math.max(0, shown)) ? b : 0 };
 }
 
+/** A CSS color of the `rect` ops (`#rgb`, `#rrggbb` or `rgba(r,g,b,a)`) as a 0xRRGGBB number and an alpha. Anything else throws: a wrong color is a mistake, not a silent black. */
+export function rectColor(css: string): { color: number; alpha: number } {
+  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(css);
+  if (hex?.[1]) {
+    const h = hex[1].length === 3 ? [...hex[1]].map((c) => c + c).join('') : hex[1];
+    return { color: Number.parseInt(h, 16), alpha: 1 };
+  }
+  const rgba = /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*(?:,\s*([0-9.]+)\s*)?\)$/i.exec(css);
+  if (rgba) {
+    const [r = 0, g = 0, b = 0] = [rgba[1], rgba[2], rgba[3]].map((v) => Math.min(255, Number(v)));
+    return { color: (r << 16) | (g << 8) | b, alpha: rgba[4] === undefined ? 1 : Math.min(1, Number(rgba[4])) };
+  }
+  throw new Error(`a rect color must be #rgb, #rrggbb or rgba(r,g,b,a), got "${css}"`);
+}
+
 /** Make the kit parts for `ops` in `box`, in order. */
 export function applyOps(host: DisplayHost, box: Container, ops: readonly Op[]): void {
   const b = new ViewBuilder(host, box);
@@ -39,13 +54,12 @@ export function applyOps(host: DisplayHost, box: Container, ops: readonly Op[]):
       case 'win':
         b.win(Math.round(o.x), Math.round(o.y), o.w, o.h, o.style);
         break;
-      case 'rect':
-        // A flat plate or a colored chip under kit text: a one-color picture (the kit has no flat-plate part; the battle default-path picture pins these pixels).
-        b.pic(Math.round(o.x), Math.round(o.y), o.w, o.h, (c) => {
-          c.fillStyle = o.color;
-          c.fillRect(0, 0, o.w, o.h);
-        });
+      case 'rect': {
+        // A flat plate or a colored chip under kit text: one `Graphics` fill (the same pixels as the old one-color picture).
+        const c = rectColor(o.color);
+        b.rect(Math.round(o.x), Math.round(o.y), o.w, o.h, c.color, c.alpha);
         break;
+      }
       case 'text':
         b.text(Math.round(o.x), Math.round(o.y), o.s, o.style);
         break;

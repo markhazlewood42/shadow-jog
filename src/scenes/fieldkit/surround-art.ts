@@ -3,7 +3,7 @@
  * docs/PIVOT-640.md): b1, an edge fill (indoors), and b2, a themed surround (outdoors). See
  * `surround.ts` for what the options are and the per-map table that chooses them.
  */
-import { surface, type Ctx, type Surface } from '../../engine/canvas';
+import { surface, type Ctx, type Surface } from '../../sje/core/canvas';
 import { H, W } from '../../sje/core/size';
 import { TS } from '../../field/tiles';
 import type { SurroundEntry, SurroundTheme, SurroundView } from './surround';

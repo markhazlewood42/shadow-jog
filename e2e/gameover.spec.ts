@@ -18,7 +18,7 @@ async function waitFor(page: Page, expr: string, label: string, timeout = 20_000
     if (await sj<boolean>(page, `!!(${expr})`).catch(() => false)) return;
     if (Date.now() - start > timeout) {
       // What the page was doing, so a timeout names the cause (a stuck scene, a notice) and not only the wait.
-      const where = await sj<string>(page, "JSON.stringify({ top: sj.top(), stack: sj.game.stack.map((x) => x.constructor.name), notice: sj.notice(), tick: sj.game.tick })").catch((e: unknown) => `no state (${String(e).slice(0, 80)})`);
+      const where = await sj<string>(page, "JSON.stringify({ top: sj.top(), stack: sj.game.scene.scenes.map((x) => x.constructor.name), notice: sj.notice(), tick: sj.game.tick })").catch((e: unknown) => `no state (${String(e).slice(0, 80)})`);
       throw new Error(`Timed out waiting for ${label}: ${where}`);
     }
     await page.waitForTimeout(100);
@@ -135,7 +135,7 @@ test('Load from Game Over with a damaged save says so and returns to the title',
 
 test('Autosave reports success, and failure when storage is unavailable', async ({ page }) => {
   await stage(page, 'town');
-  // The 'saved' badge lives 1.8 s (engine/errors.ts). Read it in the same page task that makes the warp, as the warp ends. With a poll of its own in between, a slow engine
+  // The 'saved' badge lives 1.8 s (src/sje/core/errors.ts). Read it in the same page task that makes the warp, as the warp ends. With a poll of its own in between, a slow engine
   // (WebKit on CI takes a second or more to answer a page.evaluate) lets the badge expire before the test looks, and the null that results says nothing about autosave.
   const saved = await sj<{ tone: string } | null>(page, "(async () => { await sj.tp('world', 20, 22, 'right'); return sj.notice(); })()");
   expect(saved?.tone).toBe('saved');

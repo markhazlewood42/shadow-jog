@@ -1,7 +1,7 @@
 import { battler, POSES } from '../../art/battlers';
 import { buildChar, type Dir } from '../../art/chars';
-import type { Ctx } from '../../engine/canvas';
-import { drawText } from '../../engine/font';
+import type { Ctx } from '../../sje/core/canvas';
+import { drawText } from '../../sje/display/font';
 import { CanvasViewScene } from './base';
 import { W, H } from '../../sje/core/size';
 import { LOOKS, randomLook } from '../../data/looks';

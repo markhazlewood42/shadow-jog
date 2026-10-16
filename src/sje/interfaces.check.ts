@@ -9,24 +9,15 @@
 import type { DisplayHost } from './display/gameobject';
 
 // ---- stubs: names the sketches use and the doc says are not part of the design (interfaces.md, "Types that are not shown") ----
-type Ctx = CanvasRenderingContext2D; // today's canvas context (src/engine/canvas.ts)
+type Ctx = CanvasRenderingContext2D; // today's canvas context (src/sje/core/canvas.ts)
 type Fighter = Record<string, unknown>;
 type StageData = Record<string, unknown>;
 type HackDef = Record<string, unknown>;
 type SceneDump = Record<string, unknown>; // the JSON tree of the DEV hook
 type EmitterPreset = Record<string, unknown>;
 type InputDevice = 'keyboard' | 'gamepad' | 'touch';
-/** Today's `Scene` shape, wrapped by the `LegacyScene` adapter (M1). */
-interface LegacyScene<R = unknown> {
-  opaque: boolean;
-  curtain: boolean;
-  passUpdate: boolean;
-  update(): void;
-  render(ctx: Ctx): void;
-  close(result: R): void;
-}
 // Used by sketches that only name them in comments or signatures.
-export type { Ctx, DisplayHost, EmitterPreset, Fighter, HackDef, InputDevice, LegacyScene, SceneDump, StageData };
+export type { Ctx, DisplayHost, EmitterPreset, Fighter, HackDef, InputDevice, SceneDump, StageData };
 
 // ---- interfaces.md block 1 ----
 export interface Rect { x: number; y: number; w: number; h: number; }
@@ -295,7 +286,7 @@ export declare class FxSystem {                       // ours. Keeps the postfx 
   update(): void;
   clear(): void;
   warm(): void;                                        // new. Compile shaders off screen
-  /** Today's call shape, kept for LegacyScene. A Pixi-side glow layer is a new method beside it. */
+  /** Today's call shape. A Pixi-side glow layer is a new method beside it. */
   glowLayer(): Ctx | null;
 }
 
@@ -355,7 +346,7 @@ export interface SceneInput {
   /** Dev and editor builds only. */
   on?(ev: 'pointerdown' | 'pointermove' | 'pointerup', fn: (p: { x: number; y: number }) => void): void;
 }
-export interface InputManager {                        // ours. Today's surface in src/engine/input.ts
+export interface InputManager {                        // ours. Today's surface in src/sje/runtime/inputdevice.ts
   readonly actions: ActionMap;
   lastDevice: InputDevice;                             // 'keyboard' | 'gamepad' | 'touch'. Picks the on-screen hint text
   /** Rebind. Returns null if the change would leave an action with no key. */
@@ -496,9 +487,9 @@ export interface GlHandoff {                           // ours
   drainErrors(): number[];                             // dev and tests: the GL errors, cleared
 }
 
-/** Story code and scenes type against this. The legacy Game and the new Game both implement it. */
+/** Story code and scenes type against this. The `Game` implements it (until M8d the old engine's `Game` did too). */
 export interface GameApi {
-  run<R>(s: Scene<R> | LegacyScene<R>): Promise<R>;
+  run<R>(s: Scene<R>): Promise<R>;
   wait(frames: number): Promise<void>;
   fadeTo: Game['fadeTo']; shake: Game['shake']; flash: Game['flash'];
   readonly top: unknown; readonly tick: number; speed: number;

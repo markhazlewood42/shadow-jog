@@ -18,7 +18,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { LINES, slotsOf } from '../src/data/dialogue';
 import { SPEAKERS } from '../src/data/speakers';
-import { measure, wrap } from '../src/engine/font';
+import { measure, wrap } from '../src/sje/display/font';
 import { DIALOG_MAX_W, DIALOG_PAD, DIALOG_PORTRAIT_COL, dialogBoxW, dialogTextW } from '../src/ui/layout';
 
 /** What the dialog box's text width was at 480x270: the box was the screen less 8 px a side. */

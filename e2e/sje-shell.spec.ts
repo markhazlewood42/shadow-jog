@@ -177,21 +177,24 @@ test.describe('the real game on the new engine', () => {
     }
   });
 
-  test('entering and leaving a legacy scene 10 times leaves the GL object counts flat; a scene that leaks on purpose makes them grow', async ({ browser }) => {
+  test('entering and leaving a canvas-image scene 10 times leaves the GL object counts flat; a scene that leaks on purpose makes them grow', async ({ browser }) => {
     const g = await openGame(browser, {});
     try {
       const { page } = g;
       expect(await waitTop(page, 'TitleScene')).toBe(true);
       await page.waitForTimeout(500);
       await freeze(page);
-      // The cycle: run a legacy scene (the old Scene class from the game), draw it, close it. `leak` also makes a texture it never frees.
+      // The cycle: run a scene that draws with a canvas image of its own (a native scene), draw it, close it. `leak` also makes a texture it never frees.
       const cycle = (n: number, leak: boolean) =>
         sj<{ texture: number; buffer: number; framebuffer: number; program: number; vao: number }>(
           page,
           `(async () => {
-            const { Scene } = await import('/src/engine/game.ts');
+            const { Scene } = await import('/src/sje/index.ts');
             const game = sj.game;
-            class Probe extends Scene { update() {} render(ctx) { ctx.fillStyle = '#336699'; ctx.fillRect(0, 0, 40, 40); } }
+            class Probe extends Scene {
+              create() { const image = this.add.canvasImage(0, 0, 640, 360); this.events.on('prerender', () => { image.ctx.fillStyle = '#336699'; image.ctx.fillRect(0, 0, 40, 40); image.refresh(); }); }
+              fixedUpdate() {}
+            }
             for (let i = 0; i < ${n}; i++) {
               const probe = new Probe();
               probe.opaque = false;

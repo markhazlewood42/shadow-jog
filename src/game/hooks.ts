@@ -2,7 +2,7 @@
  * Late-bound hooks the field calls into (menus, battles, shops, inventory UI).
  * Systems install themselves here at boot, which keeps FieldScene free of import cycles.
  */
-import type { Ctx } from '../engine/canvas';
+import type { Ctx } from '../sje/core/canvas';
 import type { FieldScene } from '../scenes/field';
 import type { HackDef, HackHandling, HackOutcome } from './hackseam';
 import type { BattleResult } from './script';

@@ -2,7 +2,7 @@
  * The seam between the shipped battle and a stage that draws it (M3 task 6; docs/engine/m3-brief.md sections 1 and 4).
  *
  * The battle scene (`scenes/battle.ts`) keeps state and flow: command entry, the round, playback of the engine's events through `PlaybackView`. Normally the
- * renderer beside it (`battlekit/render.ts`) draws the whole picture into a Canvas 2D. Under `?engine=sje` a STAGE can draw it instead: a scene of the new
+ * renderer beside it (`battlekit/render.ts`) draws the whole picture into a Canvas 2D. A STAGE can draw it instead: a scene of the new
  * engine that stands under the battle on the scene stack and shows the backdrop, the floor, the figures, the effects, the HUD and the numbers as Pixi
  * objects, while the battle scene keeps its windows (the menus, the end panels, the cut-ins: kit parts, battlekit/hud.ts) and draws the impact frame and the intro on a clear canvas over it.
  *
@@ -14,7 +14,7 @@
  * of its own layout (`SCREEN_W` x `SCREEN_H` of `src/battlestage/config.ts`) and converts at this boundary: that is the one conversion in the program.
  */
 import type { Pt } from '../../battle/fx';
-import { notice } from '../../engine/errors';
+import { notice } from '../../sje/core/errors';
 import type { Game } from '../../sje';
 import type { BattleScene } from '../battle';
 
@@ -46,7 +46,7 @@ export const STAGE_FAILED_NOTICE = 'The new battle stage could not load, so this
 
 let provider: BattleStageProvider | null = null;
 
-/** Register (or, with null, remove) the provider. Called by `src/sje/boot.ts` under `?engine=sje`, and by tests. */
+/** Register (or, with null, remove) the provider. Called by `src/sje/boot.ts`, and by tests. */
 export function setBattleStageProvider(p: BattleStageProvider | null): void {
   provider = p;
 }

@@ -13,10 +13,10 @@
  *   6. Ten fights in a row leave no texture and no object behind.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Input } from '../src/engine/input';
+import type { Input } from '../src/sje/runtime/inputdevice';
 import { drawLag } from '../src/scenes/battlekit/sprites';
-import { barPixels } from '../src/scenes/uiops';
-import { Bar, type Container, type GameObject, NineSlice, TextObject } from '../src/sje';
+import { applyOps, barPixels, rectColor } from '../src/scenes/uiops';
+import { Bar, CanvasImage, Container, type GameObject, Graphics, NineSlice, TextObject } from '../src/sje';
 import { barRects } from '../src/sje/ui/bar';
 import { Game } from '../src/sje/runtime/game';
 import { layoutOfNative } from './nativelayout';
@@ -322,6 +322,36 @@ describe('a box is built again only when what it shows changes', () => {
     tick();
     expect(same(k?.box.list, first)).toBe(true);
     expect(bar?.ratio).toBeLessThan(r0);
+  });
+});
+
+describe('a flat rect op is a Graphics fill, not a picture of its own (M8c follow-up)', () => {
+  it('rectColor reads #rgb, #rrggbb and rgba(), and refuses anything else', () => {
+    expect(rectColor('#ffb23a')).toEqual({ color: 0xffb23a, alpha: 1 });
+    expect(rectColor('#fa0')).toEqual({ color: 0xffaa00, alpha: 1 });
+    expect(rectColor('rgba(10,9,19,0.85)')).toEqual({ color: 0x0a0913, alpha: 0.85 });
+    expect(() => rectColor('red')).toThrow(/rect color/);
+  });
+
+  it('three rect ops make three Graphics and no CanvasImage (control: a face op still makes its picture)', () => {
+    const box = new Container(game as never, 0, 0, 'box');
+    applyOps(game as never, box, [
+      { k: 'rect', x: 4, y: 5, w: 9, h: 11, color: '#ffb23a' },
+      { k: 'rect', x: 6, y: 7, w: 20, h: 8, color: 'rgba(10,9,19,0.85)' },
+      { k: 'rect', x: 6, y: 20, w: 20, h: 1, color: '#0a0913' },
+    ]);
+    expect(box.list.filter((o) => o instanceof Graphics)).toHaveLength(3);
+    // M3: not only the count; the fill is the op's color and alpha (the private fields, read through bracket access).
+    const fills = box.list.filter((o): o is Graphics => o instanceof Graphics).map((g) => ({ color: g['fillColor'], alpha: g['fillAlpha'] }));
+    expect(fills).toEqual([
+      { color: 0xffb23a, alpha: 1 },
+      { color: 0x0a0913, alpha: 0.85 },
+      { color: 0x0a0913, alpha: 1 },
+    ]);
+    expect(box.list.filter((o) => o instanceof CanvasImage)).toHaveLength(0);
+    const faceBox = new Container(game as never, 0, 0, 'faces');
+    applyOps(game as never, faceBox, [{ k: 'face', x: 0, y: 0, who: 'rook', face: 'neutral', down: false }]);
+    expect(faceBox.list.filter((o) => o instanceof CanvasImage)).toHaveLength(1);
   });
 });
 

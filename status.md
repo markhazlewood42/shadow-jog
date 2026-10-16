@@ -4,7 +4,7 @@ title: Shadow Jog — Project Status
 project: shadow-jog
 created: 2026-09-27
 updated: 2026-10-15
-milestone: M8c
+milestone: M8d
 tags: [status]
 ---
 
@@ -18,7 +18,11 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 - **CI:** GitHub Actions, on pushes to `main` and on pull requests: three jobs at the same time (`check`, `e2e`, `e2e-engines`), all three required on `main` by the ruleset "Main branch protection" (2026-10-06). A docs-only change skips their steps. The real-speed playtest runs in `playtest.yml` after a merge and from the Actions button.
 - **Since 2026-10-01** work goes on a branch per major feature, with a PR for the Claude Code Review Action, and Mark merges.
 
-## M8c "Battle and field" started (2026-10-15)
+## M8d "Remove legacy" started (2026-10-15)
+
+M8c is merged ([PR #96](https://github.com/markhazlewood42/shadow-jog/pull/96), merge 47fa50d, 2026-10-15). M8d starts on branch `engine-m8d-remove-legacy`: delete the old engine, `LegacyScene` and the exemptions, move the kept `src/engine` files into `src/sje`, docs, the 5 PR #86 follow-ups and the changelog (`docs/engine/m8-brief.md` tasks 10 to 21). The rubric `docs/engine/m8d-rubric.md` was written before any code. Built in four builds (tasks 10 to 13, the move, tasks 15 to 21, then fixes). Round 1 (runner 8.0, reader 7.8, attacker 8.4) did not pass; round 2 passed at 8.5 (average 8.65). `src/engine` is gone. Bundle caps went down to first play 410.6 kB and total 474.3 kB. GPU run: the speed line holds (field cost p95 7.4 ms, battle 4.3 ms, hack 3.1 ms); 3 local perf tests also failed on `main` (two stale premises fixed, one flake recorded). Record: `docs/engine/m8-brief.md` "M8d build" and "M8d verification". [PR #98](https://github.com/markhazlewood42/shadow-jog/pull/98) is open. Next: CI green, review triage, then Mark merges. Flaky e2e on `main` too: [#97](https://github.com/markhazlewood42/shadow-jog/issues/97).
+
+## M8c "Battle and field" (2026-10-15, merged)
 
 M8a ([PR #94](https://github.com/markhazlewood42/shadow-jog/pull/94)) and M8b ([PR #95](https://github.com/markhazlewood42/shadow-jog/pull/95), merge f78f307) are merged: all 13 UI scenes are native `sje` scenes. M8c ports the battle and field scenes on branch `engine-m8c-battle-field`. Plan and pass lines: `docs/engine/m8-brief.md` tasks 8 and 9. Bundle caps until M8d: first play 412 kB, total 475.5 kB (Mark yes, 2026-10-15, after the battle and field kit port). Built and verified at the 8.5/10 gate (record in the brief); [PR #96](https://github.com/markhazlewood42/shadow-jog/pull/96) is open. Next: triage the review findings, CI green, then Mark merges.
 

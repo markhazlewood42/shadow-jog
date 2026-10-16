@@ -1,7 +1,7 @@
 /**
  * The screen-literal scan: pass line PL1 of docs/PIVOT-640.md ("one source of the size").
  *
- * The screen is `W` by `H` (src/sje/core/size.ts, the only place that writes the size; src/engine/game.ts re-exports it).
+ * The screen is `W` by `H` (src/sje/core/size.ts, the only place that writes the size).
  * The battle world is `BW` by `BHT` (src/art/worldsize.ts, re-exported by src/scenes/battlekit/geom.ts).
  * A bare number that means one of those (the old 480, 270, 240, 135; the current 640, 360, 320, 180;
  * and the off-by-one neighbors 239, 479, 269, 639, 359, 319, 179)

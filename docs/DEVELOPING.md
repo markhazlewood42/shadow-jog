@@ -151,7 +151,7 @@ lists every tool below with a line on what it's for; `/?devmenu` opens the page 
 back to it. `npm run dev` prints the main ones under the server's addresses. The list is `src/dev/tools.ts`: a new
 tool, page or route goes there. The menu isn't mounted under Playwright (`navigator.webdriver`) or in a build.
 
-**The tools** (ET, 2026-10-13: every tool runs on the new engine, with two named exceptions until M8: Battle Test loads `src/dev/stageedit/battleglue.ts` and `src/scenes/battle.ts` with a dynamic `import()`, and both reach the old engine; and `src/dev/stageedit/boot.ts` shares the old `Input` of `src/engine/input`, as `src/sje/boot.ts` does, until M8 gives the new engine its own input; `tests/et-tools.test.ts` checks the first). Each tool opens in a browser test (`e2e/tools.spec.ts`, or the spec named in the last column).
+**The tools** (ET, 2026-10-13; M8d, 2026-10-15: every tool runs on the new engine, with no exception left. Battle Test loads `src/dev/stageedit/battleglue.ts` and `src/scenes/battle.ts` with a dynamic `import()` to keep the battle scene out of the editor's chunk, and `src/dev/stageedit/boot.ts` uses the engine's own `Input`. `tests/et-tools.test.ts` checks that no tool reaches a deleted path). Each tool opens in a browser test (`e2e/tools.spec.ts`, or the spec named in the last column).
 
 | Tool | Where it lives | How to open it | Test |
 |---|---|---|---|
@@ -167,9 +167,9 @@ tool, page or route goes there. The menu isn't mounted under Playwright (`naviga
 | Engine lab (the canary page) | `src/sje-lab/lab.ts` and friends | `/sjelab.html` | `sje-canaries.spec.ts` |
 | 3D hack dev entry | `src/sje-lab/hackhook.ts` | `?scene=hack` | `sje-hack-a.spec.ts` to `-d` |
 | Battle Stage Editor | `src/dev/stageedit/` (the save endpoint is `serve.ts`, mounted by `vite.config.ts`) | `/stageedit.html`, or "Battle Stage Editor" in the DEV menu; `?scratch=<name>` makes it use a private copy of the data (tests) | `stageedit*.spec.ts`, `tools.spec.ts` |
-| Battle Test | `src/dev/stageedit/battle*.ts`: the dialog, the controller and one glue module for the game's old battle scene | the **Battle Test** button or Ctrl+Enter in the Battle Stage Editor; Esc returns | `battletest.spec.ts`, `tools.spec.ts` |
+| Battle Test | `src/dev/stageedit/battle*.ts`: the dialog, the controller and the glue module that runs the game's native `BattleScene` | the **Battle Test** button or Ctrl+Enter in the Battle Stage Editor; Esc returns | `battletest.spec.ts`, `tools.spec.ts` |
 
-The Battle Stage Editor writes the 640 set only (`stages-640.json`, `hud-640.json` and the shared `axes.json`, `enemyfacing.json`, `heroes.json`) through `POST /__stage/stages`; the 480 set is frozen for the parity fixtures. Battle Test runs the game's own `BattleScene` over the stage as it is on screen, saved or not, with no move animations (the shipped stage has none). Its one old-engine file is `src/dev/stageedit/battleglue.ts`, loaded with a dynamic `import()` and named on the exemption list in `tests/et-tools.test.ts`; M8 deletes it. In a spec, stop the real loop (`game.stop()`) and play the fight with `window.__stageedit.battle().advance(n)`; do not call `game.step(n)` in a loop, because the battle waits on promises that only run when the code lets go of the thread.
+The Battle Stage Editor writes the 640 set only (`stages-640.json`, `hud-640.json` and the shared `axes.json`, `enemyfacing.json`, `heroes.json`) through `POST /__stage/stages`; the 480 set is frozen for the parity fixtures. Battle Test runs the game's own `BattleScene` over the stage as it is on screen, saved or not, with no move animations (the shipped stage has none). Its glue is `src/dev/stageedit/battleglue.ts`, an ordinary tool file loaded with a dynamic `import()`; there is no exemption list, and the same import rules as for the other tool files hold for it. In a spec, stop the real loop (`game.stop()`) and play the fight with `window.__stageedit.battle().advance(n)`; do not call `game.step(n)` in a loop, because the battle waits on promises that only run when the code lets go of the thread.
 
 **URL routes** (`src/devroutes.ts`):
 - `?scene=stage&stage=ID`: straight to a chapter preset (`start`, `town`, `sinkline`, `annex`, `finale`:
@@ -197,7 +197,7 @@ The Battle Stage Editor writes the 640 set only (`stages-640.json`, `hud-640.jso
 
 Setting flags by hand: `sj.state.flags.floodgate = true`, then `sj.field().api.refreshMap()`.
 
-**The engine (the only one since M6)** (recipe, M1). Open `http://localhost:3007/?debug`. `src/main.ts` loads `src/sje/boot.ts` as its own chunk (it holds all of Pixi), which makes the new `Game` (a WebGL2 canvas that fills the window, integer scale only) and loads the game's own boot (`src/boot.ts`) in parallel as a second chunk. The same title, field, battle and shop run through the `LegacyScene` adapter, so every old scene and story script runs unchanged. The `?engine=sje` flag is gone: `?engine=` is ignored (a DEV build warns). A browser without WebGL 2 shows the E5 message and starts no game. Rules for work on this engine:
+**The engine (the only one since M6)** (recipe, M1). Open `http://localhost:3007/?debug`. `src/main.ts` loads `src/sje/boot.ts` as its own chunk (it holds all of Pixi), which makes the new `Game` (a WebGL2 canvas that fills the window, integer scale only) and loads the game's own boot (`src/boot.ts`) in parallel as a second chunk. Every scene is a native scene of that engine. The old engine flag is gone, with the old engine (deleted in M8d): the `engine` parameter is ignored (a DEV build warns). A browser without WebGL 2 shows the E5 message and starts no game. Rules for work on this engine:
 - `window.__SJ__` has the old members and, in a DEV build only (`src/sje-lab/devhook.ts`), the engine's: `hooks.onTick(fn)` and `hooks.onFrame(fn)` (each returns an unsubscribe function), `tree()` (the Pixi node tree as JSON), `step(n)` (n ticks with no real time passing, then one frame), `frameHash()`, `pixels(rect?)` (the back buffer), `canvasPixels()` (what the player sees), `glCounts()`, `renderer` (`{ name, fxLevel, contextLost }`), `forceContextLoss()` and `forceContextRestore()`. `display` is a thin adapter over `game.scale`.
 - `sj.game.speed = 0` stops the ticks (the draw goes on). `sj.game.stop()` stops the loop: then `sj.step(n)` is the only clock. A test that compares two pictures needs a deterministic run: Playwright's paused clock, a fixed date and a seeded `Math.random` (`openGame({ fakeClock: true })` in `e2e/sjegamekit.ts`).
 - `sj.gpu(on)` sets `settings.fxLevel` (`full` or `none`); `__SJ__.renderer.fxLevel` shows it.
@@ -209,7 +209,7 @@ Setting flags by hand: `sj.state.flags.floodgate = true`, then `sj.field().api.r
 
 ## 5. Conventions
 
-- **TypeScript strict** with `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes`. In `src/engine/` and
+- **TypeScript strict** with `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes`. In `src/sje/` and
   `src/battle/` there are **no non-null assertions** (Biome enforces it): use a guard, `for…of`, optional chaining
   or `must(value, 'what')`. Elsewhere `!` is tolerated but prefer the same.
 - **Biome** lints (the formatter is off; match the surrounding style: 2 spaces, single quotes, semicolons, long
@@ -342,10 +342,10 @@ Objectives go in `OBJ`. New names go in the glossary. The words go in `src/data/
 - **Save to game** writes `src/data/fx.json` (checked first; the file keeps one field per line, so the diff is
   small). A dev game running in another tab takes the change at once, no reload. Commit the file to ship it.
   **Revert** reloads the file. **Export / import**: one preset, one moment or the whole file as JSON.
-- The data's shapes, checks and file format are `src/engine/fxdata.ts`; the save endpoint is the plugin in
+- The data's shapes, checks and file format are `src/sje/fx/fxdata.ts`; the save endpoint is the plugin in
   `vite.config.ts` (dev server only); `tests/gpufx.test.ts` checks the file and `e2e/fxlab.spec.ts` the lab.
-- In code: `playMoment(FX, 'crit', x, y, { angle, weight })` (`engine/moments.ts`); one preset:
-  `postfx.emit(FX.presets.embers, x, y)`. Screen pixels (battle world coordinates ×2).
+- In code: `game.fx.playMoment('crit', x, y, { angle, weight })` (`src/sje/fx/moments.ts`); one preset:
+  `game.fx.emit(FX.presets.embers, x, y)`. Screen pixels (battle world coordinates ×2).
 
 ### The PixelLab art pass and the review page
 Drawn art made with [PixelLab](https://www.pixellab.ai) (a paid account; its REST API, `https://api.pixellab.ai/v2`),

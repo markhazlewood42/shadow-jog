@@ -10,7 +10,7 @@ import { loadRigData } from '../../art/rig2/data';
 import type { Phase } from '../../battlestage/demo';
 import { chooseSprites, haveMarksSheets, loadStageAssets } from '../../battlestage/boot';
 import type { StageConfig } from '../../battlestage/config';
-import { Input } from '../../engine/input';
+import { Input } from '../../sje/runtime/inputdevice';
 import { Game } from '../../sje';
 import { type HostData, StageHost } from './host';
 

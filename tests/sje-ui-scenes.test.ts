@@ -4,7 +4,7 @@
  * The behavior is the old scene's: the tests press the same keys and read the same fields.
  */
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import type { Input } from '../src/engine/input';
+import type { Input } from '../src/sje/runtime/inputdevice';
 import { Graphics, keyLegend, NineSlice, TextObject } from '../src/sje';
 import { Game } from '../src/sje/runtime/game';
 import { actionMapOf } from '../src/sje/runtime/input';

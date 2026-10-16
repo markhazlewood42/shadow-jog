@@ -41,8 +41,8 @@ export type FaultReporter = (scene: AnyScene | null, error: unknown, phase: Faul
 
 /**
  * Which scenes are drawn. Fills `out` (one boolean per scene) and returns the index of the BASE
- * scene: the topmost opaque one, or the bottom scene. This is today's rule from
- * `src/engine/game.ts` `render`:
+ * scene: the topmost opaque one, or the bottom scene. This is the rule of the old engine's
+ * `Game.render`:
  *  - The base is drawn. Scenes below it are not (they stay alive).
  *  - Only the topmost CURTAIN draws over the base. Scenes between the base and that curtain are
  *    hidden: a menu it was opened from is not repainted beneath it.
@@ -542,14 +542,14 @@ export class SceneManager {
 
   /**
    * Send `resume` to the top scene, but ONLY if a `push` paused it. When a scene in the middle of
-   * the stack closes, a native top scene was never paused, so it does not hear `resume`. A legacy scene
-   * always does (`resumesOnAnyClose`): the old `Game.remove` resumed the top after every close.
+   * the stack closes, the top scene was never paused, so it does not hear `resume`. (The old engine's `Game.remove` resumed the top after every close;
+   * no scene needs that any more.)
    */
   private resumeTop(): void {
     const top = this.top;
     if (!top) return;
     const wasPaused = this.paused.delete(top);
-    if (!wasPaused && !top.resumesOnAnyClose) return;
+    if (!wasPaused) return;
     this.guard(top, () => top.events.emit('resume'), 'other');
   }
 

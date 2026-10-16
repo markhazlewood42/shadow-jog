@@ -1,7 +1,7 @@
 /**
  * Helpers for the UI kit tests (tests/sje-ui-*.test.ts, M8a). Node has no canvas, so:
  *  - a "canvas" is an object with a size and a context that WRITES DOWN every call and every property it is given;
- *  - the same recorder is handed to the old draw functions (`src/ui/draw.ts`, `src/engine/font`) and to the kit's painters, and the two logs are
+ *  - the same recorder is handed to the old draw functions (`src/ui/draw.ts`, `src/sje/display/font`) and to the kit's painters, and the two logs are
  *    compared line by line. That is the parity test: not a picture, but every `fillRect`, color and alpha, in order.
  */
 import { TextureManager } from '../src/sje/display/texturemanager';

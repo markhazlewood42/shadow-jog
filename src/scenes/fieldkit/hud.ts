@@ -11,7 +11,7 @@
  * Like the old code, `sync` runs once for each drawn frame (the `prerender` handler of the scene), because the objective's flash counts drawn frames. A box is built
  * again only when what it shows changes: the objective when its text or its flash changes, the banner when its text changes. The fade of both is an alpha, never a build.
  */
-import type { Ctx } from '../../engine/canvas';
+import type { Ctx } from '../../sje/core/canvas';
 import { Container, measure, TextObject, UI, wrap } from '../../sje';
 import { W } from '../../sje/core/size';
 import { FIELD_OBJ_W } from '../../ui/layout';

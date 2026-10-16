@@ -1,6 +1,6 @@
 /** The victory banner: VICTORY at 3x, sliding in with a light sweep and an underline. */
-import { surface, type Ctx } from '../../engine/canvas';
-import { drawText } from '../../engine/font';
+import { surface, type Ctx } from '../../sje/core/canvas';
+import { drawText } from '../../sje/display/font';
 import { UI } from '../../ui/draw';
 import { HUD, VICTORY_ROWS, VICTORY_SCALE } from './geom';
 

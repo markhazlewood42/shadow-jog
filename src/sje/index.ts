@@ -6,7 +6,7 @@
  * M8a adds the UI kit (`src/sje/ui`: TextObject, NineSlice, ListMenu, Bar, Cursor).
  *
  * M0 holds the parts that the lab and the canary suite test directly: core, render, display and the GL
- * renderer. M1 adds the scene runtime (`Game`, `Scene`, `SceneManager`, `LegacyScene`, `Clock`, `TweenManager`, `Loader`,
+ * renderer. M1 adds the scene runtime (`Game`, `Scene`, `SceneManager`, `Clock`, `TweenManager`, `Loader`,
  * `GameObjectFactory`). `Scene3D` is M1b. Add each export with its module.
  */
 export { assert, must } from './core/assert';
@@ -31,18 +31,17 @@ export { canvasToRaw, type Raw, rawToCanvas, type SjFrame, type SjTexture, Textu
 export type { Pixels } from './render/backbuffer';
 export { probeWebGL2 } from './render/glcontext';
 export type { FrameTexture } from './render/frametexture';
-export { Display, type ScaleTarget } from './runtime/display';
+export { Display, type PageDisplay, type ScaleTarget } from './runtime/display';
 export { type FrameRenderer, GlRenderer } from './runtime/glrenderer';
 export { Cancelled, Clock, ignoreCancel, type TimerEvent, type TimerEventConfig } from './runtime/clock';
 export { FAULT_LIMIT, type FxLevel, Game, type GameConfig, type GameEvents, type GameParts } from './runtime/game';
-export type { AnyLegacy, GameApi, LegacyGameSurface, LegacyShape, ShakeDirection } from './runtime/gameapi';
+export type { GameApi, ShakeDirection } from './runtime/gameapi';
 export { GameObjectFactory } from './runtime/gameobjectfactory';
 export type { Action, ActionMap, SceneInput } from './runtime/input';
-export { LegacyScene } from './runtime/legacyscene';
 export { browserBackend, CacheManager, type LoadBackend, type LoadFile, Loader } from './runtime/loader';
 export { Scene, type SceneEvents, type SceneStatus, type Systems } from './runtime/scene';
 export { type AnyScene, computeVisibility, SceneManager } from './runtime/scenemanager';
-export type { LegacyCompat } from './runtime/screenfx';
+export { type LegacyCompat, SHAKE_PIXEL_GAIN } from './runtime/screenfx';
 export { Bar, type BarGhost, type BarRect, barRects } from './ui/bar';
 export { Cursor, type CursorKind, cursorNudge, moreVisible } from './ui/cursor';
 export { type ListAction, type ListInput, type ListItem, ListMenu, type ListResult, type RowGeometry, listRows, scrollFor, stepIndex, type UiSound } from './ui/listmenu';

@@ -8,7 +8,7 @@
  * notice are the real ones.
  */
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { currentNotice } from '../src/engine/errors';
+import { currentNotice } from '../src/sje/core/errors';
 import type { BattleScene } from '../src/scenes/battle';
 import { lazyStageProvider, STAGE_FAILED_NOTICE, type BattleStage, type BattleStageProvider } from '../src/scenes/battlekit/stageseam';
 
