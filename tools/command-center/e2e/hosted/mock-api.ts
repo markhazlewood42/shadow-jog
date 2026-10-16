@@ -22,18 +22,22 @@ export type Mock = {
   live: Reply | (() => Reply);
   /** The text of a doc by repo path, or null for a 404. */
   docs: (path: string) => string | null;
-  hits: { snapshot: number; live: number; docs: string[] };
+  /** What `POST /api/answer` answers. A function gets the parsed body of the request. */
+  answer: Reply | ((body: unknown) => Reply);
+  /** `answer` holds every request body that the page posted, and the headers that the test checks. */
+  hits: { snapshot: number; live: number; docs: string[]; answer: { body: unknown; contentType: string | undefined; method: string }[] };
   unexpected: string[];
 };
 
 const resolveReply = (reply: Reply | (() => Reply)): Reply => (typeof reply === 'function' ? reply() : reply);
 
-export async function mockApi(page: Page, initial: Partial<Pick<Mock, 'snapshot' | 'live' | 'docs'>> = {}): Promise<Mock> {
+export async function mockApi(page: Page, initial: Partial<Pick<Mock, 'snapshot' | 'live' | 'docs' | 'answer'>> = {}): Promise<Mock> {
   const mock: Mock = {
     snapshot: initial.snapshot ?? { json: snapshot() },
     live: initial.live ?? { json: liveAnswer('not-running') },
     docs: initial.docs ?? (() => null),
-    hits: { snapshot: 0, live: 0, docs: [] },
+    answer: initial.answer ?? { status: 500, json: { ok: false, error: { code: 'not-mocked', message: 'The test did not mock the answer.' } } },
+    hits: { snapshot: 0, live: 0, docs: [], answer: [] },
     unexpected: [],
   };
 
@@ -58,6 +62,12 @@ export async function mockApi(page: Page, initial: Partial<Pick<Mock, 'snapshot'
   await page.route('**/api/live', async (route) => {
     mock.hits.live += 1;
     await answer(route, resolveReply(mock.live));
+  });
+  await page.route('**/api/answer', async (route) => {
+    const request = route.request();
+    const body = request.postDataJSON() as unknown;
+    mock.hits.answer.push({ body, contentType: request.headers()['content-type'], method: request.method() });
+    await answer(route, typeof mock.answer === 'function' ? mock.answer(body) : mock.answer);
   });
   await page.route(/\/api\/docs\/.+/, async (route) => {
     const path = new URL(route.request().url()).pathname.slice('/api/docs/'.length);

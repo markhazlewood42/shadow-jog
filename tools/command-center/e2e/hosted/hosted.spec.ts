@@ -1,9 +1,9 @@
 import { mkdirSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { type Page, expect, test } from '@playwright/test';
-import { NOW, liveAnswer, liveState, richWorld, snapshot } from '../../fixtures/hosted/world';
+import { NOW, decision, liveAnswer, liveState, richWorld, snapshot } from '../../fixtures/hosted/world';
 import { expectAtMostTwoAmberItems } from '../look';
-import { type Mock, mockApi, setTabVisible } from './mock-api';
+import { type Mock, type Reply, mockApi, setTabVisible } from './mock-api';
 
 // The hosted page in a browser (design.md sections 4.3, 5.9 and 7). There is no Command Center server here: the page is the VITE_HOSTED build served by
 // `vite preview`, and every test plays the Vercel functions with page.route() (see mock-api.ts and playwright.hosted.config.ts).
@@ -359,30 +359,30 @@ test.describe('a lost login (design section 7)', () => {
 });
 
 test.describe('the hosted build', () => {
-  // The hosted page only reads (design 2.2). The write call of the answer form is left out of the build, not only hidden: the build is the page that Vercel serves.
-  test('holds no call to the answer endpoint and no write token header', () => {
-    const assets = join(import.meta.dirname, '..', '..', 'dist-hosted', 'assets');
-    const code = readdirSync(assets)
-      .filter((name) => name.endsWith('.js'))
-      .map((name) => readFileSync(join(assets, name), 'utf8'))
-      .join('\n');
-    // The right build was read: it holds the address that the hosted page polls.
+  /** Every file of the hosted build output, as text (the pictures and fonts are binary, and a token prefix in them would be a coincidence). */
+  function builtFiles(): { name: string; text: string }[] {
+    const out = join(import.meta.dirname, '..', '..', 'dist-hosted');
+    return (readdirSync(out, { recursive: true }) as string[])
+      .filter((name) => /\.(js|css|html|json|txt|map|webmanifest|svg)$/.test(name))
+      .map((name) => ({ name, text: readFileSync(join(out, name), 'utf8') }));
+  }
+
+  // The hosted page writes only through /api/answer (pass line 13). The write token of the local server never reaches the hosted build: the local way to send is left out of it.
+  test('holds the call to /api/answer, and no write token header, no local answer address and no token prefix, in any file', () => {
+    const files = builtFiles();
+    const code = files.filter((file) => file.name.endsWith('.js')).map((file) => file.text).join('\n');
+    // The right build was read: it holds the address that the hosted page polls, and the address that it posts the answer to.
     expect(code).toContain('/api/snapshot');
-    expect(code).not.toContain('/answer');
-    expect(code).not.toContain('X-CC-Token');
+    expect(code).toContain('/api/answer');
+    // The hosted build reads a decision from the snapshot (`/api/decisions/<n>` is only a key there). The local write address, `/api/decisions/<n>/answer`, is not in it.
+    expect(code).not.toMatch(/\/api\/decisions\/[^`'"]*\/answer/);
+    for (const file of files) {
+      for (const fragment of ['github_pat_', 'ghp_', 'X-CC-Token']) expect(file.text, `${file.name} holds ${fragment}`).not.toContain(fragment);
+    }
   });
 });
 
 test.describe('decisions and docs', () => {
-  test('shows a decision read-only, with a note and no answer form', async ({ page }) => {
-    await mockApi(page, { snapshot: { json: world.snapshot }, live: { json: world.live } });
-    await page.goto('/decisions/61');
-    await expect(page.getByRole('region', { name: 'Decision', exact: true })).toContainText('Who owns the ruleset?');
-    await expect(page.getByRole('note').filter({ hasText: 'Read-only on the hosted page' })).toBeVisible();
-    await expect(page.getByRole('form', { name: 'Answer this decision' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: /answer|submit/i })).toHaveCount(0);
-  });
-
   test('says "not found" for a decision that is not in the snapshot', async ({ page }) => {
     await mockApi(page, { snapshot: { json: world.snapshot }, live: { json: world.live } });
     await page.goto('/decisions/999');
@@ -428,3 +428,150 @@ test.describe('decisions and docs', () => {
     await expect(page.getByText('Search needs the local server.')).toBeVisible();
   });
 });
+
+// ---- answering a decision (docs/command-center/hosted-answer-brief.md, pass lines 1, 11 and 14) ----
+// The function POST /api/answer is played by page.route(). The same tests run at 1280 px and at 390 px. The real function is proved by tests/vercel-answer.test.ts.
+
+const ORIGIN_OF_TESTS = 'https://cc.example.vercel.app';
+const answerForm = (page: Page) => page.getByRole('form', { name: 'Answer this decision' });
+const NOTE = 'It keeps the ruleset in one place.';
+
+/** Picks option B and writes the note. */
+async function fillAnswer(page: Page, note = NOTE): Promise<void> {
+  await answerForm(page).getByRole('radiogroup').getByText('Option B').click();
+  await answerForm(page).getByLabel('Note (optional)').fill(note);
+}
+
+const written = { ok: true, answer: { option: 'B', note: NOTE, at: '2026-10-12T12:00:05.000Z' } };
+const serverError = (status: number, code: string, message: string, step?: string): Reply => ({ status, json: { ok: false, error: { code, message }, ...(step === undefined ? {} : { step }) } });
+
+/** The page has no sideways scroll, so nothing is cut off at 390 px. */
+async function expectNoSidewaysScroll(page: Page): Promise<void> {
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+}
+
+for (const [label, size] of [
+  ['1280 px', { width: 1280, height: 800 }],
+  ['390 px', { width: 390, height: 844 }],
+] as const) {
+  test.describe(`answering a decision at ${label}`, () => {
+    test.use({ viewport: size });
+
+    test('shows the answer form on the hosted page, with no read-only notice, and the Send button waits for a choice', async ({ page }) => {
+      const mock = await mockApi(page, { snapshot: { json: world.snapshot }, live: { json: world.live } });
+      await page.goto('/decisions/61');
+      await expect(page.getByRole('region', { name: 'Decision', exact: true })).toContainText('Who owns the ruleset?');
+      await expect(answerForm(page)).toBeVisible();
+      await expect(page.getByText('Read-only on the hosted page')).toHaveCount(0);
+      await expect(answerForm(page).getByRole('button', { name: 'Send answer' })).toBeDisabled();
+      await expectNoSidewaysScroll(page);
+      expect(mock.hits.answer).toEqual([]);
+    });
+
+    test('1: sends one JSON POST to /api/answer and shows the decision as answered at once, while the snapshot still says open', async ({ page }) => {
+      const mock = await mockApi(page, { snapshot: { json: world.snapshot }, live: { json: world.live }, answer: { json: written } });
+      await page.goto('/decisions/61');
+      await expect(answerForm(page)).toBeVisible();
+      await fillAnswer(page);
+      await answerForm(page).getByRole('button', { name: 'Send answer' }).click();
+
+      const answer = page.getByRole('region', { name: 'Answer', exact: true });
+      await expect(answer).toContainText('Answered B');
+      await expect(answer).toContainText(NOTE);
+      await expect(answerForm(page)).toHaveCount(0);
+      expect(mock.hits.answer).toEqual([{ body: { number: 61, option: 'B', note: NOTE }, contentType: 'application/json', method: 'POST' }]);
+      await expectNoSidewaysScroll(page);
+      expectNoStrayRequests(mock);
+    });
+
+    test('1: leaves the note out of the request when it is empty', async ({ page }) => {
+      const mock = await mockApi(page, { snapshot: { json: world.snapshot }, live: { json: world.live }, answer: { json: { ok: true, answer: { option: 'B', note: null, at: written.answer.at } } } });
+      await page.goto('/decisions/61');
+      await answerForm(page).getByRole('radiogroup').getByText('Option B').click();
+      await answerForm(page).getByRole('button', { name: 'Send answer' }).click();
+      await expect(page.getByRole('region', { name: 'Answer', exact: true })).toContainText('Answered B');
+      expect(mock.hits.answer.map((hit) => hit.body)).toEqual([{ number: 61, option: 'B' }]);
+    });
+
+    const FAILURES: { name: string; reply: Reply; text: string; code: string; title: string; retryLine?: string }[] = [
+      { name: '503 protection-unproven', reply: serverError(503, 'protection-unproven', 'Server words.'), text: 'Not answered: the page could not prove that it is private. Nothing was written.', code: 'protection-unproven', title: 'Answer not sent' },
+      { name: '503 bypass-on', reply: serverError(503, 'bypass-on', 'Server words.'), text: 'Not answered: the page could not prove that it is private. Nothing was written.', code: 'bypass-on', title: 'Answer not sent' },
+      { name: '500 misconfigured', reply: serverError(500, 'misconfigured', 'Server words.'), text: 'Not answered: the hosted setup is incomplete.', code: 'misconfigured', title: 'Answer not sent' },
+      { name: '403 wrong-host', reply: serverError(403, 'wrong-host', `Answer from ${ORIGIN_OF_TESTS}.`), text: `Answer from ${ORIGIN_OF_TESTS}.`, code: 'wrong-host', title: 'Answer not sent' },
+      { name: '502 on the comment step', reply: serverError(502, 'forbidden', 'The server token cannot write to the issue.', 'comment'), text: 'The server token cannot write to the issue.', code: 'forbidden', title: 'Answer not posted' },
+      {
+        name: '502 on the label step',
+        reply: serverError(502, 'network', 'GitHub could not be reached. Press Retry.', 'label'),
+        text: 'GitHub could not be reached. Press Retry.',
+        code: 'network',
+        title: 'Answer posted · Label not changed',
+        retryLine: 'Retry does not post the comment again.',
+      },
+      { name: '302 to the Vercel login', reply: { status: 302, body: '', headers: { location: 'https://vercel.com/login?next=x' } }, text: 'Login expired. Reload the page to sign in again.', code: 'login-expired', title: 'Answer not sent' },
+      { name: '401', reply: { status: 401, body: 'Authentication Required', contentType: 'text/html' }, text: 'Login expired. Reload the page to sign in again.', code: 'login-expired', title: 'Answer not sent' },
+    ];
+
+    for (const failure of FAILURES) {
+      test(`14: shows the text for a ${failure.name}, keeps the choice and the note, and offers Retry`, async ({ page }) => {
+        const mock = await mockApi(page, { snapshot: { json: world.snapshot }, live: { json: world.live }, answer: failure.reply });
+        await page.goto('/decisions/61');
+        await expect(answerForm(page)).toBeVisible();
+        await fillAnswer(page);
+        await answerForm(page).getByRole('button', { name: 'Send answer' }).click();
+
+        const alert = answerForm(page).getByRole('alert');
+        await expect(alert).toContainText(failure.title);
+        await expect(alert).toContainText(failure.text);
+        await expect(alert).toContainText(failure.code);
+        if (failure.retryLine !== undefined) await expect(alert).toContainText(failure.retryLine);
+        // The form keeps what Mark typed, and the button is Retry.
+        await expect(answerForm(page).getByRole('radio', { name: /Option B/ })).toBeChecked();
+        await expect(answerForm(page).getByLabel('Note (optional)')).toHaveValue(NOTE);
+        await expect(answerForm(page).getByRole('button', { name: 'Retry' })).toBeEnabled();
+        // Nothing shows the decision as answered.
+        await expect(page.getByRole('region', { name: 'Answer', exact: true })).toHaveCount(0);
+        expect(mock.hits.answer).toHaveLength(1);
+        await expectNoSidewaysScroll(page);
+      });
+    }
+
+    test('11: Retry after a failed label step posts the same request again, and the answer then shows', async ({ page }) => {
+      const mock = await mockApi(page, {
+        snapshot: { json: world.snapshot },
+        live: { json: world.live },
+        answer: serverError(502, 'network', 'GitHub could not be reached. Press Retry.', 'label'),
+      });
+      await page.goto('/decisions/61');
+      await fillAnswer(page);
+      await answerForm(page).getByRole('button', { name: 'Send answer' }).click();
+      await expect(answerForm(page).getByRole('alert')).toContainText('Answer posted · Label not changed');
+
+      mock.answer = { json: written };
+      await answerForm(page).getByRole('button', { name: 'Retry' }).click();
+      await expect(page.getByRole('region', { name: 'Answer', exact: true })).toContainText('Answered B');
+      expect(mock.hits.answer.map((hit) => hit.body)).toEqual([
+        { number: 61, option: 'B', note: NOTE },
+        { number: 61, option: 'B', note: NOTE },
+      ]);
+    });
+
+    test('disables the button while the request runs, so a double click sends one request', async ({ page }) => {
+      const mock = await mockApi(page, { snapshot: { json: world.snapshot }, live: { json: world.live }, answer: { json: written, delayMs: 400 } });
+      await page.goto('/decisions/61');
+      await fillAnswer(page);
+      const send = answerForm(page).getByRole('button', { name: 'Send answer' });
+      await send.dblclick();
+      await expect(page.getByRole('region', { name: 'Answer', exact: true })).toContainText('Answered B');
+      expect(mock.hits.answer).toHaveLength(1);
+    });
+
+    test('shows a decision that the snapshot already has as answered with no form', async ({ page }) => {
+      const answered = decision(62, { state: 'answered', question: 'Answered already?', answer: { option: 'A', note: null, at: '2026-10-12T10:00:00.000Z', complete: true } });
+      await mockApi(page, { snapshot: { json: snapshot({ decisions: { open: [], recent: [answered] } }) }, live: { json: world.live } });
+      await page.goto('/decisions/62');
+      await expect(page.getByRole('region', { name: 'Answer', exact: true })).toContainText('Answered A');
+      await expect(answerForm(page)).toHaveCount(0);
+    });
+  });
+}

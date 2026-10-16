@@ -1,13 +1,19 @@
 import { Button, Label, Radio, RadioGroup, TextArea, TextField } from '@heroui/react';
 import { LoaderCircle, Send, TriangleAlert } from 'lucide-react';
 import { type FormEvent, useCallback, useState } from 'react';
-import { type AnswerStep, type DecisionIssue, MAX_NOTE_CHARS } from '../../shared/types';
+import { type AnswerStep, type DecisionAnswer, type DecisionIssue, MAX_NOTE_CHARS } from '../../shared/types';
 import { ApiError, postJson } from '../api';
+import { answerOf, sendHostedAnswer } from '../hosted/answer';
 import { OptionBadge, RecommendedChip } from './DecisionCard';
 
 // How Mark answers a decision: he picks an option, adds a note if he wants, and sends it. The server then posts a
 // comment on the GitHub issue, swaps its label and closes it (three calls, one after the other, and any of them can fail).
 // When one fails the form shows the error and keeps his choice and his note, and a retry carries on where the answer stopped.
+//
+// The same form serves the hosted page (VITE_HOSTED=1), which posts to the function `/api/answer` instead of the local server (src/web/hosted/answer.ts). The flag is a constant of
+// the build, so each build keeps only its own way to send, and the hosted build holds no trace of the local write token.
+
+const HOSTED = import.meta.env.VITE_HOSTED === '1';
 
 /** Why an answer did not go through. `step` is the write that failed (the ones before it are done), or null when nothing was written (a refusal, a lost connection). */
 export type AnswerFailure = { step: AnswerStep | null; code: string; message: string };
@@ -22,6 +28,8 @@ export type AnswerDraft = {
   note: string | null;
   status: 'idle' | 'sending' | 'failed' | 'sent';
   failure: AnswerFailure | null;
+  /** The hosted page only: the answer as the function wrote it, so that the page shows the decision as answered before the snapshot (up to 15 s old) catches up. Always null on the local page. */
+  answered: DecisionAnswer | null;
   setChoice(id: string): void;
   setNote(text: string): void;
   send(option: string, note: string): Promise<void>;
@@ -48,25 +56,38 @@ export function useAnswerDraft(number: number, onWritten: () => void): AnswerDra
   const [note, setNote] = useState<string | null>(null);
   const [status, setStatus] = useState<AnswerDraft['status']>('idle');
   const [failure, setFailure] = useState<AnswerFailure | null>(null);
+  const [answered, setAnswered] = useState<DecisionAnswer | null>(null);
 
   const send = useCallback(
     async (option: string, text: string) => {
       setStatus('sending');
       setFailure(null);
-      try {
-        // The token of this run goes with it (postJson reads it from the page). A note that is empty is left out.
-        await postJson(`/api/decisions/${number}/answer`, text.trim() === '' ? { option } : { option, note: text });
-        setStatus('sent');
-      } catch (error) {
-        setStatus('failed');
-        setFailure(failureOf(error));
+      if (HOSTED) {
+        // The hosted page: the function checks the request and writes the answer; its reply carries the answer, which the page shows at once.
+        const sent = await sendHostedAnswer(number, option, text);
+        if (sent.ok) {
+          setAnswered(answerOf(sent.answer));
+          setStatus('sent');
+        } else {
+          setStatus('failed');
+          setFailure(sent.failure);
+        }
+      } else {
+        try {
+          // The token of this run goes with it (postJson reads it from the page). A note that is empty is left out.
+          await postJson(`/api/decisions/${number}/answer`, text.trim() === '' ? { option } : { option, note: text });
+          setStatus('sent');
+        } catch (error) {
+          setStatus('failed');
+          setFailure(failureOf(error));
+        }
       }
       onWritten();
     },
     [number, onWritten],
   );
 
-  return { choice, note, status, failure, setChoice, setNote, send };
+  return { choice, note, status, failure, answered, setChoice, setNote, send };
 }
 
 /** What a failed step means for the answer, as labels: the steps that are done before it, then the step that failed. */
