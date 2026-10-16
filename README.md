@@ -6,7 +6,7 @@
 Four runners, one "simple" job, and a drowned city that does not forgive mistakes.
 
 [![CI](https://github.com/markhazlewood42/shadow-jog/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/markhazlewood42/shadow-jog/actions/workflows/ci.yml)
-![version](https://img.shields.io/badge/version-0.2.0--dev-7a3cff)
+![version](https://img.shields.io/github/package-json/v/markhazlewood42/shadow-jog?label=version&color=7a3cff)
 ![status](https://img.shields.io/badge/status-Chapter%201%20alpha-ff2f92)
 
 <img src="docs/readme/combo.webp" alt="A three-part combo attack in a Shadow Jog street battle" width="840">
@@ -96,4 +96,4 @@ The demo needs the 2D art and the 3D hacking mode, after Mark plays through Chap
 - **Built on:** [PixiJS](https://pixijs.com), [Three.js](https://threejs.org), [Vite](https://vitejs.dev) and [Playwright](https://playwright.dev).
 - The setting borrows the feel of the genre. Every name, place and term is original.
 
-This repository has no license file yet, so all rights are reserved until one is added. You can still read the code and fork it on GitHub.
+This repository has no license file yet, so all rights are reserved until one is added. GitHub's terms still let you view and fork it on GitHub.
