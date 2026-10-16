@@ -5,7 +5,7 @@
  *
  * Everything is driven by the tick (`update()` runs once per tick), never by the wall clock, so the same inputs give the same
  * picture whatever the frame rate. The wash is one full-screen `Graphics` inside the camera's own `world` container, at a depth above
- * everything in the world and below the scene's `ui`. So a fade or flash washes the world only, as the old engine does.
+ * everything in the world and below the scene's `ui`. So a fade or flash washes the world only, as the old engine did.
  *
  * Not built yet (on demand): `pan`, `zoomTo`, `fadeIn`/`fadeOut` completion events and `resetFX`.
  */
