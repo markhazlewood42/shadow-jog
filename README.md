@@ -34,21 +34,14 @@ Four runners, one "simple" job, and a drowned city that does not forgive mistake
 ## What works today
 
 - **Combat with combos.** Round-based battles with techniques, skills, items and weaknesses by enemy family. Pick the right pair of crew actions in one round and they fuse into a named combo.
-- **A 3D hacking mode.** A low-poly 3D scene (Three.js) that the 2D game jumps into with a glitch transition. The engine and the transition are built and tested. Chapter 1 does not use them yet: the test scene shown below is a developer entry (`?scene=hack`).
-- **Its own engine.** PixiJS v8 for 2D and Three.js for 3D, at 640x360 with whole-pixel scaling. The move to this engine finished in milestone M8 (2026-10-16).
+- **Its own engine.** PixiJS v8 for 2D and Three.js for 3D, at 640x360 with whole-pixel scaling. The move to this engine finished on 2026-10-16.
 - **Audio made in code.** The music and sound effects are generated at runtime.
 - **Editor tools** for the people who make the game: a Battle Stage Editor, an Animation editor, an FX lab and an Art review page.
 - **Quality of life.** Save anywhere on the field, autosave, retry a lost battle, dash, rebindable keys.
 
-<p align="center">
-  <img src="docs/readme/glitch-jump.webp" alt="The 2D town glitches into the 3D hacking scene" width="420">
-  <img src="docs/readme/hack-3d.png" alt="The 3D hacking scene: a low-poly runner on a neon grid" width="420">
-  <br><sub>The jump from the 2D town into the 3D hacking scene, and the scene itself (test hack).</sub>
-</p>
-
 ## Play it locally
 
-You need Node.js and npm.
+You need Node.js 24 and npm.
 
 ```bash
 npm install
@@ -63,7 +56,7 @@ Run the shipped build instead with `npm run build && npm run preview` (http://lo
 | Confirm / talk | Z, Enter, Space | A / Cross |
 | Cancel | X, Esc, Backspace | B / Circle |
 | Menu | C, Tab | Y / Triangle, Start |
-| Dash (hold) | Shift | X / Square, RB |
+| Dash (hold) | Shift | X / Square, RB, RT |
 | Fullscreen | F | |
 
 Keys are rebindable in Options, Controls.
@@ -74,12 +67,12 @@ Chapter 1 is the alpha. Four epics lead to a demo that others can play:
 
 | Epic | What it is |
 |---|---|
-| [E1: 2D art and maps](https://github.com/markhazlewood42/shadow-jog/issues/102) | A consistent art style, a tileset format and map tools |
-| [E2: 3D hacking mode](https://github.com/markhazlewood42/shadow-jog/issues/103) | Make the hacking mode a real part of the game |
-| [E3: Editor suite](https://github.com/markhazlewood42/shadow-jog/issues/104) | Dialogue, map and event editors |
-| [E4: Engine docs](https://github.com/markhazlewood42/shadow-jog/issues/105) | The engine, explained for people who learn from it |
+| [2D art and maps](https://github.com/markhazlewood42/shadow-jog/issues/102) | A consistent art style, a tileset format and map tools |
+| [3D hacking mode](https://github.com/markhazlewood42/shadow-jog/issues/103) | A real-time 3D hacking mode inside the 2D game |
+| [Editor suite](https://github.com/markhazlewood42/shadow-jog/issues/104) | Dialogue, map and event editors |
+| [Engine docs](https://github.com/markhazlewood42/shadow-jog/issues/105) | The engine, explained for people who learn from it |
 
-The demo cut is E1 and E2, after the author plays through Chapter 1 end to end. See the [roadmap picture](docs/roadmap/roadmap.svg) and [its table](docs/roadmap/README.md). Work tracking lives in a GitHub project and in the issues.
+The demo needs the 2D art and the 3D hacking mode, after Mark plays through Chapter 1 end to end. See the [roadmap picture](docs/roadmap/roadmap.svg) and [the roadmap table](docs/roadmap/README.md). Work tracking lives in a GitHub project and in the issues.
 
 ## For developers
 
@@ -98,9 +91,9 @@ The demo cut is E1 and E2, after the author plays through Chapter 1 end to end. 
 
 - **Design and direction:** Mark Hazlewood.
 - **Built with [Claude Code](https://claude.com/claude-code).** The code is written by AI agents under Mark's direction, and independent verifier agents check each build.
-- **Art:** the characters are drawn in code. Many tiles and props are AI-generated picks from the PixelLab art pass, and the crew idle sheets come from Sprite Fusion. New 2D art comes from Sprite Fusion or other sources. Sprite Fusion's terms allow use in a distributed game.
+- **Art:** the characters are drawn in code. Many tiles and props are AI-generated picks from an earlier PixelLab art pass. The crew idle sheets come from Sprite Fusion, whose terms allow use in a distributed game. New 2D art comes from Sprite Fusion or other sources.
 - **Music and sound:** generated in code.
 - **Built on:** [PixiJS](https://pixijs.com), [Three.js](https://threejs.org), [Vite](https://vitejs.dev) and [Playwright](https://playwright.dev).
 - The setting borrows the feel of the genre. Every name, place and term is original.
 
-This repository has no license file yet, so all rights are reserved until one is added.
+This repository has no license file yet, so all rights are reserved until one is added. You can still read the code and fork it on GitHub.
