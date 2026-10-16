@@ -37,6 +37,8 @@ export class FakeWorld {
   viewer: { login: string; id: number } = { login: MARK, id: MARK_ID };
   /** What `GET /user` does: a reply, or a failure. */
   userMode: 'ok' | 'status-500' | 'throw' | 'timeout' | 'not-json' = 'ok';
+  /** The `x-oauth-scopes` header that `GET /user` sends: GitHub sends it for a classic token (the value can be empty) and not for a fine-grained one. */
+  userScopes: string | null = null;
   probe: ProbeReply = { status: 302, location: 'https://vercel.com/sso-api?url=x&nonce=1' };
   /** Makes the next REST write with this method and path suffix answer with a status (once). */
   failWrite: { method: string; suffix: string; status: number; times: number } | null = null;
@@ -99,7 +101,7 @@ export class FakeWorld {
     if (this.userMode === 'timeout') throw Object.assign(new Error('timed out'), { name: 'TimeoutError' });
     if (this.userMode === 'status-500') return this.reply(500, { message: `server error, token was ${SENTINEL}` });
     if (this.userMode === 'not-json') return this.reply(200, 'not json');
-    return this.reply(200, { login: this.viewer.login, id: this.viewer.id });
+    return this.reply(200, { login: this.viewer.login, id: this.viewer.id }, this.userScopes === null ? {} : { 'x-oauth-scopes': this.userScopes });
   }
 
   private answerGraphql({ query, variables }: { query: string; variables: Record<string, unknown> }) {

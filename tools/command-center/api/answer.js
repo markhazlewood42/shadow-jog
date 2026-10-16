@@ -8336,6 +8336,7 @@ async function checkTokenOwner(send, token) {
   try {
     const response = await send(`${API}/user`, { method: "GET", headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "User-Agent": "shadow-jog-command-center" } });
     if (!response.ok) return { ok: false, reason: "github" };
+    if (response.headers.get("x-oauth-scopes") !== null) return { ok: false, reason: "wrong-owner" };
     const body = JSON.parse(await response.text());
     if (!isRecord4(body) || typeof body.login !== "string" || typeof body.id !== "number") return { ok: false, reason: "github" };
     return body.login.toLowerCase() === MARK_ACCOUNT.login && body.id === MARK_ACCOUNT.id ? { ok: true } : { ok: false, reason: "wrong-owner" };
@@ -8369,11 +8370,35 @@ async function protectionProven(send, origin) {
     return false;
   }
 }
+async function readCapped(request, max) {
+  if (request.body === null) return new Uint8Array(0);
+  const reader = request.body.getReader();
+  const chunks = [];
+  let total = 0;
+  for (; ; ) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.length;
+    if (total > max) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(total);
+  let at = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, at);
+    at += chunk.length;
+  }
+  return bytes;
+}
 async function readBody2(request) {
   const declared = Number(request.headers.get("content-length"));
   if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) return refuse(413, "too-large", say("requestTooLarge", { max: MAX_BODY_BYTES }));
-  const text3 = await request.text();
-  if (new TextEncoder().encode(text3).length > MAX_BODY_BYTES) return refuse(413, "too-large", say("requestTooLarge", { max: MAX_BODY_BYTES }));
+  const bytes = await readCapped(request, MAX_BODY_BYTES);
+  if (bytes === null) return refuse(413, "too-large", say("requestTooLarge", { max: MAX_BODY_BYTES }));
+  const text3 = new TextDecoder().decode(bytes);
   let body;
   try {
     body = JSON.parse(text3);

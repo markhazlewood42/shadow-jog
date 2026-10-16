@@ -73,12 +73,39 @@ async function protectionProven(send: HttpFetch, origin: string): Promise<boolea
 
 type Wanted = { number: number; option: string; note: string | null };
 
+/** The bytes of the body, or null when it is over `max` bytes. The read stops at the first chunk that passes the cap, so a body of any size costs at most `max` plus one chunk. */
+async function readCapped(request: Request, max: number): Promise<Uint8Array | null> {
+  if (request.body === null) return new Uint8Array(0);
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.length;
+    if (total > max) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(total);
+  let at = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, at);
+    at += chunk.length;
+  }
+  return bytes;
+}
+
 /** The body of the request, or the answer to send back when it is not one this function can take. */
 async function readBody(request: Request): Promise<Wanted | Response> {
   const declared = Number(request.headers.get('content-length'));
   if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) return refuse(413, 'too-large', say('requestTooLarge', { max: MAX_BODY_BYTES }));
-  const text = await request.text();
-  if (new TextEncoder().encode(text).length > MAX_BODY_BYTES) return refuse(413, 'too-large', say('requestTooLarge', { max: MAX_BODY_BYTES }));
+  // Content-Length can be missing or false, so the body is read as a stream and the read stops at the cap.
+  const bytes = await readCapped(request, MAX_BODY_BYTES);
+  if (bytes === null) return refuse(413, 'too-large', say('requestTooLarge', { max: MAX_BODY_BYTES }));
+  const text = new TextDecoder().decode(bytes);
   let body: unknown;
   try {
     body = JSON.parse(text);

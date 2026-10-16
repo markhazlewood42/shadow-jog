@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ANSWER_URL, PROTECTION_MESSAGE, SETUP_MESSAGE, answerFailureOf, answerOf, sendHostedAnswer } from '../src/web/hosted/answer';
+import { ANSWER_URL, PROTECTION_MESSAGE, SETUP_MESSAGE, UNAVAILABLE_MESSAGE, answerFailureOf, answerOf, sendHostedAnswer } from '../src/web/hosted/answer';
 import { type FetchFn, LOGIN_MESSAGE, postHostedJson } from '../src/web/hosted/fetch';
 
 // How the hosted page sends Mark's answer and sorts what comes back (src/web/hosted/fetch.ts and answer.ts). The browser is replaced by a small fake `fetch`.
@@ -64,10 +64,14 @@ describe('postHostedJson', () => {
 describe('answerFailureOf', () => {
   const error = (status: number, serverCode: string, message: string, step?: string) => ({ kind: 'http' as const, code: serverCode, serverCode, message, status, ...(step === undefined ? {} : { step }) });
 
-  it('uses the page words for every 503 and for 500 misconfigured, and no step', () => {
+  it('uses the page words for the two protection 503s and for 500 misconfigured, and no step', () => {
     expect(answerFailureOf(error(503, 'protection-unproven', 'x'))).toEqual({ step: null, code: 'protection-unproven', message: PROTECTION_MESSAGE });
     expect(answerFailureOf(error(503, 'bypass-on', 'x'))).toEqual({ step: null, code: 'bypass-on', message: PROTECTION_MESSAGE });
     expect(answerFailureOf(error(500, 'misconfigured', 'x'))).toEqual({ step: null, code: 'misconfigured', message: SETUP_MESSAGE });
+    // Any other 503 (a platform error, with or without a JSON body) does not claim a privacy failure.
+    expect(answerFailureOf({ kind: 'http', code: 'http-503', message: 'The server answered 503.', status: 503 })).toEqual({ step: null, code: 'http-503', message: UNAVAILABLE_MESSAGE });
+    expect(answerFailureOf(error(503, 'rate-limited', 'x'))).toEqual({ step: null, code: 'rate-limited', message: UNAVAILABLE_MESSAGE });
+    expect(UNAVAILABLE_MESSAGE).toBe('Not answered: the server is unavailable. Nothing was written.');
     expect(PROTECTION_MESSAGE).toBe('Not answered: the page could not prove that it is private. Nothing was written.');
     expect(SETUP_MESSAGE).toBe('Not answered: the hosted setup is incomplete.');
   });

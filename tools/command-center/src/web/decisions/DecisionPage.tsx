@@ -107,6 +107,8 @@ function DecisionView({ detail, draft }: { detail: DecisionDetail; draft: Return
   return (
     <div className="flex flex-col gap-8">
       <DecisionCard issue={shown} />
+      {/* Two tabs can post different options, and the newest comment wins, so the page asks Mark to confirm what GitHub holds. */}
+      {draft.answered !== null && <Notice>Reload to confirm.</Notice>}
       {answerable ? <AnswerForm issue={shown} draft={draft} /> : <OptionList issue={shown} />}
       <LinkedDocs detail={shown} />
     </div>

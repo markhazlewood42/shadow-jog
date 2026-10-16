@@ -143,11 +143,15 @@ export const MARK_ACCOUNT = { login: 'markhazlewood42', id: 79615015 } as const;
 
 export type Viewer = { ok: true } | { ok: false; reason: 'wrong-owner' | 'github' };
 
-/** `GET /user` with the token: it must belong to Mark's account (login and id). A failed call, or an answer that is not understood, is `github`. */
+/**
+ * `GET /user` with the token: it must belong to Mark's account (login and id). A failed call, or an answer that is not understood, is `github`.
+ * A reply with an `x-oauth-scopes` header means a classic token (fine-grained tokens do not send it), which reaches every repo of the account: that is `wrong-owner`, so no write happens.
+ */
 export async function checkTokenOwner(send: HttpFetch, token: string): Promise<Viewer> {
   try {
     const response = await send(`${API}/user`, { method: 'GET', headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'User-Agent': 'shadow-jog-command-center' } });
     if (!response.ok) return { ok: false, reason: 'github' };
+    if (response.headers.get('x-oauth-scopes') !== null) return { ok: false, reason: 'wrong-owner' };
     const body: unknown = JSON.parse(await response.text());
     if (!isRecord(body) || typeof body.login !== 'string' || typeof body.id !== 'number') return { ok: false, reason: 'github' };
     return body.login.toLowerCase() === MARK_ACCOUNT.login && body.id === MARK_ACCOUNT.id ? { ok: true } : { ok: false, reason: 'wrong-owner' };

@@ -479,6 +479,8 @@ for (const [label, size] of [
       const answer = page.getByRole('region', { name: 'Answer', exact: true });
       await expect(answer).toContainText('Answered B');
       await expect(answer).toContainText(NOTE);
+      // Two tabs can post different options and the newest comment wins, so the page asks Mark to reload.
+      await expect(page.getByText('Reload to confirm.')).toBeVisible();
       await expect(answerForm(page)).toHaveCount(0);
       expect(mock.hits.answer).toEqual([{ body: { number: 61, option: 'B', note: NOTE }, contentType: 'application/json', method: 'POST' }]);
       await expectNoSidewaysScroll(page);

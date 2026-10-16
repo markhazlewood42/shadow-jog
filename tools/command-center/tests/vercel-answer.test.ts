@@ -243,6 +243,29 @@ describe('pass line 7: cross-site and media type', () => {
     expect(world.githubCalls).toEqual([]);
   });
 
+  it('stops reading a body without Content-Length at the cap and gives 413, whatever its size', async () => {
+    const { world } = setup();
+    let pulled = 0;
+    // A stream that never ends and has no Content-Length: a read of the whole body would never return.
+    const endless = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulled += 1;
+        controller.enqueue(new Uint8Array(4096).fill(120));
+      },
+    });
+    const request = new Request(`${ORIGIN}/api/answer`, {
+      method: 'POST',
+      headers: { host: HOST, 'content-type': 'application/json', origin: ORIGIN, 'sec-fetch-site': 'same-origin' },
+      body: endless,
+      duplex: 'half',
+    } as RequestInit);
+    expect(request.headers.get('content-length')).toBeNull();
+    const response = await handleAnswer(request, { env: env(), fetchImpl: world.fetch });
+    expect(response.status).toBe(413);
+    expect(pulled).toBeLessThan(20);
+    expect(world.githubCalls).toEqual([]);
+  });
+
   it('refuses a method other than POST with 405 and Allow: POST', async () => {
     const { world, send } = setup();
     const response = await send(null, {}, env(), { method: 'GET' });
@@ -274,6 +297,24 @@ describe('pass line 8: token owner', () => {
     expect((await errorOf(response)).code).toBe('github');
     expect(world.writes).toEqual([]);
     expect(world.graphqlQueries).toEqual([]);
+  });
+
+  it('gives 500 misconfigured and no write when GET /user carries x-oauth-scopes (a classic token), even with an empty value', async () => {
+    for (const scopes of ['repo, read:user', '']) {
+      const { world, send } = setup();
+      world.userScopes = scopes;
+      const response = await send({ number: 41, option: 'B' });
+      expect(response.status).toBe(500);
+      expect((await errorOf(response)).code).toBe('misconfigured');
+      expect(world.writes).toEqual([]);
+      expect(world.graphqlQueries).toEqual([]);
+    }
+  });
+
+  it('accepts a token whose GET /user has no x-oauth-scopes header (a fine-grained token)', async () => {
+    const { world, send } = setup();
+    expect(world.userScopes).toBeNull();
+    expect((await send({ number: 41, option: 'B' })).status).toBe(200);
   });
 
   it('accepts the login in any case when the id is right', async () => {

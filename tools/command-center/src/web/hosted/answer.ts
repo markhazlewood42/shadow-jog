@@ -16,15 +16,17 @@ export type HostedAnswerReply = { ok: true; answer: { option: string; note: stri
 
 const isStep = (value: unknown): value is AnswerStep => value === 'comment' || value === 'label' || value === 'close';
 
-/** 503 `protection-unproven` and `bypass-on`: the function could not prove that the page is private, so it wrote nothing. */
+/** 503 `protection-unproven` and `bypass-on` (only these two): the function could not prove that the page is private, so it wrote nothing. */
 export const PROTECTION_MESSAGE = 'Not answered: the page could not prove that it is private. Nothing was written.';
+/** Any other 503 (a platform error): the function may not have run, so the page says only that the server is unavailable. */
+export const UNAVAILABLE_MESSAGE = 'Not answered: the server is unavailable. Nothing was written.';
 /** 500 `misconfigured`: the Vercel settings are missing or wrong, so the function wrote nothing. */
 export const SETUP_MESSAGE = 'Not answered: the hosted setup is incomplete.';
 
 /** The failure to show for an error of the request. The sentences of the function are fixed; the page uses its own words for the cases that the brief names. */
 export function answerFailureOf(error: HostedError): HostedAnswerFailure {
   const step = isStep(error.step) ? error.step : null;
-  if (error.status === 503) return { step: null, code: error.code, message: PROTECTION_MESSAGE };
+  if (error.status === 503) return { step: null, code: error.code, message: error.serverCode === 'protection-unproven' || error.serverCode === 'bypass-on' ? PROTECTION_MESSAGE : UNAVAILABLE_MESSAGE };
   if (error.status === 500 && error.serverCode === 'misconfigured') return { step: null, code: error.code, message: SETUP_MESSAGE };
   // 403 `wrong-host` carries its own sentence: "Answer from <the hosted address>." A failed step (502) names the step through STEP_LABEL in the form, and keeps the sentence.
   return { step, code: error.code, message: error.message };

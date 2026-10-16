@@ -131,6 +131,7 @@ Three fresh verifiers against these pass lines, each with the engineer pack thro
    - No Shareable Links exist.
    - Protection Bypass for Automation is off.
    - No external users have access.
+   - After any change here, redeploy. The bypass variable is seen only by a new deployment.
 4. Do not paste a token into chat, issues or commits.
 
 ## Where to build
@@ -147,7 +148,7 @@ The `projects/shadow-jog` checkout is busy (another session, branch `roadmap-syn
 
 ## Out of scope
 
-Other write actions on the hosted page. Changes to the local CC behavior. Changes to Vercel Authentication. A shared store for locks.
+Other write actions on the hosted page. Changes to the local CC behavior. Changes to Vercel Authentication. A shared store for locks. CSP and frame-ancestors headers on the hosted page (named for a later PR, attacker finding M1).
 
 ## History
 
