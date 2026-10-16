@@ -314,14 +314,26 @@
       "notes": "After Chapter 1. New UI editors so Mark builds the game mostly in tools: troops, database, maps, conversations, animation composer, lights and weather. Plan: docs/TOOLING-UI.md section 4."
     },
     {
+      "id": "P101",
+      "tag": "#101",
+      "label": "Chapter 1 playthrough",
+      "lane": "epics",
+      "status": "next",
+      "after": [],
+      "column": 0,
+      "notes": "Step 1. Mark plays Chapter 1, then fixes, release and deploy. Issue https://github.com/markhazlewood42/shadow-jog/issues/101. No epic starts before #101 closes. Next: Mark answers the epic decisions, then plays."
+    },
+    {
       "id": "E1",
       "tag": "Epic",
       "label": "2D art and maps",
       "lane": "epics",
       "status": "next",
-      "after": [],
-      "column": 0,
-      "notes": "Redo all 2D assets in the Sprite Fusion style, with one quality bar across 2D mode. Find or make a real tileset for maps at two scales (in-town and overworld), learning heavily from RPG Maker. Ends with a full game walkthrough with Mark's notes."
+      "after": [
+        "P101"
+      ],
+      "column": 2,
+      "notes": "Approved 2026-10-16. Brief: https://github.com/markhazlewood42/shadow-jog/issues/102. Decisions: #106 to #111. Step 3: WS0 to WS2 (decisions, style checker, tileset format). WS3 to WS5 follow in step 4. Waits on #101."
     },
     {
       "id": "E2",
@@ -329,9 +341,11 @@
       "label": "3D hacking mode",
       "lane": "epics",
       "status": "next",
-      "after": [],
-      "column": 1,
-      "notes": "Design a first draft of hacking in 3D mode: find or make 3D assets, build the gameplay (Mark has notes on visuals and gameplay), and add at least one hacking mission to the Chapter 1 story."
+      "after": [
+        "P101"
+      ],
+      "column": 3,
+      "notes": "Approved 2026-10-16. Brief: https://github.com/markhazlewood42/shadow-jog/issues/103. Decisions: #112 to #119. Step 3: WS-A feel prototype beside E1. WS-B to WS-F follow in step 4. Waits on #101."
     },
     {
       "id": "E3",
@@ -339,9 +353,11 @@
       "label": "Editor suite",
       "lane": "epics",
       "status": "next",
-      "after": [],
-      "column": 2,
-      "notes": "An RPG Maker-like editor suite. First review and improve every existing tool and editor for use and clarity (a clear purpose and workflow each). Then add tools to build more chapters. Builds on the Editors milestone."
+      "after": [
+        "E1"
+      ],
+      "column": 4,
+      "notes": "Approved 2026-10-16. Brief: https://github.com/markhazlewood42/shadow-jog/issues/104. Decisions: #120 to #126. W0 to W3 in step 4. W4 to W5 in step 5. W5 waits for the approved E1 map format doc."
     },
     {
       "id": "E4",
@@ -349,9 +365,24 @@
       "label": "Engine docs",
       "lane": "epics",
       "status": "next",
-      "after": [],
-      "column": 3,
-      "notes": "Side project. Document and diagram the engine architecture, add code comments so Mark can read the code, and simplify the docs."
+      "after": [
+        "P101"
+      ],
+      "column": 1,
+      "notes": "Approved 2026-10-16. Brief: https://github.com/markhazlewood42/shadow-jog/issues/105. Decisions: #127 to #132. Step 2: the comment standard and stale CLAUDE.md lines first. The rest runs beside the other epics. Waits on #101."
+    },
+    {
+      "id": "Demo",
+      "tag": "Demo",
+      "label": "Final demo",
+      "lane": "epics",
+      "status": "later",
+      "after": [
+        "E3",
+        "E2"
+      ],
+      "column": 5,
+      "notes": "Step 6. A final integrated playthrough and demo release. Owner: a follow-up issue. Demo cut: #101 + E1 + E2."
     }
   ]
 }
