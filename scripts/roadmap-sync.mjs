@@ -9,7 +9,16 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { columnsOf, generate, validate } from './gen-roadmap.mjs';
+import { buildReadme, buildSvg, columnsOf, generate, validate } from './gen-roadmap.mjs';
+
+/** A file's text, or null when it cannot be read. */
+const readOrNull = (path) => {
+  try {
+    return readFileSync(path, 'utf8');
+  } catch {
+    return null; // a missing chart file counts as drift
+  }
+};
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIR = join(ROOT, 'docs', 'roadmap');
@@ -55,7 +64,7 @@ export function defaultGh(args) {
 }
 
 /** A failed gh call that comes from a missing login or a missing scope. */
-const isAuthError = (error) => /(not logged|gh auth|auth login|missing required scopes?|required scopes?|insufficient_scopes|credential|authenticat|HTTP 401|requires? .*token)/i.test(error instanceof Error ? error.message : String(error));
+const isAuthError = (error) => /(not logged into|gh auth login|gh auth refresh|missing required scopes?|insufficient_scopes|HTTP 401|Bad credentials)/i.test(error instanceof Error ? error.message : String(error));
 
 class SyncError extends Error {}
 
@@ -73,7 +82,7 @@ function readGraphql(gh) {
   let cursor = null;
   for (let page = 0; page < 50; page++) {
     const args = ['api', 'graphql', '-F', `owner=${OWNER}`, '-F', `number=${PROJECT_NUMBER}`, '-f', `query=${QUERY}`];
-    if (cursor !== null) args.push('-F', `cursor=${cursor}`);
+    if (cursor !== null) args.push('-f', `cursor=${cursor}`); // -f: a raw string, so gh never reads the cursor as a number or a file
     const json = parseJson(gh(args), 'the board data');
     const items = json?.data?.user?.projectV2?.items;
     if (!items || !Array.isArray(items.nodes)) throw new SyncError('gh returned board data in an unknown shape. The file is unchanged.');
@@ -115,7 +124,8 @@ function readItemList(gh) {
   if (items.length >= PAGE) throw new SyncError(`The board has ${PAGE} items or more. The fallback cannot page. The file is unchanged.`);
   return items.map((item) => {
     const content = item?.content;
-    if (!content || typeof content.number !== 'number') return null;
+    // Only issues, as the GraphQL path does: a pull request or a draft is skipped.
+    if (!content || content.type !== 'Issue' || typeof content.number !== 'number') return null;
     return {
       number: content.number,
       url: content.url,
@@ -221,12 +231,14 @@ export function mergeBoard(current, entries) {
       issue: entry.number,
       title: entry.title,
       boardKind: entry.kind ?? undefined,
-      status: statusOf(entry),
+      // A hand-set `optional` survives a Backlog board Status (the board has no optional). Any other board status overwrites.
+      status: item.status === 'optional' && statusOf(entry) === 'later' ? 'optional' : statusOf(entry),
       state: entry.state ?? item.state,
       url: entry.url,
       parent: fallback ? item.parent : (entry.parent ?? undefined),
       group: entry.group ?? undefined,
-      decisions: kindOf(entry) === 'Epic' && !fallback ? present.filter((c) => c.parent === entry.number && isOpenDecision(c)).length : item.decisions,
+      // Only an Epic has a count. An item that stopped being an Epic loses the key. The fallback cannot count, so an Epic keeps its old value.
+      decisions: kindOf(entry) !== 'Epic' ? undefined : fallback ? item.decisions : present.filter((c) => c.parent === entry.number && isOpenDecision(c)).length,
     };
     for (const key of OVERWRITE) item[key] = values[key];
   };
@@ -292,7 +304,7 @@ export function syncRoadmap({ gh = defaultGh, dir = DIR, check = false, today = 
     } catch (error) {
       if (error instanceof SyncError) throw error;
       if (isAuthError(error)) return fail(`The gh login is missing or has no project scope. Run: ${AUTH_FIX}`);
-      lines.push('The GraphQL call failed. Used the gh project item-list fallback: parent, state and PRs are not updated.');
+      lines.push('The GraphQL call failed. Used the gh project item-list fallback: parent, state, PRs and decision counts are not refreshed.');
       try {
         entries = readItemList(gh);
       } catch (inner) {
@@ -316,8 +328,13 @@ export function syncRoadmap({ gh = defaultGh, dir = DIR, check = false, today = 
     result.changed = !unchanged;
     if (check) {
       if (result.changed) lines.push('roadmap.json is out of date. Run: npm run roadmap:sync');
+      // The chart files must match what the generator makes from this data.
+      // The date of the data is not compared (--check ignores "updated"), so it is blanked in both texts.
+      const blank = (text) => (text === null ? null : text.replace(/DATA UPDATED \d{4}-\d{2}-\d{2}/, 'DATA UPDATED -').replace(/^updated: \d{4}-\d{2}-\d{2}/m, 'updated: -'));
+      const drift = [['roadmap.svg', buildSvg(data)], ['README.md', buildReadme(data)]].filter(([name, body]) => blank(readOrNull(join(dir, name))) !== blank(body)).map(([name]) => name);
+      if (drift.length > 0) lines.push(`${drift.join(' and ')} out of date. Run: npm run roadmap:sync`);
       if (merged.stale.length > 0) lines.push('Stale items need a hand fix.');
-      result.code = result.changed || merged.stale.length > 0 ? 1 : 0;
+      result.code = result.changed || drift.length > 0 || merged.stale.length > 0 ? 1 : 0;
       if (result.code === 0) lines.push('roadmap.json is current.');
       return result;
     }

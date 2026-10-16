@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -278,7 +278,7 @@ describe('roadmap sync', () => {
   });
 
   it('falls back to gh project item-list when the GraphQL call fails, and errors at 100 items', () => {
-    const entry = (n: number) => ({ content: { number: n, title: `Item ${n}`, url: `https://github.com/markhazlewood42/shadow-jog/issues/${n}` }, kind: 'Task', status: 'Backlog' });
+    const entry = (n: number) => ({ content: { type: 'Issue', number: n, title: `Item ${n}`, url: `https://github.com/markhazlewood42/shadow-jog/issues/${n}` }, kind: 'Task', status: 'Backlog' });
     const serve =
       (count: number): GhRunner =>
       (args) => {
@@ -348,5 +348,85 @@ describe('roadmap sync', () => {
       syncRoadmap({ gh: fakeGh([page1, withPr(merged)]).gh, dir, today: '2026-10-17' });
       expect(item(data(), '#84').pr).toBe('hand PR');
     });
+  });
+
+  it('--check also fails when roadmap.svg or README.md drifts, and writes nothing', () => {
+    const { dir } = setup((d) => {
+      d.items = d.items.filter((i) => i.id !== 'gone'); // no stale item
+    });
+    syncRoadmap({ gh: fakeGh().gh, dir, today: TODAY });
+    expect(syncRoadmap({ gh: fakeGh().gh, dir, today: TODAY, check: true }).code).toBe(0);
+    const svgPath = join(dir, 'roadmap.svg');
+    const drifted = `${readFileSync(svgPath, 'utf8')}<!-- drift -->\n`;
+    writeFileSync(svgPath, drifted);
+    const result = syncRoadmap({ gh: fakeGh().gh, dir, today: TODAY, check: true });
+    expect(result.code).toBe(1);
+    expect(result.lines.join('\n')).toContain('roadmap.svg');
+    expect(readFileSync(svgPath, 'utf8')).toBe(drifted); // not rewritten
+    writeFileSync(svgPath, drifted.replace('<!-- drift -->\n', ''));
+    unlinkSync(join(dir, 'README.md'));
+    expect(syncRoadmap({ gh: fakeGh().gh, dir, today: TODAY, check: true }).code).toBe(1);
+    expect(readdirSync(dir)).not.toContain('README.md');
+  });
+
+  it('keeps a hand-set optional status on Backlog, but any other board status overwrites it', () => {
+    const { dir, data } = setup((d) => {
+      Object.assign(item(d, 'old-bug'), { issue: 84, status: 'optional' }); // board: Backlog
+      Object.assign(item(d, 'gone'), { issue: 150, status: 'optional' }); // board: Next
+    });
+    syncRoadmap({ gh: fakeGh().gh, dir, today: TODAY });
+    expect(item(data(), 'old-bug').status).toBe('optional');
+    expect(item(data(), 'gone').status).toBe('next');
+  });
+
+  it('passes the page cursor as a raw string with -f', () => {
+    const { dir } = setup();
+    const { gh, calls } = fakeGh();
+    syncRoadmap({ gh, dir, today: TODAY });
+    const args = calls[1] ?? [];
+    expect(args[args.indexOf('cursor=CURSOR1') - 1]).toBe('-f');
+  });
+
+  it('the item-list fallback skips pull requests and drafts', () => {
+    const issue = { content: { type: 'Issue', number: 84, title: 'An issue', url: 'u' }, kind: 'Task', status: 'Backlog' };
+    const pull = { content: { type: 'PullRequest', number: 85, title: 'A PR', url: 'u' }, kind: 'Task', status: 'Backlog' };
+    const draft = { content: { type: 'DraftIssue', title: 'A draft' }, kind: 'Task', status: 'Backlog' };
+    const gh: GhRunner = (args) => {
+      if (args[0] === 'api') throw new Error('GraphQL: broke');
+      return JSON.stringify({ items: [issue, pull, draft] });
+    };
+    const { dir, data } = setup();
+    expect(syncRoadmap({ gh, dir, today: TODAY }).code).toBe(0);
+    expect(data().items.map((i) => i.id)).toContain('#84');
+    expect(data().items.map((i) => i.id)).not.toContain('#85');
+  });
+
+  it('removes decisions from an item that is not an Epic, and the fallback keeps an Epic count', () => {
+    const { dir, data } = setup((d) => {
+      Object.assign(item(d, 'old-bug'), { issue: 97, decisions: 3 }); // #97 is a Bug
+      Object.assign(item(d, 'gone'), { issue: 105, decisions: 4 }); // #105 is an Epic
+    });
+    syncRoadmap({ gh: fakeGh().gh, dir, today: TODAY });
+    expect(item(data(), 'old-bug').decisions).toBeUndefined();
+    expect(item(data(), 'gone').decisions).toBe(1);
+    const list = JSON.stringify({ items: [{ content: { type: 'Issue', number: 105, title: 'Epic E4: Engine docs', url: 'u' }, kind: 'Epic', status: 'Next' }] });
+    const fallback: GhRunner = (args) => {
+      if (args[0] === 'api') throw new Error('GraphQL: broke');
+      return list;
+    };
+    const result = syncRoadmap({ gh: fallback, dir, today: TODAY });
+    expect(result.lines.join('\n')).toContain('not refreshed');
+    expect(item(data(), 'gone').decisions).toBe(1); // kept, not invented
+  });
+
+  it('does not treat a rate-limit message that says "authenticated requests" as an auth error', () => {
+    const { dir } = setup();
+    const result = syncRoadmap({ gh: failing('API rate limit exceeded. Authenticated requests get a higher rate limit. HTTP 403'), dir, today: TODAY });
+    expect(result.code).toBe(1);
+    expect(result.lines.join('\n')).not.toContain(AUTH_FIX);
+    // The real messages still count.
+    for (const message of ['To get started with GitHub CLI, please run: gh auth login', 'HTTP 401: Bad credentials', 'your token has not been granted the required scopes: missing required scopes [project]']) {
+      expect(syncRoadmap({ gh: failing(message), dir, today: TODAY }).lines.join('\n')).toContain(AUTH_FIX);
+    }
   });
 });

@@ -55,7 +55,7 @@ Status map (the board Status decides):
 | Waiting on Mark | `gated` |
 | Done | `done` |
 
-Precedence: if the issue is closed and Status is not Done, `status` is `done` and the script prints a warning (the board is out of date). `state` holds `open` or `closed` from the issue, so a reader can see the clash.
+Precedence: if the issue is closed and Status is not Done, `status` is `done` and the script prints a warning (the board is out of date). `state` holds `open` or `closed` from the issue, so a reader can see the clash. A hand-set `optional` stays when the board says Backlog (the board has no optional); any other board Status overwrites it.
 
 Rules that keep `validate()` passing:
 - `notes` default for a new item: `Board item #N.` Never empty.
