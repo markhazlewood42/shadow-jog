@@ -145,3 +145,15 @@ Lines: exact at least 60, tolerant at least 80, bands. No writer reached toleran
 | 2 | Fix round, 194 lines; Mark's scope and method notes added | All named numbers match records.md | PASS (Haiku fix verifier) | Minor: M2 long number line |
 
 Opus dispatches (Mark, 2026-10-17: Opus standing-approved for research and consult agents on this art project): R1 Sprite Fusion and LLM pixel methods, R2 turnaround craft, R3 sprite grading measures.
+
+## Step 7-1: art-pipeline plan v2 (2026-10-17)
+
+Opus consult (dispatch named per Mark's standing approval) wrote `art-pipeline-plan-v2.md` from `learnings.md` and research R1 to R3: a code-built 3D proxy gives part, light and outline templates plus a structure card per facing; LLM writers paint inside the template from per-part samples of the given; every verdict measures distance to the matching Sprite Fusion reference with tolerant measures. Lean loop, pixel-artist-characters pack.
+
+| Round | What changed | Numbers | Verdict | Named fixes |
+|---|---|---|---|---|
+| 1 | Plan, 166 lines (Opus, effort high); Sonnet verifier | Score 6.0 | FAIL (1 Critical, 7 Important) | C1 T1 proxy fit and samples leak the hidden boxes; I1 reference check could tune the spec; I2 kit scan rejects copy cells; I3 S3 reused the symmetric-mirror classify; I4 template treated as exact; I5 calibration cannot place a fair gate; I6 head line 13 to 15; I7 no technical risk named |
+| 2 | Fix round by the same Opus author, 200 lines; Sonnet fix verifier | I1 to I7 fixed | FAIL (new Critical N1: copy source, S3 and spec author still read the unblanked given in T1) | |
+| 3 | One sentence: every arm 2 input from the given uses the blanked given; Haiku fix verifier | | PASS | Minor: arm 1 inputs stated (done) |
+
+Open for Mark (plan section 8): Q1 spike frame (amend this spike or a new spike doc) and the proxy (approve, or path B); Q2 reference-informed fixes for Rook (yes or no). Both block work.
