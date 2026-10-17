@@ -99,3 +99,23 @@ Measured on the given (432 opaque cells, 13 parts): head alone 14 px (x11 to 24)
 The right proxy from the battle idle FAILS 4 lines (head alone 19, landmark shoulder, hem, feet). It is not a usable target. It blocks only the right facing, which is last (plan question 2).
 
 6a boxes: hairWing x11..17, y0..10 (67 opaque, 45 hair); coat x13..17, y11..25 (75 opaque, 67 coat). For a band with a reference of 0, the band is 0 to one unit (one stray pixel passes, two fail).
+
+## Grading reference: Sprite Fusion 8-direction facings (Mark, 2026-10-17)
+
+Mark made an 8-direction run in Sprite Fusion outside this spike, and kept the 5 facings that were acceptable: `spritefusion-tests/rook-8d-ref/` s (down), n (up), ne (up-right), nw (up-left), sw (down-left). No right or left. Mark said to use them as a grading reference. This changes the plan's rule "no Sprite Fusion output" for graders only:
+
+- Graders see the matching reference beside the given and the candidate. It informs form and features, not the hard lines.
+- Writers never get these files (they would copy them, and the test would prove nothing). Add them to every writer brief's forbidden list.
+- Scale differs: n is 33 px tall, ne, nw and sw are 32, and s is 31. Masks and IoU stay on the derived 31 px masks.
+- Outline: the references have a weaker outline than the given. The given's strong near-black outline is the style for every asset (Mark: no strong preference, but all assets must be consistent). Graders do not judge the outline against these references. The outline line (at least 93 percent) stays.
+
+## Step 6a kit: held-out invention test tools (2026-10-17)
+
+`scripts/art/pipeline/heldout/` builds one writer kit per box (the given with the box blanked at 32x, 4x and 8x, separations, mirror, mask, rules from the cells outside the box, grid template, Level 0 brief) and scores a writer grid inside the box only. An isolation check scans every kit file for hidden cells at the true and mirrored place.
+
+| Round | What changed | Numbers | Verdict | Named fixes |
+|---|---|---|---|---|
+| 1 | Kit, score, isolation check, sanity grids | Runner: isolation 0 hits, truth grid exact 100, empty FAIL, shifted grid FAIL (exact 35) | FAIL (reader 1 Critical, 2 Important) | K1 rules.txt gave part shares from inside the box; K2 test could not catch K1; K3 mirror check keyed on file name; K4, K5 Minor |
+| 2 | Fix round on K1 to K5 (one fresh Sonnet verifier, mutation and paste attacks) | 114 tests; check all, sanity all exit 0 | PASS | Minor: the sweep at unused layouts needs 80 percent of cells to flag a leak |
+
+Writer kits have no feature list: a list for the hidden box would come from the truth. Graders get a MUST list made from the truth. This is a deviation from plan 6a line 72.

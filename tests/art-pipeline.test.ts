@@ -5,11 +5,11 @@
  * Pinned numbers were measured on the given; where a test can, it checks them a second way (raw pixels, not the pipeline code).
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Img } from '../scripts/art/pixkit/index.mjs';
 import {
   AXIS,
@@ -61,6 +61,25 @@ import {
   walkRecord,
 } from '../scripts/art/pipeline/index.mjs';
 import type { Mask, PartMap } from '../scripts/art/pipeline/index.mjs';
+import { box32, boxGridToImage, composite, formatBoxGrid, frame32, frameScaled, mirrorBox, mirrorImage } from '../scripts/art/pipeline/heldout/boxkit.mjs';
+import {
+  BOX_NAMES,
+  TRUTH_PATHS,
+  blankedGiven,
+  boxMotif,
+  buildKit,
+  checkKit,
+  getBox,
+  listFiles,
+  newImage,
+  paste,
+  readPng,
+  rulesText,
+  scoreGrid,
+  textFindings,
+  truthCells,
+  writePng,
+} from '../scripts/art/pipeline/heldout/heldout.mjs';
 
 // ---- helpers: copies and mutations of images, part maps and masks ----
 const clone = (img: Img): Img => ({ w: img.w, h: img.h, data: new Uint8Array(img.data) });
@@ -1124,6 +1143,218 @@ describe('region-blank scorer (plan 6a)', () => {
 
   it('blankBoxImage is the image the writers see (box gone, 365 opaque left)', () => {
     expect(opaqueCount(blankBoxImage(given, wing))).toBe(365);
+  });
+});
+
+describe('held-out kit (plan 6a): isolation, rules from the remaining cells, score command', () => {
+  const root = mkdtempSync(join(tmpdir(), 'rook-6a-test-'));
+  const heldout = fileURLToPath(new URL('../scripts/art/pipeline/heldout/heldout.mjs', import.meta.url));
+  const kits: Record<string, string> = {};
+  const kitOf = (n: string) => kits[n] as string;
+  const box = (n: string) => getBox(n, given);
+  beforeAll(() => {
+    for (const n of BOX_NAMES) kits[n] = buildKit(n, { root, img: given }).dir;
+  }, 120000);
+  afterAll(() => rmSync(root, { recursive: true, force: true }));
+  /** A folder that holds one extra file: the fail-path fixture for the isolation check. */
+  const leaky = (n: string, name: string, write: (path: string) => void) => {
+    const dir = join(root, `leaky-${n}-${name}`);
+    mkdirSync(dir, { recursive: true });
+    write(join(dir, name));
+    return checkKit(dir, { img: given, box: box(n) });
+  };
+  /** Same alpha everywhere and the same color wherever a pixel is opaque (the given keeps stray colors under alpha 0). */
+  const same = (a: Img, b: Img) => {
+    if (a.w !== b.w || a.h !== b.h) return false;
+    for (let i = 0; i < a.data.length; i += 4) {
+      if (a.data[i + 3] !== b.data[i + 3]) return false;
+      if (a.data[i + 3] === 255 && (a.data[i] !== b.data[i] || a.data[i + 1] !== b.data[i + 1] || a.data[i + 2] !== b.data[i + 2])) return false;
+    }
+    return true;
+  };
+
+  it.each(BOX_NAMES)('%s kit holds the pictures, the rules, the template, the renderer and the brief', (n) => {
+    const files = listFiles(kitOf(n)).map((f) => f.slice(kitOf(n).length + 1).replaceAll('\\', '/'));
+    for (const f of ['legend.png', 'given-blank-32x.png', 'given-blank-frame-4x.png', 'given-blank-frame-8x.png', 'given-blank-mirror-32x.png', 'mask-32x.png', 'rules.txt', 'grid-template.txt', 'README.md', 'writer-brief-6a.md', 'render.mjs'])
+      expect(files).toContain(f);
+    for (const fam of ['near-black', 'hair', 'skin', 'orange-gold', 'coat']) expect(files).toContain(`given-blank-sep-${fam}.png`);
+    expect(files.some((f) => /truth|^given\.png/.test(f))).toBe(false);
+    expect(readFileSync(join(kitOf(n), 'writer-brief-6a.md'), 'utf8')).toContain('Level 0');
+  });
+
+  it.each(BOX_NAMES)('%s kit passes the isolation check: no hidden cell shows its true color at its true place, at any scale', (n) => {
+    const c = checkKit(kitOf(n), { img: given, box: box(n) });
+    expect(c.findings).toEqual([]);
+    expect(c.ok).toBe(true);
+    expect(c.hidden).toBe(box(n).opaque);
+  });
+
+  it('isolation fail paths: an unblanked picture at 1x, 4x, 8x, 32x with a grid, at an odd scale with an offset, a box crop, a mirror of the unblanked given and a text row each fail the check', () => {
+    const b = box('hairWing');
+    const cases: [string, (p: string) => void][] = [
+      ['leak-1x.png', (p) => writePng(frameScaled(given, [], 1), p)],
+      ['leak-4x.png', (p) => writePng(frameScaled(given, [], 4), p)],
+      ['leak-8x.png', (p) => writePng(frameScaled(given, [], 8), p)],
+      ['leak-32x.png', (p) => writePng(frame32(given, []), p)],
+      ['leak-sep-hair.png', (p) => writePng(frame32(given, [], 'hair'), p)],
+      ['leak-box.png', (p) => writePng(box32(boxImage(given, b), b), p)],
+      [
+        'leak-7x-offset.png',
+        (p) => {
+          const big = newImage(11 + 32 * 7, 13 + 32 * 7);
+          paste(big, frameScaled(given, [], 7), 11, 13);
+          writePng(big, p);
+        },
+      ],
+      ['leak-neutral-name.png', (p) => writePng(frame32(mirrorImage(given), []), p)],
+    ];
+    for (const [name, write] of cases) {
+      const c = leaky('hairWing', name, write);
+      expect(c.ok, name).toBe(false);
+      expect(c.findings.every((x) => x.kind === 'strict' || x.kind === 'sweep'), name).toBe(true);
+    }
+    const t = leaky('hairWing', 'notes.txt', (p) => writeFileSync(p, `row text: ${truthCells(given, b)[3]?.join('')}\n`));
+    expect(t.ok).toBe(false);
+    const g = leaky('coat', 'extra-grid.txt', (p) => writeFileSync(p, formatBoxGrid(truthCells(given, box('coat')), box('coat'))));
+    expect(g.ok).toBe(false);
+    const u = leaky('coat', 'blob.bin', (p) => writeFileSync(p, 'x'));
+    expect(u.findings.some((f) => f.kind === 'unknown-type')).toBe(true);
+    expect(textFindings(readFileSync(join(kitOf('hairWing'), 'grid-template.txt'), 'utf8'), given, b)).toEqual([]);
+  }, 60000);
+
+  it('the mirror shows only real cells: the mirrored box is blank, and the box place holds the mirror of the real cells beside the box', () => {
+    for (const n of BOX_NAMES) {
+      const b = box(n);
+      const mb = mirrorBox(b);
+      const blank = blankedGiven(given, b);
+      const m = mirrorImage(blank);
+      for (let y = b.y0; y <= b.y1; y++) {
+        for (let x = mb.x0; x <= mb.x1; x++) expect(hexAt(m, x, y), `${n} mirrored box x${x} y${y}`).toBeNull();
+        for (let x = b.x0; x <= b.x1; x++) expect(hexAt(m, x, y)).toBe(hexAt(given, 35 - x, y));
+      }
+      expect(opaqueCount(m)).toBeLessThan(opaqueCount(given));
+    }
+  });
+
+  it('the mask picture is made from opaque or not, never from a true color', () => {
+    const palette = new Set((readTarget().walkPalette as string[]).map((h) => [1, 3, 5].map((k) => Number.parseInt(h.slice(k, k + 2), 16)).join(',')));
+    for (const n of BOX_NAMES) {
+      const png = readPng(join(kitOf(n), 'mask-32x.png'));
+      const colors = new Set<string>();
+      for (let i = 0; i < png.data.length; i += 4) colors.add(`${png.data[i]},${png.data[i + 1]},${png.data[i + 2]}`);
+      for (const c of colors) expect(palette.has(c), `mask color ${c} is a palette color`).toBe(false);
+    }
+  });
+
+  it('nothing in the kit comes from inside the box: scrambling the hidden colors (opacity kept) leaves every kit file byte-identical', () => {
+    const scrambleRoot = join(root, 'scrambled');
+    for (const n of BOX_NAMES) {
+      const b = box(n);
+      const scrambled = clone(given);
+      const pick = ['#db9332', '#030102', '#e4b086', '#6f7945'];
+      for (let y = b.y0; y <= b.y1; y++) for (let x = b.x0; x <= b.x1; x++) if (hexAt(given, x, y) !== null) setHex(scrambled, x, y, pick[(x * 3 + y) % pick.length] ?? '#db9332');
+      let changed = 0;
+      for (let y = b.y0; y <= b.y1; y++) for (let x = b.x0; x <= b.x1; x++) if (hexAt(scrambled, x, y) !== hexAt(given, x, y)) changed++;
+      expect(changed).toBeGreaterThan(b.opaque / 2);
+      const other = buildKit(n, { root: scrambleRoot, img: scrambled, validate: false }).dir;
+      const files = listFiles(kitOf(n)).map((f) => f.slice(kitOf(n).length + 1));
+      expect(listFiles(other).map((f) => f.slice(other.length + 1))).toEqual(files);
+      // the brief names the kit folder, so compare it with the folder name swapped; every other file is compared byte for byte
+      const norm = (path: string, dir: string) => (path.endsWith('writer-brief-6a.md') ? Buffer.from(readFileSync(path, 'utf8').replaceAll(dir, '<kit>')) : readFileSync(path));
+      for (const f of files) expect(norm(join(other, f), other).equals(norm(join(kitOf(n), f), kitOf(n))), `${n}/${f}`).toBe(true);
+      expect(rulesText(scrambled, b)).toBe(rulesText(given, b));
+      // part labels and motif numbers outside the box do not depend on the box, with or without blanking first
+      const pmScrambled = buildPartMap(scrambled);
+      const outside = (m: PartMap) => Object.entries(m.parts).map(([k, v]) => [k, v.filter((i) => !(i % 32 >= b.x0 && i % 32 <= b.x1 && Math.floor(i / 32) >= b.y0 && Math.floor(i / 32) <= b.y1))]);
+      expect(outside(pmScrambled)).toEqual(outside(pm));
+      expect(boxMotif(scrambled, pmScrambled, b)).toEqual(boxMotif(given, pm, b));
+      expect(boxMotif(blankedGiven(scrambled, b), buildPartMap(blankedGiven(scrambled, b)), b)).toEqual(boxMotif(given, pm, b));
+      const text = rulesText(given, b);
+      expect(text).toContain(`${b.opaque} opaque cells`);
+      expect(text).not.toMatch(/a few cells of|share of the box|MOSTLY HOLDS/);
+    }
+  }, 120000);
+
+  it('the isolation check does not depend on a file name: the real mirror passes under a neutral name, an unblanked mirror under a neutral name fails', () => {
+    for (const n of BOX_NAMES) {
+      const ok = leaky(n, 'pic-a.png', (p) => copyFileSync(join(kitOf(n), 'given-blank-mirror-32x.png'), p));
+      expect(ok.findings, n).toEqual([]);
+      const bad = leaky(n, 'pic-b.png', (p) => writePng(frame32(mirrorImage(given), []), p));
+      expect(bad.ok, n).toBe(false);
+      expect(bad.findings.some((x) => x.place === 'mirrored'), n).toBe(true);
+    }
+  });
+
+  it.each(BOX_NAMES)('%s sanity grids: the empty grid FAILS, the true grid PASSES with exact 100', (n) => {
+    const b = box(n);
+    const empty = scoreGrid(n, formatBoxGrid(Array.from({ length: b.y1 - b.y0 + 1 }, () => Array(b.x1 - b.x0 + 1).fill('.')), b), { img: given });
+    expect(empty.res.ok).toBe(false);
+    expect(empty.res.failed).toEqual(expect.arrayContaining(['exact', 'tolerant']));
+    const truth = scoreGrid(n, formatBoxGrid(truthCells(given, b), b), { img: given });
+    expect(truth.res.ok).toBe(true);
+    expect(truth.res.rows.find((r) => r.name === 'exact')?.value).toBe(100);
+    expect(truth.res.rows.map((r) => r.name)).toEqual(['exact', 'tolerant', 'T', 'S', 'D', 'orphans']);
+    expect(truth.mask).toEqual({ outside: 0, missing: 0 });
+    // fail path: the first rows of the true grid turned into one letter fail the exact row
+    const cells = truthCells(given, b);
+    for (let y = 0; y < Math.min(6, cells.length); y++) cells[y] = (cells[y] as string[]).map(() => 'a');
+    expect(scoreGrid(n, formatBoxGrid(cells, b), { img: given }).res.ok).toBe(false);
+  });
+
+  it('the score command: exit 0 on the true grid, 1 on an empty grid, 2 on a bad grid, and it writes the candidate and the 4x and 16x views next to the given', () => {
+    const b = box('coat');
+    const dir = join(root, 'cli');
+    mkdirSync(dir, { recursive: true });
+    const truthFile = join(dir, 'truth.txt');
+    const emptyFile = join(dir, 'empty.txt');
+    const badFile = join(dir, 'bad.txt');
+    writeFileSync(truthFile, formatBoxGrid(truthCells(given, b), b));
+    copyFileSync(join(kitOf('coat'), 'grid-template.txt'), emptyFile);
+    writeFileSync(badFile, '13|zzzzz\n');
+    const run = (f: string, out: string) => spawnSync(process.execPath, [heldout, 'score', 'coat', f, '--out', join(dir, out), '--root', root], { encoding: 'utf8' });
+    const ok = run(truthFile, 'ok');
+    expect(ok.status).toBe(0);
+    expect(ok.stdout).toContain('RESULT PASS');
+    expect(ok.stdout).toContain('PASS  exact: 100');
+    for (const s of ['cand.png', 'vs-given-4x.png', 'vs-given-16x.png']) expect(existsSync(join(dir, `ok-${s}`))).toBe(true);
+    expect(same(readPng(join(dir, 'ok-cand.png')), given)).toBe(true);
+    const empty = run(emptyFile, 'empty');
+    expect(empty.status).toBe(1);
+    expect(empty.stdout).toContain('RESULT FAIL');
+    expect(empty.stdout).toMatch(/FAIL {2}exact: 0 /);
+    expect(run(badFile, 'bad').status).toBe(2);
+  }, 60000);
+
+  it('the writer command: it renders a grid into the blanked frame, gives no score, and fails on a bad letter (exit 2)', () => {
+    for (const n of BOX_NAMES) {
+      const b = box(n);
+      const kit = kitOf(n);
+      for (const f of ['render.mjs', 'boxkit.mjs']) expect(readFileSync(join(kit, f), 'utf8')).not.toMatch(/from '\.\.\//);
+      const dir = join(root, `render-${n}`);
+      mkdirSync(dir, { recursive: true });
+      const grid = join(dir, 'g.txt');
+      writeFileSync(grid, formatBoxGrid(truthCells(given, b), b));
+      const r = spawnSync(process.execPath, [join(kit, 'render.mjs'), grid], { encoding: 'utf8', cwd: dir });
+      expect(r.status, r.stderr).toBe(0);
+      expect(r.stdout).not.toMatch(/PASS|FAIL|exact/);
+      for (const s of ['g.png', 'g-box-32x.png', 'g-sheet.png', 'g-frame-4x.png', 'g-frame-8x.png', 'g-sep-hair.png']) expect(existsSync(join(dir, s)), s).toBe(true);
+      // the blanked frame plus the true box is the given
+      const boxPng = readPng(join(dir, 'g.png'));
+      expect(same(composite(readPng(join(kit, 'given-blank.png')), boxPng, b), given)).toBe(true);
+      expect(same(boxGridToImage(truthCells(given, b), b), boxPng)).toBe(true);
+      writeFileSync(grid, formatBoxGrid(truthCells(given, b), b).replace(/\|./, '|z'));
+      expect(spawnSync(process.execPath, [join(kit, 'render.mjs'), grid], { encoding: 'utf8', cwd: dir }).status).toBe(2);
+    }
+  }, 60000);
+
+  it('the notes for the main session name the truth paths and the check command', () => {
+    expect(TRUTH_PATHS.join('\n')).toContain('rook-overworld-walk.zip');
+    expect(TRUTH_PATHS.join('\n')).toContain('rook-step3/input/given.png');
+    for (const n of BOX_NAMES) {
+      const o = readFileSync(join(root, n, 'ORCHESTRATOR.md'), 'utf8');
+      expect(o).toContain('rook-overworld-walk.zip');
+      expect(o).toContain('heldout.mjs check');
+    }
   });
 });
 

@@ -319,3 +319,19 @@ export function viewSet(img, prefix) {
   out[`${prefix}-poster.png`] = zoomGrid(img, { poster: true });
   return out;
 }
+
+/** legend.png for writers: a 32 px swatch, the letter, hex, luminance and family for each of the 22 letters. Shared by the head test kit and the 6a kits. */
+export function legendImage() {
+  const rowH = 36;
+  const img = newImage(420, 12 + rowH * LETTERS.length + 8, [20, 20, 26, 255]);
+  drawText(img, 'LETTER  SWATCH  HEX      LUM    FAMILY', 8, 4, [150, 155, 170, 255], 1);
+  [...LETTERS].forEach((l, i) => {
+    const y = 14 + i * rowH;
+    drawLower(img, l, 12, y + 8, [240, 240, 245, 255], 3);
+    fillRect(img, 60, y, 32, 32, [...rgbOfLetter(l), 255]);
+    drawText(img, HEX_OF[l], 104, y + 13, [225, 228, 235, 255], 2);
+    drawText(img, lum(HEX_OF[l]).toFixed(1), 220, y + 13, [225, 228, 235, 255], 2);
+    drawText(img, FAMILY_OF_LETTER[l], 300, y + 13, [225, 228, 235, 255], 1);
+  });
+  return img;
+}

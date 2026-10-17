@@ -4,8 +4,8 @@ import { cpSync, copyFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  BOX, FAMILIES, FAMILY_NAMES, FAMILY_OF_LETTER, HEX_OF, LETTERS, crop, drawText, drawLower, emptyCells, fillRect, familiesJson,
-  formatGrid, lum, newImage, paste, readPng, rgbOfLetter, scaled, viewSet, writePng,
+  BOX, FAMILIES, FAMILY_NAMES, crop, emptyCells, familiesJson,
+  formatGrid, legendImage, newImage, paste, readPng, scaled, viewSet, writePng,
 } from './lib.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -23,20 +23,7 @@ const head = crop(given, BOX.x, BOX.y, BOX.w, BOX.h);
 writeFileSync(`${H}/families.json`, `${JSON.stringify(familiesJson(), null, 2)}\n`);
 
 // legend.png: a 32 px swatch, the letter, hex, luminance, family
-{
-  const rowH = 36;
-  const img = newImage(420, 12 + rowH * LETTERS.length + 8, [20, 20, 26, 255]);
-  drawText(img, 'LETTER  SWATCH  HEX      LUM    FAMILY', 8, 4, [150, 155, 170, 255], 1);
-  [...LETTERS].forEach((l, i) => {
-    const y = 14 + i * rowH;
-    drawLower(img, l, 12, y + 8, [240, 240, 245, 255], 3);
-    fillRect(img, 60, y, 32, 32, [...rgbOfLetter(l), 255]);
-    drawText(img, HEX_OF[l], 104, y + 13, [225, 228, 235, 255], 2);
-    drawText(img, lum(HEX_OF[l]).toFixed(1), 220, y + 13, [225, 228, 235, 255], 2);
-    drawText(img, FAMILY_OF_LETTER[l], 300, y + 13, [225, 228, 235, 255], 1);
-  });
-  writePng(img, `${OUT}/legend.png`);
-}
+writePng(legendImage(), `${OUT}/legend.png`);
 
 // ref-head-32x, ref-sep-<family>, ref-poster
 const views = viewSet(head, 'ref');
