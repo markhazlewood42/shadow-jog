@@ -75,3 +75,5 @@ One Fable consult (Mark approved the one dispatch) wrote `art-pipeline-plan.md`:
 | 2 | Fix round (Sonnet) on F1 to F9 | 111 lines | PASS (fix verifier, no Critical or Important) | Minor: glossary S definition (PA-09), unused FFT entry: both fixed before commit |
 
 Open for Mark (plan section "Questions"): approve the plan or not; two spike amendments (per-facing order, head-alone gate); mirror sheath patch; side-proxy fallback; one-frame idle; tiles in E1.
+
+**Mark approved the art-pipeline plan on 2026-10-17.** Next: step 0 tools (lean loop), then the held-out invention test (6a) and the back-of-head early test (6b). The plan's other questions come up when each one blocks work.
