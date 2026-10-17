@@ -165,3 +165,10 @@ Open for Mark (plan section 8): Q1 spike frame (amend this spike or a new spike 
 | Amendment 1, r1 | Spike doc "Amendment 1" (Q1 option A with the proxy, Q2 clean Rook); Haiku verifier | | FAIL (3 Important) | Battle-idle check is in section 7, not 4; NO-GO wording; round caps |
 | Amendment 1, r2 | Fixes on 3 lines | | FAIL (1 Important) | State that the cap case amends the NO-GO list |
 | Amendment 1, r3 | The verifier's exact sentence applied | | PASS (exact fix text) | |
+
+## Step 7-2: T0 builds (2026-10-17, unverified)
+
+| Build | What | Numbers | Verdict | Notes |
+|---|---|---|---|---|
+| T0b grade kit (Sonnet, fb8d926) | `scripts/art/v2/grade/`: alignment, 11 measures, hard lines, reference labels, calibration, kit scan, grade command | 69 tests and tsc exit 0. 4 measures gate (part mIoU 0.675, smallest part 0.214, value r 0.837, color match 0.756); thin margins. BF1, chamfer, EMD, PCK, density do not separate | Lean loop pending | Hard lines with plan values fail 25 of 27 should-pass items; orphans (exit line 1.25x) would need 2.35: Mark's call after the lean loop confirms it |
+| Path B (cloud session, Sonnet, branch `spike/rook-path-b` b0c5d67) | `scripts/art/v2/pathb/`: 2D construction sheets per facing, cards, part-box shares, checks | 37 tests and tsc exit 0 (its report). se fit, hand-fitted: part mIoU 0.918, silhouette 0.949, max landmark 0.83 px. s and n pass the template checks; e fails part areas (sleeves 0.67, hands 0.69 against 0.70) | Lean loop pending; reference isolation by its own statement only (the cloud transcript is not on this machine) | Hand fit shows boxes can express the given; it does not test invention |
