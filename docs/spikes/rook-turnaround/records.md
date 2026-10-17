@@ -15,3 +15,11 @@ Notes:
 - "1-2 px regions" uses pack item PA-09 (4 luminance steps, then 4-connected components of 1 or 2 px). That definition gives the doc's 60 to 72. Same-color components give 108 to 132 and stay in `target.json` as `smallRegionsSameColor`.
 - PA-10 planted foot stays a manual check: the pack names no way to find the planted-foot pixel on one frame.
 - Named for step 3: PA-08 across facings against a reference facing.
+
+## Step 2: medium shoot-out (2026-10-17)
+
+Copy tripwire (278f881): rig v2 down and Hex walk frame 0 both match 0 percent (no shared RGBA with the walk palette), so the void line is the 60 percent floor. Rig v2 Rook IoU against the given frame: down 0.710, right 0.636, up 0.713, left 0.638. Prep verifier: PASS (Minor: the shift test accepts either sign).
+
+| Round | What changed | Numbers | Verdict | Named fixes |
+|---|---|---|---|---|
+| 1 | Writer A (pixel grid with the kit) and writer B (height map, top-left light, ramps), each from the clean input folder. Isolation check: no read of `spritefusion-tests/`, `media/` or the worktree in either transcript | A: pixlint PASS, 20 colors, outline 100 percent, 12 orphans, 39 small regions, IoU 0.762, copy 0.171. B: pixlint PASS, 20 colors, outline 100 percent, 4 orphans, 8 small regions, IoU 0.706, copy 0.174 | Graders not run yet | |
