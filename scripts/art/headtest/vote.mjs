@@ -1,5 +1,5 @@
 // vote.mjs: per-cell majority grid from N grid files. A tie goes to the first file (in the order given) whose letter is among the tied ones.
-// Usage: node vote.mjs <out.txt> <grid1.txt> <grid2.txt> [<grid3.txt> ...]   (the inputs may also be PNGs of 16x14 or 32x32)
+// Usage: node vote.mjs <out.txt> <grid1.txt> <grid2.txt> <grid3.txt> [...]   (3 or more: a majority needs 3; the inputs may also be PNGs of 16x14 or 32x32)
 import { writeFileSync } from 'node:fs';
 import { BOX, GridError, emptyCells, formatGrid, imageToCells } from './lib.mjs';
 import { loadImage, toBox } from './score.mjs';
@@ -17,8 +17,8 @@ export function vote(cellSets) {
 }
 if (process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, '/').split('/').pop())) {
   const [, , outPath, ...inputs] = process.argv;
-  if (!outPath || inputs.length < 1) {
-    console.error('usage: node vote.mjs <out.txt> <grid1> <grid2> [...]');
+  if (!outPath || inputs.length < 3) {
+    console.error('usage: node vote.mjs <out.txt> <grid1> <grid2> <grid3> [...] (3 or more grids)');
     process.exit(2);
   }
   try {
