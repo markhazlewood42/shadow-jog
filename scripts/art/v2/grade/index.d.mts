@@ -226,21 +226,48 @@ export function loadCandidate(path: string): Img;
 export function loadParts(path: string): Labels;
 export function gateMeasures(measures: Measures, gates: Gates): { rows: { key: string; name: string; dir: string; value: number; gate: number; role: string; calibrated: boolean; pass: boolean }[]; gating: string[]; pass: boolean; passCount: number; gatingCount: number; composite: number };
 export function noReferencePck(candLabels: Labels, alpha?: number): { pck: number; dist: Record<string, number> };
+export interface StyleRow {
+  id: string;
+  name: string;
+  rule: string;
+  value: number | null;
+  detail: string;
+  dir: 'min' | 'max' | 'band';
+  limit: number | number[];
+  role: 'gate' | 'report';
+  separates: boolean;
+  pinned: boolean;
+  status: 'pass' | 'fail' | 'skipped';
+}
+export interface StyleTier { rows: StyleRow[]; extra: LineItem[]; gating: string[]; separating: string[]; minGating: number; markGatesByEye: boolean; pass: boolean; labelSource: string }
 export interface Verdict {
   facing: string;
-  hardLines: { pass: boolean; items: LineItem[] };
   labelSource: string;
   notes: string[];
-  target: Record<string, any>;
-  anchors: { name: string; composite: number; passCount: number; pass: boolean; beaten: boolean }[];
-  targetPass: boolean;
-  anchorsPass: boolean;
-  markGates: boolean;
+  style: StyleTier;
+  structure: { items: LineItem[]; report: LineItem[]; pass: boolean };
+  reference: {
+    mode: 'reference' | 'none';
+    note: string;
+    transform?: { s: number; dx: number; dy: number };
+    measures?: Measures;
+    rows?: { key: string; name: string; dir: string; value: number; gate: number; role: string; calibrated: boolean; pass: boolean }[];
+    composite?: number;
+    naive?: { partMiou: number; colorMatch: number; valueR: number };
+    gain?: { partMiou: number; colorMatch: number; valueR: number };
+    parts?: Record<string, { iou: number; cand: number; ref: number }>;
+    pckMissing?: string[];
+    pckVsSAndNe?: number;
+    pckDist?: Record<string, number>;
+    anchors: { name: string; composite: number; beaten: boolean }[];
+  };
   pass: boolean;
+  styleByEye: boolean;
 }
+export function styleTier(img: Img, opts: { spec: Spec; gates: Gates; labels?: Labels | null; template?: boolean; hardItems?: LineItem[] }): StyleTier;
 export function grade(
   cand: Img,
-  opts: { facing: string; spec?: Spec; gates?: Gates; labels?: Labels | null; set?: { name: string; img: Img }[]; anchors?: { name: string; img: Img; labels?: Labels | null }[]; template?: Img | null; sheathSide?: string | null; name?: string },
+  opts: { facing: string; spec?: Spec; gates?: Gates; labels?: Labels | null; set?: { name: string; img: Img }[]; anchors?: { name: string; img: Img; labels?: Labels | null }[]; template?: Img | null; sheathSide?: string | null; name?: string; checks?: FacingChecks; idle?: IdleGuide | null },
 ): Verdict;
 export function formatVerdict(v: Verdict): string;
 
@@ -253,3 +280,95 @@ export function applyEdits(labels: Labels, w: number, h: number, edits: { box?: 
 export function loadRefLabels(facing: string): { facing: string; rows: string[]; autoRows: string[]; edits: { box?: number[]; cells?: number[][]; part: string; from?: string[] }[]; landmarks: Record<string, number[]>; method: string[]; labels: Labels; w: number; h: number };
 export function loadReference(facing: string): { img: Img; labels: Labels; landmarks: Record<string, number[]>; file: Record<string, unknown> };
 export function hasRefLabels(facing: string): boolean;
+
+// flat.mjs
+export function maskDensity(img: Img, inMask: (x: number, y: number) => boolean, step?: number): { cells: number; density: number };
+export function wholeDensity(img: Img): { cells: number; density: number };
+export function groupDensity(img: Img, labels: Labels): Record<string, { cells: number; density: number }>;
+export function givenLabelsFor(spec: Spec, labelSource: string): Labels;
+export function givenDensity(spec: Spec, labelSource: string): { groups: Record<string, { cells: number; density: number }>; whole: { cells: number; density: number } };
+export function flattening(
+  img: Img,
+  labels: Labels,
+  spec: Spec,
+  labelSource: string,
+  minCells: number,
+): { groups: Record<string, { cand: number; given: number; ratio: number }>; lowest: number | null; whole: number | null; wholeCand: number; wholeGiven: number; densities: Record<string, { cells: number; density: number }> };
+
+// style.mjs
+export const STYLE_LINE_IDS: string[];
+export interface LineMeta { name: string; dir: 'min' | 'max' | 'band'; start?: number | null; pinned: boolean; needsLabels?: boolean; rule: string }
+export const LINE_META: Record<string, LineMeta>;
+export function linePasses(meta: LineMeta, line: { limit?: number; lo?: number; hi?: number }, v: number | null | undefined): boolean;
+export function squintClusters(img: Img): number;
+export function bandingPairs(img: Img, minLen?: number): number;
+export function styleValues(
+  img: Img,
+  opts: { spec: Spec; labels?: Labels | null; template?: boolean; flatMinCells?: number; bands?: Record<string, { lo: number; hi: number }> | null; rampLabels?: Labels | null },
+): { values: Record<string, number | null>; detail: Record<string, string>; labelSource: string; groupDensity: Record<string, { cells: number; density: number }> };
+
+// style-calibrate.mjs
+export function flattenParts(img: Img, labels: Labels, palette: string[]): Img;
+export function speckle(img: Img, palette: string[], opts?: { share?: number; seed?: number }): Img;
+export interface StyleItem { id: string; group: 'pass' | 'fail'; kind: string; cand: Img; labels: Labels | null; rampLabels: Labels | 'auto' | null }
+export function buildStyleItems(spec?: Spec): StyleItem[];
+export function densityBands(walkDens: Record<string, { cells: number; density: number }>[], minCells: number, pad: number): Record<string, { lo: number; hi: number; frames: number }>;
+export interface StyleCalibration {
+  rows: (StyleItem & { values: Record<string, number | null> })[];
+  table: { id: string; name: string; dir: string; role: string; separates: boolean; pinned: boolean; caught: string[]; passedFail: string[]; failTotal: number; worstPass: unknown; bestFail: unknown; limit?: number; lo?: number; hi?: number; reset: { from: number; to: number } | null; rule: string }[];
+  lines: Record<string, { role: 'gate' | 'report'; separates: boolean; pinned: boolean; limit?: number; lo?: number; hi?: number }>;
+  bands: Record<string, { lo: number; hi: number; frames: number }>;
+  floor: number;
+  floorReset: { from: number; to: number } | null;
+  separating: string[];
+  gating: string[];
+  caughtBy: Record<string, string[]>;
+  uncaught: string[];
+  markGatesByEye: boolean;
+  pad: number;
+}
+export function runStyleCalibration(opts?: { spec?: Spec; gates?: Gates; minCells?: number | null; pad?: number; log?: (s: string) => void }): StyleCalibration;
+export function formatStyleReport(res: StyleCalibration, opts?: { date?: string }): string;
+export function writeStyleGates(res: StyleCalibration, gates: Gates, opts?: { date?: string; path?: string }): Gates;
+
+// structure.mjs
+export const FACING_CHECKS_PATH: string;
+export interface FacingChecks { [k: string]: any }
+export interface IdleGuide { skin: { min: number; max: number; n: number } | null; split: { min: number; max: number; n: number } | null; frames: number }
+export function loadFacingChecks(): FacingChecks;
+export type Cell = [number, number];
+export function clustersOf(cells: Cell[], conn?: 4 | 8): Cell[][];
+export function eyeCells(img: Img, labels: Labels): Cell[];
+export function maxRun(cells: Cell[]): number;
+export function eyeSummary(img: Img, labels: Labels): { cells: number; clusters: number; widthMax: number; rowSpread: number; meanRow: number | null };
+export function guideRows(img: Img, labels: Labels): { headTop: number | null; eye: number | null; shoulder: number | null; hip: number | null; foot: number | null };
+export function handClusters(img: Img, labels: Labels): { size: number; width: number; x: number }[];
+export function itemEdge(img: Img, labels: Labels): { cells: number; edge: number; dark: number; share: number | null };
+export function litMinusShadow(img: Img, labels: Labels, group: string): number | null;
+export function sideGuide(img: Img): { headTop: number; skin: number | null; split: number | null; foot: number; h: number } | null;
+export function idleSideGuide(): IdleGuide | null;
+export function structureLines(img: Img, opts: { facing: string; spec: Spec; labels?: Labels | null; checks?: FacingChecks; idle?: IdleGuide | null }): LineItem[];
+
+// facingid.mjs
+export const FACINGS: { id: string; name: string }[];
+export const FACING_IDS: string[];
+export const PASS_NEED: number;
+export const SCALE: number;
+export function facingIdPicture(given: Img, cand: Img, opts?: { scale?: number; gap?: number }): Img;
+export function promptText(items: { id: string; file: string; letters: Record<string, string> }[]): string;
+export interface FacingIdKey { note: string; passNeed: number; seed: number; items: Record<string, { facing: string; correct: string; letters: Record<string, string>; source: string | null }> }
+export function buildFacingIdTask(items: { cand: Img; facing: string; source?: string }[], opts: { out: string; key: string; given?: Img; seed?: number }): { items: { id: string; file: string; letters: Record<string, string> }[]; key: FacingIdKey };
+export function calibrationItems(spec?: Spec): { cand: Img; facing: string; source: string }[];
+export function scoreFacingId(answers: Record<string, string>, key: FacingIdKey): { correct: number; total: number; need: number; pass: boolean; items: { id: string; answer: string | null; facing: string; picked: string | null; ok: boolean }[] };
+
+// templatecheck.mjs
+export const AXIS_SUM: number;
+export const PATHB_REF: string;
+export const PATHB_FILES: string[];
+export function mirrorAxis(labels: Labels, axisSum?: number): Labels;
+export function proxyTemplateLabels(path: string): Labels;
+export function pathBLabels(opts?: { ref?: string; scratch: string; cwd?: string }): Promise<Record<string, Labels>>;
+export function alignedPartMiou(candLabels: Labels, ref: { img: Img; labels: Labels }): { aligned: number; best: number; shiftOnly: number; shift0: number | null; transform: { s: number; dx: number; dy: number }; bestTransform: { s: number; dx: number; dy: number } | null; bf1: number };
+export function templateTable(sources: Record<string, Record<string, Labels>>, spec?: Spec): { rows: { source: string; facing: string; aligned: number; best: number; shiftOnly: number; shift0: number | null; bestTransform: { s: number; dx: number; dy: number } | null }[] };
+export function defaultSources(opts: { proxyDir: string; pathbRef?: string; scratch: string; spec?: Spec }): Promise<Record<string, any>>;
+export function formatTemplateReport(sources: Record<string, any>, table: ReturnType<typeof templateTable>, opts?: { date?: string; proxyDir?: string; pathbRef?: string }): string;

@@ -6,17 +6,20 @@
 //        [--parts rows.txt]        the candidate part map as rows of part codes (a template); default is the automatic labeler
 //        [--sheath left|right]     the expected sheath side (PA-21 becomes a gate)
 //        [--json]
-// The verdict has three parts: the hard lines, the target measures against the matching Sprite Fusion reference, and the anchors.
+// The verdict has three tiers (consult C2 C4, Amendment 2): (a) style lines against the GIVEN, (b) reference-free structure lines,
+// (c) the reference measures against the matching Sprite Fusion reference, as report lines that never gate.
 // It measures distance to the target only. It never reads an earlier round, a round number or an earlier score (PA-CM-01).
-// Exit code 0 when every part passes, 1 otherwise, 2 for a usage error.
+// Exit code 0 when style and structure pass, 1 otherwise, 2 for a usage error. When fewer than 3 style lines separate, the verdict says Mark gates style by eye.
 import { existsSync, readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { HEX_OF, LETTERS } from '../../headtest/lib.mjs';
 import { readPng, unhex } from '../../pixkit/png.mjs';
 import { align } from './align.mjs';
 import { pack } from './color.mjs';
-import { checkHardLines, loadGates, loadSpec } from './hardlines.mjs';
-import { N, setPixel, toCanvas } from './image.mjs';
+import { checkHardLines, hasFail, loadGates, loadSpec } from './hardlines.mjs';
+import { N, flipH, flipLabels, setPixel, toCanvas } from './image.mjs';
+import { LINE_META, STYLE_LINE_IDS, linePasses, styleValues } from './style.mjs';
+import { loadFacingChecks, structureLines } from './structure.mjs';
 import { measureAgainst } from './measures.mjs';
 import { autoLabel, landmarksOf, rowsToLabels } from './parts.mjs';
 import { makeTarget } from './calibrate.mjs';
@@ -88,9 +91,49 @@ export function noReferencePck(candLabels, alpha = 0.1) {
   return { pck: hit / names.length, dist };
 }
 
+const STRUCTURE_HARD_IDS = ['HL-HEIGHT', 'HL-BOTTOM', 'HL-HEAD', 'HL-SHOULDER', 'HL-HIP', 'HL-FACE', 'HL-DISTINCT', 'PA-21'];
+/** Lines of the hard-line checker that the style tier keeps next to the S-lines: the color count and the shared palette across the set. */
+const isStyleExtra = (i) => (i.id === 'PA-01' && /color count/.test(i.name)) || (i.id === 'PA-08' && /another facing/.test(i.name));
+
 /**
- * Grade one candidate. opts: { facing, spec, gates, set, anchors: [{ name, img }], template (image), labels, sheathSide }.
- * Returns the verdict object.
+ * The style tier (consult C2 C4): lines against the given, read from gates.style. A line gates when its role is gate (it separated the calibration
+ * population, or it is a pinned line of the spike GO list). If fewer than gates.style.minGating lines separate, Mark gates style by eye.
+ */
+export function styleTier(img, { spec, gates, labels = null, template = false, hardItems = [] }) {
+  const sg = gates.style;
+  if (!sg) throw new Error('gates.json has no style section: run `node scripts/art/v2/grade/style-calibrate.mjs --write-gates`');
+  const v = styleValues(img, { spec, labels, template, flatMinCells: sg.flatMinCells, bands: sg.bands });
+  const rows = STYLE_LINE_IDS.map((id) => {
+    const cfg = sg.lines[id];
+    const meta = LINE_META[id];
+    const value = v.values[id];
+    const skipped = value === null || value === undefined;
+    const pass = skipped ? true : linePasses(meta, cfg, value);
+    return { id, name: meta.name, rule: meta.rule, value, detail: v.detail[id] ?? '', dir: meta.dir, limit: meta.dir === 'band' ? [cfg.lo, cfg.hi] : cfg.limit, role: cfg.role, separates: cfg.separates, pinned: cfg.pinned, status: skipped ? 'skipped' : pass ? 'pass' : 'fail' };
+  });
+  const extra = hardItems.filter(isStyleExtra);
+  const gatingRows = rows.filter((r) => r.role === 'gate');
+  const separating = rows.filter((r) => r.separates).map((r) => r.id);
+  const pass = gatingRows.every((r) => r.status !== 'fail') && !hasFail(extra);
+  return { rows, extra, gating: gatingRows.map((r) => r.id), separating, minGating: sg.minGating, markGatesByEye: separating.length < sg.minGating, pass, labelSource: v.labelSource };
+}
+
+/** The reference measures against their start or calibrated values, and their mean margin over all of them (a report: no reference measure gates). */
+function referenceRows(measures, gates) {
+  const g = gateMeasures(measures, gates);
+  const composite = g.rows.length ? g.rows.reduce((sum, r) => sum + margin(gates.targetMeasures[r.key], r.value), 0) / g.rows.length : 0;
+  return { rows: g.rows, composite };
+}
+
+/** The given as a naive candidate for a facing: mirrored for the left-hand facings. */
+function naiveGiven(spec, facing) {
+  const mirror = ['sw', 'nw', 'w'].includes(facing);
+  return mirror ? { img: flipH(spec.given), labels: flipLabels(spec.givenLabels, N, N) } : { img: spec.given, labels: spec.givenLabels };
+}
+
+/**
+ * Grade one candidate. opts: { facing, spec, gates, set, anchors: [{ name, img }], template (image), labels, sheathSide, name, checks, idle }.
+ * Returns the verdict: { style, structure, reference, pass, notes, styleByEye }. The reference tier is report only and never gates (Amendment 2 Q1).
  */
 export function grade(candRaw, opts) {
   const spec = opts.spec ?? loadSpec();
@@ -99,49 +142,76 @@ export function grade(candRaw, opts) {
   const cand = toCanvas(candRaw, N);
   const labels = opts.labels ?? autoLabel(cand);
   const hard = checkHardLines(cand, { facing, spec, gates, labels: opts.labels ?? null, template: Boolean(opts.labels), set: opts.set, name: opts.name ?? facing, sheathSide: opts.sheathSide });
-  const verdict = { facing, hardLines: { pass: hard.pass, items: hard.items }, labelSource: hard.labelSource, notes: ['Distance to the target only. No earlier round, score or verdict was read (PA-CM-01).'] };
+  const verdict = { facing, labelSource: hard.labelSource, notes: ['Distance to the target only. No earlier round, score or verdict was read (PA-CM-01).'] };
 
+  // (a) style, against the given
+  verdict.style = styleTier(cand, { spec, gates, labels: opts.labels ?? null, template: Boolean(opts.labels), hardItems: hard.items });
+
+  // (b) structure, reference-free
+  const structItems = [...hard.items.filter((i) => STRUCTURE_HARD_IDS.includes(i.id)), ...structureLines(cand, { facing, spec, labels: opts.labels ?? null, checks: opts.checks ?? loadFacingChecks(), idle: opts.idle })];
+  if (opts.template && (facing === 'e' || facing === 'w')) {
+    const need = gates.noReference.bf1Template;
+    const bf1 = align(cand, { img: toCanvas(opts.template, N), labels: null }, { anchor: 'none' }).bf1;
+    structItems.push({ id: 'ST-TEMPLATE', name: `BF1 against the layout template at least ${need}`, status: bf1 >= need ? 'pass' : 'fail', value: bf1.toFixed(3), detail: 'the template is the layout (code), not a reference' });
+  }
+  verdict.structure = { items: structItems, report: hard.items.filter((i) => i.id === 'PA-06'), pass: !hasFail(structItems) };
+
+  // (c) references: report only
   if (REF_FACINGS.includes(facing) || facing === 'se') {
     const target = facing === 'se' ? { img: spec.given, labels: spec.givenLabels } : makeTarget(loadReference(facing), spec.nearBlack);
     const m = measureAgainst(cand, target, { candLabels: labels });
-    const g = gateMeasures(m.measures, gates);
-    verdict.target = { mode: 'reference', transform: m.transform, measures: m.measures, ...g, detail: { pckMissing: m.detail.pckMissing, parts: m.detail.part } };
-    verdict.anchors = (opts.anchors ?? []).map((a) => {
+    const g = referenceRows(m.measures, gates);
+    const nv = naiveGiven(spec, facing);
+    const nm = measureAgainst(nv.img, target, { candLabels: nv.labels });
+    const gain = Object.fromEntries(['partMiou', 'colorMatch', 'valueR'].map((k) => [k, m.measures[k] - nm.measures[k]]));
+    verdict.reference = {
+      mode: 'reference',
+      transform: m.transform,
+      measures: m.measures,
+      rows: g.rows,
+      composite: g.composite,
+      naive: { partMiou: nm.measures.partMiou, colorMatch: nm.measures.colorMatch, valueR: nm.measures.valueR },
+      gain,
+      parts: m.detail.part,
+      pckMissing: m.detail.pckMissing,
+    };
+    verdict.reference.anchors = (opts.anchors ?? []).map((a) => {
       const am = measureAgainst(toCanvas(a.img, N), target, { candLabels: a.labels ?? null });
-      const ag = gateMeasures(am.measures, gates);
-      return { name: a.name, composite: ag.composite, passCount: ag.passCount, pass: ag.pass, beaten: g.composite > ag.composite && g.passCount >= ag.passCount };
+      const ag = referenceRows(am.measures, gates);
+      return { name: a.name, composite: ag.composite, beaten: g.composite > ag.composite };
     });
-    verdict.targetPass = g.pass;
-    // Plan section 4: fewer than passMeasures gating measures means Mark gates the facing. A tool pass is then not a final pass.
-    verdict.markGates = g.gatingCount < (gates.passMeasures ?? 4);
-    if (verdict.markGates) verdict.notes.push(`Only ${g.gatingCount} of ${Object.keys(gates.targetMeasures).length} measures gate (the plan needs ${gates.passMeasures ?? 4}): Mark gates this facing (plan section 4).`);
   } else {
-    // e and w: hard lines, BF1 against the proxy template, landmark PCK against s and ne.
-    const need = gates.noReference.bf1Template;
-    let bf1 = null;
-    if (opts.template) bf1 = align(cand, { img: toCanvas(opts.template, N), labels: null }, { anchor: 'none' }).bf1;
+    // e and w have no reference. PCK against s and ne reads references, so it is a report line.
     const p = noReferencePck(labels);
-    const tpl = opts.template ? bf1 >= need : false;
-    verdict.target = { mode: 'no-reference', bf1Template: bf1, bf1Need: need, pckVsSAndNe: p.pck, pckDist: p.dist, pass: tpl && p.pck === 1, note: 'e and w have no reference. A G2 same-character pick against the given, and Mark, also gate.' };
-    verdict.anchors = [];
-    verdict.targetPass = verdict.target.pass;
-    verdict.markGates = true; // e and w have no reference: a G2 pick and Mark also gate
-    if (!opts.template) verdict.notes.push('No template silhouette was given, so BF1 against the template cannot pass.');
+    verdict.reference = { mode: 'none', pckVsSAndNe: p.pck, pckDist: p.dist, anchors: [], note: 'e and w have no reference. A G2 same-character pick against the given, and Mark, also gate.' };
   }
-  verdict.anchorsPass = verdict.anchors.every((a) => a.beaten);
-  verdict.pass = hard.pass && verdict.targetPass && verdict.anchorsPass;
+  verdict.reference.note = verdict.reference.note ?? 'Report only: no reference measure gates (Amendment 2 Q1).';
+
+  // the tool verdict
+  verdict.pass = verdict.style.pass && verdict.structure.pass;
+  verdict.styleByEye = verdict.style.markGatesByEye;
+  if (verdict.styleByEye) verdict.notes.push(`Mark gates style by eye: only ${verdict.style.separating.length} style lines separate the calibration population (the plan needs ${verdict.style.minGating}).`);
+  if (hard.labelSource === 'auto') verdict.notes.push('The part labels are automatic (no template given, pass --parts): the ramp lock, eye, hand, item, lit-side and guide-row checks are only as good as the labeler.');
+  verdict.notes.push("The blind facing-ID grader (9 of 10 on calibration) and Mark's template look also gate structure. The tool does not run them.");
   return verdict;
 }
 
+const num = (v) => (typeof v === 'number' ? Number(v.toFixed(3)) : v);
+
 export function formatVerdict(v) {
-  const L = [`facing ${v.facing}: ${v.pass ? 'PASS' : 'FAIL'} (hard lines ${v.hardLines.pass ? 'pass' : 'FAIL'}, target ${v.targetPass ? 'pass' : 'FAIL'}, anchors ${v.anchorsPass ? 'beaten' : 'NOT beaten'})`, `labels: ${v.labelSource}`];
-  for (const i of v.hardLines.items) if (i.status === 'fail') L.push(`  FAIL ${i.id} ${i.name}: ${i.value}${i.detail ? ` (${i.detail})` : ''}`);
-  if (v.target.mode === 'reference') {
-    L.push(`  alignment: scale ${v.target.transform.s}, shift ${v.target.transform.dx},${v.target.transform.dy}`);
-    for (const r of v.target.rows) L.push(`  ${r.role === 'gate' ? (r.pass ? 'pass  ' : 'FAIL  ') : 'report'} ${r.name}: ${r.value.toFixed(3)} (${r.dir === 'min' ? 'at least' : 'at most'} ${r.gate}${r.calibrated ? '' : ', start value, not calibrated'})`);
-  } else L.push(`  no reference: BF1 vs template ${v.target.bf1Template === null ? 'n/a' : v.target.bf1Template.toFixed(3)} (need ${v.target.bf1Need}), PCK vs s and ne ${v.target.pckVsSAndNe.toFixed(2)}`);
-  if (v.markGates && v.target.mode === 'reference') L.push(`  note: ${v.notes[v.notes.length - 1]}`);
-  for (const a of v.anchors) L.push(`  anchor ${a.name}: ${a.beaten ? 'beaten' : 'NOT beaten'} (anchor composite ${a.composite.toFixed(2)}, ${a.passCount} gates passed)`);
+  const L = [`facing ${v.facing}: ${v.pass ? 'PASS' : 'FAIL'} (style ${v.style.pass ? 'pass' : 'FAIL'}, structure ${v.structure.pass ? 'pass' : 'FAIL'}; reference measures are report only)`, `labels: ${v.labelSource}`];
+  L.push(`style (against the given): ${v.style.gating.length} lines gate, ${v.style.separating.length} separate${v.styleByEye ? ': MARK GATES STYLE BY EYE' : ''}`);
+  for (const r of v.style.rows) if (r.status === 'fail') L.push(`  FAIL ${r.id} ${r.name}: ${num(r.value)} (${r.dir === 'band' ? `inside ${r.limit.join(' to ')}` : `${r.dir === 'min' ? 'at least' : 'at most'} ${r.limit}`})${r.detail ? ` ${r.detail}` : ''}${r.role === 'gate' ? '' : ' [report line]'}`);
+  for (const i of v.style.extra) if (i.status === 'fail') L.push(`  FAIL ${i.id} ${i.name}: ${i.value}`);
+  L.push('structure (no reference):');
+  for (const i of v.structure.items) if (i.status === 'fail') L.push(`  FAIL ${i.id} ${i.name}: ${i.value}${i.detail ? ` (${i.detail})` : ''}`);
+  const rf = v.reference;
+  if (rf.mode === 'reference') {
+    L.push(`reference (report only): alignment scale ${rf.transform.s}, shift ${rf.transform.dx},${rf.transform.dy}; part mIoU gain over the naive given ${rf.gain.partMiou >= 0 ? '+' : ''}${rf.gain.partMiou.toFixed(3)}`);
+    for (const r of rf.rows) L.push(`  report ${r.name}: ${r.value.toFixed(3)} (${r.dir === 'min' ? 'at least' : 'at most'} ${r.gate}${r.calibrated ? '' : ', start value'}; ${r.pass ? 'meets' : 'misses'} it)`);
+    for (const a of rf.anchors) L.push(`  anchor ${a.name}: ${a.beaten ? 'beaten' : 'NOT beaten'} (report: anchor composite ${a.composite.toFixed(2)})`);
+  } else L.push(`reference (report only): none for this facing; PCK against s and ne ${rf.pckVsSAndNe.toFixed(2)}`);
+  for (const n of v.notes.slice(1)) L.push(`note: ${n}`);
   return L.join('\n');
 }
 

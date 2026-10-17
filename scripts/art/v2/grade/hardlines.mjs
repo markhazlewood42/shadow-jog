@@ -13,8 +13,8 @@ import { loadGiven, readTarget } from '../../pipeline/given.mjs';
 import { lintFrame } from '../../pixlint.mjs';
 import { de00Packed } from './color.mjs';
 import { N, bboxOf, flipH, opaqueAt, packedAt, toCanvas } from './image.mjs';
-import { HEAD_ROWS, autoLabel, colorClass, labelsFromPartMap, toGroups } from './parts.mjs';
-import { textureDensity, MIN_PART_CELLS } from './measures.mjs';
+import { HEAD_ROWS, autoLabel, colorClass, labelsFromPartMap } from './parts.mjs';
+import { flattening } from './flat.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 export const GATES_PATH = `${here}/gates.json`;
@@ -22,11 +22,11 @@ export const loadGates = () => JSON.parse(readFileSync(GATES_PATH, 'utf8'));
 
 /**
  * The lines in force. hardLines holds the plan's lines. hardLines.reset holds the values that the calibration proposes for the lines that
- * failed should-pass items (orphanFactor, widthTol, headWidthTol, flatteningFloor). They apply only when hardLines.useReset is true,
+ * failed should-pass items (orphanFactor, flatteningFloor). They apply only when hardLines.useReset is true,
  * because two of them re-set a line that Mark wrote into the spike exit criteria.
  */
 export function effectiveLines(HL) {
-  const base = { orphanFactor: HL.countFactor, smallFactor: HL.countFactor, headWidthTol: 1 };
+  const base = { orphanFactor: HL.countFactor, smallFactor: HL.countFactor };
   return { ...HL, ...base, ...(HL.useReset ? HL.reset : {}) };
 }
 
@@ -162,19 +162,13 @@ export function checkHardLines(candRaw, opts = {}) {
   });
   for (const it of lint) {
     if (it.status === 'skipped') continue;
-    if (it.id === 'PA-06' && /box width/.test(it.name) && !(facing in HL.widthTol)) continue; // the width line is for down and up only
+    // C5: the box width (PA-06) is a report line, and the pixlint head width (PA-07) is out of the grade: both change with the facing.
+    // The head-alone line below (13 to 15 px) holds the head.
     if (it.id === 'PA-06' && /box width/.test(it.name)) {
-      const tol = HL.widthTol[facing];
-      const w = b.w - t.given.bboxWidth;
-      items.push(item('PA-06', `box width within ${tol} px of the given`, Math.abs(w) <= tol ? 'pass' : 'fail', `${b.w}, given ${t.given.bboxWidth}`));
+      items.push(item('PA-06', 'box width against the given (report line, not a gate)', 'info', `${b.w}, given ${t.given.bboxWidth}`));
       continue;
     }
-    if (it.id === 'PA-07' && /head width/.test(it.name)) {
-      if (!HL.headWidthFacings.includes(facing)) continue;
-      const m = measureFrame(img);
-      items.push(item('PA-07', `head width within ${HL.headWidthTol} px of the given`, Math.abs(m.headWidth - t.given.headWidth) <= HL.headWidthTol ? 'pass' : 'fail', `${m.headWidth}, given ${t.given.headWidth}`));
-      continue;
-    }
+    if (it.id === 'PA-07' && /head width/.test(it.name)) continue;
     if (it.id === 'PA-03' && it.status !== 'info') {
       const ratio = Number.parseFloat(it.value) / 100;
       items.push(item('PA-03', `outline >= ${(HL.outlineMin * 100).toFixed(0)}% near-black`, ratio >= HL.outlineMin - 1e-9 ? 'pass' : 'fail', it.value, it.detail));
@@ -261,17 +255,14 @@ export function checkHardLines(candRaw, opts = {}) {
     items.push(item('HL-RAMP', 'ramp lock to the template part dilated by 1 px', bad.length === 0 ? 'pass' : 'fail', `${bad.length} cells`, bad.slice(0, 5).map(([x, y, f]) => `${x},${y} ${f}`).join(' ')));
   } else items.push(item('HL-RAMP', 'ramp lock to the template', 'skipped', 'needs a template'));
 
-  // Flattening floor: per part group, the texture density is at least 0.8x the given's.
-  const dc = textureDensity(img, toGroups(labels));
-  const dg = textureDensity(toCanvas(spec.given, N), toGroups(spec.givenLabels));
-  const low = [];
-  let lowestRatio = Number.POSITIVE_INFINITY;
-  for (const g of Object.keys(dc)) {
-    if (dc[g].cells < MIN_PART_CELLS || dg[g].cells < MIN_PART_CELLS) continue;
-    if (dg[g].density > 0) lowestRatio = Math.min(lowestRatio, dc[g].density / dg[g].density);
-    if (dc[g].density < HL.flatteningFloor * dg[g].density) low.push(`${g} ${dc[g].density.toFixed(2)} < ${(HL.flatteningFloor * dg[g].density).toFixed(2)}`);
-  }
-  items.push(item('HL-FLAT', `texture density per part at least ${HL.flatteningFloor}x the given`, low.length ? 'fail' : 'pass', low.length ? low.join('; ') : 'ok', `labels: ${labelSource}`));
+  // Flattening floor (C5): the texture density of each part group of at least flatMinCells cells is at least 0.8x the given's, and so is the whole figure.
+  // The labels of the given match the candidate's labeler class (template labels, or the automatic labeler).
+  const minCells = gates.style?.flatMinCells ?? 20;
+  const fl = flattening(img, labels, spec, labelSource, minCells);
+  const lowest = fl.lowest ?? Number.POSITIVE_INFINITY;
+  const low = Object.entries(fl.groups).filter(([, v]) => v.ratio < HL.flatteningFloor - 1e-9).map(([g, v]) => `${g} ${v.cand.toFixed(2)} < ${(HL.flatteningFloor * v.given).toFixed(2)}`);
+  if (fl.whole !== null && fl.whole < HL.flatteningFloor - 1e-9) low.push(`whole figure ${fl.wholeCand.toFixed(2)} < ${(HL.flatteningFloor * fl.wholeGiven).toFixed(2)}`);
+  items.push(item('HL-FLAT', `texture density per part group of ${minCells} or more cells, and the whole figure, at least ${HL.flatteningFloor}x the given`, low.length ? 'fail' : 'pass', low.length ? low.join('; ') : 'ok', `labels: ${labelSource}`));
 
   // Numeric view of each line, for the calibration: { value, dir, limit }. dir 'min' means the value must be at least the limit.
   const mf = measureFrame(img);
@@ -279,13 +270,13 @@ export function checkHardLines(candRaw, opts = {}) {
     'PA-03 outline ratio': { value: outlineRatio(img).ratio, dir: 'min', limit: HL.outlineMin },
     'PA-04 orphans / given': { value: orphanList(img).length / t.given.orphans, dir: 'max', limit: HL.orphanFactor },
     'PA-09 small regions / given': { value: mf.smallRegions / t.given.smallRegions, dir: 'max', limit: HL.smallFactor },
-    'PA-06 box width deviation': { value: Math.abs(b.w - t.given.bboxWidth), dir: 'max', limit: HL.widthTol[facing] ?? null },
-    'PA-07 head width deviation': { value: Math.abs(mf.headWidth - t.given.headWidth), dir: 'max', limit: HL.headWidthFacings.includes(facing) ? HL.headWidthTol : null },
+    'PA-06 box width deviation': { value: Math.abs(b.w - t.given.bboxWidth), dir: 'max', limit: null }, // report line (C5)
+    'PA-07 head width deviation': { value: Math.abs(mf.headWidth - t.given.headWidth), dir: 'max', limit: null }, // out of the gate (C5)
     'HL-HEIGHT deviation': { value: Math.abs(b.h - HL.height.given), dir: 'max', limit: HL.height.tol },
     'HL-HEAD deviation from 14': { value: Math.abs(ha - 14), dir: 'max', limit: Math.max(14 - HL.headAlone.min, HL.headAlone.max - 14) },
     'HL-SHOULDER deviation': { value: Math.abs(tr.shoulder - gTr.shoulder), dir: 'max', limit: HL.shoulderTol },
     'HL-HIP deviation': { value: Math.abs(tr.hip - gTr.hip), dir: 'max', limit: HL.hipTol },
-    'HL-FLAT lowest part ratio': { value: lowestRatio, dir: 'min', limit: HL.flatteningFloor },
+    'HL-FLAT lowest part ratio': { value: lowest, dir: 'min', limit: HL.flatteningFloor },
   };
   const out = items.filter((i) => !(opts.exempt ?? []).includes(i.id) && !(opts.exempt ?? []).includes(`${i.id}:${i.name}`));
   return { pass: !hasFail(out), items: out, labelSource, metrics };

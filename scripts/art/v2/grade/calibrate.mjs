@@ -320,8 +320,6 @@ export function resetOf(metricRows, HL) {
   const prop = (name) => metricRows.find((m) => m.name === name)?.proposed ?? null;
   return {
     orphanFactor: prop('PA-04 orphans / given') ?? HL.countFactor,
-    widthTol: Object.fromEntries(Object.keys(HL.widthTol).map((k) => [k, prop('PA-06 box width deviation') ?? HL.widthTol[k]])),
-    headWidthTol: prop('PA-07 head width deviation') ?? 1,
     flatteningFloor: prop('HL-FLAT lowest part ratio') ?? HL.flatteningFloor,
   };
 }
@@ -411,7 +409,10 @@ export function writeGates(res, gates, { date = new Date().toISOString().slice(0
   const g = JSON.parse(JSON.stringify(gates));
   for (const t of res.table) {
     g.targetMeasures[t.key].calibrated = t.gate === null ? null : Number(t.gate.toFixed(4));
-    g.targetMeasures[t.key].role = t.separates ? 'gate' : 'report';
+    // Amendment 2 Q1: the reference measures are report lines only. `separates` keeps what the calibration found (colorMatch separated,
+    // and the correct mirror of the given still failed it), but no reference measure gates the verdict.
+    g.targetMeasures[t.key].role = 'report';
+    g.targetMeasures[t.key].separates = t.separates;
     g.targetMeasures[t.key].worstPass = Number(t.passWorst.v.toFixed(4));
     g.targetMeasures[t.key].bestFail = Number(t.failBest.v.toFixed(4));
   }

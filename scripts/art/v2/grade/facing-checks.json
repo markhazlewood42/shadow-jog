@@ -1,0 +1,55 @@
+{
+  "note": "Per-facing check tolerances of the structure tier (consult C2 C4, build B3). Grader side. Every entry names the rule it comes from: R2 = docs/spikes/rook-turnaround/research/R2-turnaround-craft.md (T1 to T20), PA-xx = the pixel-artist-characters pack. No number here comes from a reference picture (the Sprite Fusion 8-direction references). The rows of the given are read from the given frame at run time, not stored here. A test (tests/art-v2-grade.test.ts) checks that every entry has a rule and that nothing in the folder names a reference.",
+  "rowTol": {
+    "value": 1,
+    "rule": "PA-22 (each landmark within 1 pixel of the same row in every facing); R2 T2 (rows equal at standing)"
+  },
+  "guideRows": {
+    "eyeFacings": ["s", "se", "sw"],
+    "rule": "PA-22 guide rows: head top, eye, shoulder, belt (hip), feet. The eye row runs where eyes show (R2 section 2: front and 3/4 front)."
+  },
+  "eyes": {
+    "s": { "clustersMin": 1, "clustersMax": 2, "widthMax": 2, "rowSpreadMax": 1, "rule": "PA-19 (eyes 1 to 2 px); R2 T5 (both eyes on one row)" },
+    "se": { "clustersMin": 1, "clustersMax": 2, "widthMax": 2, "rowSpreadMax": 1, "rule": "R2 T5, T7 (3/4 front: far eye narrower or partly hidden); PA-19" },
+    "sw": { "clustersMin": 1, "clustersMax": 2, "widthMax": 2, "rowSpreadMax": 1, "rule": "R2 T5, T7; PA-19" },
+    "e": { "clustersMin": 1, "clustersMax": 1, "widthMax": 2, "rule": "R2 T8 (side: one eye)" },
+    "w": { "clustersMin": 1, "clustersMax": 1, "widthMax": 2, "rule": "R2 T8 (side: one eye)" },
+    "n": { "clustersMin": 0, "clustersMax": 0, "rule": "PA-19 (the back view shows no face); R2 T8 (back: no eye pixels)" },
+    "ne": { "clustersMin": 0, "clustersMax": 0, "rule": "PA-19; R2 T8 (3/4 back: no eye pixels)" },
+    "nw": { "clustersMin": 0, "clustersMax": 0, "rule": "R2 T8 (3/4 back: no eye pixels)" }
+  },
+  "hands": {
+    "minCells": 2,
+    "maxCells": 3,
+    "maxNote": "PA-20 says a hand is a 2 to 3 px cluster. The given's own hands measure 5 to 9 px of skin, so the 3 px upper bound cannot gate this character. It is a report line (ST-HANDS-MAX); the lower bound and the count gate.",
+    "farHandMin": { "facings": ["ne", "nw", "e", "w"], "value": 1, "rule": "R2 section 2 (side and 3/4 back: one arm fully visible, the far hand partly hidden)" },
+    "count": {
+      "s": { "min": 2, "max": 2 },
+      "se": { "min": 2, "max": 2 },
+      "sw": { "min": 2, "max": 2 },
+      "n": { "min": 2, "max": 2 },
+      "ne": { "min": 1, "max": 2 },
+      "nw": { "min": 1, "max": 2 },
+      "e": { "min": 1, "max": 2 },
+      "w": { "min": 1, "max": 2 }
+    },
+    "rule": "PA-20 (each hand is a distinct cluster); R2 section 2 (hands per facing)"
+  },
+  "item": {
+    "edgeNearBlackMin": 0.93,
+    "minEdgeCells": 4,
+    "rule": "PA-20 (the carried item has its own outline); R2 T9 and PA-03 (outline near-black on at least 93 percent of edge cells)"
+  },
+  "litSide": {
+    "facings": ["sw", "nw"],
+    "groups": ["hair", "torso"],
+    "reportGroups": ["legs"],
+    "minAbsAtSe": 3,
+    "rule": "R2 T10 (one light, the same sign in all facings); PA-23. Legs are a report line: the walk frames change the sign of the legs with the pose, so it cannot gate. A part with less than minAbsAtSe luma between its halves at se has no clear lit side and is not checked."
+  },
+  "sideGuide": {
+    "facings": ["e", "w"],
+    "rowTol": { "value": 1, "rule": "R2 T2 (head top, first skin row, leg split row and foot row equal); PA-22 (within 1 pixel). The battle idle bounces, so the tolerance is added to its min and max rows." },
+    "note": "e and w are compared with the battle idle, not with the given, and never by row widths: the idle's blade stance makes the widths useless (consult C2 C4)."
+  }
+}
