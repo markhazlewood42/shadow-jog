@@ -1,0 +1,9803 @@
+{
+ "s": {
+  "facing": "s",
+  "yaw": 0,
+  "headCenterCol": 17.5,
+  "faceAxisCol": 17.5,
+  "eyes": {
+   "rows": [
+    7,
+    8,
+    9,
+    10
+   ],
+   "cells": [
+    [
+     14,
+     7
+    ],
+    [
+     15,
+     7
+    ],
+    [
+     16,
+     7
+    ],
+    [
+     19,
+     7
+    ],
+    [
+     20,
+     7
+    ],
+    [
+     21,
+     7
+    ],
+    [
+     13,
+     8
+    ],
+    [
+     14,
+     8
+    ],
+    [
+     15,
+     8
+    ],
+    [
+     16,
+     8
+    ],
+    [
+     17,
+     8
+    ],
+    [
+     18,
+     8
+    ],
+    [
+     19,
+     8
+    ],
+    [
+     20,
+     8
+    ],
+    [
+     21,
+     8
+    ],
+    [
+     22,
+     8
+    ],
+    [
+     13,
+     9
+    ],
+    [
+     14,
+     9
+    ],
+    [
+     15,
+     9
+    ],
+    [
+     16,
+     9
+    ],
+    [
+     17,
+     9
+    ],
+    [
+     18,
+     9
+    ],
+    [
+     19,
+     9
+    ],
+    [
+     20,
+     9
+    ],
+    [
+     21,
+     9
+    ],
+    [
+     22,
+     9
+    ],
+    [
+     14,
+     10
+    ],
+    [
+     15,
+     10
+    ],
+    [
+     16,
+     10
+    ],
+    [
+     19,
+     10
+    ],
+    [
+     20,
+     10
+    ],
+    [
+     21,
+     10
+    ]
+   ]
+  },
+  "lightVector": [
+   -0.45,
+   -0.6,
+   0.66
+  ],
+  "lightSide": "top-left, toward the viewer",
+  "guideRows": {
+   "headTop": 0,
+   "headBottom": 12,
+   "eye": 8,
+   "shoulder": 14,
+   "hip": 25,
+   "legTop": 26,
+   "bootTop": 28,
+   "foot": 30
+  },
+  "partLayout": [
+   {
+    "y": 0,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 14,
+      "x1": 21,
+      "mainLight": "lit"
+     }
+    ]
+   },
+   {
+    "y": 1,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 12,
+      "x1": 23,
+      "mainLight": "lit"
+     }
+    ]
+   },
+   {
+    "y": 2,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 24,
+      "mainLight": "lit"
+     }
+    ]
+   },
+   {
+    "y": 3,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 24,
+      "mainLight": "lit"
+     }
+    ]
+   },
+   {
+    "y": 4,
+    "spans": [
+     {
+      "part": "sheath",
+      "x0": 5,
+      "x1": 7,
+      "mainLight": "base"
+     },
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 24,
+      "mainLight": "lit"
+     }
+    ]
+   },
+   {
+    "y": 5,
+    "spans": [
+     {
+      "part": "sheath",
+      "x0": 5,
+      "x1": 7,
+      "mainLight": "base"
+     },
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 15,
+      "mainLight": "lit"
+     },
+     {
+      "part": "skin",
+      "x0": 16,
+      "x1": 19,
+      "mainLight": "lit"
+     },
+     {
+      "part": "hair",
+      "x0": 20,
+      "x1": 24,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 6,
+    "spans": [
+     {
+      "part": "sheath",
+      "x0": 5,
+      "x1": 5,
+      "mainLight": "base"
+     },
+     {
+      "part": "guard",
+      "x0": 6,
+      "x1": 6,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 7,
+      "x1": 8,
+      "mainLight": "base"
+     },
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 12,
+      "mainLight": "base"
+     },
+     {
+      "part": "skin",
+      "x0": 13,
+      "x1": 22,
+      "mainLight": "lit"
+     },
+     {
+      "part": "hair",
+      "x0": 23,
+      "x1": 24,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 7,
+    "spans": [
+     {
+      "part": "wrap",
+      "x0": 6,
+      "x1": 6,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 7,
+      "x1": 8,
+      "mainLight": "base"
+     },
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 12,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "skin",
+      "x0": 13,
+      "x1": 13,
+      "mainLight": "lit"
+     },
+     {
+      "part": "lenses",
+      "x0": 14,
+      "x1": 16,
+      "mainLight": "base"
+     },
+     {
+      "part": "skin",
+      "x0": 17,
+      "x1": 18,
+      "mainLight": "lit"
+     },
+     {
+      "part": "lenses",
+      "x0": 19,
+      "x1": 21,
+      "mainLight": "base"
+     },
+     {
+      "part": "skin",
+      "x0": 22,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "hair",
+      "x0": 23,
+      "x1": 24,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 8,
+    "spans": [
+     {
+      "part": "sheath",
+      "x0": 6,
+      "x1": 6,
+      "mainLight": "base"
+     },
+     {
+      "part": "wrap",
+      "x0": 7,
+      "x1": 7,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 8,
+      "x1": 9,
+      "mainLight": "base"
+     },
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 12,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "lenses",
+      "x0": 13,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "hair",
+      "x0": 23,
+      "x1": 24,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 9,
+    "spans": [
+     {
+      "part": "sheath",
+      "x0": 7,
+      "x1": 7,
+      "mainLight": "base"
+     },
+     {
+      "part": "wrap",
+      "x0": 8,
+      "x1": 8,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 9,
+      "x1": 9,
+      "mainLight": "base"
+     },
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 12,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "lenses",
+      "x0": 13,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "hair",
+      "x0": 23,
+      "x1": 24,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 10,
+    "spans": [
+     {
+      "part": "sheath",
+      "x0": 7,
+      "x1": 8,
+      "mainLight": "base"
+     },
+     {
+      "part": "wrap",
+      "x0": 9,
+      "x1": 9,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "guard",
+      "x0": 10,
+      "x1": 10,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "skin",
+      "x0": 12,
+      "x1": 13,
+      "mainLight": "base"
+     },
+     {
+      "part": "lenses",
+      "x0": 14,
+      "x1": 16,
+      "mainLight": "base"
+     },
+     {
+      "part": "skin",
+      "x0": 17,
+      "x1": 18,
+      "mainLight": "base"
+     },
+     {
+      "part": "lenses",
+      "x0": 19,
+      "x1": 21,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "skin",
+      "x0": 22,
+      "x1": 23,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 11,
+    "spans": [
+     {
+      "part": "sheath",
+      "x0": 8,
+      "x1": 8,
+      "mainLight": "base"
+     },
+     {
+      "part": "guard",
+      "x0": 9,
+      "x1": 9,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "sheath",
+      "x0": 10,
+      "x1": 11,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 12,
+      "x1": 14,
+      "mainLight": "base"
+     },
+     {
+      "part": "skin",
+      "x0": 15,
+      "x1": 15,
+      "mainLight": "base"
+     },
+     {
+      "part": "beard",
+      "x0": 16,
+      "x1": 19,
+      "mainLight": "lit"
+     },
+     {
+      "part": "skin",
+      "x0": 20,
+      "x1": 20,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 21,
+      "x1": 23,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 12,
+    "spans": [
+     {
+      "part": "sheath",
+      "x0": 8,
+      "x1": 11,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 12,
+      "x1": 14,
+      "mainLight": "base"
+     },
+     {
+      "part": "beard",
+      "x0": 15,
+      "x1": 15,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 16,
+      "x1": 16,
+      "mainLight": "base"
+     },
+     {
+      "part": "skin",
+      "x0": 17,
+      "x1": 18,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 19,
+      "x1": 19,
+      "mainLight": "base"
+     },
+     {
+      "part": "beard",
+      "x0": 20,
+      "x1": 20,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 21,
+      "x1": 23,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 13,
+    "spans": [
+     {
+      "part": "coat",
+      "x0": 11,
+      "x1": 14,
+      "mainLight": "base"
+     },
+     {
+      "part": "beard",
+      "x0": 15,
+      "x1": 20,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 21,
+      "x1": 24,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 14,
+    "spans": [
+     {
+      "part": "coat",
+      "x0": 11,
+      "x1": 24,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 15,
+    "spans": [
+     {
+      "part": "sleeves",
+      "x0": 10,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 15,
+      "mainLight": "base"
+     },
+     {
+      "part": "zipper",
+      "x0": 16,
+      "x1": 18,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 19,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 25,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 16,
+    "spans": [
+     {
+      "part": "sleeves",
+      "x0": 10,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 15,
+      "mainLight": "base"
+     },
+     {
+      "part": "zipper",
+      "x0": 16,
+      "x1": 18,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 19,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 25,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 17,
+    "spans": [
+     {
+      "part": "sleeves",
+      "x0": 9,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 15,
+      "mainLight": "base"
+     },
+     {
+      "part": "zipper",
+      "x0": 16,
+      "x1": 18,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 19,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 26,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 18,
+    "spans": [
+     {
+      "part": "sleeves",
+      "x0": 9,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 15,
+      "mainLight": "base"
+     },
+     {
+      "part": "zipper",
+      "x0": 16,
+      "x1": 18,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 19,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 26,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 19,
+    "spans": [
+     {
+      "part": "sleeves",
+      "x0": 8,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 15,
+      "mainLight": "base"
+     },
+     {
+      "part": "zipper",
+      "x0": 16,
+      "x1": 18,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 19,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 27,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 20,
+    "spans": [
+     {
+      "part": "sleeves",
+      "x0": 8,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 15,
+      "mainLight": "base"
+     },
+     {
+      "part": "zipper",
+      "x0": 16,
+      "x1": 18,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 19,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 27,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 21,
+    "spans": [
+     {
+      "part": "hands",
+      "x0": 7,
+      "x1": 10,
+      "mainLight": "lit"
+     },
+     {
+      "part": "sleeves",
+      "x0": 12,
+      "x1": 12,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 15,
+      "mainLight": "base"
+     },
+     {
+      "part": "zipper",
+      "x0": 16,
+      "x1": 18,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 19,
+      "x1": 22,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 23,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "hands",
+      "x0": 25,
+      "x1": 28,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 22,
+    "spans": [
+     {
+      "part": "hands",
+      "x0": 7,
+      "x1": 10,
+      "mainLight": "lit"
+     },
+     {
+      "part": "sleeves",
+      "x0": 12,
+      "x1": 12,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 15,
+      "mainLight": "base"
+     },
+     {
+      "part": "zipper",
+      "x0": 16,
+      "x1": 18,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 19,
+      "x1": 22,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 23,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "hands",
+      "x0": 25,
+      "x1": 28,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 23,
+    "spans": [
+     {
+      "part": "hands",
+      "x0": 7,
+      "x1": 10,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 12,
+      "x1": 12,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 15,
+      "mainLight": "base"
+     },
+     {
+      "part": "zipper",
+      "x0": 16,
+      "x1": 18,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 19,
+      "x1": 22,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 23,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "hands",
+      "x0": 25,
+      "x1": 28,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 24,
+    "spans": [
+     {
+      "part": "hands",
+      "x0": 8,
+      "x1": 9,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "sleeves",
+      "x0": 12,
+      "x1": 12,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 15,
+      "mainLight": "base"
+     },
+     {
+      "part": "zipper",
+      "x0": 16,
+      "x1": 18,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 19,
+      "x1": 22,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 23,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "hands",
+      "x0": 26,
+      "x1": 27,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 25,
+    "spans": [
+     {
+      "part": "coat",
+      "x0": 12,
+      "x1": 23,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 26,
+    "spans": [
+     {
+      "part": "legs",
+      "x0": 14,
+      "x1": 21,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 27,
+    "spans": [
+     {
+      "part": "legs",
+      "x0": 14,
+      "x1": 21,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 28,
+    "spans": [
+     {
+      "part": "boots",
+      "x0": 16,
+      "x1": 19,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 29,
+    "spans": [
+     {
+      "part": "boots",
+      "x0": 14,
+      "x1": 21,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 30,
+    "spans": [
+     {
+      "part": "boots",
+      "x0": 14,
+      "x1": 21,
+      "mainLight": "base"
+     }
+    ]
+   }
+  ],
+  "folds": [
+   {
+    "panel": "coat#0",
+    "start": [
+     22,
+     16
+    ],
+    "dir": [
+     0,
+     1
+    ],
+    "cells": [
+     [
+      22,
+      16
+     ],
+     [
+      22,
+      17
+     ],
+     [
+      22,
+      18
+     ],
+     [
+      22,
+      19
+     ]
+    ],
+    "side": "away from the light"
+   },
+   {
+    "panel": "coat#0",
+    "start": [
+     22,
+     22
+    ],
+    "dir": [
+     0,
+     1
+    ],
+    "cells": [
+     [
+      22,
+      22
+     ],
+     [
+      22,
+      23
+     ]
+    ],
+    "side": "away from the light"
+   },
+   {
+    "panel": "sleeves#0",
+    "start": [
+     12,
+     15
+    ],
+    "dir": [
+     0,
+     1
+    ],
+    "cells": [
+     [
+      12,
+      15
+     ],
+     [
+      12,
+      16
+     ],
+     [
+      12,
+      17
+     ]
+    ],
+    "side": "away from the light"
+   },
+   {
+    "panel": "sleeves#1",
+    "start": [
+     25,
+     15
+    ],
+    "dir": [
+     0,
+     1
+    ],
+    "cells": [
+     [
+      25,
+      15
+     ],
+     [
+      25,
+      16
+     ],
+     [
+      25,
+      17
+     ]
+    ],
+    "side": "away from the light"
+   }
+  ],
+  "item": {
+   "side": "left",
+   "cells": [
+    {
+     "part": "sheath",
+     "cell": [
+      5,
+      4
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      6,
+      4
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      7,
+      4
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      5,
+      5
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      6,
+      5
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      7,
+      5
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      5,
+      6
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      7,
+      6
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      8,
+      6
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      7,
+      7
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      8,
+      7
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      6,
+      8
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      8,
+      8
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      9,
+      8
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      7,
+      9
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      9,
+      9
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      7,
+      10
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      8,
+      10
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      8,
+      11
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      10,
+      11
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      11,
+      11
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      8,
+      12
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      9,
+      12
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      10,
+      12
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      11,
+      12
+     ]
+    },
+    {
+     "part": "guard",
+     "cell": [
+      6,
+      6
+     ]
+    },
+    {
+     "part": "guard",
+     "cell": [
+      10,
+      10
+     ]
+    },
+    {
+     "part": "guard",
+     "cell": [
+      9,
+      11
+     ]
+    },
+    {
+     "part": "wrap",
+     "cell": [
+      6,
+      7
+     ]
+    },
+    {
+     "part": "wrap",
+     "cell": [
+      7,
+      8
+     ]
+    },
+    {
+     "part": "wrap",
+     "cell": [
+      8,
+      9
+     ]
+    },
+    {
+     "part": "wrap",
+     "cell": [
+      9,
+      10
+     ]
+    }
+   ]
+  },
+  "outlineRule": "1 px, near-black, unbroken around the silhouette; seam cells use near-black too (selout by light level)",
+  "mirrored": false
+ },
+ "se": {
+  "facing": "se",
+  "yaw": 45,
+  "headCenterCol": 17.5,
+  "faceAxisCol": 19.5,
+  "eyes": {
+   "rows": [
+    7,
+    8,
+    9,
+    10
+   ],
+   "cells": [
+    [
+     17,
+     7
+    ],
+    [
+     18,
+     7
+    ],
+    [
+     21,
+     7
+    ],
+    [
+     22,
+     7
+    ],
+    [
+     23,
+     7
+    ],
+    [
+     14,
+     8
+    ],
+    [
+     15,
+     8
+    ],
+    [
+     16,
+     8
+    ],
+    [
+     17,
+     8
+    ],
+    [
+     18,
+     8
+    ],
+    [
+     19,
+     8
+    ],
+    [
+     20,
+     8
+    ],
+    [
+     21,
+     8
+    ],
+    [
+     22,
+     8
+    ],
+    [
+     23,
+     8
+    ],
+    [
+     16,
+     9
+    ],
+    [
+     17,
+     9
+    ],
+    [
+     18,
+     9
+    ],
+    [
+     19,
+     9
+    ],
+    [
+     20,
+     9
+    ],
+    [
+     21,
+     9
+    ],
+    [
+     22,
+     9
+    ],
+    [
+     23,
+     9
+    ],
+    [
+     17,
+     10
+    ],
+    [
+     18,
+     10
+    ],
+    [
+     21,
+     10
+    ],
+    [
+     22,
+     10
+    ]
+   ]
+  },
+  "lightVector": [
+   -0.45,
+   -0.6,
+   0.66
+  ],
+  "lightSide": "top-left, toward the viewer",
+  "guideRows": {
+   "headTop": 0,
+   "headBottom": 12,
+   "eye": 8,
+   "shoulder": 14,
+   "hip": 25,
+   "legTop": 26,
+   "bootTop": 28,
+   "foot": 30
+  },
+  "partLayout": [
+   {
+    "y": 0,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 14,
+      "x1": 20,
+      "mainLight": "lit"
+     }
+    ]
+   },
+   {
+    "y": 1,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 12,
+      "x1": 22,
+      "mainLight": "lit"
+     }
+    ]
+   },
+   {
+    "y": 2,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 23,
+      "mainLight": "lit"
+     }
+    ]
+   },
+   {
+    "y": 3,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 24,
+      "mainLight": "lit"
+     }
+    ]
+   },
+   {
+    "y": 4,
+    "spans": [
+     {
+      "part": "sheath",
+      "x0": 5,
+      "x1": 7,
+      "mainLight": "base"
+     },
+     {
+      "part": "hair",
+      "x0": 12,
+      "x1": 24,
+      "mainLight": "lit"
+     }
+    ]
+   },
+   {
+    "y": 5,
+    "spans": [
+     {
+      "part": "sheath",
+      "x0": 5,
+      "x1": 7,
+      "mainLight": "base"
+     },
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 15,
+      "mainLight": "lit"
+     },
+     {
+      "part": "skin",
+      "x0": 16,
+      "x1": 18,
+      "mainLight": "lit"
+     },
+     {
+      "part": "hair",
+      "x0": 19,
+      "x1": 20,
+      "mainLight": "base"
+     },
+     {
+      "part": "skin",
+      "x0": 21,
+      "x1": 21,
+      "mainLight": "base"
+     },
+     {
+      "part": "hair",
+      "x0": 22,
+      "x1": 24,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 6,
+    "spans": [
+     {
+      "part": "sheath",
+      "x0": 5,
+      "x1": 5,
+      "mainLight": "base"
+     },
+     {
+      "part": "guard",
+      "x0": 6,
+      "x1": 6,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 7,
+      "x1": 8,
+      "mainLight": "base"
+     },
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 15,
+      "mainLight": "lit"
+     },
+     {
+      "part": "skin",
+      "x0": 16,
+      "x1": 21,
+      "mainLight": "lit"
+     },
+     {
+      "part": "hair",
+      "x0": 22,
+      "x1": 24,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 7,
+    "spans": [
+     {
+      "part": "wrap",
+      "x0": 6,
+      "x1": 6,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 7,
+      "x1": 8,
+      "mainLight": "base"
+     },
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 14,
+      "mainLight": "base"
+     },
+     {
+      "part": "skin",
+      "x0": 15,
+      "x1": 16,
+      "mainLight": "lit"
+     },
+     {
+      "part": "lenses",
+      "x0": 17,
+      "x1": 18,
+      "mainLight": "base"
+     },
+     {
+      "part": "skin",
+      "x0": 19,
+      "x1": 20,
+      "mainLight": "lit"
+     },
+     {
+      "part": "lenses",
+      "x0": 21,
+      "x1": 23,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 8,
+    "spans": [
+     {
+      "part": "sheath",
+      "x0": 6,
+      "x1": 6,
+      "mainLight": "base"
+     },
+     {
+      "part": "wrap",
+      "x0": 7,
+      "x1": 7,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 8,
+      "x1": 9,
+      "mainLight": "base"
+     },
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 13,
+      "mainLight": "base"
+     },
+     {
+      "part": "lenses",
+      "x0": 14,
+      "x1": 23,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 9,
+    "spans": [
+     {
+      "part": "sheath",
+      "x0": 7,
+      "x1": 7,
+      "mainLight": "base"
+     },
+     {
+      "part": "wrap",
+      "x0": 8,
+      "x1": 8,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 9,
+      "x1": 9,
+      "mainLight": "base"
+     },
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 13,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "skin",
+      "x0": 14,
+      "x1": 15,
+      "mainLight": "lit"
+     },
+     {
+      "part": "lenses",
+      "x0": 16,
+      "x1": 23,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 10,
+    "spans": [
+     {
+      "part": "sheath",
+      "x0": 7,
+      "x1": 8,
+      "mainLight": "base"
+     },
+     {
+      "part": "wrap",
+      "x0": 9,
+      "x1": 9,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "guard",
+      "x0": 10,
+      "x1": 10,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 13,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "skin",
+      "x0": 14,
+      "x1": 16,
+      "mainLight": "base"
+     },
+     {
+      "part": "lenses",
+      "x0": 17,
+      "x1": 18,
+      "mainLight": "base"
+     },
+     {
+      "part": "skin",
+      "x0": 19,
+      "x1": 20,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "lenses",
+      "x0": 21,
+      "x1": 22,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "skin",
+      "x0": 23,
+      "x1": 23,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 11,
+    "spans": [
+     {
+      "part": "sheath",
+      "x0": 8,
+      "x1": 8,
+      "mainLight": "base"
+     },
+     {
+      "part": "guard",
+      "x0": 9,
+      "x1": 9,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "sheath",
+      "x0": 10,
+      "x1": 11,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 12,
+      "x1": 14,
+      "mainLight": "base"
+     },
+     {
+      "part": "skin",
+      "x0": 15,
+      "x1": 17,
+      "mainLight": "base"
+     },
+     {
+      "part": "beard",
+      "x0": 18,
+      "x1": 20,
+      "mainLight": "lit"
+     },
+     {
+      "part": "skin",
+      "x0": 21,
+      "x1": 23,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 12,
+    "spans": [
+     {
+      "part": "sheath",
+      "x0": 8,
+      "x1": 11,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 12,
+      "x1": 16,
+      "mainLight": "base"
+     },
+     {
+      "part": "beard",
+      "x0": 17,
+      "x1": 17,
+      "mainLight": "lit"
+     },
+     {
+      "part": "skin",
+      "x0": 18,
+      "x1": 20,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "beard",
+      "x0": 21,
+      "x1": 21,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "skin",
+      "x0": 22,
+      "x1": 23,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 13,
+    "spans": [
+     {
+      "part": "coat",
+      "x0": 11,
+      "x1": 16,
+      "mainLight": "base"
+     },
+     {
+      "part": "beard",
+      "x0": 17,
+      "x1": 21,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 22,
+      "x1": 23,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 14,
+    "spans": [
+     {
+      "part": "coat",
+      "x0": 11,
+      "x1": 24,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 15,
+    "spans": [
+     {
+      "part": "sleeves",
+      "x0": 10,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 17,
+      "mainLight": "base"
+     },
+     {
+      "part": "zipper",
+      "x0": 18,
+      "x1": 20,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 21,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 24,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 16,
+    "spans": [
+     {
+      "part": "sleeves",
+      "x0": 10,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 17,
+      "mainLight": "base"
+     },
+     {
+      "part": "zipper",
+      "x0": 18,
+      "x1": 20,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 21,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 24,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 17,
+    "spans": [
+     {
+      "part": "sleeves",
+      "x0": 9,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 17,
+      "mainLight": "base"
+     },
+     {
+      "part": "zipper",
+      "x0": 18,
+      "x1": 20,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 21,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 25,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 18,
+    "spans": [
+     {
+      "part": "sleeves",
+      "x0": 9,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 17,
+      "mainLight": "base"
+     },
+     {
+      "part": "zipper",
+      "x0": 18,
+      "x1": 20,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 21,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 25,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 19,
+    "spans": [
+     {
+      "part": "sleeves",
+      "x0": 8,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 17,
+      "mainLight": "base"
+     },
+     {
+      "part": "zipper",
+      "x0": 18,
+      "x1": 20,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 21,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 26,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 20,
+    "spans": [
+     {
+      "part": "sleeves",
+      "x0": 8,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 17,
+      "mainLight": "base"
+     },
+     {
+      "part": "zipper",
+      "x0": 18,
+      "x1": 20,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 21,
+      "x1": 22,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 26,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 21,
+    "spans": [
+     {
+      "part": "hands",
+      "x0": 7,
+      "x1": 10,
+      "mainLight": "lit"
+     },
+     {
+      "part": "sleeves",
+      "x0": 12,
+      "x1": 12,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 17,
+      "mainLight": "base"
+     },
+     {
+      "part": "zipper",
+      "x0": 18,
+      "x1": 20,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 21,
+      "x1": 22,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 23,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "hands",
+      "x0": 24,
+      "x1": 27,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 22,
+    "spans": [
+     {
+      "part": "hands",
+      "x0": 7,
+      "x1": 10,
+      "mainLight": "lit"
+     },
+     {
+      "part": "sleeves",
+      "x0": 12,
+      "x1": 12,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 17,
+      "mainLight": "base"
+     },
+     {
+      "part": "zipper",
+      "x0": 18,
+      "x1": 20,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 21,
+      "x1": 22,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 23,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "hands",
+      "x0": 24,
+      "x1": 27,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 23,
+    "spans": [
+     {
+      "part": "hands",
+      "x0": 7,
+      "x1": 10,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 12,
+      "x1": 12,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 17,
+      "mainLight": "base"
+     },
+     {
+      "part": "zipper",
+      "x0": 18,
+      "x1": 20,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 21,
+      "x1": 22,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 23,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "hands",
+      "x0": 25,
+      "x1": 27,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 24,
+    "spans": [
+     {
+      "part": "hands",
+      "x0": 8,
+      "x1": 9,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "sleeves",
+      "x0": 12,
+      "x1": 12,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 17,
+      "mainLight": "base"
+     },
+     {
+      "part": "zipper",
+      "x0": 18,
+      "x1": 20,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 21,
+      "x1": 22,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 23,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "hands",
+      "x0": 25,
+      "x1": 25,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 25,
+    "spans": [
+     {
+      "part": "coat",
+      "x0": 12,
+      "x1": 23,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 26,
+    "spans": [
+     {
+      "part": "legs",
+      "x0": 14,
+      "x1": 21,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 27,
+    "spans": [
+     {
+      "part": "legs",
+      "x0": 14,
+      "x1": 20,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 28,
+    "spans": [
+     {
+      "part": "boots",
+      "x0": 15,
+      "x1": 19,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 29,
+    "spans": [
+     {
+      "part": "boots",
+      "x0": 15,
+      "x1": 20,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 30,
+    "spans": [
+     {
+      "part": "boots",
+      "x0": 15,
+      "x1": 20,
+      "mainLight": "base"
+     }
+    ]
+   }
+  ],
+  "folds": [
+   {
+    "panel": "coat#0",
+    "start": [
+     22,
+     16
+    ],
+    "dir": [
+     0,
+     1
+    ],
+    "cells": [
+     [
+      22,
+      16
+     ],
+     [
+      22,
+      17
+     ],
+     [
+      22,
+      18
+     ],
+     [
+      22,
+      19
+     ]
+    ],
+    "side": "away from the light"
+   },
+   {
+    "panel": "coat#0",
+    "start": [
+     22,
+     22
+    ],
+    "dir": [
+     0,
+     1
+    ],
+    "cells": [
+     [
+      22,
+      22
+     ],
+     [
+      22,
+      23
+     ]
+    ],
+    "side": "away from the light"
+   },
+   {
+    "panel": "sleeves#0",
+    "start": [
+     12,
+     15
+    ],
+    "dir": [
+     0,
+     1
+    ],
+    "cells": [
+     [
+      12,
+      15
+     ],
+     [
+      12,
+      16
+     ],
+     [
+      12,
+      17
+     ]
+    ],
+    "side": "away from the light"
+   },
+   {
+    "panel": "sleeves#1",
+    "start": [
+     24,
+     15
+    ],
+    "dir": [
+     0,
+     1
+    ],
+    "cells": [
+     [
+      24,
+      15
+     ],
+     [
+      24,
+      16
+     ],
+     [
+      24,
+      17
+     ]
+    ],
+    "side": "away from the light"
+   }
+  ],
+  "item": {
+   "side": "left",
+   "cells": [
+    {
+     "part": "sheath",
+     "cell": [
+      5,
+      4
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      6,
+      4
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      7,
+      4
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      5,
+      5
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      6,
+      5
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      7,
+      5
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      5,
+      6
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      7,
+      6
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      8,
+      6
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      7,
+      7
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      8,
+      7
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      6,
+      8
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      8,
+      8
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      9,
+      8
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      7,
+      9
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      9,
+      9
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      7,
+      10
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      8,
+      10
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      8,
+      11
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      10,
+      11
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      11,
+      11
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      8,
+      12
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      9,
+      12
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      10,
+      12
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      11,
+      12
+     ]
+    },
+    {
+     "part": "guard",
+     "cell": [
+      6,
+      6
+     ]
+    },
+    {
+     "part": "guard",
+     "cell": [
+      10,
+      10
+     ]
+    },
+    {
+     "part": "guard",
+     "cell": [
+      9,
+      11
+     ]
+    },
+    {
+     "part": "wrap",
+     "cell": [
+      6,
+      7
+     ]
+    },
+    {
+     "part": "wrap",
+     "cell": [
+      7,
+      8
+     ]
+    },
+    {
+     "part": "wrap",
+     "cell": [
+      8,
+      9
+     ]
+    },
+    {
+     "part": "wrap",
+     "cell": [
+      9,
+      10
+     ]
+    }
+   ]
+  },
+  "outlineRule": "1 px, near-black, unbroken around the silhouette; seam cells use near-black too (selout by light level)",
+  "mirrored": false
+ },
+ "e": {
+  "facing": "e",
+  "yaw": 90,
+  "headCenterCol": 17,
+  "faceAxisCol": 21,
+  "eyes": {
+   "rows": [
+    7,
+    8,
+    9,
+    10
+   ],
+   "cells": [
+    [
+     19,
+     7
+    ],
+    [
+     20,
+     7
+    ],
+    [
+     21,
+     7
+    ],
+    [
+     22,
+     7
+    ],
+    [
+     12,
+     8
+    ],
+    [
+     13,
+     8
+    ],
+    [
+     14,
+     8
+    ],
+    [
+     15,
+     8
+    ],
+    [
+     16,
+     8
+    ],
+    [
+     17,
+     8
+    ],
+    [
+     18,
+     8
+    ],
+    [
+     19,
+     8
+    ],
+    [
+     20,
+     8
+    ],
+    [
+     21,
+     8
+    ],
+    [
+     22,
+     8
+    ],
+    [
+     12,
+     9
+    ],
+    [
+     13,
+     9
+    ],
+    [
+     14,
+     9
+    ],
+    [
+     15,
+     9
+    ],
+    [
+     16,
+     9
+    ],
+    [
+     17,
+     9
+    ],
+    [
+     18,
+     9
+    ],
+    [
+     19,
+     9
+    ],
+    [
+     20,
+     9
+    ],
+    [
+     21,
+     9
+    ],
+    [
+     22,
+     9
+    ],
+    [
+     19,
+     10
+    ],
+    [
+     20,
+     10
+    ],
+    [
+     21,
+     10
+    ],
+    [
+     22,
+     10
+    ]
+   ]
+  },
+  "lightVector": [
+   -0.45,
+   -0.6,
+   0.66
+  ],
+  "lightSide": "top-left, toward the viewer",
+  "guideRows": {
+   "headTop": 0,
+   "headBottom": 12,
+   "eye": 8,
+   "shoulder": 14,
+   "hip": 25,
+   "legTop": 26,
+   "bootTop": 28,
+   "foot": 30
+  },
+  "partLayout": [
+   {
+    "y": 0,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 14,
+      "x1": 20,
+      "mainLight": "lit"
+     }
+    ]
+   },
+   {
+    "y": 1,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 12,
+      "x1": 22,
+      "mainLight": "lit"
+     }
+    ]
+   },
+   {
+    "y": 2,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 23,
+      "mainLight": "lit"
+     }
+    ]
+   },
+   {
+    "y": 3,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 23,
+      "mainLight": "lit"
+     }
+    ]
+   },
+   {
+    "y": 4,
+    "spans": [
+     {
+      "part": "sheath",
+      "x0": 5,
+      "x1": 7,
+      "mainLight": "base"
+     },
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 23,
+      "mainLight": "lit"
+     }
+    ]
+   },
+   {
+    "y": 5,
+    "spans": [
+     {
+      "part": "sheath",
+      "x0": 5,
+      "x1": 7,
+      "mainLight": "base"
+     },
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 23,
+      "mainLight": "lit"
+     }
+    ]
+   },
+   {
+    "y": 6,
+    "spans": [
+     {
+      "part": "sheath",
+      "x0": 5,
+      "x1": 5,
+      "mainLight": "base"
+     },
+     {
+      "part": "guard",
+      "x0": 6,
+      "x1": 6,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 7,
+      "x1": 8,
+      "mainLight": "base"
+     },
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 18,
+      "mainLight": "base"
+     },
+     {
+      "part": "skin",
+      "x0": 19,
+      "x1": 23,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 7,
+    "spans": [
+     {
+      "part": "wrap",
+      "x0": 6,
+      "x1": 6,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 7,
+      "x1": 8,
+      "mainLight": "base"
+     },
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 16,
+      "mainLight": "base"
+     },
+     {
+      "part": "skin",
+      "x0": 18,
+      "x1": 18,
+      "mainLight": "lit"
+     },
+     {
+      "part": "lenses",
+      "x0": 19,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "skin",
+      "x0": 23,
+      "x1": 23,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 8,
+    "spans": [
+     {
+      "part": "sheath",
+      "x0": 6,
+      "x1": 6,
+      "mainLight": "base"
+     },
+     {
+      "part": "wrap",
+      "x0": 7,
+      "x1": 7,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 8,
+      "x1": 9,
+      "mainLight": "base"
+     },
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 11,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "lenses",
+      "x0": 12,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "skin",
+      "x0": 23,
+      "x1": 23,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 9,
+    "spans": [
+     {
+      "part": "sheath",
+      "x0": 7,
+      "x1": 7,
+      "mainLight": "base"
+     },
+     {
+      "part": "wrap",
+      "x0": 8,
+      "x1": 8,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 9,
+      "x1": 9,
+      "mainLight": "base"
+     },
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 11,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "lenses",
+      "x0": 12,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "skin",
+      "x0": 23,
+      "x1": 23,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 10,
+    "spans": [
+     {
+      "part": "sheath",
+      "x0": 7,
+      "x1": 8,
+      "mainLight": "base"
+     },
+     {
+      "part": "wrap",
+      "x0": 9,
+      "x1": 9,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "guard",
+      "x0": 10,
+      "x1": 10,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 16,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "skin",
+      "x0": 18,
+      "x1": 18,
+      "mainLight": "base"
+     },
+     {
+      "part": "lenses",
+      "x0": 19,
+      "x1": 22,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "skin",
+      "x0": 23,
+      "x1": 23,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 11,
+    "spans": [
+     {
+      "part": "sheath",
+      "x0": 8,
+      "x1": 8,
+      "mainLight": "base"
+     },
+     {
+      "part": "guard",
+      "x0": 9,
+      "x1": 9,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "sheath",
+      "x0": 10,
+      "x1": 11,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 12,
+      "x1": 13,
+      "mainLight": "base"
+     },
+     {
+      "part": "skin",
+      "x0": 14,
+      "x1": 18,
+      "mainLight": "base"
+     },
+     {
+      "part": "beard",
+      "x0": 19,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "skin",
+      "x0": 23,
+      "x1": 23,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 12,
+    "spans": [
+     {
+      "part": "sheath",
+      "x0": 8,
+      "x1": 11,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 12,
+      "x1": 13,
+      "mainLight": "base"
+     },
+     {
+      "part": "skin",
+      "x0": 14,
+      "x1": 18,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "beard",
+      "x0": 19,
+      "x1": 21,
+      "mainLight": "base"
+     },
+     {
+      "part": "skin",
+      "x0": 22,
+      "x1": 23,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 13,
+    "spans": [
+     {
+      "part": "coat",
+      "x0": 11,
+      "x1": 21,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 14,
+    "spans": [
+     {
+      "part": "coat",
+      "x0": 11,
+      "x1": 22,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 15,
+    "spans": [
+     {
+      "part": "coat",
+      "x0": 11,
+      "x1": 15,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 16,
+      "x1": 20,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 21,
+      "x1": 21,
+      "mainLight": "base"
+     },
+     {
+      "part": "zipper",
+      "x0": 22,
+      "x1": 22,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 16,
+    "spans": [
+     {
+      "part": "coat",
+      "x0": 11,
+      "x1": 15,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 16,
+      "x1": 21,
+      "mainLight": "lit"
+     },
+     {
+      "part": "zipper",
+      "x0": 22,
+      "x1": 22,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 17,
+    "spans": [
+     {
+      "part": "coat",
+      "x0": 11,
+      "x1": 15,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 16,
+      "x1": 21,
+      "mainLight": "lit"
+     },
+     {
+      "part": "zipper",
+      "x0": 22,
+      "x1": 22,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 18,
+    "spans": [
+     {
+      "part": "coat",
+      "x0": 11,
+      "x1": 15,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 16,
+      "x1": 21,
+      "mainLight": "lit"
+     },
+     {
+      "part": "zipper",
+      "x0": 22,
+      "x1": 22,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 19,
+    "spans": [
+     {
+      "part": "coat",
+      "x0": 11,
+      "x1": 15,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 16,
+      "x1": 21,
+      "mainLight": "base"
+     },
+     {
+      "part": "zipper",
+      "x0": 22,
+      "x1": 22,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 20,
+    "spans": [
+     {
+      "part": "coat",
+      "x0": 11,
+      "x1": 15,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 16,
+      "x1": 21,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "zipper",
+      "x0": 22,
+      "x1": 22,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 21,
+    "spans": [
+     {
+      "part": "coat",
+      "x0": 11,
+      "x1": 15,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 16,
+      "x1": 21,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "zipper",
+      "x0": 22,
+      "x1": 22,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 22,
+    "spans": [
+     {
+      "part": "coat",
+      "x0": 11,
+      "x1": 15,
+      "mainLight": "base"
+     },
+     {
+      "part": "hands",
+      "x0": 16,
+      "x1": 21,
+      "mainLight": "lit"
+     },
+     {
+      "part": "zipper",
+      "x0": 22,
+      "x1": 22,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 23,
+    "spans": [
+     {
+      "part": "coat",
+      "x0": 11,
+      "x1": 15,
+      "mainLight": "base"
+     },
+     {
+      "part": "hands",
+      "x0": 16,
+      "x1": 21,
+      "mainLight": "lit"
+     },
+     {
+      "part": "zipper",
+      "x0": 22,
+      "x1": 22,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 24,
+    "spans": [
+     {
+      "part": "coat",
+      "x0": 11,
+      "x1": 15,
+      "mainLight": "base"
+     },
+     {
+      "part": "hands",
+      "x0": 16,
+      "x1": 21,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "zipper",
+      "x0": 22,
+      "x1": 22,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 25,
+    "spans": [
+     {
+      "part": "coat",
+      "x0": 11,
+      "x1": 22,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 26,
+    "spans": [
+     {
+      "part": "legs",
+      "x0": 15,
+      "x1": 20,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 27,
+    "spans": [
+     {
+      "part": "legs",
+      "x0": 15,
+      "x1": 20,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 28,
+    "spans": [
+     {
+      "part": "boots",
+      "x0": 15,
+      "x1": 19,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 29,
+    "spans": [
+     {
+      "part": "boots",
+      "x0": 15,
+      "x1": 22,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 30,
+    "spans": [
+     {
+      "part": "boots",
+      "x0": 15,
+      "x1": 22,
+      "mainLight": "base"
+     }
+    ]
+   }
+  ],
+  "folds": [
+   {
+    "panel": "coat#0",
+    "start": [
+     15,
+     16
+    ],
+    "dir": [
+     0,
+     1
+    ],
+    "cells": [
+     [
+      15,
+      16
+     ],
+     [
+      15,
+      17
+     ],
+     [
+      15,
+      18
+     ],
+     [
+      15,
+      19
+     ]
+    ],
+    "side": "away from the light"
+   },
+   {
+    "panel": "coat#0",
+    "start": [
+     15,
+     22
+    ],
+    "dir": [
+     0,
+     1
+    ],
+    "cells": [
+     [
+      15,
+      22
+     ],
+     [
+      15,
+      23
+     ]
+    ],
+    "side": "away from the light"
+   },
+   {
+    "panel": "sleeves#0",
+    "start": [
+     20,
+     15
+    ],
+    "dir": [
+     0,
+     1
+    ],
+    "cells": [
+     [
+      20,
+      15
+     ],
+     [
+      20,
+      16
+     ],
+     [
+      20,
+      17
+     ]
+    ],
+    "side": "away from the light"
+   }
+  ],
+  "item": {
+   "side": "left",
+   "cells": [
+    {
+     "part": "sheath",
+     "cell": [
+      5,
+      4
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      6,
+      4
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      7,
+      4
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      5,
+      5
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      6,
+      5
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      7,
+      5
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      5,
+      6
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      7,
+      6
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      8,
+      6
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      7,
+      7
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      8,
+      7
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      6,
+      8
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      8,
+      8
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      9,
+      8
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      7,
+      9
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      9,
+      9
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      7,
+      10
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      8,
+      10
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      8,
+      11
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      10,
+      11
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      11,
+      11
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      8,
+      12
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      9,
+      12
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      10,
+      12
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      11,
+      12
+     ]
+    },
+    {
+     "part": "guard",
+     "cell": [
+      6,
+      6
+     ]
+    },
+    {
+     "part": "guard",
+     "cell": [
+      10,
+      10
+     ]
+    },
+    {
+     "part": "guard",
+     "cell": [
+      9,
+      11
+     ]
+    },
+    {
+     "part": "wrap",
+     "cell": [
+      6,
+      7
+     ]
+    },
+    {
+     "part": "wrap",
+     "cell": [
+      7,
+      8
+     ]
+    },
+    {
+     "part": "wrap",
+     "cell": [
+      8,
+      9
+     ]
+    },
+    {
+     "part": "wrap",
+     "cell": [
+      9,
+      10
+     ]
+    }
+   ]
+  },
+  "outlineRule": "1 px, near-black, unbroken around the silhouette; seam cells use near-black too (selout by light level)",
+  "mirrored": false
+ },
+ "ne": {
+  "facing": "ne",
+  "yaw": 135,
+  "headCenterCol": 17.5,
+  "faceAxisCol": 19.5,
+  "eyes": "no face",
+  "lightVector": [
+   -0.45,
+   -0.6,
+   0.66
+  ],
+  "lightSide": "top-left, toward the viewer",
+  "guideRows": {
+   "headTop": 0,
+   "headBottom": 12,
+   "eye": 8,
+   "shoulder": 14,
+   "hip": 25,
+   "legTop": 26,
+   "bootTop": 28,
+   "foot": 30
+  },
+  "partLayout": [
+   {
+    "y": 0,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 14,
+      "x1": 21,
+      "mainLight": "lit"
+     }
+    ]
+   },
+   {
+    "y": 1,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 12,
+      "x1": 23,
+      "mainLight": "lit"
+     }
+    ]
+   },
+   {
+    "y": 2,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 24,
+      "mainLight": "lit"
+     }
+    ]
+   },
+   {
+    "y": 3,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 24,
+      "mainLight": "lit"
+     }
+    ]
+   },
+   {
+    "y": 4,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 24,
+      "mainLight": "lit"
+     },
+     {
+      "part": "sheath",
+      "x0": 28,
+      "x1": 30,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 5,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 24,
+      "mainLight": "lit"
+     },
+     {
+      "part": "sheath",
+      "x0": 28,
+      "x1": 30,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 6,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 24,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 27,
+      "x1": 28,
+      "mainLight": "base"
+     },
+     {
+      "part": "guard",
+      "x0": 29,
+      "x1": 29,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 30,
+      "x1": 30,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 7,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 24,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 27,
+      "x1": 28,
+      "mainLight": "base"
+     },
+     {
+      "part": "wrap",
+      "x0": 29,
+      "x1": 29,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 8,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 22,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "skin",
+      "x0": 23,
+      "x1": 23,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "hair",
+      "x0": 24,
+      "x1": 24,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "sheath",
+      "x0": 26,
+      "x1": 27,
+      "mainLight": "base"
+     },
+     {
+      "part": "wrap",
+      "x0": 28,
+      "x1": 28,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 29,
+      "x1": 29,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 9,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 12,
+      "x1": 22,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "skin",
+      "x0": 23,
+      "x1": 23,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "guard",
+      "x0": 24,
+      "x1": 24,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 26,
+      "x1": 26,
+      "mainLight": "base"
+     },
+     {
+      "part": "wrap",
+      "x0": 27,
+      "x1": 27,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 28,
+      "x1": 28,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 10,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 13,
+      "x1": 22,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "skin",
+      "x0": 23,
+      "x1": 23,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "guard",
+      "x0": 25,
+      "x1": 25,
+      "mainLight": "base"
+     },
+     {
+      "part": "wrap",
+      "x0": 26,
+      "x1": 26,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 27,
+      "x1": 28,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 11,
+    "spans": [
+     {
+      "part": "coat",
+      "x0": 12,
+      "x1": 14,
+      "mainLight": "base"
+     },
+     {
+      "part": "skin",
+      "x0": 17,
+      "x1": 20,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 21,
+      "x1": 23,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 25,
+      "x1": 27,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 12,
+    "spans": [
+     {
+      "part": "coat",
+      "x0": 12,
+      "x1": 16,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 19,
+      "x1": 23,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 25,
+      "x1": 27,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 13,
+    "spans": [
+     {
+      "part": "coat",
+      "x0": 12,
+      "x1": 23,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 24,
+      "x1": 24,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 14,
+    "spans": [
+     {
+      "part": "coat",
+      "x0": 11,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 23,
+      "x1": 23,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 24,
+      "x1": 24,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 15,
+    "spans": [
+     {
+      "part": "sleeves",
+      "x0": 11,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 14,
+      "x1": 21,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 22,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 24,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 16,
+    "spans": [
+     {
+      "part": "sleeves",
+      "x0": 11,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 14,
+      "x1": 20,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 21,
+      "x1": 21,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 22,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 24,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 17,
+    "spans": [
+     {
+      "part": "sleeves",
+      "x0": 10,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 14,
+      "x1": 19,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 20,
+      "x1": 20,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 21,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 25,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 18,
+    "spans": [
+     {
+      "part": "sleeves",
+      "x0": 10,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 14,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 25,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 19,
+    "spans": [
+     {
+      "part": "sleeves",
+      "x0": 9,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 14,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 26,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 20,
+    "spans": [
+     {
+      "part": "sleeves",
+      "x0": 9,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 14,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 26,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 21,
+    "spans": [
+     {
+      "part": "hands",
+      "x0": 8,
+      "x1": 10,
+      "mainLight": "lit"
+     },
+     {
+      "part": "sleeves",
+      "x0": 12,
+      "x1": 12,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 14,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 23,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "hands",
+      "x0": 24,
+      "x1": 27,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 22,
+    "spans": [
+     {
+      "part": "hands",
+      "x0": 8,
+      "x1": 10,
+      "mainLight": "lit"
+     },
+     {
+      "part": "sleeves",
+      "x0": 12,
+      "x1": 12,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 14,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 23,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "hands",
+      "x0": 24,
+      "x1": 27,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 23,
+    "spans": [
+     {
+      "part": "hands",
+      "x0": 8,
+      "x1": 10,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 12,
+      "x1": 12,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 14,
+      "x1": 22,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 23,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "hands",
+      "x0": 25,
+      "x1": 27,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 24,
+    "spans": [
+     {
+      "part": "hands",
+      "x0": 9,
+      "x1": 9,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "sleeves",
+      "x0": 12,
+      "x1": 12,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 14,
+      "x1": 22,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 23,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "hands",
+      "x0": 25,
+      "x1": 25,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 25,
+    "spans": [
+     {
+      "part": "coat",
+      "x0": 14,
+      "x1": 22,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 26,
+    "spans": [
+     {
+      "part": "legs",
+      "x0": 14,
+      "x1": 21,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 27,
+    "spans": [
+     {
+      "part": "legs",
+      "x0": 14,
+      "x1": 20,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 28,
+    "spans": [
+     {
+      "part": "boots",
+      "x0": 15,
+      "x1": 19,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 29,
+    "spans": [
+     {
+      "part": "boots",
+      "x0": 15,
+      "x1": 20,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 30,
+    "spans": [
+     {
+      "part": "boots",
+      "x0": 15,
+      "x1": 20,
+      "mainLight": "base"
+     }
+    ]
+   }
+  ],
+  "folds": [
+   {
+    "panel": "coat#0",
+    "start": [
+     22,
+     16
+    ],
+    "dir": [
+     0,
+     1
+    ],
+    "cells": [
+     [
+      22,
+      16
+     ],
+     [
+      22,
+      17
+     ],
+     [
+      22,
+      18
+     ],
+     [
+      22,
+      19
+     ]
+    ],
+    "side": "away from the light"
+   },
+   {
+    "panel": "coat#0",
+    "start": [
+     22,
+     22
+    ],
+    "dir": [
+     0,
+     1
+    ],
+    "cells": [
+     [
+      22,
+      22
+     ],
+     [
+      22,
+      23
+     ]
+    ],
+    "side": "away from the light"
+   },
+   {
+    "panel": "sleeves#0",
+    "start": [
+     12,
+     15
+    ],
+    "dir": [
+     0,
+     1
+    ],
+    "cells": [
+     [
+      12,
+      15
+     ],
+     [
+      12,
+      16
+     ],
+     [
+      12,
+      17
+     ]
+    ],
+    "side": "away from the light"
+   },
+   {
+    "panel": "sleeves#1",
+    "start": [
+     24,
+     15
+    ],
+    "dir": [
+     0,
+     1
+    ],
+    "cells": [
+     [
+      24,
+      15
+     ],
+     [
+      24,
+      16
+     ],
+     [
+      24,
+      17
+     ]
+    ],
+    "side": "away from the light"
+   }
+  ],
+  "item": {
+   "side": "right",
+   "cells": [
+    {
+     "part": "sheath",
+     "cell": [
+      28,
+      4
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      29,
+      4
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      30,
+      4
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      28,
+      5
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      29,
+      5
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      30,
+      5
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      27,
+      6
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      28,
+      6
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      30,
+      6
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      27,
+      7
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      28,
+      7
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      26,
+      8
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      27,
+      8
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      29,
+      8
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      26,
+      9
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      28,
+      9
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      27,
+      10
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      28,
+      10
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      25,
+      11
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      26,
+      11
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      27,
+      11
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      25,
+      12
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      26,
+      12
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      27,
+      12
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      24,
+      13
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      23,
+      14
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      22,
+      15
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      21,
+      16
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      20,
+      17
+     ]
+    },
+    {
+     "part": "guard",
+     "cell": [
+      29,
+      6
+     ]
+    },
+    {
+     "part": "guard",
+     "cell": [
+      24,
+      9
+     ]
+    },
+    {
+     "part": "guard",
+     "cell": [
+      25,
+      10
+     ]
+    },
+    {
+     "part": "wrap",
+     "cell": [
+      29,
+      7
+     ]
+    },
+    {
+     "part": "wrap",
+     "cell": [
+      28,
+      8
+     ]
+    },
+    {
+     "part": "wrap",
+     "cell": [
+      27,
+      9
+     ]
+    },
+    {
+     "part": "wrap",
+     "cell": [
+      26,
+      10
+     ]
+    }
+   ]
+  },
+  "outlineRule": "1 px, near-black, unbroken around the silhouette; seam cells use near-black too (selout by light level)",
+  "mirrored": false
+ },
+ "n": {
+  "facing": "n",
+  "yaw": 180,
+  "headCenterCol": 17.5,
+  "faceAxisCol": 17.5,
+  "eyes": "no face",
+  "lightVector": [
+   -0.45,
+   -0.6,
+   0.66
+  ],
+  "lightSide": "top-left, toward the viewer",
+  "guideRows": {
+   "headTop": 0,
+   "headBottom": 12,
+   "eye": 8,
+   "shoulder": 14,
+   "hip": 25,
+   "legTop": 26,
+   "bootTop": 28,
+   "foot": 30
+  },
+  "partLayout": [
+   {
+    "y": 0,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 14,
+      "x1": 21,
+      "mainLight": "lit"
+     }
+    ]
+   },
+   {
+    "y": 1,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 12,
+      "x1": 23,
+      "mainLight": "lit"
+     }
+    ]
+   },
+   {
+    "y": 2,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 24,
+      "mainLight": "lit"
+     }
+    ]
+   },
+   {
+    "y": 3,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 24,
+      "mainLight": "lit"
+     }
+    ]
+   },
+   {
+    "y": 4,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 24,
+      "mainLight": "lit"
+     },
+     {
+      "part": "sheath",
+      "x0": 28,
+      "x1": 30,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 5,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 24,
+      "mainLight": "lit"
+     },
+     {
+      "part": "sheath",
+      "x0": 28,
+      "x1": 30,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 6,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 24,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 27,
+      "x1": 28,
+      "mainLight": "base"
+     },
+     {
+      "part": "guard",
+      "x0": 29,
+      "x1": 29,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 30,
+      "x1": 30,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 7,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 24,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 27,
+      "x1": 28,
+      "mainLight": "base"
+     },
+     {
+      "part": "wrap",
+      "x0": 29,
+      "x1": 29,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 8,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 24,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "sheath",
+      "x0": 26,
+      "x1": 27,
+      "mainLight": "base"
+     },
+     {
+      "part": "wrap",
+      "x0": 28,
+      "x1": 28,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 29,
+      "x1": 29,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 9,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 12,
+      "x1": 23,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "guard",
+      "x0": 24,
+      "x1": 24,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 26,
+      "x1": 26,
+      "mainLight": "base"
+     },
+     {
+      "part": "wrap",
+      "x0": 27,
+      "x1": 27,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 28,
+      "x1": 28,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 10,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 13,
+      "x1": 22,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "guard",
+      "x0": 25,
+      "x1": 25,
+      "mainLight": "base"
+     },
+     {
+      "part": "wrap",
+      "x0": 26,
+      "x1": 26,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 27,
+      "x1": 28,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 11,
+    "spans": [
+     {
+      "part": "coat",
+      "x0": 12,
+      "x1": 14,
+      "mainLight": "base"
+     },
+     {
+      "part": "skin",
+      "x0": 16,
+      "x1": 19,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 21,
+      "x1": 23,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 25,
+      "x1": 27,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 12,
+    "spans": [
+     {
+      "part": "coat",
+      "x0": 12,
+      "x1": 16,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 19,
+      "x1": 23,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 25,
+      "x1": 27,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 13,
+    "spans": [
+     {
+      "part": "coat",
+      "x0": 12,
+      "x1": 23,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 24,
+      "x1": 24,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 14,
+    "spans": [
+     {
+      "part": "coat",
+      "x0": 11,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 23,
+      "x1": 23,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 24,
+      "x1": 24,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 15,
+    "spans": [
+     {
+      "part": "sleeves",
+      "x0": 10,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 21,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 22,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 25,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 16,
+    "spans": [
+     {
+      "part": "sleeves",
+      "x0": 10,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 20,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 21,
+      "x1": 21,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 22,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 25,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 17,
+    "spans": [
+     {
+      "part": "sleeves",
+      "x0": 9,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 19,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 20,
+      "x1": 20,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 21,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 26,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 18,
+    "spans": [
+     {
+      "part": "sleeves",
+      "x0": 9,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 26,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 19,
+    "spans": [
+     {
+      "part": "sleeves",
+      "x0": 8,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 27,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 20,
+    "spans": [
+     {
+      "part": "sleeves",
+      "x0": 8,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 27,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 21,
+    "spans": [
+     {
+      "part": "hands",
+      "x0": 7,
+      "x1": 10,
+      "mainLight": "lit"
+     },
+     {
+      "part": "sleeves",
+      "x0": 12,
+      "x1": 12,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 23,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "hands",
+      "x0": 25,
+      "x1": 28,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 22,
+    "spans": [
+     {
+      "part": "hands",
+      "x0": 7,
+      "x1": 10,
+      "mainLight": "lit"
+     },
+     {
+      "part": "sleeves",
+      "x0": 12,
+      "x1": 12,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 23,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "hands",
+      "x0": 25,
+      "x1": 28,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 23,
+    "spans": [
+     {
+      "part": "hands",
+      "x0": 7,
+      "x1": 10,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 12,
+      "x1": 12,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 22,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 23,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "hands",
+      "x0": 25,
+      "x1": 28,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 24,
+    "spans": [
+     {
+      "part": "hands",
+      "x0": 8,
+      "x1": 9,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "sleeves",
+      "x0": 12,
+      "x1": 12,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 22,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 23,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "hands",
+      "x0": 26,
+      "x1": 27,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 25,
+    "spans": [
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 22,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 26,
+    "spans": [
+     {
+      "part": "legs",
+      "x0": 14,
+      "x1": 21,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 27,
+    "spans": [
+     {
+      "part": "legs",
+      "x0": 14,
+      "x1": 21,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 28,
+    "spans": [
+     {
+      "part": "boots",
+      "x0": 16,
+      "x1": 19,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 29,
+    "spans": [
+     {
+      "part": "boots",
+      "x0": 14,
+      "x1": 21,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 30,
+    "spans": [
+     {
+      "part": "boots",
+      "x0": 14,
+      "x1": 21,
+      "mainLight": "base"
+     }
+    ]
+   }
+  ],
+  "folds": [
+   {
+    "panel": "coat#0",
+    "start": [
+     22,
+     16
+    ],
+    "dir": [
+     0,
+     1
+    ],
+    "cells": [
+     [
+      22,
+      16
+     ],
+     [
+      22,
+      17
+     ],
+     [
+      22,
+      18
+     ],
+     [
+      22,
+      19
+     ]
+    ],
+    "side": "away from the light"
+   },
+   {
+    "panel": "coat#0",
+    "start": [
+     22,
+     22
+    ],
+    "dir": [
+     0,
+     1
+    ],
+    "cells": [
+     [
+      22,
+      22
+     ],
+     [
+      22,
+      23
+     ]
+    ],
+    "side": "away from the light"
+   },
+   {
+    "panel": "sleeves#0",
+    "start": [
+     12,
+     15
+    ],
+    "dir": [
+     0,
+     1
+    ],
+    "cells": [
+     [
+      12,
+      15
+     ],
+     [
+      12,
+      16
+     ],
+     [
+      12,
+      17
+     ]
+    ],
+    "side": "away from the light"
+   },
+   {
+    "panel": "sleeves#1",
+    "start": [
+     25,
+     15
+    ],
+    "dir": [
+     0,
+     1
+    ],
+    "cells": [
+     [
+      25,
+      15
+     ],
+     [
+      25,
+      16
+     ],
+     [
+      25,
+      17
+     ]
+    ],
+    "side": "away from the light"
+   }
+  ],
+  "item": {
+   "side": "right",
+   "cells": [
+    {
+     "part": "sheath",
+     "cell": [
+      28,
+      4
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      29,
+      4
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      30,
+      4
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      28,
+      5
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      29,
+      5
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      30,
+      5
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      27,
+      6
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      28,
+      6
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      30,
+      6
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      27,
+      7
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      28,
+      7
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      26,
+      8
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      27,
+      8
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      29,
+      8
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      26,
+      9
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      28,
+      9
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      27,
+      10
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      28,
+      10
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      25,
+      11
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      26,
+      11
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      27,
+      11
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      25,
+      12
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      26,
+      12
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      27,
+      12
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      24,
+      13
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      23,
+      14
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      22,
+      15
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      21,
+      16
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      20,
+      17
+     ]
+    },
+    {
+     "part": "guard",
+     "cell": [
+      29,
+      6
+     ]
+    },
+    {
+     "part": "guard",
+     "cell": [
+      24,
+      9
+     ]
+    },
+    {
+     "part": "guard",
+     "cell": [
+      25,
+      10
+     ]
+    },
+    {
+     "part": "wrap",
+     "cell": [
+      29,
+      7
+     ]
+    },
+    {
+     "part": "wrap",
+     "cell": [
+      28,
+      8
+     ]
+    },
+    {
+     "part": "wrap",
+     "cell": [
+      27,
+      9
+     ]
+    },
+    {
+     "part": "wrap",
+     "cell": [
+      26,
+      10
+     ]
+    }
+   ]
+  },
+  "outlineRule": "1 px, near-black, unbroken around the silhouette; seam cells use near-black too (selout by light level)",
+  "mirrored": false
+ },
+ "sw": {
+  "facing": "sw",
+  "yaw": -45,
+  "headCenterCol": 17.5,
+  "faceAxisCol": 15.5,
+  "eyes": {
+   "rows": [
+    7,
+    8,
+    9,
+    10
+   ],
+   "cells": [
+    [
+     12,
+     7
+    ],
+    [
+     13,
+     7
+    ],
+    [
+     14,
+     7
+    ],
+    [
+     17,
+     7
+    ],
+    [
+     18,
+     7
+    ],
+    [
+     12,
+     8
+    ],
+    [
+     13,
+     8
+    ],
+    [
+     14,
+     8
+    ],
+    [
+     15,
+     8
+    ],
+    [
+     16,
+     8
+    ],
+    [
+     17,
+     8
+    ],
+    [
+     18,
+     8
+    ],
+    [
+     19,
+     8
+    ],
+    [
+     20,
+     8
+    ],
+    [
+     21,
+     8
+    ],
+    [
+     12,
+     9
+    ],
+    [
+     13,
+     9
+    ],
+    [
+     14,
+     9
+    ],
+    [
+     15,
+     9
+    ],
+    [
+     16,
+     9
+    ],
+    [
+     17,
+     9
+    ],
+    [
+     18,
+     9
+    ],
+    [
+     19,
+     9
+    ],
+    [
+     13,
+     10
+    ],
+    [
+     14,
+     10
+    ],
+    [
+     17,
+     10
+    ],
+    [
+     18,
+     10
+    ]
+   ]
+  },
+  "lightVector": [
+   -0.45,
+   -0.6,
+   0.66
+  ],
+  "lightSide": "top-left, toward the viewer",
+  "guideRows": {
+   "headTop": 0,
+   "headBottom": 12,
+   "eye": 8,
+   "shoulder": 14,
+   "hip": 25,
+   "legTop": 26,
+   "bootTop": 28,
+   "foot": 30
+  },
+  "partLayout": [
+   {
+    "y": 0,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 15,
+      "x1": 21,
+      "mainLight": "lit"
+     }
+    ]
+   },
+   {
+    "y": 1,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 13,
+      "x1": 23,
+      "mainLight": "lit"
+     }
+    ]
+   },
+   {
+    "y": 2,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 12,
+      "x1": 24,
+      "mainLight": "lit"
+     }
+    ]
+   },
+   {
+    "y": 3,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 24,
+      "mainLight": "lit"
+     }
+    ]
+   },
+   {
+    "y": 4,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 23,
+      "mainLight": "lit"
+     },
+     {
+      "part": "sheath",
+      "x0": 28,
+      "x1": 30,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 5,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 13,
+      "mainLight": "lit"
+     },
+     {
+      "part": "skin",
+      "x0": 14,
+      "x1": 14,
+      "mainLight": "lit"
+     },
+     {
+      "part": "hair",
+      "x0": 15,
+      "x1": 16,
+      "mainLight": "lit"
+     },
+     {
+      "part": "skin",
+      "x0": 17,
+      "x1": 19,
+      "mainLight": "lit"
+     },
+     {
+      "part": "hair",
+      "x0": 20,
+      "x1": 24,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "sheath",
+      "x0": 28,
+      "x1": 30,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 6,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 13,
+      "mainLight": "lit"
+     },
+     {
+      "part": "skin",
+      "x0": 14,
+      "x1": 19,
+      "mainLight": "lit"
+     },
+     {
+      "part": "hair",
+      "x0": 20,
+      "x1": 24,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "sheath",
+      "x0": 27,
+      "x1": 28,
+      "mainLight": "base"
+     },
+     {
+      "part": "guard",
+      "x0": 29,
+      "x1": 29,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 30,
+      "x1": 30,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 7,
+    "spans": [
+     {
+      "part": "lenses",
+      "x0": 12,
+      "x1": 14,
+      "mainLight": "base"
+     },
+     {
+      "part": "skin",
+      "x0": 15,
+      "x1": 16,
+      "mainLight": "lit"
+     },
+     {
+      "part": "lenses",
+      "x0": 17,
+      "x1": 18,
+      "mainLight": "base"
+     },
+     {
+      "part": "skin",
+      "x0": 19,
+      "x1": 20,
+      "mainLight": "base"
+     },
+     {
+      "part": "hair",
+      "x0": 21,
+      "x1": 24,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "sheath",
+      "x0": 27,
+      "x1": 28,
+      "mainLight": "base"
+     },
+     {
+      "part": "wrap",
+      "x0": 29,
+      "x1": 29,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 8,
+    "spans": [
+     {
+      "part": "lenses",
+      "x0": 12,
+      "x1": 21,
+      "mainLight": "base"
+     },
+     {
+      "part": "hair",
+      "x0": 22,
+      "x1": 24,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "sheath",
+      "x0": 26,
+      "x1": 27,
+      "mainLight": "base"
+     },
+     {
+      "part": "wrap",
+      "x0": 28,
+      "x1": 28,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 29,
+      "x1": 29,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 9,
+    "spans": [
+     {
+      "part": "lenses",
+      "x0": 12,
+      "x1": 19,
+      "mainLight": "base"
+     },
+     {
+      "part": "skin",
+      "x0": 20,
+      "x1": 21,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "hair",
+      "x0": 22,
+      "x1": 24,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "sheath",
+      "x0": 26,
+      "x1": 26,
+      "mainLight": "base"
+     },
+     {
+      "part": "wrap",
+      "x0": 27,
+      "x1": 27,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 28,
+      "x1": 28,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 10,
+    "spans": [
+     {
+      "part": "skin",
+      "x0": 12,
+      "x1": 12,
+      "mainLight": "base"
+     },
+     {
+      "part": "lenses",
+      "x0": 13,
+      "x1": 14,
+      "mainLight": "base"
+     },
+     {
+      "part": "skin",
+      "x0": 15,
+      "x1": 16,
+      "mainLight": "base"
+     },
+     {
+      "part": "lenses",
+      "x0": 17,
+      "x1": 18,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "skin",
+      "x0": 19,
+      "x1": 21,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "hair",
+      "x0": 22,
+      "x1": 24,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "guard",
+      "x0": 25,
+      "x1": 25,
+      "mainLight": "base"
+     },
+     {
+      "part": "wrap",
+      "x0": 26,
+      "x1": 26,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 27,
+      "x1": 28,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 11,
+    "spans": [
+     {
+      "part": "skin",
+      "x0": 12,
+      "x1": 14,
+      "mainLight": "base"
+     },
+     {
+      "part": "beard",
+      "x0": 15,
+      "x1": 17,
+      "mainLight": "lit"
+     },
+     {
+      "part": "skin",
+      "x0": 18,
+      "x1": 20,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 21,
+      "x1": 23,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 24,
+      "x1": 25,
+      "mainLight": "base"
+     },
+     {
+      "part": "guard",
+      "x0": 26,
+      "x1": 26,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 27,
+      "x1": 27,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 12,
+    "spans": [
+     {
+      "part": "skin",
+      "x0": 12,
+      "x1": 13,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "beard",
+      "x0": 14,
+      "x1": 14,
+      "mainLight": "lit"
+     },
+     {
+      "part": "skin",
+      "x0": 15,
+      "x1": 17,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "beard",
+      "x0": 18,
+      "x1": 18,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 19,
+      "x1": 23,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 24,
+      "x1": 27,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 13,
+    "spans": [
+     {
+      "part": "coat",
+      "x0": 12,
+      "x1": 13,
+      "mainLight": "base"
+     },
+     {
+      "part": "beard",
+      "x0": 14,
+      "x1": 18,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 19,
+      "x1": 24,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 14,
+    "spans": [
+     {
+      "part": "coat",
+      "x0": 11,
+      "x1": 24,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 15,
+    "spans": [
+     {
+      "part": "sleeves",
+      "x0": 11,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 14,
+      "mainLight": "base"
+     },
+     {
+      "part": "zipper",
+      "x0": 15,
+      "x1": 17,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 18,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 25,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 16,
+    "spans": [
+     {
+      "part": "sleeves",
+      "x0": 11,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 14,
+      "mainLight": "base"
+     },
+     {
+      "part": "zipper",
+      "x0": 15,
+      "x1": 17,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 18,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 25,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 17,
+    "spans": [
+     {
+      "part": "sleeves",
+      "x0": 10,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 14,
+      "mainLight": "base"
+     },
+     {
+      "part": "zipper",
+      "x0": 15,
+      "x1": 17,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 18,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 26,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 18,
+    "spans": [
+     {
+      "part": "sleeves",
+      "x0": 10,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 14,
+      "mainLight": "base"
+     },
+     {
+      "part": "zipper",
+      "x0": 15,
+      "x1": 17,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 18,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 26,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 19,
+    "spans": [
+     {
+      "part": "sleeves",
+      "x0": 9,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 14,
+      "mainLight": "base"
+     },
+     {
+      "part": "zipper",
+      "x0": 15,
+      "x1": 17,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 18,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 27,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 20,
+    "spans": [
+     {
+      "part": "sleeves",
+      "x0": 9,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 14,
+      "mainLight": "base"
+     },
+     {
+      "part": "zipper",
+      "x0": 15,
+      "x1": 17,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 18,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 27,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 21,
+    "spans": [
+     {
+      "part": "hands",
+      "x0": 8,
+      "x1": 11,
+      "mainLight": "lit"
+     },
+     {
+      "part": "sleeves",
+      "x0": 12,
+      "x1": 12,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 14,
+      "mainLight": "base"
+     },
+     {
+      "part": "zipper",
+      "x0": 15,
+      "x1": 17,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 18,
+      "x1": 22,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 23,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "hands",
+      "x0": 25,
+      "x1": 28,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 22,
+    "spans": [
+     {
+      "part": "hands",
+      "x0": 8,
+      "x1": 11,
+      "mainLight": "lit"
+     },
+     {
+      "part": "sleeves",
+      "x0": 12,
+      "x1": 12,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 14,
+      "mainLight": "base"
+     },
+     {
+      "part": "zipper",
+      "x0": 15,
+      "x1": 17,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 18,
+      "x1": 22,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 23,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "hands",
+      "x0": 25,
+      "x1": 28,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 23,
+    "spans": [
+     {
+      "part": "hands",
+      "x0": 8,
+      "x1": 10,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 12,
+      "x1": 12,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 14,
+      "mainLight": "base"
+     },
+     {
+      "part": "zipper",
+      "x0": 15,
+      "x1": 17,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 18,
+      "x1": 22,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 23,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "hands",
+      "x0": 25,
+      "x1": 28,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 24,
+    "spans": [
+     {
+      "part": "hands",
+      "x0": 10,
+      "x1": 10,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "sleeves",
+      "x0": 12,
+      "x1": 12,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 14,
+      "mainLight": "base"
+     },
+     {
+      "part": "zipper",
+      "x0": 15,
+      "x1": 17,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 18,
+      "x1": 22,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 23,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "hands",
+      "x0": 26,
+      "x1": 27,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 25,
+    "spans": [
+     {
+      "part": "coat",
+      "x0": 12,
+      "x1": 23,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 26,
+    "spans": [
+     {
+      "part": "legs",
+      "x0": 14,
+      "x1": 21,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 27,
+    "spans": [
+     {
+      "part": "legs",
+      "x0": 15,
+      "x1": 21,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 28,
+    "spans": [
+     {
+      "part": "boots",
+      "x0": 16,
+      "x1": 20,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 29,
+    "spans": [
+     {
+      "part": "boots",
+      "x0": 15,
+      "x1": 20,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 30,
+    "spans": [
+     {
+      "part": "boots",
+      "x0": 15,
+      "x1": 20,
+      "mainLight": "base"
+     }
+    ]
+   }
+  ],
+  "folds": [
+   {
+    "panel": "coat#0",
+    "start": [
+     22,
+     16
+    ],
+    "dir": [
+     0,
+     1
+    ],
+    "cells": [
+     [
+      22,
+      16
+     ],
+     [
+      22,
+      17
+     ],
+     [
+      22,
+      18
+     ],
+     [
+      22,
+      19
+     ]
+    ],
+    "side": "away from the light"
+   },
+   {
+    "panel": "coat#0",
+    "start": [
+     22,
+     22
+    ],
+    "dir": [
+     0,
+     1
+    ],
+    "cells": [
+     [
+      22,
+      22
+     ],
+     [
+      22,
+      23
+     ]
+    ],
+    "side": "away from the light"
+   },
+   {
+    "panel": "sleeves#0",
+    "start": [
+     12,
+     15
+    ],
+    "dir": [
+     0,
+     1
+    ],
+    "cells": [
+     [
+      12,
+      15
+     ],
+     [
+      12,
+      16
+     ],
+     [
+      12,
+      17
+     ]
+    ],
+    "side": "away from the light"
+   },
+   {
+    "panel": "sleeves#1",
+    "start": [
+     25,
+     15
+    ],
+    "dir": [
+     0,
+     1
+    ],
+    "cells": [
+     [
+      25,
+      15
+     ],
+     [
+      25,
+      16
+     ],
+     [
+      25,
+      17
+     ]
+    ],
+    "side": "away from the light"
+   }
+  ],
+  "item": {
+   "side": "right (mirror: redraw the item, it must stay on the same shoulder of the character)",
+   "cells": [
+    {
+     "part": "sheath",
+     "cell": [
+      28,
+      4
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      29,
+      4
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      30,
+      4
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      28,
+      5
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      29,
+      5
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      30,
+      5
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      27,
+      6
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      28,
+      6
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      30,
+      6
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      27,
+      7
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      28,
+      7
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      26,
+      8
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      27,
+      8
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      29,
+      8
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      26,
+      9
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      28,
+      9
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      27,
+      10
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      28,
+      10
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      24,
+      11
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      25,
+      11
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      27,
+      11
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      24,
+      12
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      25,
+      12
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      26,
+      12
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      27,
+      12
+     ]
+    },
+    {
+     "part": "guard",
+     "cell": [
+      29,
+      6
+     ]
+    },
+    {
+     "part": "guard",
+     "cell": [
+      25,
+      10
+     ]
+    },
+    {
+     "part": "guard",
+     "cell": [
+      26,
+      11
+     ]
+    },
+    {
+     "part": "wrap",
+     "cell": [
+      29,
+      7
+     ]
+    },
+    {
+     "part": "wrap",
+     "cell": [
+      28,
+      8
+     ]
+    },
+    {
+     "part": "wrap",
+     "cell": [
+      27,
+      9
+     ]
+    },
+    {
+     "part": "wrap",
+     "cell": [
+      26,
+      10
+     ]
+    }
+   ]
+  },
+  "outlineRule": "1 px, near-black, unbroken around the silhouette; seam cells use near-black too (selout by light level)",
+  "mirrored": true
+ },
+ "w": {
+  "facing": "w",
+  "yaw": -90,
+  "headCenterCol": 18,
+  "faceAxisCol": 14,
+  "eyes": {
+   "rows": [
+    7,
+    8,
+    9,
+    10
+   ],
+   "cells": [
+    [
+     13,
+     7
+    ],
+    [
+     14,
+     7
+    ],
+    [
+     15,
+     7
+    ],
+    [
+     16,
+     7
+    ],
+    [
+     13,
+     8
+    ],
+    [
+     14,
+     8
+    ],
+    [
+     15,
+     8
+    ],
+    [
+     16,
+     8
+    ],
+    [
+     17,
+     8
+    ],
+    [
+     18,
+     8
+    ],
+    [
+     19,
+     8
+    ],
+    [
+     20,
+     8
+    ],
+    [
+     21,
+     8
+    ],
+    [
+     22,
+     8
+    ],
+    [
+     23,
+     8
+    ],
+    [
+     13,
+     9
+    ],
+    [
+     14,
+     9
+    ],
+    [
+     15,
+     9
+    ],
+    [
+     16,
+     9
+    ],
+    [
+     17,
+     9
+    ],
+    [
+     18,
+     9
+    ],
+    [
+     19,
+     9
+    ],
+    [
+     20,
+     9
+    ],
+    [
+     21,
+     9
+    ],
+    [
+     22,
+     9
+    ],
+    [
+     23,
+     9
+    ],
+    [
+     13,
+     10
+    ],
+    [
+     14,
+     10
+    ],
+    [
+     15,
+     10
+    ],
+    [
+     16,
+     10
+    ]
+   ]
+  },
+  "lightVector": [
+   -0.45,
+   -0.6,
+   0.66
+  ],
+  "lightSide": "top-left, toward the viewer",
+  "guideRows": {
+   "headTop": 0,
+   "headBottom": 12,
+   "eye": 8,
+   "shoulder": 14,
+   "hip": 25,
+   "legTop": 26,
+   "bootTop": 28,
+   "foot": 30
+  },
+  "partLayout": [
+   {
+    "y": 0,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 15,
+      "x1": 21,
+      "mainLight": "lit"
+     }
+    ]
+   },
+   {
+    "y": 1,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 13,
+      "x1": 23,
+      "mainLight": "lit"
+     }
+    ]
+   },
+   {
+    "y": 2,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 12,
+      "x1": 24,
+      "mainLight": "lit"
+     }
+    ]
+   },
+   {
+    "y": 3,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 12,
+      "x1": 24,
+      "mainLight": "lit"
+     }
+    ]
+   },
+   {
+    "y": 4,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 12,
+      "x1": 24,
+      "mainLight": "lit"
+     },
+     {
+      "part": "sheath",
+      "x0": 28,
+      "x1": 30,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 5,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 12,
+      "x1": 24,
+      "mainLight": "lit"
+     },
+     {
+      "part": "sheath",
+      "x0": 28,
+      "x1": 30,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 6,
+    "spans": [
+     {
+      "part": "skin",
+      "x0": 12,
+      "x1": 16,
+      "mainLight": "lit"
+     },
+     {
+      "part": "hair",
+      "x0": 17,
+      "x1": 24,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "sheath",
+      "x0": 27,
+      "x1": 28,
+      "mainLight": "base"
+     },
+     {
+      "part": "guard",
+      "x0": 29,
+      "x1": 29,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 30,
+      "x1": 30,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 7,
+    "spans": [
+     {
+      "part": "skin",
+      "x0": 12,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "lenses",
+      "x0": 13,
+      "x1": 16,
+      "mainLight": "base"
+     },
+     {
+      "part": "skin",
+      "x0": 17,
+      "x1": 17,
+      "mainLight": "lit"
+     },
+     {
+      "part": "hair",
+      "x0": 19,
+      "x1": 24,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "sheath",
+      "x0": 27,
+      "x1": 28,
+      "mainLight": "base"
+     },
+     {
+      "part": "wrap",
+      "x0": 29,
+      "x1": 29,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 8,
+    "spans": [
+     {
+      "part": "skin",
+      "x0": 12,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "lenses",
+      "x0": 13,
+      "x1": 23,
+      "mainLight": "base"
+     },
+     {
+      "part": "hair",
+      "x0": 24,
+      "x1": 24,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "sheath",
+      "x0": 26,
+      "x1": 27,
+      "mainLight": "base"
+     },
+     {
+      "part": "wrap",
+      "x0": 28,
+      "x1": 28,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 29,
+      "x1": 29,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 9,
+    "spans": [
+     {
+      "part": "skin",
+      "x0": 12,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "lenses",
+      "x0": 13,
+      "x1": 23,
+      "mainLight": "base"
+     },
+     {
+      "part": "hair",
+      "x0": 24,
+      "x1": 24,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "sheath",
+      "x0": 26,
+      "x1": 26,
+      "mainLight": "base"
+     },
+     {
+      "part": "wrap",
+      "x0": 27,
+      "x1": 27,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 28,
+      "x1": 28,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 10,
+    "spans": [
+     {
+      "part": "skin",
+      "x0": 12,
+      "x1": 12,
+      "mainLight": "base"
+     },
+     {
+      "part": "lenses",
+      "x0": 13,
+      "x1": 16,
+      "mainLight": "base"
+     },
+     {
+      "part": "skin",
+      "x0": 17,
+      "x1": 17,
+      "mainLight": "base"
+     },
+     {
+      "part": "hair",
+      "x0": 19,
+      "x1": 24,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "guard",
+      "x0": 25,
+      "x1": 25,
+      "mainLight": "base"
+     },
+     {
+      "part": "wrap",
+      "x0": 26,
+      "x1": 26,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 27,
+      "x1": 28,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 11,
+    "spans": [
+     {
+      "part": "skin",
+      "x0": 12,
+      "x1": 12,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "beard",
+      "x0": 13,
+      "x1": 16,
+      "mainLight": "base"
+     },
+     {
+      "part": "skin",
+      "x0": 17,
+      "x1": 21,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 22,
+      "x1": 23,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 24,
+      "x1": 25,
+      "mainLight": "base"
+     },
+     {
+      "part": "guard",
+      "x0": 26,
+      "x1": 26,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 27,
+      "x1": 27,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 12,
+    "spans": [
+     {
+      "part": "skin",
+      "x0": 12,
+      "x1": 13,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "beard",
+      "x0": 14,
+      "x1": 16,
+      "mainLight": "base"
+     },
+     {
+      "part": "skin",
+      "x0": 17,
+      "x1": 21,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 22,
+      "x1": 23,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 24,
+      "x1": 27,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 13,
+    "spans": [
+     {
+      "part": "coat",
+      "x0": 14,
+      "x1": 24,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 14,
+    "spans": [
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 24,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 15,
+    "spans": [
+     {
+      "part": "zipper",
+      "x0": 13,
+      "x1": 13,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 14,
+      "x1": 14,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 15,
+      "x1": 19,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 20,
+      "x1": 24,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 16,
+    "spans": [
+     {
+      "part": "zipper",
+      "x0": 13,
+      "x1": 13,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 14,
+      "x1": 19,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 20,
+      "x1": 24,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 17,
+    "spans": [
+     {
+      "part": "zipper",
+      "x0": 13,
+      "x1": 13,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 14,
+      "x1": 19,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 20,
+      "x1": 24,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 18,
+    "spans": [
+     {
+      "part": "zipper",
+      "x0": 13,
+      "x1": 13,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 14,
+      "x1": 19,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 20,
+      "x1": 24,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 19,
+    "spans": [
+     {
+      "part": "zipper",
+      "x0": 13,
+      "x1": 13,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 14,
+      "x1": 19,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 20,
+      "x1": 24,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 20,
+    "spans": [
+     {
+      "part": "zipper",
+      "x0": 13,
+      "x1": 13,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 14,
+      "x1": 19,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 20,
+      "x1": 24,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 21,
+    "spans": [
+     {
+      "part": "zipper",
+      "x0": 13,
+      "x1": 13,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 14,
+      "x1": 19,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 20,
+      "x1": 24,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 22,
+    "spans": [
+     {
+      "part": "zipper",
+      "x0": 13,
+      "x1": 13,
+      "mainLight": "base"
+     },
+     {
+      "part": "hands",
+      "x0": 14,
+      "x1": 19,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 20,
+      "x1": 24,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 23,
+    "spans": [
+     {
+      "part": "zipper",
+      "x0": 13,
+      "x1": 13,
+      "mainLight": "base"
+     },
+     {
+      "part": "hands",
+      "x0": 14,
+      "x1": 19,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 20,
+      "x1": 24,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 24,
+    "spans": [
+     {
+      "part": "zipper",
+      "x0": 13,
+      "x1": 13,
+      "mainLight": "base"
+     },
+     {
+      "part": "hands",
+      "x0": 14,
+      "x1": 19,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 20,
+      "x1": 24,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 25,
+    "spans": [
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 24,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 26,
+    "spans": [
+     {
+      "part": "legs",
+      "x0": 15,
+      "x1": 20,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 27,
+    "spans": [
+     {
+      "part": "legs",
+      "x0": 15,
+      "x1": 20,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 28,
+    "spans": [
+     {
+      "part": "boots",
+      "x0": 16,
+      "x1": 20,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 29,
+    "spans": [
+     {
+      "part": "boots",
+      "x0": 13,
+      "x1": 20,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 30,
+    "spans": [
+     {
+      "part": "boots",
+      "x0": 13,
+      "x1": 20,
+      "mainLight": "base"
+     }
+    ]
+   }
+  ],
+  "folds": [
+   {
+    "panel": "coat#0",
+    "start": [
+     24,
+     16
+    ],
+    "dir": [
+     0,
+     1
+    ],
+    "cells": [
+     [
+      24,
+      16
+     ],
+     [
+      24,
+      17
+     ],
+     [
+      24,
+      18
+     ],
+     [
+      24,
+      19
+     ]
+    ],
+    "side": "away from the light"
+   },
+   {
+    "panel": "coat#0",
+    "start": [
+     24,
+     22
+    ],
+    "dir": [
+     0,
+     1
+    ],
+    "cells": [
+     [
+      24,
+      22
+     ],
+     [
+      24,
+      23
+     ]
+    ],
+    "side": "away from the light"
+   },
+   {
+    "panel": "sleeves#0",
+    "start": [
+     19,
+     15
+    ],
+    "dir": [
+     0,
+     1
+    ],
+    "cells": [
+     [
+      19,
+      15
+     ],
+     [
+      19,
+      16
+     ],
+     [
+      19,
+      17
+     ]
+    ],
+    "side": "away from the light"
+   }
+  ],
+  "item": {
+   "side": "right (mirror: redraw the item, it must stay on the same shoulder of the character)",
+   "cells": [
+    {
+     "part": "sheath",
+     "cell": [
+      28,
+      4
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      29,
+      4
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      30,
+      4
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      28,
+      5
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      29,
+      5
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      30,
+      5
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      27,
+      6
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      28,
+      6
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      30,
+      6
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      27,
+      7
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      28,
+      7
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      26,
+      8
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      27,
+      8
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      29,
+      8
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      26,
+      9
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      28,
+      9
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      27,
+      10
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      28,
+      10
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      24,
+      11
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      25,
+      11
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      27,
+      11
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      24,
+      12
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      25,
+      12
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      26,
+      12
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      27,
+      12
+     ]
+    },
+    {
+     "part": "guard",
+     "cell": [
+      29,
+      6
+     ]
+    },
+    {
+     "part": "guard",
+     "cell": [
+      25,
+      10
+     ]
+    },
+    {
+     "part": "guard",
+     "cell": [
+      26,
+      11
+     ]
+    },
+    {
+     "part": "wrap",
+     "cell": [
+      29,
+      7
+     ]
+    },
+    {
+     "part": "wrap",
+     "cell": [
+      28,
+      8
+     ]
+    },
+    {
+     "part": "wrap",
+     "cell": [
+      27,
+      9
+     ]
+    },
+    {
+     "part": "wrap",
+     "cell": [
+      26,
+      10
+     ]
+    }
+   ]
+  },
+  "outlineRule": "1 px, near-black, unbroken around the silhouette; seam cells use near-black too (selout by light level)",
+  "mirrored": true
+ },
+ "nw": {
+  "facing": "nw",
+  "yaw": -135,
+  "headCenterCol": 17.5,
+  "faceAxisCol": 15.5,
+  "eyes": "no face",
+  "lightVector": [
+   -0.45,
+   -0.6,
+   0.66
+  ],
+  "lightSide": "top-left, toward the viewer",
+  "guideRows": {
+   "headTop": 0,
+   "headBottom": 12,
+   "eye": 8,
+   "shoulder": 14,
+   "hip": 25,
+   "legTop": 26,
+   "bootTop": 28,
+   "foot": 30
+  },
+  "partLayout": [
+   {
+    "y": 0,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 14,
+      "x1": 21,
+      "mainLight": "lit"
+     }
+    ]
+   },
+   {
+    "y": 1,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 12,
+      "x1": 23,
+      "mainLight": "lit"
+     }
+    ]
+   },
+   {
+    "y": 2,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 24,
+      "mainLight": "lit"
+     }
+    ]
+   },
+   {
+    "y": 3,
+    "spans": [
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 24,
+      "mainLight": "lit"
+     }
+    ]
+   },
+   {
+    "y": 4,
+    "spans": [
+     {
+      "part": "sheath",
+      "x0": 5,
+      "x1": 7,
+      "mainLight": "base"
+     },
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 24,
+      "mainLight": "lit"
+     }
+    ]
+   },
+   {
+    "y": 5,
+    "spans": [
+     {
+      "part": "sheath",
+      "x0": 5,
+      "x1": 7,
+      "mainLight": "base"
+     },
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 24,
+      "mainLight": "lit"
+     }
+    ]
+   },
+   {
+    "y": 6,
+    "spans": [
+     {
+      "part": "sheath",
+      "x0": 5,
+      "x1": 5,
+      "mainLight": "base"
+     },
+     {
+      "part": "guard",
+      "x0": 6,
+      "x1": 6,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 7,
+      "x1": 8,
+      "mainLight": "base"
+     },
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 24,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 7,
+    "spans": [
+     {
+      "part": "wrap",
+      "x0": 6,
+      "x1": 6,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 7,
+      "x1": 8,
+      "mainLight": "base"
+     },
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 24,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 8,
+    "spans": [
+     {
+      "part": "sheath",
+      "x0": 6,
+      "x1": 6,
+      "mainLight": "base"
+     },
+     {
+      "part": "wrap",
+      "x0": 7,
+      "x1": 7,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 8,
+      "x1": 9,
+      "mainLight": "base"
+     },
+     {
+      "part": "hair",
+      "x0": 11,
+      "x1": 11,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "skin",
+      "x0": 12,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "hair",
+      "x0": 13,
+      "x1": 24,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 9,
+    "spans": [
+     {
+      "part": "sheath",
+      "x0": 7,
+      "x1": 7,
+      "mainLight": "base"
+     },
+     {
+      "part": "wrap",
+      "x0": 8,
+      "x1": 8,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 9,
+      "x1": 9,
+      "mainLight": "base"
+     },
+     {
+      "part": "guard",
+      "x0": 11,
+      "x1": 11,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "skin",
+      "x0": 12,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "hair",
+      "x0": 13,
+      "x1": 23,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 10,
+    "spans": [
+     {
+      "part": "sheath",
+      "x0": 7,
+      "x1": 8,
+      "mainLight": "base"
+     },
+     {
+      "part": "wrap",
+      "x0": 9,
+      "x1": 9,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "guard",
+      "x0": 10,
+      "x1": 10,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "skin",
+      "x0": 12,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "hair",
+      "x0": 13,
+      "x1": 22,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 11,
+    "spans": [
+     {
+      "part": "sheath",
+      "x0": 8,
+      "x1": 10,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 12,
+      "x1": 14,
+      "mainLight": "base"
+     },
+     {
+      "part": "skin",
+      "x0": 15,
+      "x1": 18,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 21,
+      "x1": 23,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 12,
+    "spans": [
+     {
+      "part": "sheath",
+      "x0": 8,
+      "x1": 10,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 12,
+      "x1": 16,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 19,
+      "x1": 23,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 13,
+    "spans": [
+     {
+      "part": "sheath",
+      "x0": 11,
+      "x1": 11,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 12,
+      "x1": 23,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 14,
+    "spans": [
+     {
+      "part": "coat",
+      "x0": 11,
+      "x1": 11,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 12,
+      "x1": 12,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 24,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 15,
+    "spans": [
+     {
+      "part": "sleeves",
+      "x0": 11,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "sheath",
+      "x0": 13,
+      "x1": 13,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 14,
+      "x1": 21,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 24,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 16,
+    "spans": [
+     {
+      "part": "sleeves",
+      "x0": 11,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 13,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 14,
+      "x1": 14,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 15,
+      "x1": 21,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 24,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 17,
+    "spans": [
+     {
+      "part": "sleeves",
+      "x0": 10,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 14,
+      "mainLight": "base"
+     },
+     {
+      "part": "sheath",
+      "x0": 15,
+      "x1": 15,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 16,
+      "x1": 21,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 25,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 18,
+    "spans": [
+     {
+      "part": "sleeves",
+      "x0": 10,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 21,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 25,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 19,
+    "spans": [
+     {
+      "part": "sleeves",
+      "x0": 9,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 21,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 26,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 20,
+    "spans": [
+     {
+      "part": "sleeves",
+      "x0": 9,
+      "x1": 12,
+      "mainLight": "lit"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 21,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 26,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 21,
+    "spans": [
+     {
+      "part": "hands",
+      "x0": 8,
+      "x1": 11,
+      "mainLight": "lit"
+     },
+     {
+      "part": "sleeves",
+      "x0": 12,
+      "x1": 12,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 21,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 23,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "hands",
+      "x0": 25,
+      "x1": 27,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 22,
+    "spans": [
+     {
+      "part": "hands",
+      "x0": 8,
+      "x1": 11,
+      "mainLight": "lit"
+     },
+     {
+      "part": "sleeves",
+      "x0": 12,
+      "x1": 12,
+      "mainLight": "base"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 21,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 23,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "hands",
+      "x0": 25,
+      "x1": 27,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 23,
+    "spans": [
+     {
+      "part": "hands",
+      "x0": 8,
+      "x1": 10,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 12,
+      "x1": 12,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 21,
+      "mainLight": "base"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 23,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "hands",
+      "x0": 25,
+      "x1": 27,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 24,
+    "spans": [
+     {
+      "part": "hands",
+      "x0": 10,
+      "x1": 10,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "sleeves",
+      "x0": 12,
+      "x1": 12,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 21,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "sleeves",
+      "x0": 23,
+      "x1": 23,
+      "mainLight": "shadow"
+     },
+     {
+      "part": "hands",
+      "x0": 26,
+      "x1": 26,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 25,
+    "spans": [
+     {
+      "part": "coat",
+      "x0": 13,
+      "x1": 21,
+      "mainLight": "shadow"
+     }
+    ]
+   },
+   {
+    "y": 26,
+    "spans": [
+     {
+      "part": "legs",
+      "x0": 14,
+      "x1": 21,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 27,
+    "spans": [
+     {
+      "part": "legs",
+      "x0": 15,
+      "x1": 21,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 28,
+    "spans": [
+     {
+      "part": "boots",
+      "x0": 16,
+      "x1": 20,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 29,
+    "spans": [
+     {
+      "part": "boots",
+      "x0": 15,
+      "x1": 20,
+      "mainLight": "base"
+     }
+    ]
+   },
+   {
+    "y": 30,
+    "spans": [
+     {
+      "part": "boots",
+      "x0": 15,
+      "x1": 20,
+      "mainLight": "base"
+     }
+    ]
+   }
+  ],
+  "folds": [
+   {
+    "panel": "coat#0",
+    "start": [
+     21,
+     16
+    ],
+    "dir": [
+     0,
+     1
+    ],
+    "cells": [
+     [
+      21,
+      16
+     ],
+     [
+      21,
+      17
+     ],
+     [
+      21,
+      18
+     ],
+     [
+      21,
+      19
+     ]
+    ],
+    "side": "away from the light"
+   },
+   {
+    "panel": "coat#0",
+    "start": [
+     21,
+     22
+    ],
+    "dir": [
+     0,
+     1
+    ],
+    "cells": [
+     [
+      21,
+      22
+     ],
+     [
+      21,
+      23
+     ]
+    ],
+    "side": "away from the light"
+   },
+   {
+    "panel": "sleeves#0",
+    "start": [
+     12,
+     15
+    ],
+    "dir": [
+     0,
+     1
+    ],
+    "cells": [
+     [
+      12,
+      15
+     ],
+     [
+      12,
+      16
+     ],
+     [
+      12,
+      17
+     ]
+    ],
+    "side": "away from the light"
+   },
+   {
+    "panel": "sleeves#1",
+    "start": [
+     24,
+     15
+    ],
+    "dir": [
+     0,
+     1
+    ],
+    "cells": [
+     [
+      24,
+      15
+     ],
+     [
+      24,
+      16
+     ],
+     [
+      24,
+      17
+     ]
+    ],
+    "side": "away from the light"
+   }
+  ],
+  "item": {
+   "side": "left (mirror: redraw the item, it must stay on the same shoulder of the character)",
+   "cells": [
+    {
+     "part": "sheath",
+     "cell": [
+      5,
+      4
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      6,
+      4
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      7,
+      4
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      5,
+      5
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      6,
+      5
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      7,
+      5
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      5,
+      6
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      7,
+      6
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      8,
+      6
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      7,
+      7
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      8,
+      7
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      6,
+      8
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      8,
+      8
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      9,
+      8
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      7,
+      9
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      9,
+      9
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      7,
+      10
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      8,
+      10
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      8,
+      11
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      9,
+      11
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      10,
+      11
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      8,
+      12
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      9,
+      12
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      10,
+      12
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      11,
+      13
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      12,
+      14
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      13,
+      15
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      14,
+      16
+     ]
+    },
+    {
+     "part": "sheath",
+     "cell": [
+      15,
+      17
+     ]
+    },
+    {
+     "part": "guard",
+     "cell": [
+      6,
+      6
+     ]
+    },
+    {
+     "part": "guard",
+     "cell": [
+      11,
+      9
+     ]
+    },
+    {
+     "part": "guard",
+     "cell": [
+      10,
+      10
+     ]
+    },
+    {
+     "part": "wrap",
+     "cell": [
+      6,
+      7
+     ]
+    },
+    {
+     "part": "wrap",
+     "cell": [
+      7,
+      8
+     ]
+    },
+    {
+     "part": "wrap",
+     "cell": [
+      8,
+      9
+     ]
+    },
+    {
+     "part": "wrap",
+     "cell": [
+      9,
+      10
+     ]
+    }
+   ]
+  },
+  "outlineRule": "1 px, near-black, unbroken around the silhouette; seam cells use near-black too (selout by light level)",
+  "mirrored": true
+ }
+}

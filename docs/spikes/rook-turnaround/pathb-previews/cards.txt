@@ -1,0 +1,365 @@
+==== s
+FACING s  yaw 0 deg
+head center column 17.5   face axis column 17.5
+eye cells: rows 7,8,9,10, 32 cells: 14,7 15,7 16,7 19,7 20,7 21,7 13,8 14,8 15,8 16,8 17,8 18,8 19,8 20,8 21,8 22,8 13,9 14,9 15,9 16,9 17,9 18,9 19,9 20,9 21,9 22,9 14,10 15,10 16,10 19,10 20,10 21,10
+light vector (-0.45, -0.6, 0.66)  top-left, toward the viewer
+guide rows headTop=0 headBottom=12 eye=8 shoulder=14 hip=25 legTop=26 bootTop=28 foot=30
+part layout per row (x0-x1 per part, main light level):
+  y0: hair14-21/lit
+  y1: hair12-23/lit
+  y2: hair11-24/lit
+  y3: hair11-24/lit
+  y4: sheath5-7/base hair11-24/lit
+  y5: sheath5-7/base hair11-15/lit skin16-19/lit hair20-24/shadow
+  y6: sheath5/base guard6/base sheath7-8/base hair11-12/base skin13-22/lit hair23-24/shadow
+  y7: wrap6/base sheath7-8/base hair11-12/shadow skin13/lit lenses14-16/base skin17-18/lit lenses19-21/base skin22/base hair23-24/shadow
+  y8: sheath6/base wrap7/base sheath8-9/base hair11-12/shadow lenses13-22/base hair23-24/shadow
+  y9: sheath7/base wrap8/base sheath9/base hair11-12/shadow lenses13-22/base hair23-24/shadow
+  y10: sheath7-8/base wrap9/shadow guard10/shadow skin12-13/base lenses14-16/base skin17-18/base lenses19-21/shadow skin22-23/shadow
+  y11: sheath8/base guard9/shadow sheath10-11/shadow coat12-14/base skin15/base beard16-19/lit skin20/shadow coat21-23/base
+  y12: sheath8-11/shadow coat12-14/base beard15/lit coat16/base skin17-18/shadow coat19/base beard20/shadow coat21-23/base
+  y13: coat11-14/base beard15-20/shadow coat21-24/base
+  y14: coat11-24/base
+  y15: sleeves10-12/lit coat13-15/base zipper16-18/base coat19-22/base sleeves23-25/shadow
+  y16: sleeves10-12/lit coat13-15/base zipper16-18/base coat19-22/base sleeves23-25/base
+  y17: sleeves9-12/lit coat13-15/base zipper16-18/base coat19-22/base sleeves23-26/base
+  y18: sleeves9-12/lit coat13-15/base zipper16-18/base coat19-22/base sleeves23-26/shadow
+  y19: sleeves8-12/lit coat13-15/base zipper16-18/base coat19-22/base sleeves23-27/shadow
+  y20: sleeves8-12/lit coat13-15/base zipper16-18/base coat19-22/base sleeves23-27/shadow
+  y21: hands7-10/lit sleeves12/base coat13-15/base zipper16-18/base coat19-22/shadow sleeves23/shadow hands25-28/shadow
+  y22: hands7-10/lit sleeves12/base coat13-15/base zipper16-18/base coat19-22/shadow sleeves23/shadow hands25-28/shadow
+  y23: hands7-10/base sleeves12/shadow coat13-15/base zipper16-18/shadow coat19-22/shadow sleeves23/shadow hands25-28/shadow
+  y24: hands8-9/shadow sleeves12/shadow coat13-15/base zipper16-18/shadow coat19-22/shadow sleeves23/shadow hands26-27/shadow
+  y25: coat12-23/shadow
+  y26: legs14-21/base
+  y27: legs14-21/base
+  y28: boots16-19/base
+  y29: boots14-21/base
+  y30: boots14-21/base
+fold strokes (start, direction, cells):
+  coat#0 start 22,16 dir 0,1 22,16 22,17 22,18 22,19 (away from the light)
+  coat#0 start 22,22 dir 0,1 22,22 22,23 (away from the light)
+  sleeves#0 start 12,15 dir 0,1 12,15 12,16 12,17 (away from the light)
+  sleeves#1 start 25,15 dir 0,1 25,15 25,16 25,17 (away from the light)
+carried item (katana) side left: sheath:5,4 sheath:6,4 sheath:7,4 sheath:5,5 sheath:6,5 sheath:7,5 sheath:5,6 sheath:7,6 sheath:8,6 sheath:7,7 sheath:8,7 sheath:6,8 sheath:8,8 sheath:9,8 sheath:7,9 sheath:9,9 sheath:7,10 sheath:8,10 sheath:8,11 sheath:10,11 sheath:11,11 sheath:8,12 sheath:9,12 sheath:10,12 sheath:11,12 guard:6,6 guard:10,10 guard:9,11 wrap:6,7 wrap:7,8 wrap:8,9 wrap:9,10
+outline: 1 px, near-black, unbroken around the silhouette; seam cells use near-black too (selout by light level)
+
+==== se
+FACING se  yaw 45 deg
+head center column 17.5   face axis column 19.5
+eye cells: rows 7,8,9,10, 27 cells: 17,7 18,7 21,7 22,7 23,7 14,8 15,8 16,8 17,8 18,8 19,8 20,8 21,8 22,8 23,8 16,9 17,9 18,9 19,9 20,9 21,9 22,9 23,9 17,10 18,10 21,10 22,10
+light vector (-0.45, -0.6, 0.66)  top-left, toward the viewer
+guide rows headTop=0 headBottom=12 eye=8 shoulder=14 hip=25 legTop=26 bootTop=28 foot=30
+part layout per row (x0-x1 per part, main light level):
+  y0: hair14-20/lit
+  y1: hair12-22/lit
+  y2: hair11-23/lit
+  y3: hair11-24/lit
+  y4: sheath5-7/base hair12-24/lit
+  y5: sheath5-7/base hair11-15/lit skin16-18/lit hair19-20/base skin21/base hair22-24/shadow
+  y6: sheath5/base guard6/base sheath7-8/base hair11-15/lit skin16-21/lit hair22-24/shadow
+  y7: wrap6/base sheath7-8/base hair11-14/base skin15-16/lit lenses17-18/base skin19-20/lit lenses21-23/base
+  y8: sheath6/base wrap7/base sheath8-9/base hair11-13/base lenses14-23/base
+  y9: sheath7/base wrap8/base sheath9/base hair11-13/shadow skin14-15/lit lenses16-23/base
+  y10: sheath7-8/base wrap9/shadow guard10/shadow hair11-13/shadow skin14-16/base lenses17-18/base skin19-20/shadow lenses21-22/shadow skin23/shadow
+  y11: sheath8/base guard9/shadow sheath10-11/shadow coat12-14/base skin15-17/base beard18-20/lit skin21-23/shadow
+  y12: sheath8-11/shadow coat12-16/base beard17/lit skin18-20/shadow beard21/shadow skin22-23/shadow
+  y13: coat11-16/base beard17-21/shadow coat22-23/base
+  y14: coat11-24/base
+  y15: sleeves10-12/lit coat13-17/base zipper18-20/base coat21-22/base sleeves23-24/shadow
+  y16: sleeves10-12/lit coat13-17/base zipper18-20/base coat21-22/base sleeves23-24/shadow
+  y17: sleeves9-12/lit coat13-17/base zipper18-20/base coat21-22/base sleeves23-25/base
+  y18: sleeves9-12/lit coat13-17/base zipper18-20/base coat21-22/base sleeves23-25/shadow
+  y19: sleeves8-12/lit coat13-17/base zipper18-20/base coat21-22/base sleeves23-26/shadow
+  y20: sleeves8-12/lit coat13-17/base zipper18-20/base coat21-22/shadow sleeves23-26/shadow
+  y21: hands7-10/lit sleeves12/base coat13-17/base zipper18-20/base coat21-22/shadow sleeves23/shadow hands24-27/shadow
+  y22: hands7-10/lit sleeves12/base coat13-17/base zipper18-20/base coat21-22/shadow sleeves23/shadow hands24-27/shadow
+  y23: hands7-10/base sleeves12/shadow coat13-17/base zipper18-20/shadow coat21-22/shadow sleeves23/shadow hands25-27/shadow
+  y24: hands8-9/shadow sleeves12/shadow coat13-17/base zipper18-20/shadow coat21-22/shadow sleeves23/shadow hands25/shadow
+  y25: coat12-23/shadow
+  y26: legs14-21/base
+  y27: legs14-20/base
+  y28: boots15-19/base
+  y29: boots15-20/base
+  y30: boots15-20/base
+fold strokes (start, direction, cells):
+  coat#0 start 22,16 dir 0,1 22,16 22,17 22,18 22,19 (away from the light)
+  coat#0 start 22,22 dir 0,1 22,22 22,23 (away from the light)
+  sleeves#0 start 12,15 dir 0,1 12,15 12,16 12,17 (away from the light)
+  sleeves#1 start 24,15 dir 0,1 24,15 24,16 24,17 (away from the light)
+carried item (katana) side left: sheath:5,4 sheath:6,4 sheath:7,4 sheath:5,5 sheath:6,5 sheath:7,5 sheath:5,6 sheath:7,6 sheath:8,6 sheath:7,7 sheath:8,7 sheath:6,8 sheath:8,8 sheath:9,8 sheath:7,9 sheath:9,9 sheath:7,10 sheath:8,10 sheath:8,11 sheath:10,11 sheath:11,11 sheath:8,12 sheath:9,12 sheath:10,12 sheath:11,12 guard:6,6 guard:10,10 guard:9,11 wrap:6,7 wrap:7,8 wrap:8,9 wrap:9,10
+outline: 1 px, near-black, unbroken around the silhouette; seam cells use near-black too (selout by light level)
+
+==== e
+FACING e  yaw 90 deg
+head center column 17   face axis column 21
+eye cells: rows 7,8,9,10, 30 cells: 19,7 20,7 21,7 22,7 12,8 13,8 14,8 15,8 16,8 17,8 18,8 19,8 20,8 21,8 22,8 12,9 13,9 14,9 15,9 16,9 17,9 18,9 19,9 20,9 21,9 22,9 19,10 20,10 21,10 22,10
+light vector (-0.45, -0.6, 0.66)  top-left, toward the viewer
+guide rows headTop=0 headBottom=12 eye=8 shoulder=14 hip=25 legTop=26 bootTop=28 foot=30
+part layout per row (x0-x1 per part, main light level):
+  y0: hair14-20/lit
+  y1: hair12-22/lit
+  y2: hair11-23/lit
+  y3: hair11-23/lit
+  y4: sheath5-7/base hair11-23/lit
+  y5: sheath5-7/base hair11-23/lit
+  y6: sheath5/base guard6/base sheath7-8/base hair11-18/base skin19-23/shadow
+  y7: wrap6/base sheath7-8/base hair11-16/base skin18/lit lenses19-22/base skin23/shadow
+  y8: sheath6/base wrap7/base sheath8-9/base hair11/shadow lenses12-22/base skin23/shadow
+  y9: sheath7/base wrap8/base sheath9/base hair11/shadow lenses12-22/base skin23/shadow
+  y10: sheath7-8/base wrap9/shadow guard10/shadow hair11-16/shadow skin18/base lenses19-22/shadow skin23/shadow
+  y11: sheath8/base guard9/shadow sheath10-11/shadow coat12-13/base skin14-18/base beard19-22/base skin23/shadow
+  y12: sheath8-11/shadow coat12-13/base skin14-18/shadow beard19-21/base skin22-23/shadow
+  y13: coat11-21/base
+  y14: coat11-22/base
+  y15: coat11-15/base sleeves16-20/lit coat21/base zipper22/base
+  y16: coat11-15/base sleeves16-21/lit zipper22/base
+  y17: coat11-15/base sleeves16-21/lit zipper22/base
+  y18: coat11-15/base sleeves16-21/lit zipper22/base
+  y19: coat11-15/base sleeves16-21/base zipper22/base
+  y20: coat11-15/base sleeves16-21/shadow zipper22/base
+  y21: coat11-15/base sleeves16-21/shadow zipper22/base
+  y22: coat11-15/base hands16-21/lit zipper22/base
+  y23: coat11-15/base hands16-21/lit zipper22/base
+  y24: coat11-15/base hands16-21/shadow zipper22/base
+  y25: coat11-22/shadow
+  y26: legs15-20/base
+  y27: legs15-20/base
+  y28: boots15-19/base
+  y29: boots15-22/base
+  y30: boots15-22/base
+fold strokes (start, direction, cells):
+  coat#0 start 15,16 dir 0,1 15,16 15,17 15,18 15,19 (away from the light)
+  coat#0 start 15,22 dir 0,1 15,22 15,23 (away from the light)
+  sleeves#0 start 20,15 dir 0,1 20,15 20,16 20,17 (away from the light)
+carried item (katana) side left: sheath:5,4 sheath:6,4 sheath:7,4 sheath:5,5 sheath:6,5 sheath:7,5 sheath:5,6 sheath:7,6 sheath:8,6 sheath:7,7 sheath:8,7 sheath:6,8 sheath:8,8 sheath:9,8 sheath:7,9 sheath:9,9 sheath:7,10 sheath:8,10 sheath:8,11 sheath:10,11 sheath:11,11 sheath:8,12 sheath:9,12 sheath:10,12 sheath:11,12 guard:6,6 guard:10,10 guard:9,11 wrap:6,7 wrap:7,8 wrap:8,9 wrap:9,10
+outline: 1 px, near-black, unbroken around the silhouette; seam cells use near-black too (selout by light level)
+
+==== ne
+FACING ne  yaw 135 deg
+head center column 17.5   face axis column 19.5
+eye cells: no face
+light vector (-0.45, -0.6, 0.66)  top-left, toward the viewer
+guide rows headTop=0 headBottom=12 eye=8 shoulder=14 hip=25 legTop=26 bootTop=28 foot=30
+part layout per row (x0-x1 per part, main light level):
+  y0: hair14-21/lit
+  y1: hair12-23/lit
+  y2: hair11-24/lit
+  y3: hair11-24/lit
+  y4: hair11-24/lit sheath28-30/base
+  y5: hair11-24/lit sheath28-30/base
+  y6: hair11-24/base sheath27-28/base guard29/base sheath30/base
+  y7: hair11-24/base sheath27-28/base wrap29/base
+  y8: hair11-22/shadow skin23/shadow hair24/shadow sheath26-27/base wrap28/base sheath29/base
+  y9: hair12-22/shadow skin23/shadow guard24/base sheath26/base wrap27/base sheath28/base
+  y10: hair13-22/shadow skin23/shadow guard25/base wrap26/base sheath27-28/base
+  y11: coat12-14/base skin17-20/shadow coat21-23/base sheath25-27/base
+  y12: coat12-16/base coat19-23/base sheath25-27/base
+  y13: coat12-23/base sheath24/base
+  y14: coat11-22/base sheath23/base coat24/base
+  y15: sleeves11-12/lit coat14-21/base sheath22/base sleeves23-24/shadow
+  y16: sleeves11-12/lit coat14-20/base sheath21/base coat22/base sleeves23-24/base
+  y17: sleeves10-12/lit coat14-19/base sheath20/base coat21-22/base sleeves23-25/base
+  y18: sleeves10-12/lit coat14-22/base sleeves23-25/base
+  y19: sleeves9-12/lit coat14-22/base sleeves23-26/shadow
+  y20: sleeves9-12/lit coat14-22/base sleeves23-26/shadow
+  y21: hands8-10/lit sleeves12/base coat14-22/base sleeves23/shadow hands24-27/shadow
+  y22: hands8-10/lit sleeves12/base coat14-22/base sleeves23/shadow hands24-27/shadow
+  y23: hands8-10/base sleeves12/shadow coat14-22/shadow sleeves23/shadow hands25-27/shadow
+  y24: hands9/shadow sleeves12/shadow coat14-22/shadow sleeves23/shadow hands25/shadow
+  y25: coat14-22/shadow
+  y26: legs14-21/base
+  y27: legs14-20/base
+  y28: boots15-19/base
+  y29: boots15-20/base
+  y30: boots15-20/base
+fold strokes (start, direction, cells):
+  coat#0 start 22,16 dir 0,1 22,16 22,17 22,18 22,19 (away from the light)
+  coat#0 start 22,22 dir 0,1 22,22 22,23 (away from the light)
+  sleeves#0 start 12,15 dir 0,1 12,15 12,16 12,17 (away from the light)
+  sleeves#1 start 24,15 dir 0,1 24,15 24,16 24,17 (away from the light)
+carried item (katana) side right: sheath:28,4 sheath:29,4 sheath:30,4 sheath:28,5 sheath:29,5 sheath:30,5 sheath:27,6 sheath:28,6 sheath:30,6 sheath:27,7 sheath:28,7 sheath:26,8 sheath:27,8 sheath:29,8 sheath:26,9 sheath:28,9 sheath:27,10 sheath:28,10 sheath:25,11 sheath:26,11 sheath:27,11 sheath:25,12 sheath:26,12 sheath:27,12 sheath:24,13 sheath:23,14 sheath:22,15 sheath:21,16 sheath:20,17 guard:29,6 guard:24,9 guard:25,10 wrap:29,7 wrap:28,8 wrap:27,9 wrap:26,10
+outline: 1 px, near-black, unbroken around the silhouette; seam cells use near-black too (selout by light level)
+
+==== n
+FACING n  yaw 180 deg
+head center column 17.5   face axis column 17.5
+eye cells: no face
+light vector (-0.45, -0.6, 0.66)  top-left, toward the viewer
+guide rows headTop=0 headBottom=12 eye=8 shoulder=14 hip=25 legTop=26 bootTop=28 foot=30
+part layout per row (x0-x1 per part, main light level):
+  y0: hair14-21/lit
+  y1: hair12-23/lit
+  y2: hair11-24/lit
+  y3: hair11-24/lit
+  y4: hair11-24/lit sheath28-30/base
+  y5: hair11-24/lit sheath28-30/base
+  y6: hair11-24/base sheath27-28/base guard29/base sheath30/base
+  y7: hair11-24/base sheath27-28/base wrap29/base
+  y8: hair11-24/shadow sheath26-27/base wrap28/base sheath29/base
+  y9: hair12-23/shadow guard24/base sheath26/base wrap27/base sheath28/base
+  y10: hair13-22/shadow guard25/base wrap26/base sheath27-28/base
+  y11: coat12-14/base skin16-19/base coat21-23/base sheath25-27/base
+  y12: coat12-16/base coat19-23/base sheath25-27/base
+  y13: coat12-23/base sheath24/base
+  y14: coat11-22/base sheath23/base coat24/base
+  y15: sleeves10-12/lit coat13-21/base sheath22/base sleeves23-25/shadow
+  y16: sleeves10-12/lit coat13-20/base sheath21/base coat22/base sleeves23-25/base
+  y17: sleeves9-12/lit coat13-19/base sheath20/base coat21-22/base sleeves23-26/base
+  y18: sleeves9-12/lit coat13-22/base sleeves23-26/shadow
+  y19: sleeves8-12/lit coat13-22/base sleeves23-27/shadow
+  y20: sleeves8-12/lit coat13-22/base sleeves23-27/shadow
+  y21: hands7-10/lit sleeves12/base coat13-22/base sleeves23/shadow hands25-28/shadow
+  y22: hands7-10/lit sleeves12/base coat13-22/base sleeves23/shadow hands25-28/shadow
+  y23: hands7-10/base sleeves12/shadow coat13-22/shadow sleeves23/shadow hands25-28/shadow
+  y24: hands8-9/shadow sleeves12/shadow coat13-22/shadow sleeves23/shadow hands26-27/shadow
+  y25: coat13-22/shadow
+  y26: legs14-21/base
+  y27: legs14-21/base
+  y28: boots16-19/base
+  y29: boots14-21/base
+  y30: boots14-21/base
+fold strokes (start, direction, cells):
+  coat#0 start 22,16 dir 0,1 22,16 22,17 22,18 22,19 (away from the light)
+  coat#0 start 22,22 dir 0,1 22,22 22,23 (away from the light)
+  sleeves#0 start 12,15 dir 0,1 12,15 12,16 12,17 (away from the light)
+  sleeves#1 start 25,15 dir 0,1 25,15 25,16 25,17 (away from the light)
+carried item (katana) side right: sheath:28,4 sheath:29,4 sheath:30,4 sheath:28,5 sheath:29,5 sheath:30,5 sheath:27,6 sheath:28,6 sheath:30,6 sheath:27,7 sheath:28,7 sheath:26,8 sheath:27,8 sheath:29,8 sheath:26,9 sheath:28,9 sheath:27,10 sheath:28,10 sheath:25,11 sheath:26,11 sheath:27,11 sheath:25,12 sheath:26,12 sheath:27,12 sheath:24,13 sheath:23,14 sheath:22,15 sheath:21,16 sheath:20,17 guard:29,6 guard:24,9 guard:25,10 wrap:29,7 wrap:28,8 wrap:27,9 wrap:26,10
+outline: 1 px, near-black, unbroken around the silhouette; seam cells use near-black too (selout by light level)
+
+==== sw
+FACING sw  yaw -45 deg (mirror)
+head center column 17.5   face axis column 15.5
+eye cells: rows 7,8,9,10, 27 cells: 12,7 13,7 14,7 17,7 18,7 12,8 13,8 14,8 15,8 16,8 17,8 18,8 19,8 20,8 21,8 12,9 13,9 14,9 15,9 16,9 17,9 18,9 19,9 13,10 14,10 17,10 18,10
+light vector (-0.45, -0.6, 0.66)  top-left, toward the viewer
+guide rows headTop=0 headBottom=12 eye=8 shoulder=14 hip=25 legTop=26 bootTop=28 foot=30
+part layout per row (x0-x1 per part, main light level):
+  y0: hair15-21/lit
+  y1: hair13-23/lit
+  y2: hair12-24/lit
+  y3: hair11-24/lit
+  y4: hair11-23/lit sheath28-30/base
+  y5: hair11-13/lit skin14/lit hair15-16/lit skin17-19/lit hair20-24/shadow sheath28-30/base
+  y6: hair11-13/lit skin14-19/lit hair20-24/shadow sheath27-28/base guard29/base sheath30/base
+  y7: lenses12-14/base skin15-16/lit lenses17-18/base skin19-20/base hair21-24/shadow sheath27-28/base wrap29/base
+  y8: lenses12-21/base hair22-24/shadow sheath26-27/base wrap28/base sheath29/base
+  y9: lenses12-19/base skin20-21/shadow hair22-24/shadow sheath26/base wrap27/base sheath28/base
+  y10: skin12/base lenses13-14/base skin15-16/base lenses17-18/shadow skin19-21/shadow hair22-24/shadow guard25/base wrap26/base sheath27-28/base
+  y11: skin12-14/base beard15-17/lit skin18-20/shadow coat21-23/base sheath24-25/base guard26/base sheath27/base
+  y12: skin12-13/shadow beard14/lit skin15-17/shadow beard18/shadow coat19-23/base sheath24-27/base
+  y13: coat12-13/base beard14-18/shadow coat19-24/base
+  y14: coat11-24/base
+  y15: sleeves11-12/lit coat13-14/base zipper15-17/base coat18-22/base sleeves23-25/shadow
+  y16: sleeves11-12/lit coat13-14/base zipper15-17/base coat18-22/base sleeves23-25/base
+  y17: sleeves10-12/lit coat13-14/base zipper15-17/base coat18-22/base sleeves23-26/base
+  y18: sleeves10-12/lit coat13-14/base zipper15-17/base coat18-22/base sleeves23-26/shadow
+  y19: sleeves9-12/lit coat13-14/base zipper15-17/base coat18-22/base sleeves23-27/shadow
+  y20: sleeves9-12/lit coat13-14/base zipper15-17/base coat18-22/base sleeves23-27/shadow
+  y21: hands8-11/lit sleeves12/base coat13-14/base zipper15-17/base coat18-22/base sleeves23/shadow hands25-28/shadow
+  y22: hands8-11/lit sleeves12/base coat13-14/base zipper15-17/base coat18-22/shadow sleeves23/shadow hands25-28/shadow
+  y23: hands8-10/base sleeves12/shadow coat13-14/base zipper15-17/shadow coat18-22/shadow sleeves23/shadow hands25-28/shadow
+  y24: hands10/shadow sleeves12/shadow coat13-14/base zipper15-17/shadow coat18-22/shadow sleeves23/shadow hands26-27/shadow
+  y25: coat12-23/shadow
+  y26: legs14-21/base
+  y27: legs15-21/base
+  y28: boots16-20/base
+  y29: boots15-20/base
+  y30: boots15-20/base
+fold strokes (start, direction, cells):
+  coat#0 start 22,16 dir 0,1 22,16 22,17 22,18 22,19 (away from the light)
+  coat#0 start 22,22 dir 0,1 22,22 22,23 (away from the light)
+  sleeves#0 start 12,15 dir 0,1 12,15 12,16 12,17 (away from the light)
+  sleeves#1 start 25,15 dir 0,1 25,15 25,16 25,17 (away from the light)
+carried item (katana) side right (mirror: redraw the item, it must stay on the same shoulder of the character): sheath:28,4 sheath:29,4 sheath:30,4 sheath:28,5 sheath:29,5 sheath:30,5 sheath:27,6 sheath:28,6 sheath:30,6 sheath:27,7 sheath:28,7 sheath:26,8 sheath:27,8 sheath:29,8 sheath:26,9 sheath:28,9 sheath:27,10 sheath:28,10 sheath:24,11 sheath:25,11 sheath:27,11 sheath:24,12 sheath:25,12 sheath:26,12 sheath:27,12 guard:29,6 guard:25,10 guard:26,11 wrap:29,7 wrap:28,8 wrap:27,9 wrap:26,10
+outline: 1 px, near-black, unbroken around the silhouette; seam cells use near-black too (selout by light level)
+
+==== w
+FACING w  yaw -90 deg (mirror)
+head center column 18   face axis column 14
+eye cells: rows 7,8,9,10, 30 cells: 13,7 14,7 15,7 16,7 13,8 14,8 15,8 16,8 17,8 18,8 19,8 20,8 21,8 22,8 23,8 13,9 14,9 15,9 16,9 17,9 18,9 19,9 20,9 21,9 22,9 23,9 13,10 14,10 15,10 16,10
+light vector (-0.45, -0.6, 0.66)  top-left, toward the viewer
+guide rows headTop=0 headBottom=12 eye=8 shoulder=14 hip=25 legTop=26 bootTop=28 foot=30
+part layout per row (x0-x1 per part, main light level):
+  y0: hair15-21/lit
+  y1: hair13-23/lit
+  y2: hair12-24/lit
+  y3: hair12-24/lit
+  y4: hair12-24/lit sheath28-30/base
+  y5: hair12-24/lit sheath28-30/base
+  y6: skin12-16/lit hair17-24/shadow sheath27-28/base guard29/base sheath30/base
+  y7: skin12/lit lenses13-16/base skin17/lit hair19-24/shadow sheath27-28/base wrap29/base
+  y8: skin12/lit lenses13-23/base hair24/shadow sheath26-27/base wrap28/base sheath29/base
+  y9: skin12/lit lenses13-23/base hair24/shadow sheath26/base wrap27/base sheath28/base
+  y10: skin12/base lenses13-16/base skin17/base hair19-24/shadow guard25/base wrap26/base sheath27-28/base
+  y11: skin12/shadow beard13-16/base skin17-21/shadow coat22-23/base sheath24-25/base guard26/base sheath27/base
+  y12: skin12-13/shadow beard14-16/base skin17-21/shadow coat22-23/base sheath24-27/base
+  y13: coat14-24/base
+  y14: coat13-24/base
+  y15: zipper13/base coat14/base sleeves15-19/lit coat20-24/base
+  y16: zipper13/base sleeves14-19/lit coat20-24/base
+  y17: zipper13/base sleeves14-19/lit coat20-24/base
+  y18: zipper13/base sleeves14-19/lit coat20-24/base
+  y19: zipper13/base sleeves14-19/base coat20-24/base
+  y20: zipper13/base sleeves14-19/shadow coat20-24/shadow
+  y21: zipper13/base sleeves14-19/shadow coat20-24/shadow
+  y22: zipper13/base hands14-19/lit coat20-24/shadow
+  y23: zipper13/base hands14-19/lit coat20-24/shadow
+  y24: zipper13/base hands14-19/shadow coat20-24/shadow
+  y25: coat13-24/shadow
+  y26: legs15-20/base
+  y27: legs15-20/base
+  y28: boots16-20/base
+  y29: boots13-20/base
+  y30: boots13-20/base
+fold strokes (start, direction, cells):
+  coat#0 start 24,16 dir 0,1 24,16 24,17 24,18 24,19 (away from the light)
+  coat#0 start 24,22 dir 0,1 24,22 24,23 (away from the light)
+  sleeves#0 start 19,15 dir 0,1 19,15 19,16 19,17 (away from the light)
+carried item (katana) side right (mirror: redraw the item, it must stay on the same shoulder of the character): sheath:28,4 sheath:29,4 sheath:30,4 sheath:28,5 sheath:29,5 sheath:30,5 sheath:27,6 sheath:28,6 sheath:30,6 sheath:27,7 sheath:28,7 sheath:26,8 sheath:27,8 sheath:29,8 sheath:26,9 sheath:28,9 sheath:27,10 sheath:28,10 sheath:24,11 sheath:25,11 sheath:27,11 sheath:24,12 sheath:25,12 sheath:26,12 sheath:27,12 guard:29,6 guard:25,10 guard:26,11 wrap:29,7 wrap:28,8 wrap:27,9 wrap:26,10
+outline: 1 px, near-black, unbroken around the silhouette; seam cells use near-black too (selout by light level)
+
+==== nw
+FACING nw  yaw -135 deg (mirror)
+head center column 17.5   face axis column 15.5
+eye cells: no face
+light vector (-0.45, -0.6, 0.66)  top-left, toward the viewer
+guide rows headTop=0 headBottom=12 eye=8 shoulder=14 hip=25 legTop=26 bootTop=28 foot=30
+part layout per row (x0-x1 per part, main light level):
+  y0: hair14-21/lit
+  y1: hair12-23/lit
+  y2: hair11-24/lit
+  y3: hair11-24/lit
+  y4: sheath5-7/base hair11-24/lit
+  y5: sheath5-7/base hair11-24/lit
+  y6: sheath5/base guard6/base sheath7-8/base hair11-24/base
+  y7: wrap6/base sheath7-8/base hair11-24/base
+  y8: sheath6/base wrap7/base sheath8-9/base hair11/shadow skin12/lit hair13-24/shadow
+  y9: sheath7/base wrap8/base sheath9/base guard11/shadow skin12/lit hair13-23/shadow
+  y10: sheath7-8/base wrap9/shadow guard10/shadow skin12/lit hair13-22/shadow
+  y11: sheath8-10/base coat12-14/base skin15-18/shadow coat21-23/base
+  y12: sheath8-10/base coat12-16/base coat19-23/base
+  y13: sheath11/base coat12-23/base
+  y14: coat11/base sheath12/shadow coat13-24/base
+  y15: sleeves11-12/lit sheath13/shadow coat14-21/base sleeves23-24/shadow
+  y16: sleeves11-12/lit coat13/base sheath14/shadow coat15-21/base sleeves23-24/base
+  y17: sleeves10-12/lit coat13-14/base sheath15/shadow coat16-21/base sleeves23-25/base
+  y18: sleeves10-12/lit coat13-21/base sleeves23-25/base
+  y19: sleeves9-12/lit coat13-21/base sleeves23-26/shadow
+  y20: sleeves9-12/lit coat13-21/base sleeves23-26/shadow
+  y21: hands8-11/lit sleeves12/base coat13-21/base sleeves23/shadow hands25-27/shadow
+  y22: hands8-11/lit sleeves12/base coat13-21/base sleeves23/shadow hands25-27/shadow
+  y23: hands8-10/base sleeves12/shadow coat13-21/base sleeves23/shadow hands25-27/shadow
+  y24: hands10/shadow sleeves12/shadow coat13-21/shadow sleeves23/shadow hands26/shadow
+  y25: coat13-21/shadow
+  y26: legs14-21/base
+  y27: legs15-21/base
+  y28: boots16-20/base
+  y29: boots15-20/base
+  y30: boots15-20/base
+fold strokes (start, direction, cells):
+  coat#0 start 21,16 dir 0,1 21,16 21,17 21,18 21,19 (away from the light)
+  coat#0 start 21,22 dir 0,1 21,22 21,23 (away from the light)
+  sleeves#0 start 12,15 dir 0,1 12,15 12,16 12,17 (away from the light)
+  sleeves#1 start 24,15 dir 0,1 24,15 24,16 24,17 (away from the light)
+carried item (katana) side left (mirror: redraw the item, it must stay on the same shoulder of the character): sheath:5,4 sheath:6,4 sheath:7,4 sheath:5,5 sheath:6,5 sheath:7,5 sheath:5,6 sheath:7,6 sheath:8,6 sheath:7,7 sheath:8,7 sheath:6,8 sheath:8,8 sheath:9,8 sheath:7,9 sheath:9,9 sheath:7,10 sheath:8,10 sheath:8,11 sheath:9,11 sheath:10,11 sheath:8,12 sheath:9,12 sheath:10,12 sheath:11,13 sheath:12,14 sheath:13,15 sheath:14,16 sheath:15,17 guard:6,6 guard:11,9 guard:10,10 wrap:6,7 wrap:7,8 wrap:8,9 wrap:9,10
+outline: 1 px, near-black, unbroken around the silhouette; seam cells use near-black too (selout by light level)
