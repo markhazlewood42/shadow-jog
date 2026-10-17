@@ -1,5 +1,5 @@
 {
-  "note": "Written by scripts/art/measure-target.mjs. Step 2 adds the copy-tripwire baseline; it is left out here on purpose.",
+  "note": "Written by scripts/art/measure-target.mjs. The copyTripwire object was added by hand in step 2 prep (2026-10-17) with scripts/art/score.mjs; measure-target.mjs does not write it.",
   "source": "spritefusion-tests/rook-overworld-walk.zip (8 frames of 32x32)",
   "luminanceFormula": "0.299*R + 0.587*G + 0.114*B (0..255)",
   "nearBlackThreshold": 60,
@@ -341,5 +341,27 @@
     "colorCount": 22,
     "sharedWithWalkPalette": [],
     "sharesNoColorWithWalk": true
+  },
+  "copyTripwire": {
+    "date": "2026-10-17",
+    "method": "Exact RGBA match over the opaque pixels of the given frame (walk frame 4), best of all integer shifts, scripts/art/score.mjs shiftScores.",
+    "shiftRange": [
+      -6,
+      6
+    ],
+    "baselines": {
+      "rigV2RookDown": {
+        "copyMatch": 0,
+        "file": "media/rook-turnaround/rig/rook-down.png",
+        "note": "rig v2 down facing placed by scripts/art/render-rig.mjs; its palette shares no exact color with the walk palette, so the match is 0 by construction"
+      },
+      "hexWalkFrame0": {
+        "copyMatch": 0,
+        "file": "media/rook-turnaround/hex-walk/spritesheet.png frame 0"
+      }
+    },
+    "voidLine": 0.6,
+    "voidRule": "max(higher baseline + 0.30, 0.60)",
+    "voidNote": "A candidate with copyMatch at or above the void line is voided. With the walk palette given to the writers, an honest drawing can still match some pixels, so the floor of 0.60 is the line."
   }
 }
