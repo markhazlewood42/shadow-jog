@@ -227,7 +227,7 @@ describe('the deadline and the retry rules', () => {
     expect(result.data.branches.length).toBeGreaterThan(0);
     expect(result.data.problems.map((problem) => problem.code)).toContain('decision-comments-truncated');
     const cut = result.data.decisions.open.find((issue) => issue.number === 30);
-    expect(cut?.problem).toContain('newer answer may be missing');
+    expect(cut?.problem).toContain('newer answer can be missing');
   });
 
   it('puts the notice on the cut decision only, and the decision page reads it as the problem of the issue', async () => {

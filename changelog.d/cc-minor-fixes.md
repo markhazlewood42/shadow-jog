@@ -11,3 +11,4 @@
 - A question of only invisible characters (zero-width, format, bidi, filler, variation selector, blank braille) is refused on the server and in the question box, which keeps Send question disabled.
 - A question with a control character shows its error before it is sent.
 - "Flag again" on a hand-written `Question:` comment over 2000 characters shows a clear error that names the limit, and no longer ends in a raw 422.
+- A decision whose comments were cut short shows its own wording in Your move (the answer can be missing) and links to its page in the Command Center, not to GitHub.

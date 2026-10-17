@@ -1,6 +1,7 @@
 import type { DecisionRead } from '../server/decisions/module';
 import { readDecisionIssue } from '../server/decisions/parse';
 import type { DecisionIssue, DecisionsInfo } from '../shared/types';
+import { say } from '../server/messages';
 import { STALE_AFTER_DAYS } from '../shared/workstream';
 import {
   ANSWER_EVENTS_PAGE_QUERY,
@@ -192,7 +193,7 @@ function withCutNotices(info: DecisionsInfo, cut: ReadonlySet<number>): Decision
   if (cut.size === 0) return info;
   const note = (issue: DecisionIssue): DecisionIssue => {
     if (!cut.has(issue.number)) return issue;
-    const notice = 'Not all comments were read, so a newer answer may be missing. Reload to read them again before you answer.';
+    const notice = say('commentsCutNotice');
     return { ...issue, problem: issue.problem === null ? notice : `${issue.problem} ${notice}` };
   };
   return { ...info, open: info.open.map(note), recent: info.recent.map(note) };

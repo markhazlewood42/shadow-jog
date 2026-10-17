@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { say } from '../src/server/messages';
 import { buildYourMove } from '../src/server/now/yourMove';
 import { extractYourMove } from '../src/server/sessions/parse';
 import { type AgentsLive, type DecisionIssue, type DecisionsInfo, type LiveSession, type Panel, type SessionInfo, type SessionsInfo, type YourMoveBox, sessionAnchor, sessionHref } from '../src/shared/types';
@@ -148,6 +149,12 @@ describe('the two sources of "Your move"', () => {
     for (const item of result.items) expect(item.href === null || item.href.startsWith('/decisions/') || item.href.startsWith('/agents#session-') || item.href.startsWith('https://github.com/')).toBe(true);
     // A decision that cannot be read says so, and links to the issue, where Mark can mend it.
     expect(result.items[0]?.text).toBe('Decision #46 is unreadable: The body does not follow the template.');
+  });
+
+  it('a decision whose comments were cut says so, and links to its own page, not to GitHub', () => {
+    const result = buildYourMove(sources({ decisionIssues: good(decisions([issue(49, { problem: say('commentsCutNotice') })])) }), NOW_MS);
+    expect(result.items[0]?.text).toBe('Decision #49: its comments were cut short, so the answer can be missing.');
+    expect(result.items[0]?.href).toBe('/decisions/49');
   });
 
   it('a session item links to the place of its session on the Agents page: /agents#session-<id>', () => {

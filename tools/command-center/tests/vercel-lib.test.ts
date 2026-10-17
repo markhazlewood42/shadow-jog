@@ -276,7 +276,7 @@ describe('vercel.json', () => {
     expect(rule).toBeDefined();
     // The header is for the page, not for the functions: an /api path keeps the headers its own function sets (the docs function sets a stricter one for SVG).
     const regex = new RegExp(`^${rule?.source}$`);
-    for (const api of ['/api/', '/api/snapshot', '/api/docs/docs/GDD.md', '/api/answer']) expect(regex.test(api), api).toBe(false);
+    for (const api of ['/api/', '/api/snapshot', '/api/live', '/api/docs/docs/GDD.md', '/api/answer']) expect(regex.test(api), api).toBe(false);
     for (const page of ['/', '/docs', '/decisions/41', '/apis', '/apidocs/x']) expect(regex.test(page), page).toBe(true);
     const csp = rule?.headers.find((header) => header.key === 'Content-Security-Policy')?.value ?? '';
     const directives = new Map(csp.split(';').map((part) => part.trim().split(/\s+/)).map(([name, ...values]) => [name, values.join(' ')]));

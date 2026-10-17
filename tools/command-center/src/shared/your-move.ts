@@ -1,3 +1,4 @@
+import { say } from '../server/messages';
 import { type DecisionIssue, type YourMoveItem, sessionHref } from './types';
 
 // "Your move" (design.md section 5.1, your-move-redesign.md): the one rule that decides what waits for Mark. The local page (src/server/now/yourMove.ts)
@@ -91,6 +92,10 @@ const waitsForInfo = (issue: DecisionIssue): boolean => issue.phase === 'needs-i
 function decisionItem(issue: DecisionIssue): YourMoveItem {
   const at = orNull(issue.createdAt);
   // An issue that does not follow the template cannot be answered on its page. The item says so and links to the issue itself, where Mark can read it and fix it.
+  // Comments cut short are not a broken issue: the page still opens and shows the notice, so the item links to the decision's own page.
+  if (issue.problem !== null && issue.problem.includes(say('commentsCutNotice'))) {
+    return { source: 'decision-issue', text: say('yourMoveCommentsCut', { number: issue.number }), href: `/decisions/${issue.number}`, light: null, at };
+  }
   if (issue.problem !== null) return { source: 'decision-issue', text: `Decision #${issue.number} is unreadable: ${issue.problem}`, href: orNull(issue.url), light: null, at };
   return {
     source: 'decision-issue',

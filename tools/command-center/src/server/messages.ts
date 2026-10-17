@@ -154,6 +154,8 @@ export const MESSAGES = {
   navReadingOrderName: '{path}: the reading order names "{label}" ({docPath}), which is not a doc of the repo.',
 
   // ---- the decisions: a body that is not the template, the answer route ----
+  commentsCutNotice: 'Not all comments were read, so a newer answer can be missing. Reload to read them again before you answer.',
+  yourMoveCommentsCut: 'Decision #{number}: its comments were cut short, so the answer can be missing.',
   problemNotTemplate: 'The issue body does not follow the decision template. Edit it on GitHub.',
   problemBlankTemplate: 'The issue body is still the blank decision template. Edit it on GitHub.',
   problemNoQuestion: 'The issue has no question. Add one on GitHub.',

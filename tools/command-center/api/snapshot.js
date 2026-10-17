@@ -7507,6 +7507,8 @@ var MESSAGES = {
   navReadingOrderItem: '{path}: the reading order item "{label}" does not link to a doc of the repo.',
   navReadingOrderName: '{path}: the reading order names "{label}" ({docPath}), which is not a doc of the repo.',
   // ---- the decisions: a body that is not the template, the answer route ----
+  commentsCutNotice: "Not all comments were read, so a newer answer can be missing. Reload to read them again before you answer.",
+  yourMoveCommentsCut: "Decision #{number}: its comments were cut short, so the answer can be missing.",
   problemNotTemplate: "The issue body does not follow the decision template. Edit it on GitHub.",
   problemBlankTemplate: "The issue body is still the blank decision template. Edit it on GitHub.",
   problemNoQuestion: "The issue has no question. Add one on GitHub.",
@@ -8624,7 +8626,7 @@ function withCutNotices(info, cut) {
   if (cut.size === 0) return info;
   const note = (issue) => {
     if (!cut.has(issue.number)) return issue;
-    const notice = "Not all comments were read, so a newer answer may be missing. Reload to read them again before you answer.";
+    const notice = say("commentsCutNotice");
     return { ...issue, problem: issue.problem === null ? notice : `${issue.problem} ${notice}` };
   };
   return { ...info, open: info.open.map(note), recent: info.recent.map(note) };
