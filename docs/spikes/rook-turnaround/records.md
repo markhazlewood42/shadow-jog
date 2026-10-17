@@ -64,3 +64,14 @@ Recreate only the head of the given frame (box x10 to 25, y0 to 13) from picture
 | 1 (Level 0) | 3 writers (Sonnet, effort high) in parallel, no cell feedback. Writer brief fix before the round: the render command had a stray `--out` flag. Isolation check (Haiku, on the `subagents/agent-<id>.jsonl` transcripts; the task `.output` files are empty): all 3 clean. The 3 grids are byte-identical, so the vote grid is the same | **Level 0: 99.6 percent exact (223 of 224), ramp-tolerant 99.6**, against flattened 31.3 and round 8 23.2. 1 or 2 renders per writer. All head-mode bands pass; colors 15 (ref 15) | **PASS.** G1: 12 of 12 features, 0 band fails, score 9.0. G2: blind pair 1 of 2 correct (pair-b picked the candidate), triplet picked the candidate as the original, round 8 last; score 8.5 (its strap fault is not on the sheets: the heads differ in one cell) | Minor: the one missing edge cell (171 of 172 opaque) |
 
 **Step 3b result.** The pixel-grid medium copies the given head almost exactly from pictures in one round, with no feedback (Level 0). The step 3 gap is not the precision of the medium. It comes from drawing facings that have no reference picture. Per plan section 5, this result alone does not make step 3 a GO.
+
+## Step 3c: art-pipeline plan (2026-10-17)
+
+One Fable consult (Mark approved the one dispatch) wrote `art-pipeline-plan.md`: split each new picture into copy, transform and invent cells, gate invention with rules and a held-out test. Plan only, no spike code.
+
+| Round | What changed | Numbers | Verdict | Named fixes |
+|---|---|---|---|---|
+| 1 | Plan written (Fable, effort high); 1 verifier (Sonnet, pixel-artist-characters pack) | 36 checklist rows, overall 7.5 | FAIL (4 Important) | F1 T/S floor 0.8x; F2 held-out invention test; F3 head-alone width 13-14 and one IoU table; F4 tiles out to E1; F5-F9 Minor |
+| 2 | Fix round (Sonnet) on F1 to F9 | 111 lines | PASS (fix verifier, no Critical or Important) | Minor: glossary S definition (PA-09), unused FFT entry: both fixed before commit |
+
+Open for Mark (plan section "Questions"): approve the plan or not; two spike amendments (per-facing order, head-alone gate); mirror sheath patch; side-proxy fallback; one-frame idle; tiles in E1.
