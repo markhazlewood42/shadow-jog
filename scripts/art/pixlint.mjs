@@ -5,6 +5,7 @@
 //   --all                  lint every frame of the sheet, then the animation checks (PA-10) across them
 //   --frame-size WxH       frame size of the sheet (default: the whole image is one frame)
 //   --palette <file.json>  the palette: a JSON array of "#rrggbb", or an object with walkPalette or palette (target.json works)
+//   --palette-key <a.b>    with --palette: read the palette at that dotted path (battleIdle.palette in target.json)
 //   --palette-from <png>   the palette is every opaque color of that PNG (all of its frames)
 //   --target <target.json> the measured target (docs/spikes/rook-turnaround/target.json)
 //   --ref <png> [--ref-frame N]  a reference frame for the facing check; default: the numbers of the given frame in the target
@@ -18,6 +19,7 @@ import {
   bbox,
   colorAt,
   colorsOf,
+  edgePixels,
   halfAlpha,
   isOpaque,
   itemSide,
@@ -43,6 +45,19 @@ export const LINES = {
 
 const item = (id, name, status, value, detail = '') => ({ id, name, status, value, detail });
 const fmt = (a) => a.map(([x, y]) => `${x},${y}`).join(' ');
+
+/**
+ * List every orphan as x,y with tags: H = in the head area (the top third of the bounding box, the pack's face area),
+ * O = on the outline (an edge pixel). The pack asks for orphans on the face and the outline, which need a reason.
+ */
+function orphanDetail(img, orph, b) {
+  const edge = new Set(edgePixels(img).map(([x, y]) => `${x},${y}`));
+  const headRows = b ? Math.max(1, Math.floor(b.h / 3)) : 0;
+  const tag = ([x, y]) => `${x},${y}${b && y < b.y0 + headRows ? 'H' : ''}${edge.has(`${x},${y}`) ? 'O' : ''}`;
+  const head = orph.filter(([, y]) => b && y < b.y0 + headRows).length;
+  const out = orph.filter(([x, y]) => edge.has(`${x},${y}`)).length;
+  return `${head} in head area (H), ${out} on outline (O); all: ${orph.map(tag).join(' ')}`;
+}
 
 /** Turn a palette input into a Set of lower-case "#rrggbb". */
 export function paletteSet(list) {
@@ -109,7 +124,7 @@ export function lintFrame(img, opts) {
           `orphans <= ${LINES.countFactor}x reference`,
           orph.length <= LINES.countFactor * refOrphans ? 'pass' : 'fail',
           `${orph.length} (limit ${Math.floor(LINES.countFactor * refOrphans)})`,
-          orph.length ? `at ${fmt(orph.slice(0, 8))}${orph.length > 8 ? ' ...' : ''}` : '',
+          orph.length ? orphanDetail(img, orph, b) : '',
         ),
   );
 
@@ -192,6 +207,7 @@ export function lintFrame(img, opts) {
   } else {
     out.push(item('PA-08', 'palette shared with the reference', 'skipped', 'skipped', 'compares 32x32 frames against the walk palette only'));
   }
+  out.push(item('PA-08', 'same part, same color across facings', 'skipped', 'skipped', 'needs a second facing to compare; step 3 adds it'));
 
   // PA-21 (facing check): which side the katana is on. Reported, never a gate: a mirror moves it, and Mark judges that.
   if (opts.facing && opts.katana?.length) {
@@ -221,7 +237,7 @@ export function lintAnimation(frames) {
   const spread = Math.max(...rows) - Math.min(...rows);
   return [
     item('PA-10', `bottom row varies <= ${LINES.bottomRowSpread} px over ${frames.length} frames`, spread <= LINES.bottomRowSpread ? 'pass' : 'fail', `spread ${spread} (rows ${rows.join(',')})`),
-    item('PA-10', 'planted foot shifts <= 1 px per frame', 'skipped', 'not scriptable', 'needs foot detection per pose; judge on the frame strip'),
+    item('PA-10', 'planted foot shifts <= 1 px per frame', 'skipped', 'not scriptable', 'pack PA-10: "In a walk-in-place, a planted foot shifts at most 1 pixel per frame". The pack names no way to find the planted foot pixel, and none exists on one frame without a pose label. Judge it on the frame strip.'),
   ];
 }
 
@@ -231,10 +247,12 @@ export function hasFail(items) {
 }
 
 /** Read a palette input (file path of a JSON array or object) into an array of colors. */
-export function readPaletteFile(path) {
+export function readPaletteFile(path, key = null) {
   const j = JSON.parse(readFileSync(path, 'utf8'));
-  const list = Array.isArray(j) ? j : (j.walkPalette ?? j.palette);
-  if (!Array.isArray(list)) throw new Error(`${path}: no palette array (expected an array, walkPalette or palette)`);
+  // key is a dotted path into the JSON, for example battleIdle.palette in target.json.
+  const keyed = key ? key.split('.').reduce((v, k) => v?.[k], j) : null;
+  const list = key ? keyed : Array.isArray(j) ? j : (j.walkPalette ?? j.palette);
+  if (!Array.isArray(list)) throw new Error(`${path}: no palette array${key ? ` at ${key}` : ' (expected an array, walkPalette or palette)'}`);
   return list;
 }
 
@@ -289,13 +307,21 @@ function parseArgs(argv) {
     const val = () => argv[++i];
     if (a === '--json') o.json = true;
     else if (a === '--all') o.all = true;
-    else if (a === '--frame') o.frame = Number(val());
-    else if (a === '--frame-size') o.frameSize = val().split('x').map(Number);
-    else if (a === '--palette') o.palette = readPaletteFile(val());
+    else if (a === '--frame') {
+      o.frame = Number(val());
+      if (!Number.isInteger(o.frame) || o.frame < 0) throw new Error('--frame needs a whole number, 0 or more');
+    } else if (a === '--frame-size') {
+      o.frameSize = (val() ?? '').split('x').map(Number);
+      if (o.frameSize.length !== 2 || !o.frameSize.every((n) => Number.isInteger(n) && n > 0)) throw new Error('--frame-size needs WxH, for example 32x32');
+    } else if (a === '--palette') o.paletteFile = val();
+    else if (a === '--palette-key') o.paletteKey = val();
     else if (a === '--palette-from') o.paletteFrom = val();
-    else if (a === '--target') o.target = JSON.parse(readFileSync(val(), 'utf8'));
+    else if (a === '--target') o.targetFile = val();
     else if (a === '--ref') o.refImage = val();
-    else if (a === '--ref-frame') o.refFrame = Number(val());
+    else if (a === '--ref-frame') {
+      o.refFrame = Number(val());
+      if (!Number.isInteger(o.refFrame) || o.refFrame < 0) throw new Error('--ref-frame needs a whole number, 0 or more');
+    }
     else rest.push(a);
   }
   o.file = rest[0];
@@ -303,13 +329,16 @@ function parseArgs(argv) {
 }
 
 function main() {
-  const o = parseArgs(process.argv.slice(2));
-  if (!o.file || !existsSync(o.file)) {
-    console.error('usage: node scripts/art/pixlint.mjs <image.png> [--frame N | --all] [--frame-size WxH] (--palette <file> | --palette-from <png>) [--target <target.json>] [--ref <png>] [--json]');
-    process.exit(2);
-  }
+  let o;
   let results;
   try {
+    o = parseArgs(process.argv.slice(2));
+    if (!o.file || !existsSync(o.file)) {
+      console.error('usage: node scripts/art/pixlint.mjs <image.png> [--frame N | --all] [--frame-size WxH] (--palette <file> [--palette-key a.b] | --palette-from <png>) [--target <target.json>] [--ref <png>] [--json]');
+      process.exit(2);
+    }
+    if (o.paletteFile) o.palette = readPaletteFile(o.paletteFile, o.paletteKey);
+    if (o.targetFile) o.target = JSON.parse(readFileSync(o.targetFile, 'utf8'));
     results = lintFile(o.file, o);
   } catch (e) {
     console.error(`pixlint: ${e.message}`);

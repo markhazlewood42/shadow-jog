@@ -1,6 +1,6 @@
 /** The pixel-art kit (scripts/art/pixkit): palette lock, line, ellipse, mirror, flood fill, outline, selout, diff. */
 import { describe, expect, it } from 'vitest';
-import { applyDiff, ellipse, floodFill, Grid, line, mirror, outline, selout } from '../scripts/art/pixkit/index.mjs';
+import { applyDiff, diffGrids, ellipse, floodFill, Grid, line, mirror, outline, selout } from '../scripts/art/pixkit/index.mjs';
 
 const A = '#112233';
 const B = '#aabbcc';
@@ -149,5 +149,21 @@ describe('applyDiff', () => {
       ]),
     ).toThrow(/palette/);
     expect(g.count()).toBe(0);
+  });
+});
+
+describe('diffGrids', () => {
+  it('lists the cells that differ, from a to b, and nothing when equal', () => {
+    const a = new Grid(3, 2, PAL).set(0, 0, A).set(1, 1, B);
+    const b = a.clone().set(1, 1, C).set(2, 0, A).set(0, 0, null);
+    expect(diffGrids(a, b)).toEqual([
+      { x: 0, y: 0, from: A, to: null },
+      { x: 2, y: 0, from: null, to: A },
+      { x: 1, y: 1, from: B, to: C },
+    ]);
+    expect(diffGrids(a, a.clone())).toEqual([]);
+  });
+  it('throws when the sizes differ', () => {
+    expect(() => diffGrids(new Grid(2, 2, PAL), new Grid(3, 2, PAL))).toThrow(/size/);
   });
 });

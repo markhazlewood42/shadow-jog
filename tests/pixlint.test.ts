@@ -1,50 +1,16 @@
 /** pixlint (scripts/art/pixlint.mjs): passes the 8 Rook walk frames and the battle idle, fails the warden and a half-transparent image. */
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { inflateRawSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import target from '../docs/spikes/rook-turnaround/target.json';
 import { newImage, writePng } from '../scripts/art/pixkit/index.mjs';
 import { hasFail, lintFile, lintFrame } from '../scripts/art/pixlint.mjs';
+import { walkSheet } from './helpers/rookwalk';
 
-const WALK_ZIP = 'spritefusion-tests/rook-overworld-walk.zip';
 const IDLE = 'public/art/crew/rook/idle/spritesheet.png';
 const WARDEN = 'public/art/enemies/warden.png';
 const INK = [0x03, 0x01, 0x02, 255];
-
-/** Read one file out of a zip with Node built-ins only (central directory, stored or deflated). */
-function unzipEntry(zipPath: string, name: string): Buffer {
-  const z = readFileSync(zipPath);
-  const eocd = z.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));
-  let p = z.readUInt32LE(eocd + 16);
-  for (let n = z.readUInt16LE(eocd + 10); n > 0; n--) {
-    const method = z.readUInt16LE(p + 10);
-    const size = z.readUInt32LE(p + 20);
-    const nameLen = z.readUInt16LE(p + 28);
-    const extraLen = z.readUInt16LE(p + 30);
-    const commentLen = z.readUInt16LE(p + 32);
-    const local = z.readUInt32LE(p + 42);
-    if (z.toString('utf8', p + 46, p + 46 + nameLen) === name) {
-      const start = local + 30 + z.readUInt16LE(local + 26) + z.readUInt16LE(local + 28);
-      const data = z.subarray(start, start + size);
-      return method === 0 ? data : inflateRawSync(data);
-    }
-    p += 46 + nameLen + extraLen + commentLen;
-  }
-  throw new Error(`${name} not in ${zipPath}`);
-}
-
-/** The walk sheet is committed as a zip. Write its spritesheet.png to the temp folder once. */
-function walkSheet(): string {
-  const dir = join(tmpdir(), 'pixlint-walk-sheet');
-  const sheet = join(dir, 'spritesheet.png');
-  if (!existsSync(sheet)) {
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(sheet, unzipEntry(WALK_ZIP, 'spritesheet.png'));
-  }
-  return sheet;
-}
 
 const failing = (items: { status: string; id: string; name: string }[]) => items.filter((i) => i.status === 'fail').map((i) => `${i.id} ${i.name}`);
 
@@ -60,8 +26,8 @@ describe('pixlint pass line', () => {
     expect(frames[4]?.items.find((i) => i.id === 'PA-21')?.value).toContain('left');
   });
 
-  it('passes the battle idle against its own palette and skips the facing checks', () => {
-    const results = lintFile(IDLE, { all: true, frameSize: [79, 68], paletteFrom: IDLE, target });
+  it('passes the battle idle against the palette in target.json and skips the facing checks', () => {
+    const results = lintFile(IDLE, { all: true, frameSize: [79, 68], palette: target.battleIdle.palette, target });
     const frames = results.filter((r) => r.label.startsWith('frame'));
     expect(frames).toHaveLength(8);
     for (const r of frames) {
