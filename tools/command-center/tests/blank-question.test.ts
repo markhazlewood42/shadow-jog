@@ -29,6 +29,14 @@ const INVISIBLE: [string, string][] = [
   ['byte order mark', '﻿'],
   ['halfwidth Hangul filler', 'ﾠ'],
   ['variation selector 17', '\u{E0100}'],
+  ['Khmer vowel inherent AQ', '឴'],
+  ['Khmer vowel inherent AA', '឵'],
+  ['Mongolian free variation selector 1', '᠋'],
+  ['Mongolian free variation selector 3', '᠍'],
+  ['Mongolian free variation selector 4', '᠏'],
+  ['reserved default-ignorable U+2065', '⁥'],
+  ['reserved default-ignorable U+FFF0', '￰'],
+  ['reserved tag U+E0000', '\u{E0000}'],
 ];
 
 describe('isBlankQuestion', () => {

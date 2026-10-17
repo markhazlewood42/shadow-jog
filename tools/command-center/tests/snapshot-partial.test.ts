@@ -228,6 +228,7 @@ describe('the deadline and the retry rules', () => {
     expect(result.data.problems.map((problem) => problem.code)).toContain('decision-comments-truncated');
     const cut = result.data.decisions.open.find((issue) => issue.number === 30);
     expect(cut?.problem).toContain('newer answer can be missing');
+    expect(cut?.commentsCut).toBe(true);
   });
 
   it('puts the notice on the cut decision only, and the decision page reads it as the problem of the issue', async () => {
@@ -239,6 +240,33 @@ describe('the deadline and the retry rules', () => {
     expect(issues.find((issue) => issue.number === 30)?.problem).toContain('Reload to read them again');
     expect(issues.filter((issue) => issue.problem?.includes('Reload to read them again'))).toHaveLength(1);
     expect(decisionDetailOf(result.data, 30)?.problem).toContain('Reload to read them again');
+  });
+
+  /** A fake GitHub whose call for the query moves the deadline clock to the end of the budget and then answers with the status, as a real error that lands late. */
+  function answeringLate(query: string, status: number, clock: ReturnType<typeof fakeClock>, inner: FetchLike): FetchLike {
+    return async (url, init) => {
+      if ((JSON.parse(init.body) as { query: string }).query.includes(query)) {
+        clock.jump(24_800);
+        return { ok: false, status, headers: new Headers(), text: async () => 'Unauthorized' };
+      }
+      return inner(url, init);
+    };
+  }
+
+  it('returns a 401 on a page of branches as an error, even when it lands at the end of the budget', async () => {
+    const clock = fakeClock();
+    const more = structuredClone(fixture('call1.json')) as { data: { repository: { refs: { pageInfo: { hasNextPage: boolean; endCursor: string } } } } };
+    more.data.repository.refs.pageInfo = { hasNextPage: true, endCursor: 'cursor-1' };
+    const fetchImpl = answeringLate('query RefsPage', 401, clock, github([more]).fetchImpl);
+    const result = await fetchSnapshot({ token: TOKEN, fetchImpl, now: clock.now, clock: clock.clock, sleep: noSleep });
+    expect(result.ok).toBe(false);
+  });
+
+  it('returns a 401 on a page of comments as an error, even when it lands at the end of the budget', async () => {
+    const clock = fakeClock();
+    const fetchImpl = answeringLate('query MoreComments', 401, clock, github([call1WithCutDecision()]).fetchImpl);
+    const result = await fetchSnapshot({ token: TOKEN, fetchImpl, now: clock.now, clock: clock.clock, sleep: noSleep });
+    expect(result.ok).toBe(false);
   });
 
   it('does not call a network error a deadline while time is left', async () => {

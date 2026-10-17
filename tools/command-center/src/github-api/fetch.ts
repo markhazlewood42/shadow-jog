@@ -194,7 +194,7 @@ function withCutNotices(info: DecisionsInfo, cut: ReadonlySet<number>): Decision
   const note = (issue: DecisionIssue): DecisionIssue => {
     if (!cut.has(issue.number)) return issue;
     const notice = say('commentsCutNotice');
-    return { ...issue, problem: issue.problem === null ? notice : `${issue.problem} ${notice}` };
+    return { ...issue, problem: issue.problem === null ? notice : `${issue.problem} ${notice}`, commentsCut: true };
   };
   return { ...info, open: info.open.map(note), recent: info.recent.map(note) };
 }
@@ -244,6 +244,8 @@ export async function fetchSnapshot(options: FetchOptions): Promise<Result<Snaps
     return left < MIN_CALL_MS ? fail('deadline', `The snapshot ran out of time before GitHub answered (${label}). Try again.`) : { ok: true, options: { ...options, timeoutMs: Math.min(callTimeout, left) } };
   };
 
+  // Only the deadline error, or a network error with no time left (the abort of a request in flight), counts as the end of the budget. Any other error is real, even near the end.
+  const ranOut = (code: string): boolean => code === 'deadline' || (code === 'network' && timeLeft() < MIN_CALL_MS);
   const call = async (label: string, query: string, variables: Record<string, unknown>): Promise<Result<Record<string, unknown>>> => {
     const allowed = withinDeadline(label);
     if (!allowed.ok) return allowed;
@@ -309,7 +311,7 @@ export async function fetchSnapshot(options: FetchOptions): Promise<Result<Snaps
     if (!more.ok) {
       // The deadline ran out in the middle of the pages: the data of call 1 is good, so keep it and say that the list is cut. The cut-off can also come while the
       // request is in flight (the abort then reads as `network`), so no time left counts as the deadline too.
-      if (more.error.code !== 'deadline' && timeLeft() >= MIN_CALL_MS) return more;
+      if (!ranOut(more.error.code)) return more;
       problems.push({ code: 'branches-truncated', message: 'The time limit ran out while the branches were read. The list is not complete.' });
       break;
     }
@@ -339,7 +341,7 @@ export async function fetchSnapshot(options: FetchOptions): Promise<Result<Snaps
       const more = await call(`comments of decision ${String(current.raw.number)}`, COMMENTS_PAGE_QUERY, commentsPageVariables(Number(current.raw.number), current.moreCommentsAfter, owner, repo));
       if (!more.ok) {
         // As for the branches: keep what is read, and say that the answer of this decision may be missing.
-        if (more.error.code !== 'deadline' && timeLeft() >= MIN_CALL_MS) return more;
+        if (!ranOut(more.error.code)) return more;
         problems.push({ code: 'decision-comments-truncated', message: `The time limit ran out while the comments of decision ${String(current.raw.number)} were read. Its answer may be missing.` });
         cutDecisions.add(Number(current.raw.number));
         break;

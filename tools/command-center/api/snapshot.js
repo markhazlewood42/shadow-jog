@@ -8627,7 +8627,7 @@ function withCutNotices(info, cut) {
   const note = (issue) => {
     if (!cut.has(issue.number)) return issue;
     const notice = say("commentsCutNotice");
-    return { ...issue, problem: issue.problem === null ? notice : `${issue.problem} ${notice}` };
+    return { ...issue, problem: issue.problem === null ? notice : `${issue.problem} ${notice}`, commentsCut: true };
   };
   return { ...info, open: info.open.map(note), recent: info.recent.map(note) };
 }
@@ -8661,6 +8661,7 @@ async function fetchSnapshot(options) {
     const left = timeLeft();
     return left < MIN_CALL_MS ? fail("deadline", `The snapshot ran out of time before GitHub answered (${label}). Try again.`) : { ok: true, options: { ...options, timeoutMs: Math.min(callTimeout, left) } };
   };
+  const ranOut = (code) => code === "deadline" || code === "network" && timeLeft() < MIN_CALL_MS;
   const call = async (label, query, variables) => {
     const allowed = withinDeadline(label);
     if (!allowed.ok) return allowed;
@@ -8714,7 +8715,7 @@ async function fetchSnapshot(options) {
     }
     const more = await call(`refs page ${pages + 1}`, REFS_PAGE_QUERY, refsPageVariables(cursor, owner, repo));
     if (!more.ok) {
-      if (more.error.code !== "deadline" && timeLeft() >= MIN_CALL_MS) return more;
+      if (!ranOut(more.error.code)) return more;
       problems.push({ code: "branches-truncated", message: "The time limit ran out while the branches were read. The list is not complete." });
       break;
     }
@@ -8740,7 +8741,7 @@ async function fetchSnapshot(options) {
       }
       const more = await call(`comments of decision ${String(current.raw.number)}`, COMMENTS_PAGE_QUERY, commentsPageVariables(Number(current.raw.number), current.moreCommentsAfter, owner, repo));
       if (!more.ok) {
-        if (more.error.code !== "deadline" && timeLeft() >= MIN_CALL_MS) return more;
+        if (!ranOut(more.error.code)) return more;
         problems.push({ code: "decision-comments-truncated", message: `The time limit ran out while the comments of decision ${String(current.raw.number)} were read. Its answer may be missing.` });
         cutDecisions.add(Number(current.raw.number));
         break;

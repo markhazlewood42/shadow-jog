@@ -7384,7 +7384,7 @@ function slug(value, maintainCase) {
 // src/shared/types.ts
 var THREAD_TEXT_CHARS = 4e3;
 var MAX_NOTE_CHARS = 2e3;
-var isBlankQuestion = (text3) => new RegExp("^(?:\\s|\\p{Cf}|\\u0085|\\u034F|\\u115F|\\u1160|\\u180E|\\u2800|\\u3164|\\uFFA0|[\\uFE00-\\uFE0F]|[\\u{E0100}-\\u{E01EF}])*$", "u").test(text3);
+var isBlankQuestion = (text3) => new RegExp("^(?:\\p{White_Space}|\\p{Cf}|\\p{Default_Ignorable_Code_Point}|\\u2800)*$", "u").test(text3);
 var normalizeQuestion = (words) => words.replace(/\r\n?/g, "\n").trim();
 var questionLength = (text3) => normalizeQuestion(text3).length;
 var BAD_NOTE_CHARACTERS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/;

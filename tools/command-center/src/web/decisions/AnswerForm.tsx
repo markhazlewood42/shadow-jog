@@ -2,7 +2,7 @@ import { Button, Label, Radio, RadioGroup, TextArea, TextField } from '@heroui/r
 import { LoaderCircle, Send, TriangleAlert } from 'lucide-react';
 import { type FormEvent, useCallback, useRef, useState } from 'react';
 import { say } from '../../server/messages';
-import { type AnswerStep, BAD_NOTE_CHARACTERS, type DecisionAnswer, type DecisionIssue, MAX_NOTE_CHARS, isBlankQuestion, questionLength } from '../../shared/types';
+import { type AnswerStep, BAD_NOTE_CHARACTERS, type DecisionAnswer, type DecisionIssue, MAX_NOTE_CHARS, isBlankQuestion, normalizeQuestion, questionLength } from '../../shared/types';
 import { ApiError, postJson } from '../api';
 import { answerOf, sendHostedAnswer, sendHostedAsk } from '../hosted/answer';
 import { OptionBadge, RecommendedChip } from './DecisionCard';
@@ -129,8 +129,8 @@ export function useAnswerDraft(number: number, onWritten: () => void): AnswerDra
         setAskFailure({ step: null, code: 'note-too-long', message: say('askQuestionTooLongToFlag', { max: MAX_NOTE_CHARS }) });
         return;
       }
-      // The server also refuses a control character (422 `bad-note`), so the page says so before it sends.
-      if (BAD_NOTE_CHARACTERS.test(text)) {
+      // The server also refuses a control character (422 `bad-note`) in the question as it normalizes it (a leading or trailing VT or FF is trimmed away), so the page checks the same text before it sends.
+      if (BAD_NOTE_CHARACTERS.test(normalizeQuestion(text))) {
         setAskStatus('failed');
         setAskFailure({ step: null, code: 'bad-note', message: say('noteBadCharacter') });
         return;

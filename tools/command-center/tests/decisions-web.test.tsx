@@ -1246,6 +1246,13 @@ describe('the ask for more info', () => {
     expect(server.posts[1]?.body).toEqual({ option: 'B' });
   });
 
+  it('Flag again sends a question that holds a vertical tab only at its ends, as the server accepts it after the trim', async () => {
+    server.detail = { status: 200, body: good(detail({ phase: 'ask-unfinished', thread: [entry('question', 'Why is C slow?', '2026-10-06T09:00:00Z')] })) };
+    await show();
+    await press(buttonNamed('Flag again'));
+    expect(server.posts).toHaveLength(1);
+  });
+
   it('an unfinished question keeps its notice while the ask itself has failed, and the Ask button stays usable', async () => {
     server.detail = { status: 200, body: good(detail({ phase: 'ask-unfinished', thread: [entry('question', 'Why is C slow?', '2026-10-06T09:00:00Z')] })) };
     server.answers = [{ status: 502, body: { ok: false, step: 'label', error: { code: 'gh-failed', message: 'gh failed: x' } } }];

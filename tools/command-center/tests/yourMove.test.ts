@@ -152,9 +152,23 @@ describe('the two sources of "Your move"', () => {
   });
 
   it('a decision whose comments were cut says so, and links to its own page, not to GitHub', () => {
-    const result = buildYourMove(sources({ decisionIssues: good(decisions([issue(49, { problem: say('commentsCutNotice') })])) }), NOW_MS);
+    const result = buildYourMove(sources({ decisionIssues: good(decisions([issue(49, { problem: say('commentsCutNotice'), commentsCut: true })])) }), NOW_MS);
     expect(result.items[0]?.text).toBe('Decision #49: its comments were cut short, so the answer can be missing.');
     expect(result.items[0]?.href).toBe('/decisions/49');
+  });
+
+  it('a decision whose comments were cut keeps its waiting state and its info tag', () => {
+    const waiting = buildYourMove(sources({ decisionIssues: good(decisions([issue(50, { problem: say('commentsCutNotice'), commentsCut: true, phase: 'needs-info' })])) }), NOW_MS);
+    expect(waiting.items[0]).toMatchObject({ waitingForInfo: true, href: '/decisions/50' });
+    const posted = buildYourMove(sources({ decisionIssues: good(decisions([issue(51, { problem: say('commentsCutNotice'), commentsCut: true, phase: 'info-posted' })])) }), NOW_MS);
+    expect(posted.items[0]).toMatchObject({ tag: 'More info posted', text: 'Decision #51: its comments were cut short, so the answer can be missing.' });
+  });
+
+  it('a cut decision that also has a template problem is unreadable and links to the GitHub issue', () => {
+    const problem = `The body does not follow the template. ${say('commentsCutNotice')}`;
+    const result = buildYourMove(sources({ decisionIssues: good(decisions([issue(52, { problem, commentsCut: true })])) }), NOW_MS);
+    expect(result.items[0]?.text).toBe(`Decision #52 is unreadable: ${problem}`);
+    expect(result.items[0]?.href).toBe('https://github.com/fixture-owner/fixture-repo/issues/52');
   });
 
   it('a session item links to the place of its session on the Agents page: /agents#session-<id>', () => {

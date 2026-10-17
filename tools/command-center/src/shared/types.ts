@@ -571,6 +571,8 @@ export type DecisionIssue = {
   createdAt: string;
   answer: DecisionAnswer | null;
   problem: string | null;
+  /** True when the comments of this decision were not all read (a time limit or a page limit), so the newest comment, which can be the answer, may be missing. `problem` then holds the notice too. Absent means false. */
+  commentsCut?: boolean;
   /** The place of an open decision in the ask-for-info cycle. Optional because a snapshot that an older build wrote has no such field: absent means `open`. */
   phase?: DecisionPhase;
   /** Mark's questions and the answers to them, oldest first. Empty (or absent, in an older snapshot) when `phase` is `open`. */
@@ -613,7 +615,7 @@ export const MAX_NOTE_CHARS = 2000;
  * pattern (U+2800), the Mongolian vowel separator (U+180E), the combining grapheme joiner (U+034F) and the variation selectors.
  * The local route, the hosted function and the question box all use this one rule. It is an alternation, so no joiner stands inside a character class.
  */
-export const isBlankQuestion = (text: string): boolean => /^(?:\s|\p{Cf}|\u0085|\u034F|\u115F|\u1160|\u180E|\u2800|\u3164|\uFFA0|[\uFE00-\uFE0F]|[\u{E0100}-\u{E01EF}])*$/u.test(text);
+export const isBlankQuestion = (text: string): boolean => /^(?:\p{White_Space}|\p{Cf}|\p{Default_Ignorable_Code_Point}|\u2800)*$/u.test(text);
 
 /** A question as the server compares and writes it: line ends made alike (a comment typed on the web has CR LF) and both ends trimmed. */
 export const normalizeQuestion = (words: string): string => words.replace(/\r\n?/g, '\n').trim();

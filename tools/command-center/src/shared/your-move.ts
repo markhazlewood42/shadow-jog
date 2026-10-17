@@ -93,11 +93,10 @@ function decisionItem(issue: DecisionIssue): YourMoveItem {
   const at = orNull(issue.createdAt);
   // An issue that does not follow the template cannot be answered on its page. The item says so and links to the issue itself, where Mark can read it and fix it.
   // Comments cut short are not a broken issue: the page still opens and shows the notice, so the item links to the decision's own page.
-  if (issue.problem !== null && issue.problem.includes(say('commentsCutNotice'))) {
-    return { source: 'decision-issue', text: say('yourMoveCommentsCut', { number: issue.number }), href: `/decisions/${issue.number}`, light: null, at };
-  }
-  if (issue.problem !== null) return { source: 'decision-issue', text: `Decision #${issue.number} is unreadable: ${issue.problem}`, href: orNull(issue.url), light: null, at };
-  return {
+  // The typed flag says that the comments were cut. A cut issue whose problem is more than the notice (a template problem too) is still unreadable.
+  const cutOnly = issue.commentsCut === true && issue.problem === say('commentsCutNotice');
+  if (issue.problem !== null && !cutOnly) return { source: 'decision-issue', text: `Decision #${issue.number} is unreadable: ${issue.problem}`, href: orNull(issue.url), light: null, at };
+  const item: YourMoveItem = {
     source: 'decision-issue',
     text: `Decision #${issue.number}: ${questionOf(issue.title)}`,
     href: `/decisions/${issue.number}`,
@@ -106,6 +105,7 @@ function decisionItem(issue: DecisionIssue): YourMoveItem {
     ...(waitsForInfo(issue) ? { waitingForInfo: true as const } : {}),
     ...(issue.phase === 'info-posted' ? { tag: 'More info posted' } : {}),
   };
+  return !cutOnly ? item : { ...item, text: say('yourMoveCommentsCut', { number: issue.number }) };
 }
 
 function askItems(ask: LiveAsk, nowMs: number): YourMoveItem[] {
