@@ -55,7 +55,18 @@ jobs:
           # level. There is no --comment: that flag can silently print the findings instead of posting
           # them (anthropics/claude-code issue 88190), and here it posted nothing. The step "Post the
           # review on the pull request" posts them from the run's execution file.
-          prompt: '/code-review medium ${{ github.event.pull_request.number }}'
+          # The note after the number: before the review, the action restores CLAUDE.md, .claude/ and a
+          # few more paths from the base branch (a security feature, src/github/operations/restore-config.ts
+          # in anthropics/claude-code-action) and keeps the pull request's copies in .claude-pr/. Without
+          # the note, a pull request that changes CLAUDE.md got a review of that restore only (PR 139).
+          prompt: >-
+            /code-review medium ${{ github.event.pull_request.number }}
+            Note for this run: before the review, the review action restored CLAUDE.md, CLAUDE.local.md,
+            .claude/, .mcp.json, .claude.json, .gitmodules, .ripgreprc and .husky/ from the base branch,
+            so the working tree differs from the pull request at those paths. That change is an artifact
+            of the action, not part of the pull request: do not review it or report it. Review the change
+            that `gh pr diff ${{ github.event.pull_request.number }}` shows. The pull request's own copies
+            of the restored paths are in .claude-pr/.
           # The review reads the pull request with these gh commands. A run without them cannot
           # read the diff. No tool here posts a comment: the posting step does that.
           # --permission-mode auto is the mode that Anthropic's own review workflow uses
