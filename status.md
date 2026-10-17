@@ -44,7 +44,7 @@ Demo cut: #101 + E1 + E2. Local brief copies: `media/epic-briefs/` (git-ignored)
 
 **Housekeeping (2026-10-16).** Work tracking moved to the GitHub project board (36 items: Kind, Step, Status; decisions are sub-issues of their epics; final demo is #134; repo milestone "Shareable demo"). README refresh on branch `readme-refresh` (fresh pictures in `docs/readme/`), PR next. Mark chose the roadmap sync: the board is the source of truth, and a script `npm run roadmap:sync` will write `docs/roadmap/roadmap.json` for the Command Center (brief first, then Mark approves).
 
-**Ask for more info (2026-10-17).** [PR #139](https://github.com/markhazlewood42/shadow-jog/pull/139) merged (806e5a9): Mark can ask for more info on a decision from the hosted Command Center (a `Question:` comment and the `needs-info` label), and a session answers with an `Info:` comment. The six E1 decisions #106 to #111 that Mark closed with notes are backfilled: open, with `decision` and `needs-info`. The Claude review prompt now tells the review to ignore the action's restore of `CLAUDE.md` from `main` (branch `review-action-pr-diff`).
+**Ask for more info (2026-10-17).** [PR #139](https://github.com/markhazlewood42/shadow-jog/pull/139) merged (806e5a9): Mark can ask for more info on a decision from the hosted Command Center (a `Question:` comment and the `needs-info` label), and a session answers with an `Info:` comment. The six E1 decisions #106 to #111 that Mark closed with notes are backfilled: open, with `decision` and `needs-info`. A PR on branch `review-action-pr-diff` tells the Claude review to ignore the action's restore of `CLAUDE.md` from `main`.
 
 ## M8d "Remove legacy" is merged (2026-10-16)
 
