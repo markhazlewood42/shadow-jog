@@ -152,3 +152,13 @@ Lean loop, 3 verifiers (a write path and a trust rule): a runner (touched unit t
 | 1 | Reader (Haiku) | FAIL, 7.5. Important: a false "label missing" notice after a partial answer | Optimistic-state compare, 422 for non-object bodies, type comment |
 | 1 | Attacker (Sonnet) | PASS. A1 to A7 hold | Hostile-input tests; accepted risk: no hosted per-issue lock |
 | 2 | Fix check (Sonnet) | PASS. All named findings fixed; 203 tests in the touched files pass, tsc clean | None. Open Minor for later: a question of only zero-width characters is accepted (`trim` keeps U+200B) |
+
+## PR review (2026-10-17)
+
+The Claude Code Review Action saw only `CLAUDE.md` restored from `main` (3 false findings, answered on PR #139). A local engineer review replaced it.
+
+| Round | Verifier | Result | Named fixes |
+|---|---|---|---|
+| 1 | Engineer review (Sonnet) | FAIL, 7.9. vitest 2397 passed, tsc and biome exit 0; 19 mutants, 17 killed. Important: stale write-route counts in docs; two primary buttons | 0e02769: counts, secondary "Send question", 404-unflag, `/ask` 409, lock and guard tests, backfill failure note, duplicate risk removed |
+| 2 | Fix check (Haiku) | FAIL. Docs said five write shapes; the code allows six (the removal of a `decided` by another account, from #137) | c2a1113: six shapes in README, design.md 5.5.1 and `answer.ts` |
+| 3 | Fix check (Haiku) | PASS for the docs. Minor: stale counts in test names | 7cd56c4. Open Minor for later: "Flag again" on a hand-written `Question:` over 2000 characters gets 422 |
