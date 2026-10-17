@@ -154,6 +154,8 @@ export const MESSAGES = {
   navReadingOrderName: '{path}: the reading order names "{label}" ({docPath}), which is not a doc of the repo.',
 
   // ---- the decisions: a body that is not the template, the answer route ----
+  commentsCutNotice: 'Not all comments were read, so a newer answer can be missing. Reload to read them again before you answer.',
+  yourMoveCommentsCut: 'Decision #{number}: its comments were cut short, so the answer can be missing.',
   problemNotTemplate: 'The issue body does not follow the decision template. Edit it on GitHub.',
   problemBlankTemplate: 'The issue body is still the blank decision template. Edit it on GitHub.',
   problemNoQuestion: 'The issue has no question. Add one on GitHub.',
@@ -179,6 +181,8 @@ export const MESSAGES = {
   noteTooLong: 'The note is longer than {max} characters. Shorten it.',
   noteBadCharacter: 'The note has a control character that cannot be sent.',
   requestAskNeedsText: 'A question needs text in "note": 1 to {max} characters.',
+  askBlankQuestion: 'A question needs text: 1 to {max} characters that are not spaces.',
+  askQuestionTooLongToFlag: 'This question is longer than {max} characters. Shorten the comment on GitHub, or add the label needs-info there.',
   requestAskHasOption: 'A question takes no "option".',
   askNotDecision: 'Decision #{number} has no decision label, so it cannot take a question. Finish its answer first.',
 

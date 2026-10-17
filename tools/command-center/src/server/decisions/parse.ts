@@ -9,6 +9,7 @@ import {
   type DecisionThreadEntry,
   type DecisionsInfo,
   THREAD_TEXT_CHARS,
+  normalizeQuestion,
 } from '../../shared/types';
 import { slugOf } from '../../shared/doc-slug';
 import { decodeOrKeep } from '../docs/links';
@@ -91,8 +92,8 @@ const INFO_COMMENT = /^Info:/;
 /** The text of the comment that asks for more info: `Question: <text>`. */
 export const questionComment = (text: string): string => `Question: ${text}`;
 
-/** A question as a retry compares it: line ends made alike (a comment typed on the web has CR LF) and both ends trimmed. */
-export const normalizeQuestion = (words: string): string => words.replace(/\r\n?/g, '\n').trim();
+// `normalizeQuestion` lives in src/shared/types.ts, so the question box counts a question as this module does.
+export { normalizeQuestion };
 
 /** One comment of Mark's that the ask cycle reads. `index` is its place in gh's list (the order of writing), which tells two comments with the same time apart. */
 type MarkComment = { kind: 'decision' | 'question' | 'info'; text: string; at: string; ms: number; index: number; answer: { option: string; note: string | null } | null };

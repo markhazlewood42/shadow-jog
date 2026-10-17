@@ -571,6 +571,8 @@ export type DecisionIssue = {
   createdAt: string;
   answer: DecisionAnswer | null;
   problem: string | null;
+  /** True when the comments of this decision were not all read (a time limit or a page limit) and that is its only problem: `problem` is then the notice, and the newest comment, which can be the answer, may be missing. A decision that also breaks the template gets the notice joined onto its `problem` and no flag, because it is unreadable anyway. Absent means false. */
+  commentsCut?: boolean;
   /** The place of an open decision in the ask-for-info cycle. Optional because a snapshot that an older build wrote has no such field: absent means `open`. */
   phase?: DecisionPhase;
   /** Mark's questions and the answers to them, oldest first. Empty (or absent, in an older snapshot) when `phase` is `open`. */
@@ -606,6 +608,23 @@ export type DocDecision = { number: number; title: string; anchor: string };
  * note, and the text box of the form stops at the same number, so the two are one number kept in one place.
  */
 export const MAX_NOTE_CHARS = 2000;
+
+/**
+ * True when a question has no word in it: it is empty, or it holds only characters that show nothing. These are whitespace (and the NEL U+0085, which `\s` misses), the format
+ * characters (category Cf: the soft hyphen, the bidi controls, U+200B to U+200F, U+2060 to U+2064, U+FEFF), the Hangul fillers (U+115F, U+1160, U+3164, U+FFA0), the blank braille
+ * pattern (U+2800), the Mongolian vowel separator (U+180E), the combining grapheme joiner (U+034F) and the variation selectors.
+ * The local route, the hosted function and the question box all use this one rule. It is an alternation, so no joiner stands inside a character class.
+ */
+export const isBlankQuestion = (text: string): boolean => /^(?:\p{White_Space}|\p{Cf}|\p{Default_Ignorable_Code_Point}|\u2800)*$/u.test(text);
+
+/** A question as the server compares and writes it: line ends made alike (a comment typed on the web has CR LF) and both ends trimmed. */
+export const normalizeQuestion = (words: string): string => words.replace(/\r\n?/g, '\n').trim();
+
+/** The length of a question as the server counts it (UTF-16 units, after `normalizeQuestion`). The question box and both servers check this one number against MAX_NOTE_CHARS. */
+export const questionLength = (text: string): number => normalizeQuestion(text).length;
+
+/** Control characters that a note may not have: all of them but the tab and the two line breaks. They have no use in a note, and a null character cannot be sent as an argument. */
+export const BAD_NOTE_CHARACTERS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/;
 
 /**
  * The writes of an answer, in the order the server makes them. `unflag` (step 0) takes the label `needs-info` off, when it is on. An Ask has two steps, named like the first two of an

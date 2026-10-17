@@ -1,7 +1,8 @@
 import { Button, Label, Radio, RadioGroup, TextArea, TextField } from '@heroui/react';
 import { LoaderCircle, Send, TriangleAlert } from 'lucide-react';
 import { type FormEvent, useCallback, useRef, useState } from 'react';
-import { type AnswerStep, type DecisionAnswer, type DecisionIssue, MAX_NOTE_CHARS } from '../../shared/types';
+import { say } from '../../server/messages';
+import { type AnswerStep, BAD_NOTE_CHARACTERS, type DecisionAnswer, type DecisionIssue, MAX_NOTE_CHARS, isBlankQuestion, normalizeQuestion, questionLength } from '../../shared/types';
 import { ApiError, postJson } from '../api';
 import { answerOf, sendHostedAnswer, sendHostedAsk } from '../hosted/answer';
 import { OptionBadge, RecommendedChip } from './DecisionCard';
@@ -115,6 +116,25 @@ export function useAnswerDraft(number: number, onWritten: () => void): AnswerDra
   const sendAsk = useCallback(
     async (text: string) => {
       if (inFlight.current) return;
+      // Questions that the server would refuse with a 422 are caught here, so the page says why in its normal error state. The second one is a "Flag again" on a
+      // `Question:` comment that was written on GitHub: that comment can be longer than a note may be, and "Flag again" sends its text back. The label can only be added on a
+      // question that the server takes, so a long one is not sent; the page says where to mend it.
+      if (isBlankQuestion(text)) {
+        setAskStatus('failed');
+        setAskFailure({ step: null, code: 'bad-request', message: say('askBlankQuestion', { max: MAX_NOTE_CHARS }) });
+        return;
+      }
+      if (questionLength(text) > MAX_NOTE_CHARS) {
+        setAskStatus('failed');
+        setAskFailure({ step: null, code: 'note-too-long', message: say('askQuestionTooLongToFlag', { max: MAX_NOTE_CHARS }) });
+        return;
+      }
+      // The server also refuses a control character (422 `bad-note`) in the question as it normalizes it (a leading or trailing VT or FF is trimmed away), so the page checks the same text before it sends.
+      if (BAD_NOTE_CHARACTERS.test(normalizeQuestion(text))) {
+        setAskStatus('failed');
+        setAskFailure({ step: null, code: 'bad-note', message: say('noteBadCharacter') });
+        return;
+      }
       inFlight.current = true;
       setAskStatus('sending');
       setAskFailure(null);

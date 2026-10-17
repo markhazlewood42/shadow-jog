@@ -673,10 +673,39 @@ describe('Named Minor fixes: time', () => {
       clock += 9_000;
       return base(url, init);
     };
-    const response = await handleAnswer(answerRequest({ number: 41, option: 'B' }), { env: env(), fetchImpl, now: () => clock });
+    const response = await handleAnswer(answerRequest({ number: 41, option: 'B' }), { env: env(), fetchImpl, clock: () => clock });
     expect(response.status).toBe(502);
     expect(await bodyOf(response)).toMatchObject({ ok: false, step: 'comment', error: { code: 'deadline' } });
     expect(world.writes).toEqual([]);
+  });
+
+  it('the deadline follows the monotonic clock: a calendar clock that jumps does not end it', async () => {
+    const world = new FakeWorld();
+    world.add(openDecision(41));
+    // Each read of the calendar clock jumps an hour. The deadline clock stands still, so nothing runs out.
+    let calendar = Date.UTC(2026, 9, 17);
+    const response = await handleAnswer(answerRequest({ number: 41, option: 'B' }), {
+      env: env(),
+      fetchImpl: world.fetch,
+      now: () => (calendar += 3_600_000),
+      clock: () => 0,
+    });
+    expect(response.status).toBe(200);
+    expect(world.writes.length).toBeGreaterThan(0);
+  });
+
+  it('a fixed calendar clock does not switch the deadline off: the monotonic clock ends it', async () => {
+    const world = new FakeWorld();
+    world.add(openDecision(41));
+    let clock = 0;
+    const base = world.fetch;
+    const fetchImpl: typeof world.fetch = async (url, init) => {
+      clock += 9_000;
+      return base(url, init);
+    };
+    const response = await handleAnswer(answerRequest({ number: 41, option: 'B' }), { env: env(), fetchImpl, now: () => 1_000, clock: () => clock });
+    expect(response.status).toBe(502);
+    expect(await bodyOf(response)).toMatchObject({ error: { code: 'deadline' } });
   });
 
   it('withDeadline cuts each call at the smaller of its cap and the time left, and starts none after the deadline', async () => {

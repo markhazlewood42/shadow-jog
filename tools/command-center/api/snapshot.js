@@ -7383,6 +7383,7 @@ function slug(value, maintainCase) {
 
 // src/shared/types.ts
 var THREAD_TEXT_CHARS = 4e3;
+var normalizeQuestion = (words) => words.replace(/\r\n?/g, "\n").trim();
 
 // src/shared/doc-slug.ts
 var slugOf = (id) => id.replace(/\.md$/i, "").replace(/^docs\//, "");
@@ -7506,6 +7507,8 @@ var MESSAGES = {
   navReadingOrderItem: '{path}: the reading order item "{label}" does not link to a doc of the repo.',
   navReadingOrderName: '{path}: the reading order names "{label}" ({docPath}), which is not a doc of the repo.',
   // ---- the decisions: a body that is not the template, the answer route ----
+  commentsCutNotice: "Not all comments were read, so a newer answer can be missing. Reload to read them again before you answer.",
+  yourMoveCommentsCut: "Decision #{number}: its comments were cut short, so the answer can be missing.",
   problemNotTemplate: "The issue body does not follow the decision template. Edit it on GitHub.",
   problemBlankTemplate: "The issue body is still the blank decision template. Edit it on GitHub.",
   problemNoQuestion: "The issue has no question. Add one on GitHub.",
@@ -7531,6 +7534,8 @@ var MESSAGES = {
   noteTooLong: "The note is longer than {max} characters. Shorten it.",
   noteBadCharacter: "The note has a control character that cannot be sent.",
   requestAskNeedsText: 'A question needs text in "note": 1 to {max} characters.',
+  askBlankQuestion: "A question needs text: 1 to {max} characters that are not spaces.",
+  askQuestionTooLongToFlag: "This question is longer than {max} characters. Shorten the comment on GitHub, or add the label needs-info there.",
   requestAskHasOption: 'A question takes no "option".',
   askNotDecision: "Decision #{number} has no decision label, so it cannot take a question. Finish its answer first.",
   // ---- the server itself: guards, missing routes and files ----
@@ -7722,7 +7727,6 @@ function readAnswerComment(body) {
 }
 var QUESTION_COMMENT = /^Question:/;
 var INFO_COMMENT = /^Info:/;
-var normalizeQuestion = (words) => words.replace(/\r\n?/g, "\n").trim();
 var isNewer = (a, b) => a.ms > b.ms || a.ms === b.ms && a.index > b.index;
 function newestOf(comments) {
   let newest = null;
@@ -8290,33 +8294,36 @@ function ciFromRun(run) {
 
 // src/github-api/parse.ts
 var ShapeError = class extends Error {
-  constructor(message) {
+  /** The path of the field, a label from this code (never a value of the reply). The fetcher puts it on the AdapterError, so a log line needs no parse of the message. */
+  field;
+  constructor(message, field) {
     super(message);
     this.name = "ShapeError";
+    this.field = field;
   }
 };
 var text3 = (value) => typeof value === "string" ? value : "";
 function record(value, where) {
-  if (!isRecord(value)) throw new ShapeError(`${where} is missing or is not an object`);
+  if (!isRecord(value)) throw new ShapeError(`${where} is missing or is not an object`, where);
   return value;
 }
 function nodesOf(connection, where) {
   const nodes = record(connection, where).nodes;
-  if (!Array.isArray(nodes)) throw new ShapeError(`${where}.nodes is missing or is not a list`);
+  if (!Array.isArray(nodes)) throw new ShapeError(`${where}.nodes is missing or is not a list`, `${where}.nodes`);
   return nodes.filter(isRecord);
 }
 function shaped(run) {
   try {
     return { ok: true, value: run() };
   } catch (error) {
-    if (error instanceof ShapeError) return { ok: false, message: error.message };
-    if (error instanceof Error && error.name === "PanelError") return { ok: false, message: error.message };
+    if (error instanceof ShapeError) return { ok: false, message: error.message, field: error.field };
+    if (error instanceof Error && error.name === "PanelError") return { ok: false, message: error.message, field: "unknown" };
     throw error;
   }
 }
 function parseRefsPage(connection) {
   const page = record(connection, "refs");
-  if (!Array.isArray(page.nodes)) throw new ShapeError("refs.nodes is missing or is not a list");
+  if (!Array.isArray(page.nodes)) throw new ShapeError("refs.nodes is missing or is not a list", "refs.nodes");
   const problems = [];
   const branches = [];
   page.nodes.forEach((node, index) => {
@@ -8359,7 +8366,7 @@ function toMeta(node, index) {
   let pr = toPullRequest(ghShaped, index + 1);
   if (cutChecks && pr.checksSummary === "pass") pr = { ...pr, checksSummary: "pending", attention: pr.attention === "merge" ? null : pr.attention };
   const headSha = text3(node.headRefOid);
-  if (headSha === "") throw new ShapeError(`${where} has no head commit`);
+  if (headSha === "") throw new ShapeError(`${where} has no head commit`, where);
   const merge = isRecord(node.mergeCommit) ? text3(node.mergeCommit.oid) : "";
   const files = isRecord(node.files) && Array.isArray(node.files.nodes) ? node.files.nodes.filter(isRecord).map((file) => text3(file.path)) : [];
   return { pr, headSha, mergeSha: merge === "" ? null : merge, files, cross: node.isCrossRepository !== false, cut: { checks: cutChecks, files: isCut(node.files), reviews: isCut(node.latestReviews) } };
@@ -8501,7 +8508,7 @@ function planRows(branches, metas, now) {
 }
 function readBlob(value, where) {
   if (value === null) return { kind: "missing" };
-  if (value === void 0) throw new ShapeError(`${where} is missing from the reply`);
+  if (value === void 0) throw new ShapeError(`${where} is missing from the reply`, where);
   const blob = record(value, where);
   if (typeof blob.text !== "string") return { kind: "unreadable", reason: "it is not a text file" };
   if (blob.isBinary === true) return { kind: "unreadable", reason: "it is not a text file" };
@@ -8597,7 +8604,7 @@ async function graphql(options, label, query, variables) {
   if (errors.length > 0 && !isRecord3(body.data)) {
     return fail("graphql-error", problems[0]?.message ?? `GitHub reported an error (${label}).`);
   }
-  if (!isRecord3(body.data)) return fail("bad-response", `The reply of GitHub has no data (${label}).`, { status: response.status });
+  if (!isRecord3(body.data)) return fail("bad-response", `The reply of GitHub has no data (${label}).`, { status: response.status, field: "data" });
   const limit = body.data.rateLimit;
   const cost = { call: label, cost: isRecord3(limit) && typeof limit.cost === "number" ? limit.cost : 0, remaining: isRecord3(limit) && typeof limit.remaining === "number" ? limit.remaining : -1 };
   return { ok: true, data: { data: body.data, cost, problems } };
@@ -8615,6 +8622,15 @@ function retryAfterOf(response) {
   const seconds = Number(response.headers.get("retry-after"));
   return Number.isFinite(seconds) && seconds >= 0 && response.headers.get("retry-after") !== null && response.headers.get("retry-after") !== "" ? { retryAfter: seconds } : {};
 }
+function withCutNotices(info, cut) {
+  if (cut.size === 0) return info;
+  const note = (issue) => {
+    if (!cut.has(issue.number)) return issue;
+    const notice = say("commentsCutNotice");
+    return issue.problem === null ? { ...issue, problem: notice, commentsCut: true } : { ...issue, problem: `${issue.problem} ${notice}` };
+  };
+  return { ...info, open: info.open.map(note), recent: info.recent.map(note) };
+}
 function parseFirstPage(repository, now) {
   return {
     refs: parseRefsPage(repository.refs),
@@ -8628,7 +8644,7 @@ function parseFirstPage(repository, now) {
     decisions: [...parseDecisionRaws(repository.waiting, "decisions waiting"), ...parseDecisionRaws(repository.decided, "decisions answered")]
   };
 }
-var badShape = (label, message) => fail("bad-response", `The reply of GitHub has a shape that this adapter does not know (${label}): ${message}`);
+var badShape = (label, message, field) => fail("bad-response", `The reply of GitHub has a shape that this adapter does not know (${label}): ${message}`, { field });
 var repositoryOf = (data) => isRecord3(data.repository) ? data.repository : null;
 async function fetchSnapshot(options) {
   const now = (options.now ?? (() => /* @__PURE__ */ new Date()))();
@@ -8636,7 +8652,7 @@ async function fetchSnapshot(options) {
   const repo = options.repo ?? REPO;
   const cost = [];
   const problems = [];
-  const clock = () => options.now === void 0 ? Date.now() : options.now().getTime();
+  const clock = options.clock ?? (() => performance.now());
   const sleep = options.sleep ?? ((ms) => new Promise((done) => setTimeout(done, ms)));
   const startedAt = clock();
   const callTimeout = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
@@ -8645,6 +8661,7 @@ async function fetchSnapshot(options) {
     const left = timeLeft();
     return left < MIN_CALL_MS ? fail("deadline", `The snapshot ran out of time before GitHub answered (${label}). Try again.`) : { ok: true, options: { ...options, timeoutMs: Math.min(callTimeout, left) } };
   };
+  const ranOut = (code) => code === "deadline" || code === "network" && timeLeft() < MIN_CALL_MS;
   const call = async (label, query, variables) => {
     const allowed = withinDeadline(label);
     if (!allowed.ok) return allowed;
@@ -8654,35 +8671,34 @@ async function fetchSnapshot(options) {
     problems.push(...result.data.problems);
     return { ok: true, data: result.data.data };
   };
-  let first = null;
-  let page;
-  for (let attempt = 1; first === null; attempt += 1) {
-    const allowed = withinDeadline("call 1");
-    if (!allowed.ok) return allowed;
-    const result = await graphql(allowed.options, "call 1: branches, pull requests, CI, decisions", SNAPSHOT_QUERY, snapshotVariables(owner, repo));
-    if (!result.ok) {
-      const gatewayTrouble = result.error.code === "http-error" && [502, 503, 504].includes(result.error.status ?? 0);
-      if (gatewayTrouble && attempt < 2 && timeLeft() >= RETRY_MIN_MS + RETRY_BACKOFF_MS) {
-        await sleep(RETRY_BACKOFF_MS);
-        continue;
+  const callOne = async () => {
+    for (let attempt = 1; ; attempt += 1) {
+      const allowed = withinDeadline("call 1");
+      if (!allowed.ok) return allowed;
+      const result = await graphql(allowed.options, "call 1: branches, pull requests, CI, decisions", SNAPSHOT_QUERY, snapshotVariables(owner, repo));
+      if (!result.ok) {
+        const gatewayTrouble = result.error.code === "http-error" && [502, 503, 504].includes(result.error.status ?? 0);
+        if (gatewayTrouble && attempt < 2 && timeLeft() >= RETRY_MIN_MS + RETRY_BACKOFF_MS) {
+          await sleep(RETRY_BACKOFF_MS);
+          continue;
+        }
+        return result;
       }
-      return result;
+      cost.push(result.data.cost);
+      const repository = repositoryOf(result.data.data);
+      if (repository === null) return badShape("call 1", "the repository is missing (is the name right, and can the token read it?)", "repository");
+      const parsed = shaped(() => parseFirstPage(repository, now));
+      if (parsed.ok) return { ok: true, data: { reply: result.data, page: parsed.value } };
+      if (result.data.problems.length === 0) return badShape("call 1", parsed.message, parsed.field);
+      if (attempt >= 2 || timeLeft() < RETRY_MIN_MS + RETRY_BACKOFF_MS) {
+        return fail("graphql-incomplete", `GitHub answered in part (call 1: ${parsed.message}). Try again.`, { field: parsed.field });
+      }
+      await sleep(RETRY_BACKOFF_MS);
     }
-    cost.push(result.data.cost);
-    const repository = repositoryOf(result.data.data);
-    if (repository === null) return badShape("call 1", "the repository is missing (is the name right, and can the token read it?)");
-    const parsed = shaped(() => parseFirstPage(repository, now));
-    if (parsed.ok) {
-      first = result.data;
-      page = parsed.value;
-      break;
-    }
-    if (result.data.problems.length === 0) return badShape("call 1", parsed.message);
-    if (attempt >= 2 || timeLeft() < RETRY_MIN_MS + RETRY_BACKOFF_MS) {
-      return fail("graphql-incomplete", `GitHub answered in part (call 1: ${parsed.message}). Try again.`);
-    }
-    await sleep(RETRY_BACKOFF_MS);
-  }
+  };
+  const firstCall = await callOne();
+  if (!firstCall.ok) return firstCall;
+  const { reply: first, page } = firstCall.data;
   problems.push(...first.problems);
   problems.push(...page.refs.problems, ...pullRequestProblems([...page.open, ...page.recent]));
   if (page.recentCut) problems.push({ code: "recent-prs-truncated", message: "More recent pull requests exist than the first page holds, and the last one on it is newer than 14 days. A merged pull request may be missing." });
@@ -8698,10 +8714,14 @@ async function fetchSnapshot(options) {
       break;
     }
     const more = await call(`refs page ${pages + 1}`, REFS_PAGE_QUERY, refsPageVariables(cursor, owner, repo));
-    if (!more.ok) return more;
+    if (!more.ok) {
+      if (!ranOut(more.error.code)) return more;
+      problems.push({ code: "branches-truncated", message: "The time limit ran out while the branches were read. The list is not complete." });
+      break;
+    }
     const moreRepo = repositoryOf(more.data);
     const next = shaped(() => parseRefsPage(moreRepo?.refs));
-    if (!next.ok) return badShape(`refs page ${pages + 1}`, next.message);
+    if (!next.ok) return badShape(`refs page ${pages + 1}`, next.message, next.field);
     branches.push(...next.value.branches);
     problems.push(...next.value.problems);
     cursor = next.value.next;
@@ -8709,19 +8729,26 @@ async function fetchSnapshot(options) {
   }
   branches.sort((a, b) => Date.parse(b.date) - Date.parse(a.date) || a.name.localeCompare(b.name));
   const decisions = [];
+  const cutDecisions = /* @__PURE__ */ new Set();
   for (const decision of page.decisions) {
     let current = decision;
     let count = 0;
     while (current.moreCommentsAfter !== null) {
       if (count >= MAX_COMMENT_PAGES) {
         problems.push({ code: "decision-comments-truncated", message: `Decision ${String(current.raw.number)} has too many comments. Its answer may be missing.` });
+        cutDecisions.add(Number(current.raw.number));
         break;
       }
       const more = await call(`comments of decision ${String(current.raw.number)}`, COMMENTS_PAGE_QUERY, commentsPageVariables(Number(current.raw.number), current.moreCommentsAfter, owner, repo));
-      if (!more.ok) return more;
+      if (!more.ok) {
+        if (!ranOut(more.error.code)) return more;
+        problems.push({ code: "decision-comments-truncated", message: `The time limit ran out while the comments of decision ${String(current.raw.number)} were read. Its answer may be missing.` });
+        cutDecisions.add(Number(current.raw.number));
+        break;
+      }
       const issue = repositoryOf(more.data)?.issue;
       const added = shaped(() => addComments(current, isRecord3(issue) ? issue.comments : void 0));
-      if (!added.ok) return badShape(`comments of decision ${String(current.raw.number)}`, added.message);
+      if (!added.ok) return badShape(`comments of decision ${String(current.raw.number)}`, added.message, added.field);
       current = added.value;
       count += 1;
     }
@@ -8736,7 +8763,7 @@ async function fetchSnapshot(options) {
     branches,
     github,
     ci: page.ci,
-    decisions: decisionsInfoOf(decisions, now.getTime(), `${owner}/${repo}`),
+    decisions: withCutNotices(decisionsInfoOf(decisions, now.getTime(), `${owner}/${repo}`), cutDecisions),
     workstreams: [],
     main: { status: null, roadmap: null, migration: null },
     problems,
@@ -8820,19 +8847,15 @@ function responseOf(map) {
 }
 
 // src/hosted/snapshot.ts
-function fieldLabelOf(message) {
-  const found = /\(call 1(?:: |\): )([\w. -]{1,60}?)(?: is missing| has no)/.exec(message);
-  return found?.[1] ?? "unknown";
-}
 async function handleSnapshot(request, deps) {
   const refused = methodNotAllowed(request);
   if (refused !== null) return refused;
   const token = readGithubToken(deps.env);
   if (token === null) return notConfigured();
   try {
-    const result = await fetchSnapshot({ token, ...deps.fetchImpl === void 0 ? {} : { fetchImpl: deps.fetchImpl }, ...deps.now === void 0 ? {} : { now: deps.now }, ...deps.sleep === void 0 ? {} : { sleep: deps.sleep } });
+    const result = await fetchSnapshot({ token, ...deps.fetchImpl === void 0 ? {} : { fetchImpl: deps.fetchImpl }, ...deps.now === void 0 ? {} : { now: deps.now }, ...deps.clock === void 0 ? {} : { clock: deps.clock }, ...deps.sleep === void 0 ? {} : { sleep: deps.sleep } });
     if (!result.ok) {
-      const label = result.error.code === "bad-response" || result.error.code === "graphql-incomplete" ? ` (field: ${fieldLabelOf(result.error.message)})` : "";
+      const label = result.error.field === void 0 ? "" : ` (field: ${result.error.field})`;
       console.error(`snapshot failed: ${result.error.code}${label}`);
       return responseOf(mapAdapterError(result.error));
     }

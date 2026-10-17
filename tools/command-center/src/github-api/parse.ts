@@ -16,9 +16,13 @@ import type { LookupSource, MainFiles, RemoteBranch, SnapshotProblem, Workstream
 
 /** The reply has a shape that the adapter does not know. The message names the field. */
 export class ShapeError extends Error {
-  constructor(message: string) {
+  /** The path of the field, a label from this code (never a value of the reply). The fetcher puts it on the AdapterError, so a log line needs no parse of the message. */
+  readonly field: string;
+
+  constructor(message: string, field: string) {
     super(message);
     this.name = 'ShapeError';
+    this.field = field;
   }
 }
 
@@ -27,25 +31,25 @@ type Json = Record<string, unknown>;
 const text = (value: unknown): string => (typeof value === 'string' ? value : '');
 
 function record(value: unknown, where: string): Json {
-  if (!isRecord(value)) throw new ShapeError(`${where} is missing or is not an object`);
+  if (!isRecord(value)) throw new ShapeError(`${where} is missing or is not an object`, where);
   return value;
 }
 
 /** The records in `connection.nodes`. GitHub puts `null` in a list for something that the token cannot see: such an entry is left out. */
 function nodesOf(connection: unknown, where: string): Json[] {
   const nodes = record(connection, where).nodes;
-  if (!Array.isArray(nodes)) throw new ShapeError(`${where}.nodes is missing or is not a list`);
+  if (!Array.isArray(nodes)) throw new ShapeError(`${where}.nodes is missing or is not a list`, `${where}.nodes`);
   return nodes.filter(isRecord);
 }
 
-/** Runs a parser and turns a ShapeError (or the PanelError of a shared parser) into a message. Any other error is a bug, so it passes through. */
-export function shaped<T>(run: () => T): { ok: true; value: T } | { ok: false; message: string } {
+/** Runs a parser and turns a ShapeError (or the PanelError of a shared parser) into a message and a field label. Any other error is a bug, so it passes through. */
+export function shaped<T>(run: () => T): { ok: true; value: T } | { ok: false; message: string; field: string } {
   try {
     return { ok: true, value: run() };
   } catch (error) {
-    if (error instanceof ShapeError) return { ok: false, message: error.message };
+    if (error instanceof ShapeError) return { ok: false, message: error.message, field: error.field };
     // The shared parsers throw a PanelError (code + message) for a node that has the wrong shape.
-    if (error instanceof Error && error.name === 'PanelError') return { ok: false, message: error.message };
+    if (error instanceof Error && error.name === 'PanelError') return { ok: false, message: error.message, field: 'unknown' };
     throw error;
   }
 }
@@ -60,7 +64,7 @@ export type RefsPage = { branches: RemoteBranch[]; next: string | null; problems
  */
 export function parseRefsPage(connection: unknown): RefsPage {
   const page = record(connection, 'refs');
-  if (!Array.isArray(page.nodes)) throw new ShapeError('refs.nodes is missing or is not a list');
+  if (!Array.isArray(page.nodes)) throw new ShapeError('refs.nodes is missing or is not a list', 'refs.nodes');
   const problems: SnapshotProblem[] = [];
   const branches: RemoteBranch[] = [];
   page.nodes.forEach((node: unknown, index) => {
@@ -124,7 +128,7 @@ function toMeta(node: Json, index: number): PrMeta {
   // Some checks are not in the list, so "pass" is not known: a hidden check may have failed. The pull request is shown as pending and is not ready to merge.
   if (cutChecks && pr.checksSummary === 'pass') pr = { ...pr, checksSummary: 'pending', attention: pr.attention === 'merge' ? null : pr.attention };
   const headSha = text(node.headRefOid);
-  if (headSha === '') throw new ShapeError(`${where} has no head commit`);
+  if (headSha === '') throw new ShapeError(`${where} has no head commit`, where);
   const merge = isRecord(node.mergeCommit) ? text(node.mergeCommit.oid) : '';
   const files = isRecord(node.files) && Array.isArray(node.files.nodes) ? node.files.nodes.filter(isRecord).map((file) => text(file.path)) : [];
   // A missing flag counts as "from a fork": the safe reading.
@@ -250,7 +254,7 @@ function eventsCursor(connection: unknown, where: string): string | null {
 export function parseAnswerIssue(issue: unknown): AnswerIssueRaw {
   const node = record(issue, 'issue');
   const [decision] = parseDecisionRaws({ nodes: [node] }, 'issue');
-  if (decision === undefined) throw new ShapeError('issue is missing');
+  if (decision === undefined) throw new ShapeError('issue is missing', 'issue');
   const labels = record(record(node.labels, 'issue.labels').pageInfo, 'issue.labels.pageInfo');
   return { ...decision, moreEventsBefore: eventsCursor(node.timelineItems, 'issue.timelineItems'), labelsCut: labels.hasNextPage === true };
 }
@@ -379,7 +383,7 @@ export type BlobRead = { kind: 'missing' } | { kind: 'text'; text: string } | { 
 
 export function readBlob(value: unknown, where: string): BlobRead {
   if (value === null) return { kind: 'missing' };
-  if (value === undefined) throw new ShapeError(`${where} is missing from the reply`);
+  if (value === undefined) throw new ShapeError(`${where} is missing from the reply`, where);
   const blob = record(value, where);
   // A tree (a folder) or a commit at that path has none of the Blob fields: it is not a file.
   if (typeof blob.text !== 'string') return { kind: 'unreadable', reason: 'it is not a text file' };

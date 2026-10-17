@@ -1,3 +1,4 @@
+import { say } from '../server/messages';
 import { type DecisionIssue, type YourMoveItem, sessionHref } from './types';
 
 // "Your move" (design.md section 5.1, your-move-redesign.md): the one rule that decides what waits for Mark. The local page (src/server/now/yourMove.ts)
@@ -91,8 +92,11 @@ const waitsForInfo = (issue: DecisionIssue): boolean => issue.phase === 'needs-i
 function decisionItem(issue: DecisionIssue): YourMoveItem {
   const at = orNull(issue.createdAt);
   // An issue that does not follow the template cannot be answered on its page. The item says so and links to the issue itself, where Mark can read it and fix it.
-  if (issue.problem !== null) return { source: 'decision-issue', text: `Decision #${issue.number} is unreadable: ${issue.problem}`, href: orNull(issue.url), light: null, at };
-  return {
+  // Comments cut short are not a broken issue: the page still opens and shows the notice, so the item links to the decision's own page.
+  // The typed flag says that the cut is the only problem. A cut issue with a template problem too has no flag, so it is still unreadable.
+  const cutOnly = issue.commentsCut === true;
+  if (issue.problem !== null && !cutOnly) return { source: 'decision-issue', text: `Decision #${issue.number} is unreadable: ${issue.problem}`, href: orNull(issue.url), light: null, at };
+  const item: YourMoveItem = {
     source: 'decision-issue',
     text: `Decision #${issue.number}: ${questionOf(issue.title)}`,
     href: `/decisions/${issue.number}`,
@@ -101,6 +105,7 @@ function decisionItem(issue: DecisionIssue): YourMoveItem {
     ...(waitsForInfo(issue) ? { waitingForInfo: true as const } : {}),
     ...(issue.phase === 'info-posted' ? { tag: 'More info posted' } : {}),
   };
+  return !cutOnly ? item : { ...item, text: say('yourMoveCommentsCut', { number: issue.number }) };
 }
 
 function askItems(ask: LiveAsk, nowMs: number): YourMoveItem[] {

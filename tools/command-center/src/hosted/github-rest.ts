@@ -170,7 +170,7 @@ export async function checkTokenOwner(send: HttpFetch, token: string): Promise<V
  * Wraps a fetch so that each call is cut off at the smaller of `capMs` and the time left until `deadlineAt`, and so that no call starts after the deadline.
  * The cut-off is an AbortSignal; when the caller gave its own signal too, the first of the two wins.
  */
-export function withDeadline(base: HttpFetch, capMs: number, deadlineAt: number, now: () => number = Date.now): HttpFetch {
+export function withDeadline(base: HttpFetch, capMs: number, deadlineAt: number, now: () => number = () => performance.now()): HttpFetch {
   return (url, init) => {
     const left = deadlineAt - now();
     if (left <= 0) return Promise.reject(Object.assign(new Error('deadline'), { name: 'TimeoutError' }));

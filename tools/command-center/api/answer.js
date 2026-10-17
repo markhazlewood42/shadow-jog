@@ -7384,6 +7384,10 @@ function slug(value, maintainCase) {
 // src/shared/types.ts
 var THREAD_TEXT_CHARS = 4e3;
 var MAX_NOTE_CHARS = 2e3;
+var isBlankQuestion = (text3) => new RegExp("^(?:\\p{White_Space}|\\p{Cf}|\\p{Default_Ignorable_Code_Point}|\\u2800)*$", "u").test(text3);
+var normalizeQuestion = (words) => words.replace(/\r\n?/g, "\n").trim();
+var questionLength = (text3) => normalizeQuestion(text3).length;
+var BAD_NOTE_CHARACTERS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/;
 
 // src/shared/doc-slug.ts
 var slugOf = (id) => id.replace(/\.md$/i, "").replace(/^docs\//, "");
@@ -7507,6 +7511,8 @@ var MESSAGES = {
   navReadingOrderItem: '{path}: the reading order item "{label}" does not link to a doc of the repo.',
   navReadingOrderName: '{path}: the reading order names "{label}" ({docPath}), which is not a doc of the repo.',
   // ---- the decisions: a body that is not the template, the answer route ----
+  commentsCutNotice: "Not all comments were read, so a newer answer can be missing. Reload to read them again before you answer.",
+  yourMoveCommentsCut: "Decision #{number}: its comments were cut short, so the answer can be missing.",
   problemNotTemplate: "The issue body does not follow the decision template. Edit it on GitHub.",
   problemBlankTemplate: "The issue body is still the blank decision template. Edit it on GitHub.",
   problemNoQuestion: "The issue has no question. Add one on GitHub.",
@@ -7532,6 +7538,8 @@ var MESSAGES = {
   noteTooLong: "The note is longer than {max} characters. Shorten it.",
   noteBadCharacter: "The note has a control character that cannot be sent.",
   requestAskNeedsText: 'A question needs text in "note": 1 to {max} characters.',
+  askBlankQuestion: "A question needs text: 1 to {max} characters that are not spaces.",
+  askQuestionTooLongToFlag: "This question is longer than {max} characters. Shorten the comment on GitHub, or add the label needs-info there.",
   requestAskHasOption: 'A question takes no "option".',
   askNotDecision: "Decision #{number} has no decision label, so it cannot take a question. Finish its answer first.",
   // ---- the server itself: guards, missing routes and files ----
@@ -7639,7 +7647,6 @@ function readAnswerComment(body) {
 var QUESTION_COMMENT = /^Question:/;
 var INFO_COMMENT = /^Info:/;
 var questionComment = (text3) => `Question: ${text3}`;
-var normalizeQuestion = (words) => words.replace(/\r\n?/g, "\n").trim();
 var isNewer = (a, b) => a.ms > b.ms || a.ms === b.ms && a.index > b.index;
 function newestOf(comments) {
   let newest = null;
@@ -8031,27 +8038,30 @@ function answerEventsVariables(number, before, owner = OWNER, name = REPO) {
 
 // src/github-api/parse.ts
 var ShapeError = class extends Error {
-  constructor(message) {
+  /** The path of the field, a label from this code (never a value of the reply). The fetcher puts it on the AdapterError, so a log line needs no parse of the message. */
+  field;
+  constructor(message, field) {
     super(message);
     this.name = "ShapeError";
+    this.field = field;
   }
 };
 var text2 = (value) => typeof value === "string" ? value : "";
 function record(value, where) {
-  if (!isRecord(value)) throw new ShapeError(`${where} is missing or is not an object`);
+  if (!isRecord(value)) throw new ShapeError(`${where} is missing or is not an object`, where);
   return value;
 }
 function nodesOf(connection, where) {
   const nodes = record(connection, where).nodes;
-  if (!Array.isArray(nodes)) throw new ShapeError(`${where}.nodes is missing or is not a list`);
+  if (!Array.isArray(nodes)) throw new ShapeError(`${where}.nodes is missing or is not a list`, `${where}.nodes`);
   return nodes.filter(isRecord);
 }
 function shaped(run) {
   try {
     return { ok: true, value: run() };
   } catch (error) {
-    if (error instanceof ShapeError) return { ok: false, message: error.message };
-    if (error instanceof Error && error.name === "PanelError") return { ok: false, message: error.message };
+    if (error instanceof ShapeError) return { ok: false, message: error.message, field: error.field };
+    if (error instanceof Error && error.name === "PanelError") return { ok: false, message: error.message, field: "unknown" };
     throw error;
   }
 }
@@ -8099,7 +8109,7 @@ function eventsCursor(connection, where) {
 function parseAnswerIssue(issue) {
   const node = record(issue, "issue");
   const [decision] = parseDecisionRaws({ nodes: [node] }, "issue");
-  if (decision === void 0) throw new ShapeError("issue is missing");
+  if (decision === void 0) throw new ShapeError("issue is missing", "issue");
   const labels = record(record(node.labels, "issue.labels").pageInfo, "issue.labels.pageInfo");
   return { ...decision, moreEventsBefore: eventsCursor(node.timelineItems, "issue.timelineItems"), labelsCut: labels.hasNextPage === true };
 }
@@ -8165,7 +8175,7 @@ async function graphql(options, label, query, variables) {
   if (errors.length > 0 && !isRecord3(body.data)) {
     return fail("graphql-error", problems[0]?.message ?? `GitHub reported an error (${label}).`);
   }
-  if (!isRecord3(body.data)) return fail("bad-response", `The reply of GitHub has no data (${label}).`, { status: response.status });
+  if (!isRecord3(body.data)) return fail("bad-response", `The reply of GitHub has no data (${label}).`, { status: response.status, field: "data" });
   const limit = body.data.rateLimit;
   const cost = { call: label, cost: isRecord3(limit) && typeof limit.cost === "number" ? limit.cost : 0, remaining: isRecord3(limit) && typeof limit.remaining === "number" ? limit.remaining : -1 };
   return { ok: true, data: { data: body.data, cost, problems } };
@@ -8174,7 +8184,7 @@ function retryAfterOf(response) {
   const seconds = Number(response.headers.get("retry-after"));
   return Number.isFinite(seconds) && seconds >= 0 && response.headers.get("retry-after") !== null && response.headers.get("retry-after") !== "" ? { retryAfter: seconds } : {};
 }
-var badShape = (label, message) => fail("bad-response", `The reply of GitHub has a shape that this adapter does not know (${label}): ${message}`);
+var badShape = (label, message, field) => fail("bad-response", `The reply of GitHub has a shape that this adapter does not know (${label}): ${message}`, { field });
 var repositoryOf = (data) => isRecord3(data.repository) ? data.repository : null;
 async function fetchDecisionForAnswer(options, number) {
   const owner = options.owner ?? OWNER;
@@ -8182,10 +8192,10 @@ async function fetchDecisionForAnswer(options, number) {
   const first = await graphql(options, "answer: the issue", ANSWER_ISSUE_QUERY, answerIssueVariables(number, owner, repo));
   if (!first.ok) return first;
   const repository = repositoryOf(first.data.data);
-  if (repository === null) return badShape("answer: the issue", "the repository is missing (is the name right, and can the token read it?)");
+  if (repository === null) return badShape("answer: the issue", "the repository is missing (is the name right, and can the token read it?)", "repository");
   if (repository.issue === null) return { ok: true, data: null };
   const parsed = shaped(() => parseAnswerIssue(repository.issue));
-  if (!parsed.ok) return badShape("answer: the issue", parsed.message);
+  if (!parsed.ok) return badShape("answer: the issue", parsed.message, parsed.field);
   let decision = parsed.value;
   if (decision.labelsCut) return { ok: true, data: "too-many" };
   let pages = 1;
@@ -8195,7 +8205,7 @@ async function fetchDecisionForAnswer(options, number) {
     if (!more.ok) return more;
     const issue = repositoryOf(more.data.data)?.issue;
     const added = shaped(() => ({ ...decision, ...addComments(decision, isRecord3(issue) ? issue.comments : void 0) }));
-    if (!added.ok) return badShape("answer: comments", added.message);
+    if (!added.ok) return badShape("answer: comments", added.message, added.field);
     decision = added.value;
     pages += 1;
   }
@@ -8206,7 +8216,7 @@ async function fetchDecisionForAnswer(options, number) {
     if (!more.ok) return more;
     const issue = repositoryOf(more.data.data)?.issue;
     const added = shaped(() => addEarlierEvents(decision, isRecord3(issue) ? issue.timelineItems : void 0));
-    if (!added.ok) return badShape("answer: events", added.message);
+    if (!added.ok) return badShape("answer: events", added.message, added.field);
     decision = added.value;
     pages += 1;
   }
@@ -8215,7 +8225,6 @@ async function fetchDecisionForAnswer(options, number) {
 
 // src/server/decisions/answer-core.ts
 var MAX_OPTION_CHARS = 64;
-var BAD_NOTE_CHARACTERS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/;
 var MAX_ISSUE_NUMBER = 2147483647;
 var STEPS = ["unflag", "comment", "label", "close"];
 async function runAnswer(request) {
@@ -8440,7 +8449,7 @@ async function checkTokenOwner(send, token) {
     return { ok: false, reason: "github" };
   }
 }
-function withDeadline(base, capMs, deadlineAt, now = Date.now) {
+function withDeadline(base, capMs, deadlineAt, now = () => performance.now()) {
   return (url, init) => {
     const left = deadlineAt - now();
     if (left <= 0) return Promise.reject(Object.assign(new Error("deadline"), { name: "TimeoutError" }));
@@ -8517,14 +8526,15 @@ function readAsk2(body) {
   if (body.option !== void 0) return refuse(422, "bad-request", say("requestAskHasOption"));
   if (typeof body.note !== "string") return refuse(422, "bad-request", say("requestAskNeedsText", { max: MAX_NOTE_CHARS }));
   const text3 = askText(body.note);
-  if (text3 === "") return refuse(422, "bad-request", say("requestAskNeedsText", { max: MAX_NOTE_CHARS }));
-  if (text3.length > MAX_NOTE_CHARS) return refuse(422, "note-too-long", say("noteTooLong", { max: MAX_NOTE_CHARS }));
+  if (isBlankQuestion(text3)) return refuse(422, "bad-request", say("requestAskNeedsText", { max: MAX_NOTE_CHARS }));
+  if (questionLength(text3) > MAX_NOTE_CHARS) return refuse(422, "note-too-long", say("noteTooLong", { max: MAX_NOTE_CHARS }));
   if (BAD_NOTE_CHARACTERS.test(text3)) return refuse(422, "bad-note", say("noteBadCharacter"));
   return { action: "ask", number: body.number, text: text3 };
 }
 async function handleAnswer(request, deps) {
   const now = deps.now ?? Date.now;
-  const deadlineAt = now() + DEADLINE_MS;
+  const clock = deps.clock ?? (() => performance.now());
+  const deadlineAt = clock() + DEADLINE_MS;
   const base = deps.fetchImpl ?? ((url, init) => fetch(url, init));
   if (request.method !== "POST") return refuse(405, "method-not-allowed", "Use POST for this address.", {}, { Allow: "POST" });
   try {
@@ -8538,10 +8548,10 @@ async function handleAnswer(request, deps) {
     const wanted = await readBody2(request);
     if (wanted instanceof Response) return wanted;
     if (bypassSecretIn(deps.env)) return refuse(503, "bypass-on", "Protection Bypass for Automation is on for this project. Turn it off in the Vercel settings.");
-    if (!await protectionProven(withDeadline(base, PROBE_TIMEOUT_MS, deadlineAt, now), origin.origin)) {
+    if (!await protectionProven(withDeadline(base, PROBE_TIMEOUT_MS, deadlineAt, clock), origin.origin)) {
       return refuse(503, "protection-unproven", "The page could not prove that it is private. Nothing was written.");
     }
-    const send = withDeadline(base, CALL_TIMEOUT_MS, deadlineAt, now);
+    const send = withDeadline(base, CALL_TIMEOUT_MS, deadlineAt, clock);
     const owner = await checkTokenOwner(send, token);
     if (!owner.ok) {
       return owner.reason === "wrong-owner" ? refuse(500, "misconfigured", "The hosted setup is incomplete.") : refuse(502, "github", "GitHub could not be asked. Nothing was written.");
@@ -8549,7 +8559,7 @@ async function handleAnswer(request, deps) {
     const found = await fetchDecisionForAnswer({ token, fetchImpl: send, timeoutMs: CALL_TIMEOUT_MS }, wanted.number);
     if (!found.ok) return refuse(502, "github", mapAdapterError(found.error).error);
     if (found.data === "too-many") return refuse(502, "too-many", "The issue has too many comments or labels to read. Nothing was written.");
-    const executor = createRestExecutor({ token, number: wanted.number, send, remainingMs: () => deadlineAt - now() });
+    const executor = createRestExecutor({ token, number: wanted.number, send, remainingMs: () => deadlineAt - clock() });
     if (wanted.action === "ask") {
       const asked = checkAsk(found.data, wanted.text);
       if (!asked.ok) return refuse(asked.status, asked.code, asked.message);

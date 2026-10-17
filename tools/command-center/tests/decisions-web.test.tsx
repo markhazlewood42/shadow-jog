@@ -1059,6 +1059,32 @@ describe('the ask for more info', () => {
     expect(askSend()?.disabled).toBe(false);
   });
 
+  it('a question of only zero-width characters is not sent: Send question waits', async () => {
+    await show();
+    await press(buttonNamed('Ask for more info'));
+    await typeAsk('\u200B\u200C\u200D\u2060\uFEFF');
+    // The button waits, as for an empty box, and a press sends nothing.
+    expect(askSend()?.disabled).toBe(true);
+    await press(askSend());
+    expect(server.posts).toHaveLength(0);
+  });
+
+  it('a question of an invisible character keeps Send question disabled, like an empty one', async () => {
+    await show();
+    await press(buttonNamed('Ask for more info'));
+    await typeAsk('­ㅤ⠀');
+    expect(askSend()?.disabled).toBe(true);
+  });
+
+  it('a question with a control character is not sent: the box shows the error of the server before it sends', async () => {
+    await show();
+    await press(buttonNamed('Ask for more info'));
+    await typeAsk('Why?\u0001');
+    await press(askSend());
+    expect(server.posts).toHaveLength(0);
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('control character');
+  });
+
   it('sends the question as { note } to the ask route with the token, once, and never posts an answer', async () => {
     await show();
     await press(buttonNamed('Ask for more info'));
@@ -1187,6 +1213,14 @@ describe('the ask for more info', () => {
     expect(server.posts[0]?.body).toEqual({ note: 'Why is C slow?' });
   });
 
+  it('Flag again on a hand-written question over the limit sends nothing and says the limit', async () => {
+    server.detail = { status: 200, body: good(detail({ phase: 'ask-unfinished', thread: [entry('question', 'x'.repeat(MAX_NOTE_CHARS + 1), '2026-10-06T09:00:00Z')] })) };
+    await show();
+    await press(buttonNamed('Flag again'));
+    expect(server.posts).toHaveLength(0);
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain(`longer than ${MAX_NOTE_CHARS} characters`);
+  });
+
   it('an answer that stopped after its step 0 (the flag is off, the comment failed) shows the failure of the answer and not the notice of an unfinished question', async () => {
     // The page before: the decision waits for info, with a question in the thread.
     server.detail = { status: 200, body: good(asking()) };
@@ -1210,6 +1244,13 @@ describe('the ask for more info', () => {
     await press(answerSend());
     expect(server.posts).toHaveLength(2);
     expect(server.posts[1]?.body).toEqual({ option: 'B' });
+  });
+
+  it('Flag again sends a question that holds a vertical tab only at its ends, as the server accepts it after the trim', async () => {
+    server.detail = { status: 200, body: good(detail({ phase: 'ask-unfinished', thread: [entry('question', 'Why is C slow?', '2026-10-06T09:00:00Z')] })) };
+    await show();
+    await press(buttonNamed('Flag again'));
+    expect(server.posts).toHaveLength(1);
   });
 
   it('an unfinished question keeps its notice while the ask itself has failed, and the Ask button stays usable', async () => {
