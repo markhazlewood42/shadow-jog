@@ -1059,6 +1059,15 @@ describe('the ask for more info', () => {
     expect(askSend()?.disabled).toBe(false);
   });
 
+  it('a question of only zero-width characters is not sent: the box shows its error state', async () => {
+    await show();
+    await press(buttonNamed('Ask for more info'));
+    await typeAsk('\u200B\u200C\u200D\u2060\uFEFF');
+    await press(askSend());
+    expect(server.posts).toHaveLength(0);
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('A question needs text');
+  });
+
   it('sends the question as { note } to the ask route with the token, once, and never posts an answer', async () => {
     await show();
     await press(buttonNamed('Ask for more info'));
@@ -1185,6 +1194,14 @@ describe('the ask for more info', () => {
     await press(buttonNamed('Flag again'));
     expect(server.posts).toHaveLength(1);
     expect(server.posts[0]?.body).toEqual({ note: 'Why is C slow?' });
+  });
+
+  it('Flag again on a hand-written question over the limit sends nothing and says the limit', async () => {
+    server.detail = { status: 200, body: good(detail({ phase: 'ask-unfinished', thread: [entry('question', 'x'.repeat(MAX_NOTE_CHARS + 1), '2026-10-06T09:00:00Z')] })) };
+    await show();
+    await press(buttonNamed('Flag again'));
+    expect(server.posts).toHaveLength(0);
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain(`longer than ${MAX_NOTE_CHARS} characters`);
   });
 
   it('an answer that stopped after its step 0 (the flag is off, the comment failed) shows the failure of the answer and not the notice of an unfinished question', async () => {

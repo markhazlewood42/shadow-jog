@@ -608,6 +608,12 @@ export type DocDecision = { number: number; title: string; anchor: string };
 export const MAX_NOTE_CHARS = 2000;
 
 /**
+ * True when a question has no word in it: it is empty, or it holds only whitespace and the zero-width characters (U+200B, U+200C, U+200D, U+2060, U+FEFF), which `trim` keeps.
+ * The local route, the hosted function and the question box all use this one rule.
+ */
+export const isBlankQuestion = (text: string): boolean => /^[\s\u200B\u200C\u200D\u2060\uFEFF]*$/.test(text);
+
+/**
  * The writes of an answer, in the order the server makes them. `unflag` (step 0) takes the label `needs-info` off, when it is on. An Ask has two steps, named like the first two of an
  * answer: `comment` (the `Question:` comment) and `label` (the label `needs-info` on).
  */

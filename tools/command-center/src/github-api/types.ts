@@ -31,6 +31,8 @@ export type AdapterError = {
   status?: number;
   /** For `rate-limited`: the seconds to wait, from the `retry-after` header, when GitHub sent one. */
   retryAfter?: number;
+  /** For `bad-response` and `graphql-incomplete` about a shape: the path of the field that is wrong, a label from this code and never a value of the reply. For a log line. */
+  field?: string;
 };
 
 export type Result<T> = { ok: true; data: T } | { ok: false; error: AdapterError };

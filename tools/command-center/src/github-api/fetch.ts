@@ -50,8 +50,10 @@ export type FetchOptions = {
   token: string;
   /** Replaces the global `fetch`. */
   fetchImpl?: FetchLike;
-  /** The clock. A test sets it, so that "merged in the last 7 days" is the week that its fixtures were made for. */
+  /** The clock. A test sets it, so that "merged in the last 7 days" is the week that its fixtures were made for. It is the calendar clock only: the deadline does not read it. */
   now?: () => Date;
+  /** The clock of the deadline, in milliseconds that only go forward (`performance.now` when there is none). It is apart from `now`, so a fixed or a wrong calendar time cannot stop the deadline. A test moves it by hand. */
+  clock?: () => number;
   owner?: string;
   repo?: string;
   /** The limit for one call, in milliseconds. In `fetchSnapshot` it is cut further to what is left of the deadline of the whole snapshot. */
@@ -196,7 +198,7 @@ function parseFirstPage(repository: Record<string, unknown>, now: Date) {
   };
 }
 
-const badShape = (label: string, message: string) => fail('bad-response', `The reply of GitHub has a shape that this adapter does not know (${label}): ${message}`);
+const badShape = (label: string, message: string, field: string) => fail('bad-response', `The reply of GitHub has a shape that this adapter does not know (${label}): ${message}`, { field });
 
 /** The `repository` field of a reply, or null when it is not an object (a repo that GitHub does not know gives null). */
 const repositoryOf = (data: Record<string, unknown>): Record<string, unknown> | null => (isRecord(data.repository) ? data.repository : null);
@@ -215,8 +217,8 @@ export async function fetchSnapshot(options: FetchOptions): Promise<Result<Snaps
   const problems: SnapshotProblem[] = [];
 
   // One deadline for the whole snapshot. Each call gets the smaller of its own limit and what is left. With nothing left, the call is not made.
-  // The clock is the one of the caller (`options.now`, which a test sets) and Date.now when there is none.
-  const clock = (): number => (options.now === undefined ? Date.now() : options.now().getTime());
+  // The deadline reads its own monotonic clock, not `options.now`: a caller can fix the calendar time, and the calendar time can jump.
+  const clock = options.clock ?? (() => performance.now());
   const sleep = options.sleep ?? ((ms: number) => new Promise<void>((done) => setTimeout(done, ms)));
   const startedAt = clock();
   const callTimeout = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
@@ -240,38 +242,37 @@ export async function fetchSnapshot(options: FetchOptions): Promise<Result<Snaps
   // GitHub sometimes answers a heavy query in part: `errors` plus `data` with a null field (a timeout, or SERVICE_UNAVAILABLE). The strict parsers then fail on
   // the null field. That is not an unknown shape, so the call is tried once more, if the time limit of the function leaves room for it. A reply with an
   // unknown shape and no `errors` is a true bad-response and is not tried again.
-  let first: Reply | null = null;
-  let page!: ReturnType<typeof parseFirstPage>;
-  for (let attempt = 1; first === null; attempt += 1) {
-    const allowed = withinDeadline('call 1');
-    if (!allowed.ok) return allowed;
-    const result = await graphql(allowed.options, 'call 1: branches, pull requests, CI, decisions', SNAPSHOT_QUERY, snapshotVariables(owner, repo));
-    if (!result.ok) {
-      // GitHub answers 502, 503 or 504 when a heavy query runs out of time on its side. One more try often works.
-      const gatewayTrouble = result.error.code === 'http-error' && [502, 503, 504].includes(result.error.status ?? 0);
-      if (gatewayTrouble && attempt < 2 && timeLeft() >= RETRY_MIN_MS + RETRY_BACKOFF_MS) {
-        await sleep(RETRY_BACKOFF_MS);
-        continue;
+  const callOne = async (): Promise<Result<{ reply: Reply; page: ReturnType<typeof parseFirstPage> }>> => {
+    for (let attempt = 1; ; attempt += 1) {
+      const allowed = withinDeadline('call 1');
+      if (!allowed.ok) return allowed;
+      const result = await graphql(allowed.options, 'call 1: branches, pull requests, CI, decisions', SNAPSHOT_QUERY, snapshotVariables(owner, repo));
+      if (!result.ok) {
+        // GitHub answers 502, 503 or 504 when a heavy query runs out of time on its side. One more try often works.
+        const gatewayTrouble = result.error.code === 'http-error' && [502, 503, 504].includes(result.error.status ?? 0);
+        if (gatewayTrouble && attempt < 2 && timeLeft() >= RETRY_MIN_MS + RETRY_BACKOFF_MS) {
+          await sleep(RETRY_BACKOFF_MS);
+          continue;
+        }
+        return result;
       }
-      return result;
+      cost.push(result.data.cost);
+      const repository = repositoryOf(result.data.data);
+      // A repo that is missing is not a passing trouble, so it is not tried again, whatever `errors` says.
+      if (repository === null) return badShape('call 1', 'the repository is missing (is the name right, and can the token read it?)', 'repository');
+      const parsed = shaped(() => parseFirstPage(repository, now));
+      if (parsed.ok) return { ok: true, data: { reply: result.data, page: parsed.value } };
+      if (result.data.problems.length === 0) return badShape('call 1', parsed.message, parsed.field);
+      // Partial data (GitHub left a field null and said why). Try once more, but only if the first try was the first and enough time is left.
+      if (attempt >= 2 || timeLeft() < RETRY_MIN_MS + RETRY_BACKOFF_MS) {
+        return fail('graphql-incomplete', `GitHub answered in part (call 1: ${parsed.message}). Try again.`, { field: parsed.field });
+      }
+      await sleep(RETRY_BACKOFF_MS);
     }
-    cost.push(result.data.cost);
-    const repository = repositoryOf(result.data.data);
-    // A repo that is missing is not a passing trouble, so it is not tried again, whatever `errors` says.
-    if (repository === null) return badShape('call 1', 'the repository is missing (is the name right, and can the token read it?)');
-    const parsed = shaped(() => parseFirstPage(repository, now));
-    if (parsed.ok) {
-      first = result.data;
-      page = parsed.value;
-      break;
-    }
-    if (result.data.problems.length === 0) return badShape('call 1', parsed.message);
-    // Partial data (GitHub left a field null and said why). Try once more, but only if the first try was the first and enough time is left.
-    if (attempt >= 2 || timeLeft() < RETRY_MIN_MS + RETRY_BACKOFF_MS) {
-      return fail('graphql-incomplete', `GitHub answered in part (call 1: ${parsed.message}). Try again.`);
-    }
-    await sleep(RETRY_BACKOFF_MS);
-  }
+  };
+  const firstCall = await callOne();
+  if (!firstCall.ok) return firstCall;
+  const { reply: first, page } = firstCall.data;
   problems.push(...first.problems);
   problems.push(...page.refs.problems, ...pullRequestProblems([...page.open, ...page.recent]));
   if (page.recentCut) problems.push({ code: 'recent-prs-truncated', message: 'More recent pull requests exist than the first page holds, and the last one on it is newer than 14 days. A merged pull request may be missing.' });
@@ -289,10 +290,15 @@ export async function fetchSnapshot(options: FetchOptions): Promise<Result<Snaps
       break;
     }
     const more = await call(`refs page ${pages + 1}`, REFS_PAGE_QUERY, refsPageVariables(cursor, owner, repo));
-    if (!more.ok) return more;
+    if (!more.ok) {
+      // The deadline ran out in the middle of the pages: the data of call 1 is good, so keep it and say that the list is cut.
+      if (more.error.code !== 'deadline') return more;
+      problems.push({ code: 'branches-truncated', message: 'The time limit ran out while the branches were read. The list is not complete.' });
+      break;
+    }
     const moreRepo = repositoryOf(more.data);
     const next = shaped(() => parseRefsPage(moreRepo?.refs));
-    if (!next.ok) return badShape(`refs page ${pages + 1}`, next.message);
+    if (!next.ok) return badShape(`refs page ${pages + 1}`, next.message, next.field);
     branches.push(...next.value.branches);
     problems.push(...next.value.problems);
     cursor = next.value.next;
@@ -311,10 +317,15 @@ export async function fetchSnapshot(options: FetchOptions): Promise<Result<Snaps
         break;
       }
       const more = await call(`comments of decision ${String(current.raw.number)}`, COMMENTS_PAGE_QUERY, commentsPageVariables(Number(current.raw.number), current.moreCommentsAfter, owner, repo));
-      if (!more.ok) return more;
+      if (!more.ok) {
+        // As for the branches: keep what is read, and say that the answer of this decision may be missing.
+        if (more.error.code !== 'deadline') return more;
+        problems.push({ code: 'decision-comments-truncated', message: `The time limit ran out while the comments of decision ${String(current.raw.number)} were read. Its answer may be missing.` });
+        break;
+      }
       const issue = repositoryOf(more.data)?.issue;
       const added = shaped(() => addComments(current, isRecord(issue) ? issue.comments : undefined));
-      if (!added.ok) return badShape(`comments of decision ${String(current.raw.number)}`, added.message);
+      if (!added.ok) return badShape(`comments of decision ${String(current.raw.number)}`, added.message, added.field);
       current = added.value;
       count += 1;
     }
@@ -374,11 +385,11 @@ export async function fetchDecisionForAnswer(options: FetchOptions, number: numb
   const first = await graphql(options, 'answer: the issue', ANSWER_ISSUE_QUERY, answerIssueVariables(number, owner, repo));
   if (!first.ok) return first;
   const repository = repositoryOf(first.data.data);
-  if (repository === null) return badShape('answer: the issue', 'the repository is missing (is the name right, and can the token read it?)');
+  if (repository === null) return badShape('answer: the issue', 'the repository is missing (is the name right, and can the token read it?)', 'repository');
   // A number that is a pull request, or no issue at all, gives `issue: null` (and an error of type NOT_FOUND, which is not a failure here).
   if (repository.issue === null) return { ok: true, data: null };
   const parsed = shaped(() => parseAnswerIssue(repository.issue));
-  if (!parsed.ok) return badShape('answer: the issue', parsed.message);
+  if (!parsed.ok) return badShape('answer: the issue', parsed.message, parsed.field);
   let decision = parsed.value;
   if (decision.labelsCut) return { ok: true, data: 'too-many' };
 
@@ -389,7 +400,7 @@ export async function fetchDecisionForAnswer(options: FetchOptions, number: numb
     if (!more.ok) return more;
     const issue = repositoryOf(more.data.data)?.issue;
     const added = shaped(() => ({ ...decision, ...addComments(decision, isRecord(issue) ? issue.comments : undefined) }));
-    if (!added.ok) return badShape('answer: comments', added.message);
+    if (!added.ok) return badShape('answer: comments', added.message, added.field);
     decision = added.value;
     pages += 1;
   }
@@ -400,7 +411,7 @@ export async function fetchDecisionForAnswer(options: FetchOptions, number: numb
     if (!more.ok) return more;
     const issue = repositoryOf(more.data.data)?.issue;
     const added = shaped(() => addEarlierEvents(decision, isRecord(issue) ? issue.timelineItems : undefined));
-    if (!added.ok) return badShape('answer: events', added.message);
+    if (!added.ok) return badShape('answer: events', added.message, added.field);
     decision = added.value;
     pages += 1;
   }

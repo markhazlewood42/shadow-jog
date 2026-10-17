@@ -6,13 +6,7 @@ import { CACHE, errorResponse, jsonResponse, methodNotAllowed, notConfigured } f
 // `GET /api/snapshot` (design.md section 6): the snapshot of the repo from the GitHub API adapter, as JSON.
 // The Vercel CDN keeps the answer for 15 seconds (`s-maxage=15`), so many tabs share one pair of GraphQL calls. An error is never cached.
 
-export type SnapshotDeps = { env: Env; fetchImpl?: FetchLike; now?: () => Date; sleep?: (ms: number) => Promise<void> };
-
-/** The field name in the message of a shape problem ("... (call 1: refs.nodes is missing ...)"), or "unknown". Letters, digits, dots and spaces only, so no value can pass through. */
-function fieldLabelOf(message: string): string {
-  const found = /\(call 1(?:: |\): )([\w. -]{1,60}?)(?: is missing| has no)/.exec(message);
-  return found?.[1] ?? 'unknown';
-}
+export type SnapshotDeps = { env: Env; fetchImpl?: FetchLike; now?: () => Date; clock?: () => number; sleep?: (ms: number) => Promise<void> };
 
 export async function handleSnapshot(request: Request, deps: SnapshotDeps): Promise<Response> {
   const refused = methodNotAllowed(request);
@@ -20,10 +14,10 @@ export async function handleSnapshot(request: Request, deps: SnapshotDeps): Prom
   const token = readGithubToken(deps.env);
   if (token === null) return notConfigured();
   try {
-    const result = await fetchSnapshot({ token, ...(deps.fetchImpl === undefined ? {} : { fetchImpl: deps.fetchImpl }), ...(deps.now === undefined ? {} : { now: deps.now }), ...(deps.sleep === undefined ? {} : { sleep: deps.sleep }) });
+    const result = await fetchSnapshot({ token, ...(deps.fetchImpl === undefined ? {} : { fetchImpl: deps.fetchImpl }), ...(deps.now === undefined ? {} : { now: deps.now }), ...(deps.clock === undefined ? {} : { clock: deps.clock }), ...(deps.sleep === undefined ? {} : { sleep: deps.sleep }) });
     if (!result.ok) {
-      // One line for the log: the code, and for a shape problem only the label of the field (a name from this code, never a value of the reply, the token or a header).
-      const label = result.error.code === 'bad-response' || result.error.code === 'graphql-incomplete' ? ` (field: ${fieldLabelOf(result.error.message)})` : '';
+      // One line for the log: the code, and for a shape problem only the label of the field (`error.field`, a name from this code, never a value of the reply, the token or a header).
+      const label = result.error.field === undefined ? '' : ` (field: ${result.error.field})`;
       console.error(`snapshot failed: ${result.error.code}${label}`);
       return responseOf(mapAdapterError(result.error));
     }

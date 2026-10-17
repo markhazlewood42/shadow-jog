@@ -221,6 +221,7 @@ describe('vercel.json', () => {
     git: { deploymentEnabled: Record<string, boolean> };
     functions: Record<string, { maxDuration: number } | undefined>;
     rewrites: { source: string; destination: string }[];
+    headers: { source: string; headers: { key: string; value: string }[] }[];
   };
 
   it('builds the page with vite into the folder that the vite config writes', () => {
@@ -267,6 +268,24 @@ describe('vercel.json', () => {
     const regex = new RegExp(`^${rule?.source}$`);
     for (const api of ['/api', '/api/', '/api/snapshot', '/api/live', '/api/docs', '/api/docs/docs/GDD.md', '/api/answer', '/api/anything/else']) expect(regex.test(api), api).toBe(false);
     for (const page of ['/', '/docs', '/docs/engine/decisions', '/workstreams', '/apis', '/apidocs/x']) expect(regex.test(page), page).toBe(true);
+  });
+
+  // The hosted page loads its script, styles, fonts and data from its own origin only (it links to github.com but loads nothing from there), and it is not meant to be framed.
+  it('sets a Content-Security-Policy on every path: own origin only, no inline script, and no framing', () => {
+    const rule = config.headers.find((candidate) => candidate.source === '/(.*)');
+    const csp = rule?.headers.find((header) => header.key === 'Content-Security-Policy')?.value ?? '';
+    const directives = new Map(csp.split(';').map((part) => part.trim().split(/\s+/)).map(([name, ...values]) => [name, values.join(' ')]));
+    expect(directives.get('frame-ancestors')).toBe("'none'");
+    expect(directives.get('default-src')).toBe("'self'");
+    expect(directives.get('script-src')).toBe("'self'");
+    expect(directives.get('connect-src')).toBe("'self'");
+    expect(directives.get('font-src')).toBe("'self'");
+    expect(directives.get('object-src')).toBe("'none'");
+    expect(directives.get('base-uri')).toBe("'none'");
+    expect(directives.get('form-action')).toBe("'none'");
+    // Inline styles are allowed (React and the UI library set style attributes), inline scripts and eval never.
+    expect(directives.get('style-src')).toBe("'self' 'unsafe-inline'");
+    expect(csp).not.toMatch(/unsafe-eval|https?:|\*/);
   });
 
   it('holds no secret and no environment values', () => {

@@ -111,6 +111,8 @@ describe('pass line 2: what an Ask refuses writes nothing', () => {
     ['no question', { number: 41, action: 'ask' }],
     ['an empty question', { number: 41, action: 'ask', note: '' }],
     ['a question of only spaces and line breaks', { number: 41, action: 'ask', note: ' \r\n \n ' }],
+    ['a question of only zero-width characters', { number: 41, action: 'ask', note: '\u200B\u200C\u200D\u2060\uFEFF' }],
+    ['a question of spaces and a zero-width space', { number: 41, action: 'ask', note: ' \u200B\n\uFEFF ' }],
     ['a question that is not text', { number: 41, action: 'ask', note: 5 }],
     ['a question of 2001 characters', { number: 41, action: 'ask', note: 'x'.repeat(2001) }],
     ['a question with a control character', { number: 41, action: 'ask', note: 'a\u0000b' }],

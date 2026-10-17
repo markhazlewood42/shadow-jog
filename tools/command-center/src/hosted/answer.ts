@@ -2,7 +2,7 @@ import { fetchDecisionForAnswer } from '../github-api';
 import { BAD_NOTE_CHARACTERS, MAX_ISSUE_NUMBER, MAX_OPTION_CHARS, askText, checkAnswer, checkAsk, runAnswer, runAsk } from '../server/decisions/answer-core';
 import { say } from '../server/messages';
 import { isStrictVercelLogin } from '../server/publish/protection';
-import { MAX_NOTE_CHARS } from '../shared/types';
+import { MAX_NOTE_CHARS, isBlankQuestion } from '../shared/types';
 import { bypassSecretIn, type Env, readGithubToken, readOrigin } from './env';
 import { mapAdapterError } from './errors';
 import { CALL_TIMEOUT_MS, checkTokenOwner, createRestExecutor, type HttpFetch, withDeadline } from './github-rest';
@@ -131,13 +131,13 @@ async function readBody(request: Request): Promise<Wanted | Response> {
   return { action: 'answer', number: body.number, option: body.option, note: note === '' ? null : note };
 }
 
-/** The body of an Ask: `number`, and `note` as the question (1 to 2000 characters after trimming, line breaks made `\n`). An `option` gives 422: a question picks nothing. */
+/** The body of an Ask: `number`, and `note` as the question (1 to 2000 characters after trimming, with at least one character that is not a space or zero-width, line breaks made `\n`). An `option` gives 422: a question picks nothing. */
 function readAsk(body: Record<string, unknown>): Wanted | Response {
   if (typeof body.number !== 'number' || !Number.isInteger(body.number) || body.number < 1 || body.number > MAX_ISSUE_NUMBER) return refuse(422, 'bad-request', say('requestNoNumber'));
   if (body.option !== undefined) return refuse(422, 'bad-request', say('requestAskHasOption'));
   if (typeof body.note !== 'string') return refuse(422, 'bad-request', say('requestAskNeedsText', { max: MAX_NOTE_CHARS }));
   const text = askText(body.note);
-  if (text === '') return refuse(422, 'bad-request', say('requestAskNeedsText', { max: MAX_NOTE_CHARS }));
+  if (isBlankQuestion(text)) return refuse(422, 'bad-request', say('requestAskNeedsText', { max: MAX_NOTE_CHARS }));
   if (text.length > MAX_NOTE_CHARS) return refuse(422, 'note-too-long', say('noteTooLong', { max: MAX_NOTE_CHARS }));
   if (BAD_NOTE_CHARACTERS.test(text)) return refuse(422, 'bad-note', say('noteBadCharacter'));
   return { action: 'ask', number: body.number, text };

@@ -1,7 +1,7 @@
 import { Button, Label, Radio, RadioGroup, TextArea, TextField } from '@heroui/react';
 import { LoaderCircle, Send, TriangleAlert } from 'lucide-react';
 import { type FormEvent, useCallback, useRef, useState } from 'react';
-import { type AnswerStep, type DecisionAnswer, type DecisionIssue, MAX_NOTE_CHARS } from '../../shared/types';
+import { type AnswerStep, type DecisionAnswer, type DecisionIssue, MAX_NOTE_CHARS, isBlankQuestion } from '../../shared/types';
 import { ApiError, postJson } from '../api';
 import { answerOf, sendHostedAnswer, sendHostedAsk } from '../hosted/answer';
 import { OptionBadge, RecommendedChip } from './DecisionCard';
@@ -115,6 +115,19 @@ export function useAnswerDraft(number: number, onWritten: () => void): AnswerDra
   const sendAsk = useCallback(
     async (text: string) => {
       if (inFlight.current) return;
+      // Two questions that the server would refuse with a 422 are caught here, so the page says why in its normal error state. The second one is a "Flag again" on a
+      // `Question:` comment that was written on GitHub: that comment can be longer than a note may be, and "Flag again" sends its text back. The label can only be added on a
+      // question that the server takes, so a long one is not sent; the page says where to mend it.
+      if (isBlankQuestion(text)) {
+        setAskStatus('failed');
+        setAskFailure({ step: null, code: 'bad-request', message: `A question needs text: 1 to ${MAX_NOTE_CHARS} characters that are not spaces.` });
+        return;
+      }
+      if (text.replace(/\r\n?/g, '\n').trim().length > MAX_NOTE_CHARS) {
+        setAskStatus('failed');
+        setAskFailure({ step: null, code: 'note-too-long', message: `This question is longer than ${MAX_NOTE_CHARS} characters, so this page cannot flag it. Shorten the comment on GitHub, or add the label needs-info there.` });
+        return;
+      }
       inFlight.current = true;
       setAskStatus('sending');
       setAskFailure(null);

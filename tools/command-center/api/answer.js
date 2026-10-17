@@ -7384,6 +7384,7 @@ function slug(value, maintainCase) {
 // src/shared/types.ts
 var THREAD_TEXT_CHARS = 4e3;
 var MAX_NOTE_CHARS = 2e3;
+var isBlankQuestion = (text3) => /^[\s\u200B\u200C\u200D\u2060\uFEFF]*$/.test(text3);
 
 // src/shared/doc-slug.ts
 var slugOf = (id) => id.replace(/\.md$/i, "").replace(/^docs\//, "");
@@ -8031,27 +8032,30 @@ function answerEventsVariables(number, before, owner = OWNER, name = REPO) {
 
 // src/github-api/parse.ts
 var ShapeError = class extends Error {
-  constructor(message) {
+  /** The path of the field, a label from this code (never a value of the reply). The fetcher puts it on the AdapterError, so a log line needs no parse of the message. */
+  field;
+  constructor(message, field) {
     super(message);
     this.name = "ShapeError";
+    this.field = field;
   }
 };
 var text2 = (value) => typeof value === "string" ? value : "";
 function record(value, where) {
-  if (!isRecord(value)) throw new ShapeError(`${where} is missing or is not an object`);
+  if (!isRecord(value)) throw new ShapeError(`${where} is missing or is not an object`, where);
   return value;
 }
 function nodesOf(connection, where) {
   const nodes = record(connection, where).nodes;
-  if (!Array.isArray(nodes)) throw new ShapeError(`${where}.nodes is missing or is not a list`);
+  if (!Array.isArray(nodes)) throw new ShapeError(`${where}.nodes is missing or is not a list`, `${where}.nodes`);
   return nodes.filter(isRecord);
 }
 function shaped(run) {
   try {
     return { ok: true, value: run() };
   } catch (error) {
-    if (error instanceof ShapeError) return { ok: false, message: error.message };
-    if (error instanceof Error && error.name === "PanelError") return { ok: false, message: error.message };
+    if (error instanceof ShapeError) return { ok: false, message: error.message, field: error.field };
+    if (error instanceof Error && error.name === "PanelError") return { ok: false, message: error.message, field: "unknown" };
     throw error;
   }
 }
@@ -8099,7 +8103,7 @@ function eventsCursor(connection, where) {
 function parseAnswerIssue(issue) {
   const node = record(issue, "issue");
   const [decision] = parseDecisionRaws({ nodes: [node] }, "issue");
-  if (decision === void 0) throw new ShapeError("issue is missing");
+  if (decision === void 0) throw new ShapeError("issue is missing", "issue");
   const labels = record(record(node.labels, "issue.labels").pageInfo, "issue.labels.pageInfo");
   return { ...decision, moreEventsBefore: eventsCursor(node.timelineItems, "issue.timelineItems"), labelsCut: labels.hasNextPage === true };
 }
@@ -8174,7 +8178,7 @@ function retryAfterOf(response) {
   const seconds = Number(response.headers.get("retry-after"));
   return Number.isFinite(seconds) && seconds >= 0 && response.headers.get("retry-after") !== null && response.headers.get("retry-after") !== "" ? { retryAfter: seconds } : {};
 }
-var badShape = (label, message) => fail("bad-response", `The reply of GitHub has a shape that this adapter does not know (${label}): ${message}`);
+var badShape = (label, message, field) => fail("bad-response", `The reply of GitHub has a shape that this adapter does not know (${label}): ${message}`, { field });
 var repositoryOf = (data) => isRecord3(data.repository) ? data.repository : null;
 async function fetchDecisionForAnswer(options, number) {
   const owner = options.owner ?? OWNER;
@@ -8182,10 +8186,10 @@ async function fetchDecisionForAnswer(options, number) {
   const first = await graphql(options, "answer: the issue", ANSWER_ISSUE_QUERY, answerIssueVariables(number, owner, repo));
   if (!first.ok) return first;
   const repository = repositoryOf(first.data.data);
-  if (repository === null) return badShape("answer: the issue", "the repository is missing (is the name right, and can the token read it?)");
+  if (repository === null) return badShape("answer: the issue", "the repository is missing (is the name right, and can the token read it?)", "repository");
   if (repository.issue === null) return { ok: true, data: null };
   const parsed = shaped(() => parseAnswerIssue(repository.issue));
-  if (!parsed.ok) return badShape("answer: the issue", parsed.message);
+  if (!parsed.ok) return badShape("answer: the issue", parsed.message, parsed.field);
   let decision = parsed.value;
   if (decision.labelsCut) return { ok: true, data: "too-many" };
   let pages = 1;
@@ -8195,7 +8199,7 @@ async function fetchDecisionForAnswer(options, number) {
     if (!more.ok) return more;
     const issue = repositoryOf(more.data.data)?.issue;
     const added = shaped(() => ({ ...decision, ...addComments(decision, isRecord3(issue) ? issue.comments : void 0) }));
-    if (!added.ok) return badShape("answer: comments", added.message);
+    if (!added.ok) return badShape("answer: comments", added.message, added.field);
     decision = added.value;
     pages += 1;
   }
@@ -8206,7 +8210,7 @@ async function fetchDecisionForAnswer(options, number) {
     if (!more.ok) return more;
     const issue = repositoryOf(more.data.data)?.issue;
     const added = shaped(() => addEarlierEvents(decision, isRecord3(issue) ? issue.timelineItems : void 0));
-    if (!added.ok) return badShape("answer: events", added.message);
+    if (!added.ok) return badShape("answer: events", added.message, added.field);
     decision = added.value;
     pages += 1;
   }
@@ -8517,7 +8521,7 @@ function readAsk2(body) {
   if (body.option !== void 0) return refuse(422, "bad-request", say("requestAskHasOption"));
   if (typeof body.note !== "string") return refuse(422, "bad-request", say("requestAskNeedsText", { max: MAX_NOTE_CHARS }));
   const text3 = askText(body.note);
-  if (text3 === "") return refuse(422, "bad-request", say("requestAskNeedsText", { max: MAX_NOTE_CHARS }));
+  if (isBlankQuestion(text3)) return refuse(422, "bad-request", say("requestAskNeedsText", { max: MAX_NOTE_CHARS }));
   if (text3.length > MAX_NOTE_CHARS) return refuse(422, "note-too-long", say("noteTooLong", { max: MAX_NOTE_CHARS }));
   if (BAD_NOTE_CHARACTERS.test(text3)) return refuse(422, "bad-note", say("noteBadCharacter"));
   return { action: "ask", number: body.number, text: text3 };
