@@ -1,0 +1,508 @@
+{
+  "format": "character-proxy/1",
+  "name": "rook",
+  "note": "Schema in spec.mjs. Fitted to the given frame (walk frame 4, facing se) only. No reference pixels. Left and right parts are mirrors of each other (mirrorOf), so the proxy stays symmetric at every facing.",
+  "size": 32,
+  "givenFacing": "se",
+  "diagonalHeadTurn": 20.439,
+  "diagonalYaw": 39.739,
+  "camera": {
+    "pitchDeg": 7.984,
+    "scale": 1,
+    "origin": [18,30]
+  },
+  "light": {
+    "vector": [0.5792,0.5736,0.5792],
+    "levels": [0.5,0.8]
+  },
+  "outline": {
+    "depthJump": 0
+  },
+  "joints": {
+    "root": {
+      "parent": null,
+      "offset": [0,0,0],
+      "rot": [0,0,0]
+    },
+    "hips": {
+      "parent": "root",
+      "offset": [0,5.3,0.031],
+      "rot": [0,0,0]
+    },
+    "chest": {
+      "parent": "hips",
+      "offset": [0,6.6,0],
+      "rot": [0,0,0]
+    },
+    "head": {
+      "parent": "chest",
+      "offset": [0,11.8,0.072],
+      "rot": [0,0,0]
+    },
+    "armR": {
+      "parent": "chest",
+      "offset": [-9.448,3.272,-0.426],
+      "rot": [0,0,0]
+    },
+    "armL": {
+      "parent": "chest",
+      "mirrorOf": "armR"
+    },
+    "legR": {
+      "parent": "hips",
+      "offset": [-1.813,-0.485,-0.858],
+      "rot": [0,0,0]
+    },
+    "legL": {
+      "parent": "hips",
+      "mirrorOf": "legR"
+    }
+  },
+  "parts": {
+    "hair": {
+      "label": "hair",
+      "joint": "head",
+      "prim": {
+        "type": "ellipsoid",
+        "at": [0,0.9,0.04],
+        "size": [7.176,5.213,7.808]
+      },
+      "ramp": {
+        "shadow": "m",
+        "base": "p",
+        "lit": "t",
+        "outline": "a"
+      },
+      "center": true
+    },
+    "hairWingNear": {
+      "label": "hair",
+      "joint": "head",
+      "prim": {
+        "type": "ellipsoid",
+        "at": [-3.535,-1.323,-0.785],
+        "size": [3,4.149,3.141]
+      },
+      "ramp": {
+        "shadow": "m",
+        "base": "p",
+        "lit": "t",
+        "outline": "a"
+      }
+    },
+    "hairWingFar": {
+      "label": "hair",
+      "joint": "head",
+      "mirrorOf": "hairWingNear",
+      "ramp": {
+        "shadow": "m",
+        "base": "p",
+        "lit": "t",
+        "outline": "a"
+      }
+    },
+    "hairFringe": {
+      "label": "hair",
+      "joint": "head",
+      "prim": {
+        "type": "ellipsoid",
+        "at": [0,4.667,3.5],
+        "size": [4.278,1.8,2.402]
+      },
+      "ramp": {
+        "shadow": "m",
+        "base": "p",
+        "lit": "t",
+        "outline": "a"
+      },
+      "center": true
+    },
+    "face": {
+      "label": "skin",
+      "joint": "head",
+      "prim": {
+        "type": "ellipsoid",
+        "at": [0,-0.05,2.483],
+        "size": [6.203,5.473,5.544]
+      },
+      "ramp": {
+        "shadow": "or",
+        "base": "u",
+        "lit": "v",
+        "outline": "a"
+      },
+      "center": true
+    },
+    "lensNear": {
+      "label": "lenses",
+      "joint": "head",
+      "prim": {
+        "type": "ellipsoid",
+        "at": [-1.574,-1.366,6.676],
+        "size": [2.863,2.019,1.646]
+      },
+      "ramp": {
+        "shadow": "j",
+        "base": "",
+        "lit": "s",
+        "outline": "a"
+      }
+    },
+    "lensFar": {
+      "label": "lenses",
+      "joint": "head",
+      "mirrorOf": "lensNear",
+      "ramp": {
+        "shadow": "j",
+        "base": "",
+        "lit": "s",
+        "outline": "a"
+      }
+    },
+    "beard": {
+      "label": "beard",
+      "joint": "head",
+      "prim": {
+        "type": "ellipsoid",
+        "at": [0,-4.8,3.85],
+        "size": [2.84,2.7,2.76]
+      },
+      "ramp": {
+        "shadow": "",
+        "base": "o",
+        "lit": "",
+        "outline": "a"
+      },
+      "center": true
+    },
+    "coat": {
+      "label": "coat",
+      "joint": "chest",
+      "prim": {
+        "type": "box",
+        "at": [0,0.336,-1.303],
+        "size": [4.926,8.202,2.4]
+      },
+      "ramp": {
+        "shadow": "fhk",
+        "base": "n",
+        "lit": "",
+        "outline": "ac"
+      },
+      "bias": -0.2,
+      "center": true
+    },
+    "coatHem": {
+      "label": "coat",
+      "joint": "hips",
+      "prim": {
+        "type": "box",
+        "at": [0,2.941,-2.758],
+        "size": [5.986,1.89,3.882]
+      },
+      "ramp": {
+        "shadow": "fhk",
+        "base": "n",
+        "lit": "",
+        "outline": "ac"
+      },
+      "bias": -0.2,
+      "center": true
+    },
+    "zipper": {
+      "label": "zipper",
+      "joint": "chest",
+      "prim": {
+        "type": "box",
+        "at": [0,0,2.3],
+        "size": [1.2,6.4,0.5]
+      },
+      "ramp": {
+        "shadow": "gi",
+        "base": "m",
+        "lit": "p",
+        "outline": "a"
+      },
+      "center": true
+    },
+    "sleeveNear": {
+      "label": "sleeves",
+      "joint": "armR",
+      "prim": {
+        "type": "capsule",
+        "a": [1.75,-2.983,-1.308],
+        "b": [0.821,-4.5,-0.528],
+        "r": 2.463
+      },
+      "ramp": {
+        "shadow": "fhk",
+        "base": "n",
+        "lit": "",
+        "outline": "ac"
+      },
+      "bias": -0.2
+    },
+    "sleeveFar": {
+      "label": "sleeves",
+      "joint": "armL",
+      "mirrorOf": "sleeveNear",
+      "ramp": {
+        "shadow": "fhk",
+        "base": "n",
+        "lit": "",
+        "outline": "ac"
+      },
+      "bias": -0.2
+    },
+    "sleeveNear2": {
+      "label": "sleeves",
+      "joint": "armR",
+      "prim": {
+        "type": "capsule",
+        "a": [1.091,-8.612,-2.255],
+        "b": [2.5,-8,-0.751],
+        "r": 1.3650000000000002
+      },
+      "ramp": {
+        "shadow": "fhk",
+        "base": "n",
+        "lit": "",
+        "outline": "ac"
+      },
+      "bias": -0.2
+    },
+    "sleeveFar2": {
+      "label": "sleeves",
+      "joint": "armL",
+      "mirrorOf": "sleeveNear2",
+      "ramp": {
+        "shadow": "fhk",
+        "base": "n",
+        "lit": "",
+        "outline": "ac"
+      },
+      "bias": -0.2
+    },
+    "handNear": {
+      "label": "hands",
+      "joint": "armR",
+      "prim": {
+        "type": "ellipsoid",
+        "at": [-1.298,-7.361,-0.44],
+        "size": [1.438,2.666,2.74]
+      },
+      "ramp": {
+        "shadow": "lr",
+        "base": "u",
+        "lit": "v",
+        "outline": "ab"
+      }
+    },
+    "handFar": {
+      "label": "hands",
+      "joint": "armL",
+      "mirrorOf": "handNear",
+      "ramp": {
+        "shadow": "lr",
+        "base": "u",
+        "lit": "v",
+        "outline": "ab"
+      }
+    },
+    "legNear": {
+      "label": "legs",
+      "joint": "legR",
+      "prim": {
+        "type": "capsule",
+        "a": [2.457,1.046,-0.5],
+        "b": [0.005,-1.538,0],
+        "r": 2.07
+      },
+      "ramp": {
+        "shadow": "d",
+        "base": "g",
+        "lit": "",
+        "outline": "a"
+      }
+    },
+    "legFar": {
+      "label": "legs",
+      "joint": "legL",
+      "mirrorOf": "legNear",
+      "ramp": {
+        "shadow": "d",
+        "base": "g",
+        "lit": "",
+        "outline": "a"
+      }
+    },
+    "bootNear": {
+      "label": "boots",
+      "joint": "legR",
+      "prim": {
+        "type": "ellipsoid",
+        "at": [1,-4.15,0.921],
+        "size": [2.9700000000000006,1.911,1.858]
+      },
+      "ramp": {
+        "shadow": "",
+        "base": "d",
+        "lit": "g",
+        "outline": "a"
+      }
+    },
+    "bootFar": {
+      "label": "boots",
+      "joint": "legL",
+      "mirrorOf": "bootNear",
+      "ramp": {
+        "shadow": "",
+        "base": "d",
+        "lit": "g",
+        "outline": "a"
+      }
+    },
+    "scabbard": {
+      "label": "sheath",
+      "joint": "chest",
+      "prim": {
+        "type": "capsule",
+        "a": [4.668,0.213,-7.624],
+        "b": [-9.991,11.858,-6.5],
+        "r": 1.226
+      },
+      "ramp": {
+        "shadow": "i",
+        "base": "l",
+        "lit": "",
+        "outline": "a"
+      }
+    },
+    "wrap": {
+      "label": "wrap",
+      "joint": "chest",
+      "prim": {
+        "type": "capsule",
+        "a": [-10.46,11.19,-5.8],
+        "b": [-6.22,7.73,-5.8],
+        "r": 0.45
+      },
+      "ramp": {
+        "shadow": "",
+        "base": "e",
+        "lit": "",
+        "outline": "a"
+      }
+    },
+    "guardPlate": {
+      "label": "guard",
+      "joint": "chest",
+      "prim": {
+        "type": "capsule",
+        "a": [-5.38,6.56,-6.64],
+        "b": [-3.97,8.58,-5.23],
+        "r": 0.5
+      },
+      "ramp": {
+        "shadow": "",
+        "base": "q",
+        "lit": "",
+        "outline": "a"
+      }
+    },
+    "pommel": {
+      "label": "guard",
+      "joint": "chest",
+      "prim": {
+        "type": "ellipsoid",
+        "at": [-10.46,12.2,-5.8],
+        "size": [0.65,1,1]
+      },
+      "ramp": {
+        "shadow": "",
+        "base": "q",
+        "lit": "",
+        "outline": "a"
+      }
+    }
+  },
+  "items": {
+    "sheath": {
+      "parts": ["scabbard","wrap","guardPlate","pommel"],
+      "side": "-x"
+    }
+  },
+  "face": {
+    "joint": "head",
+    "at": [0,0.1,7.99]
+  },
+  "landmarks": {
+    "handNear": {
+      "part": "handNear",
+      "at": [0,0,0],
+      "given": [8.5,22.29]
+    },
+    "handFar": {
+      "part": "handFar",
+      "at": [1.75,-1.75,-1.5],
+      "given": [25.58,22.08]
+    },
+    "beard": {
+      "part": "beard",
+      "at": [0.25,-1,0],
+      "given": [19,12.2]
+    },
+    "zipper": {
+      "part": "zipper",
+      "at": [0,-1.5,0],
+      "given": [19,19.5]
+    },
+    "bootNear": {
+      "part": "bootNear",
+      "at": [-1,0,-0.25],
+      "given": [16,29]
+    },
+    "bootFar": {
+      "part": "bootFar",
+      "at": [0.5,-0.25,0.5],
+      "given": [18.88,29.13]
+    },
+    "guardPlate": {
+      "part": "guardPlate",
+      "at": [0.5,1,0.75],
+      "given": [10,10]
+    },
+    "pommel": {
+      "part": "pommel",
+      "at": [0,0,0],
+      "given": [6,6]
+    },
+    "lensNear": {
+      "part": "lensNear",
+      "at": [-1.5,0,-0.25],
+      "given": [16.75,8.42]
+    },
+    "lensFar": {
+      "part": "lensFar",
+      "at": [0,0,0],
+      "given": [21.27,8.4]
+    },
+    "noseBridge": {
+      "part": "face",
+      "at": [1,-0.5,0.5],
+      "given": [19.5,7]
+    }
+  },
+  "folds": [
+    {
+      "part": "coat",
+      "from": [3,-1.5,1.1],
+      "to": [3.8,-6,1.1]
+    },
+    {
+      "part": "coat",
+      "from": [-2.8,-1,1.1],
+      "to": [-3.8,-6,1.1]
+    }
+  ]
+}
