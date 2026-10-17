@@ -78,7 +78,7 @@ export function AskForm({ issue, draft }: { issue: DecisionIssue; draft: AnswerD
           </TextField>
 
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <Button type="submit" variant="primary" isDisabled={empty || busy}>
+            <Button type="submit" variant="secondary" isDisabled={empty || busy}>
               {sending ? <LoaderCircle aria-hidden className="size-4 motion-safe:animate-spin" /> : <Send aria-hidden className="size-4" />}
               {sending ? 'Sending…' : 'Send question'}
             </Button>

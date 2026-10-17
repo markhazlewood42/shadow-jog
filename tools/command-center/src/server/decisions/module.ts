@@ -10,8 +10,8 @@ import { POLL_EVERY_MS, PanelError, type PanelSource, createPanelSource } from '
 import { type AnswerProgress, type AskProgress, DECISION_FIELDS, LABEL_DECIDED, LABEL_DECISION, addDecision, flattenEventPages, isRecent, parseDecisionIssue, readDecisionIssue, sortDecisions } from './parse';
 
 // The decisions module: the decision issues of the repository, as a Panel of the ones that wait for Mark and the ones
-// he answered in the last week. It reads GitHub through `gh`, and only reads: the one write of the command center (the
-// answer) is in answer.ts, and it goes through the same runner, which has an exact list of the calls it allows.
+// he answered in the last week. It reads GitHub through `gh`, and only reads: the writes of the command center (the
+// answer and the ask) are in answer.ts, and it goes through the same runner, which has an exact list of the calls it allows.
 //
 // What it reads, and why:
 //   - `gh issue list --label decision --author <Mark> --state open`: the decisions that wait.

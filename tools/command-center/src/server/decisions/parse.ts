@@ -34,7 +34,7 @@ import { PanelError } from '../source';
 //      in the issue JSON, so it grants nothing. These two only change what the page shows (see `phaseOf`); they never give a write.
 //
 // The module that calls the parser (module.ts) decides which gh calls to make. The parser is a pure function of what
-// gh printed, so a test can feed it any issue, and so can the one write route when it reads an issue again.
+// gh printed, so a test can feed it any issue, and so can the write routes when they read an issue again.
 
 /** The names of the two labels. An open decision has `decision`; the answer swaps it for `decided`. */
 export const LABEL_DECISION = 'decision';

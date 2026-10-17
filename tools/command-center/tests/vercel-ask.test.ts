@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { handleAnswer } from '../src/hosted/answer';
-import { WriteRefused, ghWrite, isAllowedWrite } from '../src/hosted/github-rest';
+import { MIN_WRITE_MS, WriteRefused, createRestExecutor, ghWrite, isAllowedWrite } from '../src/hosted/github-rest';
 import { FakeWorld, HOST, MARK, ORIGIN, REPO_PATH, SENTINEL, answerRequest, env, openDecision } from './vercel-answer-helpers';
 
 // The Ask for more info on POST /api/answer (docs/command-center/needs-info-brief.md, option A: the field `action`). GitHub and the protection probe are the fake `fetch`
@@ -448,5 +448,19 @@ describe('the Ask does not leak the token', () => {
     }
     expect(HOST).toBe('cc.example.vercel.app');
     expect(ORIGIN).toBe(`https://${HOST}`);
+  });
+});
+
+describe('step 0 of an answer: the hosted unflag', () => {
+  const executorWith = (status: number) =>
+    createRestExecutor({ token: SENTINEL, number: 41, send: async () => ({ ok: status < 400, status, headers: new Headers(), text: async () => '' }), remainingMs: () => MIN_WRITE_MS });
+
+  it('treats a 404 (the label is not on the issue) as done', async () => {
+    expect(await executorWith(404).unflag()).toBeNull();
+  });
+
+  it('does not treat another failure as done, and flag does not treat a 404 as done', async () => {
+    expect(await executorWith(500).unflag()).not.toBeNull();
+    expect(await executorWith(404).flag()).not.toBeNull();
   });
 });

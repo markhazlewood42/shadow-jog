@@ -6,14 +6,14 @@ import type { RunResult, Runner } from '../runner';
 import { type AnswerExecutor, type AnswerResult, type AskExecutor, type AskResult, type AskStep, type RunRequest, type StepError, runAnswer, runAsk } from './answer-core';
 import { LABEL_DECIDED, LABEL_DECISION, LABEL_NEEDS_INFO } from './parse';
 
-// Mark's answer to a decision: the one write of the local command center. It posts one comment, swaps the label `decision` for
+// Mark's answer to a decision: one of the two writes of the local command center. It posts one comment, swaps the label `decision` for
 // `decided`, and closes the issue, through `gh`, in that order (when the label `needs-info` is on the issue, a step 0 takes it off first). Mark's Ask for more info is the other
 // write: a `Question:` comment, then the label `needs-info`. Nothing else is written: no file, and no git operation. The
-// runner (src/server/runner.ts) has an exact list of read commands and exactly these write shapes, and it pins every
+// runner (src/server/runner.ts) has an exact list of read commands and exactly these five write shapes, and it pins every
 // call to the configured repository, so even a bug in this file cannot write anything else, or write to another repository.
 //
 // The rules of an answer (the steps and their order, `checkAnswer`, `nextStep`) are in answer-core.ts, which the hosted function shares. This file is
-// the local executor of the three writes: they are `gh` calls. The hosted executor, with the REST API of GitHub, is src/hosted/github-rest.ts.
+// the local executor of the writes: they are `gh` calls. The hosted executor, with the REST API of GitHub, is src/hosted/github-rest.ts.
 //
 // The label step has a second call in one case. The route reads a decision as trusted only when Mark's account put the label `decided`
 // on it (its newest `labeled` event). If `decided` is already on the issue and another account put it there, `--add-label` would do

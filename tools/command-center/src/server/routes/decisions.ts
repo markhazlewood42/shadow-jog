@@ -161,7 +161,7 @@ export function registerDecisionsRoutes(app: Hono, deps: DecisionsRoutesDeps): v
   //   4. The issue is read again from GitHub, not taken from the list that the page has, which can be a minute old. It must be
   //      a decision of Mark's (404), it must be open (409), and it must have the option (422).
   //
-  // Then the three writes, from the first step that is not done, and a look at GitHub again right away (see answerDecision).
+  // Then the writes, from the first step that is not done, and a look at GitHub again right away (see answerDecision).
   app.post(
     '/api/decisions/:number/answer',
     createWriteGuard(token),

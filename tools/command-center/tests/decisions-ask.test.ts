@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { type DecisionsInfo, MAX_NOTE_CHARS, type Panel } from '../src/shared/types';
-import { type DecisionsRig, makeDecisionsRig, setRigMode } from './decisions-rig';
+import type { Exec } from '../src/server/runner';
+import { type DecisionsRig, SEED, makeDecisionsRig, setRigMode } from './decisions-rig';
 
 // The local route of the Ask for more info: `POST /api/decisions/<n>/ask` (docs/command-center/needs-info-brief.md). It runs the real route over the real runner with its
 // allow-list and the fake gh that remembers its issues, like tests/decisions-answer.test.ts. The hosted twin is tested in tests/vercel-ask.test.ts.
@@ -9,8 +10,9 @@ const rigs: DecisionsRig[] = [];
 afterEach(() => {
   for (const rig of rigs.splice(0)) rig.close();
 });
-function rigOf(): DecisionsRig {
-  const rig = makeDecisionsRig();
+const wait = (ms: number) => new Promise((done) => setTimeout(done, ms));
+function rigOf(options: Parameters<typeof makeDecisionsRig>[0] = {}): DecisionsRig {
+  const rig = makeDecisionsRig(options);
   rigs.push(rig);
   return rig;
 }
@@ -83,6 +85,34 @@ describe('POST /api/decisions/<n>/ask', () => {
       expect((await bodyOf(res)).error?.code, String(number)).toBe(code);
     }
     expect(rig.writes()).toEqual([]);
+  });
+
+  it('an open issue by Mark that has decided and not decision gives 409 not-a-decision and writes nothing', async () => {
+    const source = SEED.issues.find((issue) => issue.number === 44);
+    if (source === undefined) throw new Error('no issue 44');
+    // Open, but an answer stopped after the label swap: `decided` is on and `decision` is off.
+    const bare = { ...structuredClone(source), number: 56, state: 'OPEN' as const };
+    const rig = rigOf({ store: { ...SEED, issues: [...SEED.issues, bare] } });
+    const res = await postAsk(rig, 56, { note: 'Why?' });
+    expect(res.status).toBe(409);
+    expect((await bodyOf(res)).error?.code).toBe('not-a-decision');
+    expect(rig.writes()).toEqual([]);
+  });
+
+  it('two asks at once give one comment and one 409 answer-in-progress, and the lock is let go after', async () => {
+    const rig = rigOf({
+      wrapExec: (fake): Exec => async (cmd, args, o) => {
+        if (args[0] === 'issue' && args[1] === 'comment') await wait(150);
+        return fake(cmd, args, o);
+      },
+    });
+    const [first, second] = await Promise.all([postAsk(rig, 41, { note: 'Why?' }), postAsk(rig, 41, { note: 'Why?' })]);
+    expect([first.status, second.status].sort()).toEqual([200, 409]);
+    const refused = first.status === 409 ? first : second;
+    expect((await bodyOf(refused)).error?.code).toBe('answer-in-progress');
+    expect(commentsOf(rig, 41)).toHaveLength(1);
+    expect((await postAsk(rig, 41, { note: 'Why?' })).status).toBe(200); // the lock was let go
+    expect(commentsOf(rig, 41)).toHaveLength(1);
   });
 
   it.each([

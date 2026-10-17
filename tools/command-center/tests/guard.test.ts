@@ -97,4 +97,17 @@ describe('the write guard', () => {
     await post(app);
     expect(ran).toBe(true);
   });
+
+  it('guards the ask path like the answer path: a missing or wrong token or a foreign Origin gets 403, and a near-miss path gets 405', async () => {
+    const { app } = compose({ config, runner: noopRunner, webRoot: join(PACKAGE_DIR, 'src', 'web') });
+    const token = await pageToken();
+    const send = (path: string, headers: Record<string, string>) =>
+      Promise.resolve(app.request(path, { method: 'POST', headers: { host: HOST, origin: `http://${HOST}`, 'content-type': 'application/json', ...headers }, body: '{}' }));
+    expect((await send('/api/decisions/12/ask', {})).status).toBe(403);
+    expect((await send('/api/decisions/12/ask', { 'x-cc-token': 'wrong' })).status).toBe(403);
+    expect((await send('/api/decisions/12/ask', { origin: 'http://evil.example', 'x-cc-token': token })).status).toBe(403);
+    for (const path of ['/api/decisions/abc/ask', '/api/decisions/12/ask/', '/api/decisions/12/asks']) {
+      expect((await send(path, { 'x-cc-token': token })).status, path).toBe(405);
+    }
+  });
 });

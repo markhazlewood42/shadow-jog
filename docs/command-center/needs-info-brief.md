@@ -81,6 +81,7 @@ Option B: a new `POST /api/ask` function. Cleaner to read, but a second copy of 
 - **Ask, label failed after the comment (rule 5).** The page shows "Your question is posted, but it is not flagged for a session". "Flag again" adds the label only. It needs no text, so a reload does not lose it.
 - **Session crash after `Info:`, before the label removal (rule 2).** The page already shows "More info posted". The next session sees rule 2 and removes the label without a new `Info:` comment. No duplicate loop.
 - **Mark answers while `needs-info` is set.** Step 0 removes it first. A failure at step 0 writes nothing else, and Retry resumes.
+- **Accepted risk: backfill shape, comment step fails after step 0.** On a backfilled issue (#106 to #111), step 0 removes `needs-info` and then the `Decision:` comment fails. A reload then shows the old `Decision:` comment as a half answer (rule 6) with its option preselected, and the issue leaves the "Waiting for info" list. Nothing is closed or lost. The page shows the FailureBox with Retry, and Retry posts the comment and finishes the answer. We accept this and add no code.
 
 ## Session rule (new text in `CLAUDE.md` "Decisions for Mark")
 
