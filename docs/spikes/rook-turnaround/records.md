@@ -198,3 +198,10 @@ Opus consult C2 (standing-approved, named here) from the step 7-3 numbers: `cons
 | 2 | Fix round by the same Opus author, 129 lines; Haiku fix verifier | Budget 11 spent + 49 = 60 | PASS | Minor: state that s and n run together; method note on flip(given) 0.640 |
 
 Open for Mark (consult section F): Q1 reference gates, Q2 se fit line, Q3 template look. Q1 and Q2 block the next steps.
+
+**Mark's answers to C2 (2026-10-17):** Q1 A (references are report lines), Q2 A (old se fit line failed, C6 layout line), Q3 A (2-minute template look at s and n before paint). Recorded as Amendment 2 in the spike doc.
+
+| Round | What changed | Numbers | Verdict | Named fixes |
+|---|---|---|---|---|
+| Amendment 2, r1 | Spike doc "Amendment 2"; Haiku verifier (product-manager pack) | | FAIL (1 Critical, 2 Important) | Head width GO line changed silently; re-sets did not name replaced lines; who decided the re-sets |
+| Amendment 2, r2 | Fixes applied; Haiku fix verifier | | PASS | Minor: the GO line says "head width"; Amendment 2 defines it as head alone |

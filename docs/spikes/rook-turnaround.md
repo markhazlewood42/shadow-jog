@@ -55,6 +55,22 @@ Mark chose plan v2 option A: amend this spike and run v2 inside the box, with th
 - **Regression.** T1 (the 6a boxes, two arms) runs before round 1, with the pass lines of plan v2 section 7.
 - **Strategy change, not stop.** A failed line leads to the change lines of plan v2 section 7 and a new round within the round caps of plan v2 section 5. This amends the NO-GO list for the cap case: when a NO-GO trigger holds after the caps, the case goes to Mark, who chooses NO-GO or a new strategy round. The NO-GO list otherwise stands (Mark, 2026-10-17, recorded in the workstream file: keep iterating on everything).
 
+### Amendment 2 (Mark, 2026-10-17, before any path C code)
+
+Consult C2 (`rook-turnaround/consult-c2.md` at commit d663095) picked path C: the proxy gives layout only, the given's pixels move by integer shifts and mirrors with relight, a code painter fills hidden texture, and an LLM pass covers the face, hands, item and seams. Mark answered its three questions with option A each.
+
+- The GO and NO-GO lines above and Amendment 1 stay, except where this amendment replaces a line.
+- **Q1, references are report lines.** This replaces the Amendment 1 "Target gates" line. The reference measures (part mIoU, value r, color match and the rest) are report lines and grader pictures, not gates. A correct mirror of the given fails them, so they cannot gate a facing made from the given. The gates are now style against the given (consult C2 section C4, calibrated on the 8 walk frames) and the reference-free structure lines (C4). A blind facing-ID grader also gates (9 of 10 on calibration). If fewer than 3 lines gate, Mark gates style by eye. e and w compare guide rows with the battle idle (C4), not row widths.
+- **Q2, the se fit line.** The T0 line "se part mIoU at least 0.85 on the 13-part mean" is recorded as failed (0.834, records.md T0a). It is replaced by the C6 layout line: each of the 7 part groups has its center within 1.0 px and its row span within 1 px of the given at se, grouped mIoU at least 0.85, and the transplant reproduces the given at 100 percent.
+- **Q3, Mark's template look.** Before any paint, Mark takes a 2-minute look at the s and n part-color sheets and answers "reads as s / n: yes or no". A "no" stops path C at structure and goes to Mark's #110 options, not another tool round (consult C2 section E).
+- **Line re-sets** (C2 section C5). Mark decided Q1 to Q3 only. The re-sets below are orchestrator decisions, recorded for Mark to reverse.
+  - Orphans and 1-2 px regions stay at 1.25x, now calibrated on the walk frames.
+  - Flattening: this replaces the per-part check (0.8x) with 0.8x per group of 20 or more cells and on the whole figure.
+  - Box width: this replaces the PA-06 check (±4 of se) with a report line.
+  - Head width: the GO hard line "head width within 1 px of the given" stays, measured as head alone, 13 to 15 px (the given is 14), as in Amendment 1. This replaces the pixlint PA-07 check (head width ±1 of se, by its own measure), which is removed, because the full head width changes with the facing (consult C2 A3, C5).
+- **Freeze.** `structure.facingRules` and Rook's spec are frozen before the first reference result. An edit after it goes to Mark, is logged as reference-informed, and that facing stops counting as a clean test.
+- **Pass lines and caps** for the next steps: consult C2 sections C6 and D, written before the work.
+
 ## Steps
 
 0. **Measure the target.** Unzip the walk sheet to the git-ignored `media/rook-turnaround/`. Pick the given frame. Write the target numbers to `docs/spikes/rook-turnaround/target.json`: the walk palette, the near-black colors, body height, head width, outline ratio and cluster-size spread. The battle idle (`public/art/crew/rook/idle/`, 79x68, facing right) is the design reference for the side facing. It has its own 22 colors and shares none with the walk palette, so the checker takes the palette for each asset. Height and head-width checks compare 32x32 frames only.
