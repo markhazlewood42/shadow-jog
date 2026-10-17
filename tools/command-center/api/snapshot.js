@@ -7525,6 +7525,8 @@ var MESSAGES = {
   requestNotJson: "The request body is not JSON.",
   requestNoOption: 'The request must be a JSON object with an "option" text.',
   requestNoteNotText: 'The "note" of the request must be text.',
+  requestBadAction: 'The "action" of the request must be "answer" or "ask".',
+  requestNoNumber: "The request must have the number of an issue.",
   requestTooLarge: "The request is larger than {max} bytes.",
   noteTooLong: "The note is longer than {max} characters. Shorten it.",
   noteBadCharacter: "The note has a control character that cannot be sent.",
@@ -7750,7 +7752,12 @@ function phaseOf(hasLabel, askPoint, info) {
   if (askPoint !== null && info !== null && isNewer(info, askPoint)) return "info-posted";
   return askPoint?.kind === "question" ? "ask-unfinished" : "open";
 }
-var cutText = (words) => words.length > THREAD_TEXT_CHARS ? { text: words.slice(0, THREAD_TEXT_CHARS), cut: true } : { text: words, cut: false };
+function cutText(words) {
+  if (words.length <= THREAD_TEXT_CHARS) return { text: words, cut: false };
+  const last = words.charCodeAt(THREAD_TEXT_CHARS - 1);
+  const end = last >= 55296 && last <= 56319 ? THREAD_TEXT_CHARS - 1 : THREAD_TEXT_CHARS;
+  return { text: words.slice(0, end), cut: true };
+}
 function decisionOf(comment) {
   return comment?.answer == null ? null : { option: comment.answer.option, note: comment.answer.note, at: comment.at };
 }

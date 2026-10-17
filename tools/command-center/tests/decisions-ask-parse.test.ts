@@ -131,6 +131,13 @@ describe('the ask cycle: the thread', () => {
     expect(readDecisionIssue(raw(FLAGGED, [mark(`Question: ${long}`, 1)]), [])?.ask.pendingQuestion).toBe(long);
   });
 
+  it('does not cut inside a surrogate pair at the 4000 character boundary', () => {
+    const body = `${'x'.repeat(THREAD_TEXT_CHARS - 1)}😀tail`;
+    const entry = parsed(FLAGGED, [mark(`Question: ${body}`, 1)]).thread?.[0];
+    expect(entry?.cut).toBe(true);
+    expect(entry?.text).toBe('x'.repeat(THREAD_TEXT_CHARS - 1));
+  });
+
   it('keeps the words as the issue wrote them: markup and links are strings, not html', () => {
     const issue = parsed(FLAGGED, [mark('Question: <script>alert(1)</script> and [a link](https://example.com/x)', 1)]);
     expect(issue.thread?.[0]?.text).toBe('<script>alert(1)</script> and [a link](https://example.com/x)');

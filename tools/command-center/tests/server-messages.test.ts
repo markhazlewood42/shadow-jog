@@ -254,8 +254,8 @@ describe('server messages', () => {
   });
 
   it('every message is used by the server', () => {
-    // No dead message: each id appears in a file of src/server other than the message file.
-    const source = filesUnder(join(PACKAGE_DIR, 'src', 'server'))
+    // No dead message: each id appears in a file of src/server or src/hosted (the hosted function uses `say` too) other than the message file.
+    const source = [...filesUnder(join(PACKAGE_DIR, 'src', 'server')), ...filesUnder(join(PACKAGE_DIR, 'src', 'hosted'))]
       .filter((file) => !file.endsWith('messages.ts'))
       .map((file) => readFileSync(file, 'utf8'))
       .join('\n');

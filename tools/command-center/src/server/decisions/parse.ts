@@ -161,7 +161,13 @@ type AskReading = {
   pendingQuestion: string | null;
 };
 
-const cutText = (words: string): { text: string; cut: boolean } => (words.length > THREAD_TEXT_CHARS ? { text: words.slice(0, THREAD_TEXT_CHARS), cut: true } : { text: words, cut: false });
+/** The first `THREAD_TEXT_CHARS` UTF-16 units of the text. The cut never falls inside a surrogate pair: when the last kept unit is a high surrogate, one less is kept. */
+function cutText(words: string): { text: string; cut: boolean } {
+  if (words.length <= THREAD_TEXT_CHARS) return { text: words, cut: false };
+  const last = words.charCodeAt(THREAD_TEXT_CHARS - 1);
+  const end = last >= 0xd800 && last <= 0xdbff ? THREAD_TEXT_CHARS - 1 : THREAD_TEXT_CHARS;
+  return { text: words.slice(0, end), cut: true };
+}
 
 function decisionOf(comment: MarkComment | null): { option: string; note: string | null; at: string } | null {
   return comment?.answer == null ? null : { option: comment.answer.option, note: comment.answer.note, at: comment.at };

@@ -120,10 +120,10 @@ async function readBody(request: Request): Promise<Wanted | Response> {
   // A body that is not an object does not say what it is (an answer or an ask), so it gets the message of the ask, as on the local route.
   if (!isRecord(body)) return refuse(422, 'bad-request', say('requestAskNeedsText', { max: MAX_NOTE_CHARS }));
   // `action` is an allow-list: absent means an answer, and anything but the two words writes nothing.
-  if (body.action !== undefined && body.action !== 'answer' && body.action !== 'ask') return refuse(422, 'bad-request', 'The "action" of the request must be "answer" or "ask".');
+  if (body.action !== undefined && body.action !== 'answer' && body.action !== 'ask') return refuse(422, 'bad-request', say('requestBadAction'));
   if (body.action === 'ask') return readAsk(body);
   if (typeof body.option !== 'string' || body.option === '' || body.option.length > MAX_OPTION_CHARS) return refuse(422, 'bad-request', say('requestNoOption'));
-  if (typeof body.number !== 'number' || !Number.isInteger(body.number) || body.number < 1 || body.number > MAX_ISSUE_NUMBER) return refuse(422, 'bad-request', 'The request must have the number of an issue.');
+  if (typeof body.number !== 'number' || !Number.isInteger(body.number) || body.number < 1 || body.number > MAX_ISSUE_NUMBER) return refuse(422, 'bad-request', say('requestNoNumber'));
   if (body.note !== undefined && body.note !== null && typeof body.note !== 'string') return refuse(422, 'bad-request', say('requestNoteNotText'));
   const note = typeof body.note === 'string' ? body.note.trim() : '';
   if (note.length > MAX_NOTE_CHARS) return refuse(422, 'note-too-long', say('noteTooLong', { max: MAX_NOTE_CHARS }));
@@ -133,7 +133,7 @@ async function readBody(request: Request): Promise<Wanted | Response> {
 
 /** The body of an Ask: `number`, and `note` as the question (1 to 2000 characters after trimming, line breaks made `\n`). An `option` gives 422: a question picks nothing. */
 function readAsk(body: Record<string, unknown>): Wanted | Response {
-  if (typeof body.number !== 'number' || !Number.isInteger(body.number) || body.number < 1 || body.number > MAX_ISSUE_NUMBER) return refuse(422, 'bad-request', 'The request must have the number of an issue.');
+  if (typeof body.number !== 'number' || !Number.isInteger(body.number) || body.number < 1 || body.number > MAX_ISSUE_NUMBER) return refuse(422, 'bad-request', say('requestNoNumber'));
   if (body.option !== undefined) return refuse(422, 'bad-request', say('requestAskHasOption'));
   if (typeof body.note !== 'string') return refuse(422, 'bad-request', say('requestAskNeedsText', { max: MAX_NOTE_CHARS }));
   const text = askText(body.note);

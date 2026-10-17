@@ -173,6 +173,8 @@ export const MESSAGES = {
   requestNotJson: 'The request body is not JSON.',
   requestNoOption: 'The request must be a JSON object with an "option" text.',
   requestNoteNotText: 'The "note" of the request must be text.',
+  requestBadAction: 'The "action" of the request must be "answer" or "ask".',
+  requestNoNumber: 'The request must have the number of an issue.',
   requestTooLarge: 'The request is larger than {max} bytes.',
   noteTooLong: 'The note is longer than {max} characters. Shorten it.',
   noteBadCharacter: 'The note has a control character that cannot be sent.',
