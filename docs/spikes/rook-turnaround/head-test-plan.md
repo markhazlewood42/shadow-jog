@@ -50,7 +50,7 @@ All metrics on opaque pixels of the box. Reference values are in the table above
 - **Ramp shares**: share of opaque pixels per family (near-black, hair, skin, orange and gold, coat) within ±0.06 of the reference for the head test. For a new facing use ±0.12 with a facing-specific expectation (a back view has no skin).
 - **Silhouette IoU** of the box at least 0.90 for the head test.
 - **Scorer (head test only)**: exact RGBA match over all 224 cells (transparent must match transparent), no shift, plus best-of ±1 shift reported; and a **ramp-tolerant match** (same family and within one luminance step).
-- **Whole frame of a new facing**: the same metrics with the frame row of the table, band 0.75x to 1.25x on T and S, since the facing changes what shows. A frame can pass every band with random speckle, so the checker only gates. The graders and the exact match decide.
+- **Whole frame of a new facing**: the same metrics with the frame row of the table, T 0.8x to 1.2x and S 0.7x to 1.3x, as in the table (an earlier draft said 0.75x to 1.25x; the verifier found the mismatch). A frame can pass every band with random speckle, so the checker only gates. The graders and the exact match decide.
 
 ## 4. Grading protocol
 
