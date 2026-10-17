@@ -2,7 +2,7 @@ import { fetchDecisionForAnswer } from '../github-api';
 import { BAD_NOTE_CHARACTERS, MAX_ISSUE_NUMBER, MAX_OPTION_CHARS, askText, checkAnswer, checkAsk, runAnswer, runAsk } from '../server/decisions/answer-core';
 import { say } from '../server/messages';
 import { isStrictVercelLogin } from '../server/publish/protection';
-import { MAX_NOTE_CHARS, isBlankQuestion } from '../shared/types';
+import { MAX_NOTE_CHARS, isBlankQuestion, questionLength } from '../shared/types';
 import { bypassSecretIn, type Env, readGithubToken, readOrigin } from './env';
 import { mapAdapterError } from './errors';
 import { CALL_TIMEOUT_MS, checkTokenOwner, createRestExecutor, type HttpFetch, withDeadline } from './github-rest';
@@ -46,8 +46,10 @@ export type AnswerDeps = {
   env: Env;
   /** Replaces the global `fetch` for GitHub and for the probe. A test sets it. */
   fetchImpl?: HttpFetch;
-  /** The clock, in milliseconds. A test sets it. */
+  /** The calendar clock, in milliseconds. It stamps the reply. A test sets it. */
   now?: () => number;
+  /** The monotonic clock, in milliseconds, for the deadline. The calendar clock can jump, so the deadline does not read it. A test sets it. */
+  clock?: () => number;
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -138,14 +140,15 @@ function readAsk(body: Record<string, unknown>): Wanted | Response {
   if (typeof body.note !== 'string') return refuse(422, 'bad-request', say('requestAskNeedsText', { max: MAX_NOTE_CHARS }));
   const text = askText(body.note);
   if (isBlankQuestion(text)) return refuse(422, 'bad-request', say('requestAskNeedsText', { max: MAX_NOTE_CHARS }));
-  if (text.length > MAX_NOTE_CHARS) return refuse(422, 'note-too-long', say('noteTooLong', { max: MAX_NOTE_CHARS }));
+  if (questionLength(text) > MAX_NOTE_CHARS) return refuse(422, 'note-too-long', say('noteTooLong', { max: MAX_NOTE_CHARS }));
   if (BAD_NOTE_CHARACTERS.test(text)) return refuse(422, 'bad-note', say('noteBadCharacter'));
   return { action: 'ask', number: body.number, text };
 }
 
 export async function handleAnswer(request: Request, deps: AnswerDeps): Promise<Response> {
   const now = deps.now ?? Date.now;
-  const deadlineAt = now() + DEADLINE_MS;
+  const clock = deps.clock ?? (() => performance.now());
+  const deadlineAt = clock() + DEADLINE_MS;
   const base: HttpFetch = deps.fetchImpl ?? ((url, init) => fetch(url, init));
 
   // 1. method
@@ -175,12 +178,12 @@ export async function handleAnswer(request: Request, deps: AnswerDeps): Promise<
     if (bypassSecretIn(deps.env)) return refuse(503, 'bypass-on', 'Protection Bypass for Automation is on for this project. Turn it off in the Vercel settings.');
 
     // 8. the protection probe
-    if (!(await protectionProven(withDeadline(base, PROBE_TIMEOUT_MS, deadlineAt, now), origin.origin))) {
+    if (!(await protectionProven(withDeadline(base, PROBE_TIMEOUT_MS, deadlineAt, clock), origin.origin))) {
       return refuse(503, 'protection-unproven', 'The page could not prove that it is private. Nothing was written.');
     }
 
     // 9. the owner of the token
-    const send = withDeadline(base, CALL_TIMEOUT_MS, deadlineAt, now);
+    const send = withDeadline(base, CALL_TIMEOUT_MS, deadlineAt, clock);
     const owner = await checkTokenOwner(send, token);
     if (!owner.ok) {
       return owner.reason === 'wrong-owner' ? refuse(500, 'misconfigured', 'The hosted setup is incomplete.') : refuse(502, 'github', 'GitHub could not be asked. Nothing was written.');
@@ -190,7 +193,7 @@ export async function handleAnswer(request: Request, deps: AnswerDeps): Promise<
     const found = await fetchDecisionForAnswer({ token, fetchImpl: send, timeoutMs: CALL_TIMEOUT_MS }, wanted.number);
     if (!found.ok) return refuse(502, 'github', mapAdapterError(found.error).error);
     if (found.data === 'too-many') return refuse(502, 'too-many', 'The issue has too many comments or labels to read. Nothing was written.');
-    const executor = createRestExecutor({ token, number: wanted.number, send, remainingMs: () => deadlineAt - now() });
+    const executor = createRestExecutor({ token, number: wanted.number, send, remainingMs: () => deadlineAt - clock() });
 
     if (wanted.action === 'ask') {
       const asked = checkAsk(found.data, wanted.text);

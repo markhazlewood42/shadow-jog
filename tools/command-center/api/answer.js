@@ -7384,7 +7384,10 @@ function slug(value, maintainCase) {
 // src/shared/types.ts
 var THREAD_TEXT_CHARS = 4e3;
 var MAX_NOTE_CHARS = 2e3;
-var isBlankQuestion = (text3) => /^[\s\u200B\u200C\u200D\u2060\uFEFF]*$/.test(text3);
+var isBlankQuestion = (text3) => new RegExp("^(?:\\s|\\p{Cf}|\\u0085|\\u034F|\\u115F|\\u1160|\\u180E|\\u2800|\\u3164|\\uFFA0|[\\uFE00-\\uFE0F]|[\\u{E0100}-\\u{E01EF}])*$", "u").test(text3);
+var normalizeQuestion = (words) => words.replace(/\r\n?/g, "\n").trim();
+var questionLength = (text3) => normalizeQuestion(text3).length;
+var BAD_NOTE_CHARACTERS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/;
 
 // src/shared/doc-slug.ts
 var slugOf = (id) => id.replace(/\.md$/i, "").replace(/^docs\//, "");
@@ -7533,6 +7536,8 @@ var MESSAGES = {
   noteTooLong: "The note is longer than {max} characters. Shorten it.",
   noteBadCharacter: "The note has a control character that cannot be sent.",
   requestAskNeedsText: 'A question needs text in "note": 1 to {max} characters.',
+  askBlankQuestion: "A question needs text: 1 to {max} characters that are not spaces.",
+  askQuestionTooLongToFlag: "This question is longer than {max} characters. Shorten the comment on GitHub, or add the label needs-info there.",
   requestAskHasOption: 'A question takes no "option".',
   askNotDecision: "Decision #{number} has no decision label, so it cannot take a question. Finish its answer first.",
   // ---- the server itself: guards, missing routes and files ----
@@ -7640,7 +7645,6 @@ function readAnswerComment(body) {
 var QUESTION_COMMENT = /^Question:/;
 var INFO_COMMENT = /^Info:/;
 var questionComment = (text3) => `Question: ${text3}`;
-var normalizeQuestion = (words) => words.replace(/\r\n?/g, "\n").trim();
 var isNewer = (a, b) => a.ms > b.ms || a.ms === b.ms && a.index > b.index;
 function newestOf(comments) {
   let newest = null;
@@ -8169,7 +8173,7 @@ async function graphql(options, label, query, variables) {
   if (errors.length > 0 && !isRecord3(body.data)) {
     return fail("graphql-error", problems[0]?.message ?? `GitHub reported an error (${label}).`);
   }
-  if (!isRecord3(body.data)) return fail("bad-response", `The reply of GitHub has no data (${label}).`, { status: response.status });
+  if (!isRecord3(body.data)) return fail("bad-response", `The reply of GitHub has no data (${label}).`, { status: response.status, field: "data" });
   const limit = body.data.rateLimit;
   const cost = { call: label, cost: isRecord3(limit) && typeof limit.cost === "number" ? limit.cost : 0, remaining: isRecord3(limit) && typeof limit.remaining === "number" ? limit.remaining : -1 };
   return { ok: true, data: { data: body.data, cost, problems } };
@@ -8219,7 +8223,6 @@ async function fetchDecisionForAnswer(options, number) {
 
 // src/server/decisions/answer-core.ts
 var MAX_OPTION_CHARS = 64;
-var BAD_NOTE_CHARACTERS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/;
 var MAX_ISSUE_NUMBER = 2147483647;
 var STEPS = ["unflag", "comment", "label", "close"];
 async function runAnswer(request) {
@@ -8444,7 +8447,7 @@ async function checkTokenOwner(send, token) {
     return { ok: false, reason: "github" };
   }
 }
-function withDeadline(base, capMs, deadlineAt, now = Date.now) {
+function withDeadline(base, capMs, deadlineAt, now = () => performance.now()) {
   return (url, init) => {
     const left = deadlineAt - now();
     if (left <= 0) return Promise.reject(Object.assign(new Error("deadline"), { name: "TimeoutError" }));
@@ -8522,13 +8525,14 @@ function readAsk2(body) {
   if (typeof body.note !== "string") return refuse(422, "bad-request", say("requestAskNeedsText", { max: MAX_NOTE_CHARS }));
   const text3 = askText(body.note);
   if (isBlankQuestion(text3)) return refuse(422, "bad-request", say("requestAskNeedsText", { max: MAX_NOTE_CHARS }));
-  if (text3.length > MAX_NOTE_CHARS) return refuse(422, "note-too-long", say("noteTooLong", { max: MAX_NOTE_CHARS }));
+  if (questionLength(text3) > MAX_NOTE_CHARS) return refuse(422, "note-too-long", say("noteTooLong", { max: MAX_NOTE_CHARS }));
   if (BAD_NOTE_CHARACTERS.test(text3)) return refuse(422, "bad-note", say("noteBadCharacter"));
   return { action: "ask", number: body.number, text: text3 };
 }
 async function handleAnswer(request, deps) {
   const now = deps.now ?? Date.now;
-  const deadlineAt = now() + DEADLINE_MS;
+  const clock = deps.clock ?? (() => performance.now());
+  const deadlineAt = clock() + DEADLINE_MS;
   const base = deps.fetchImpl ?? ((url, init) => fetch(url, init));
   if (request.method !== "POST") return refuse(405, "method-not-allowed", "Use POST for this address.", {}, { Allow: "POST" });
   try {
@@ -8542,10 +8546,10 @@ async function handleAnswer(request, deps) {
     const wanted = await readBody2(request);
     if (wanted instanceof Response) return wanted;
     if (bypassSecretIn(deps.env)) return refuse(503, "bypass-on", "Protection Bypass for Automation is on for this project. Turn it off in the Vercel settings.");
-    if (!await protectionProven(withDeadline(base, PROBE_TIMEOUT_MS, deadlineAt, now), origin.origin)) {
+    if (!await protectionProven(withDeadline(base, PROBE_TIMEOUT_MS, deadlineAt, clock), origin.origin)) {
       return refuse(503, "protection-unproven", "The page could not prove that it is private. Nothing was written.");
     }
-    const send = withDeadline(base, CALL_TIMEOUT_MS, deadlineAt, now);
+    const send = withDeadline(base, CALL_TIMEOUT_MS, deadlineAt, clock);
     const owner = await checkTokenOwner(send, token);
     if (!owner.ok) {
       return owner.reason === "wrong-owner" ? refuse(500, "misconfigured", "The hosted setup is incomplete.") : refuse(502, "github", "GitHub could not be asked. Nothing was written.");
@@ -8553,7 +8557,7 @@ async function handleAnswer(request, deps) {
     const found = await fetchDecisionForAnswer({ token, fetchImpl: send, timeoutMs: CALL_TIMEOUT_MS }, wanted.number);
     if (!found.ok) return refuse(502, "github", mapAdapterError(found.error).error);
     if (found.data === "too-many") return refuse(502, "too-many", "The issue has too many comments or labels to read. Nothing was written.");
-    const executor = createRestExecutor({ token, number: wanted.number, send, remainingMs: () => deadlineAt - now() });
+    const executor = createRestExecutor({ token, number: wanted.number, send, remainingMs: () => deadlineAt - clock() });
     if (wanted.action === "ask") {
       const asked = checkAsk(found.data, wanted.text);
       if (!asked.ok) return refuse(asked.status, asked.code, asked.message);

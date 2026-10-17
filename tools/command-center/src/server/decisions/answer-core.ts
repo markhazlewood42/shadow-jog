@@ -1,4 +1,4 @@
-import type { AnswerStep } from '../../shared/types';
+import { type AnswerStep, BAD_NOTE_CHARACTERS } from '../../shared/types';
 import { say } from '../messages';
 import type { DecisionRead } from './module';
 import { LABEL_DECISION, answerComment, normalizeQuestion, questionComment } from './parse';
@@ -22,8 +22,8 @@ import { LABEL_DECISION, answerComment, normalizeQuestion, questionComment } fro
 /** The longest option id that is read. The ids of the template are one letter; this leaves room, and keeps an error message short. */
 export const MAX_OPTION_CHARS = 64;
 
-/** Control characters that a note may not have: all of them but the tab and the two line breaks. They have no use in a note, and a null character cannot be sent as an argument. */
-export const BAD_NOTE_CHARACTERS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/;
+/** Control characters that a note may not have. The rule is shared with the question box (src/shared/types.ts), so the page shows the error before it sends. */
+export { BAD_NOTE_CHARACTERS };
 
 /** The largest number that gh and GitHub take for an issue. A bigger one cannot be an issue, and must not reach GitHub. */
 export const MAX_ISSUE_NUMBER = 2_147_483_647;

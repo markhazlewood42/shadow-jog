@@ -7383,6 +7383,7 @@ function slug(value, maintainCase) {
 
 // src/shared/types.ts
 var THREAD_TEXT_CHARS = 4e3;
+var normalizeQuestion = (words) => words.replace(/\r\n?/g, "\n").trim();
 
 // src/shared/doc-slug.ts
 var slugOf = (id) => id.replace(/\.md$/i, "").replace(/^docs\//, "");
@@ -7531,6 +7532,8 @@ var MESSAGES = {
   noteTooLong: "The note is longer than {max} characters. Shorten it.",
   noteBadCharacter: "The note has a control character that cannot be sent.",
   requestAskNeedsText: 'A question needs text in "note": 1 to {max} characters.',
+  askBlankQuestion: "A question needs text: 1 to {max} characters that are not spaces.",
+  askQuestionTooLongToFlag: "This question is longer than {max} characters. Shorten the comment on GitHub, or add the label needs-info there.",
   requestAskHasOption: 'A question takes no "option".',
   askNotDecision: "Decision #{number} has no decision label, so it cannot take a question. Finish its answer first.",
   // ---- the server itself: guards, missing routes and files ----
@@ -7722,7 +7725,6 @@ function readAnswerComment(body) {
 }
 var QUESTION_COMMENT = /^Question:/;
 var INFO_COMMENT = /^Info:/;
-var normalizeQuestion = (words) => words.replace(/\r\n?/g, "\n").trim();
 var isNewer = (a, b) => a.ms > b.ms || a.ms === b.ms && a.index > b.index;
 function newestOf(comments) {
   let newest = null;
@@ -8600,7 +8602,7 @@ async function graphql(options, label, query, variables) {
   if (errors.length > 0 && !isRecord3(body.data)) {
     return fail("graphql-error", problems[0]?.message ?? `GitHub reported an error (${label}).`);
   }
-  if (!isRecord3(body.data)) return fail("bad-response", `The reply of GitHub has no data (${label}).`, { status: response.status });
+  if (!isRecord3(body.data)) return fail("bad-response", `The reply of GitHub has no data (${label}).`, { status: response.status, field: "data" });
   const limit = body.data.rateLimit;
   const cost = { call: label, cost: isRecord3(limit) && typeof limit.cost === "number" ? limit.cost : 0, remaining: isRecord3(limit) && typeof limit.remaining === "number" ? limit.remaining : -1 };
   return { ok: true, data: { data: body.data, cost, problems } };
@@ -8617,6 +8619,15 @@ function recentIsCut(list, now) {
 function retryAfterOf(response) {
   const seconds = Number(response.headers.get("retry-after"));
   return Number.isFinite(seconds) && seconds >= 0 && response.headers.get("retry-after") !== null && response.headers.get("retry-after") !== "" ? { retryAfter: seconds } : {};
+}
+function withCutNotices(info, cut) {
+  if (cut.size === 0) return info;
+  const note = (issue) => {
+    if (!cut.has(issue.number)) return issue;
+    const notice = "Not all comments were read, so a newer answer may be missing. Reload to read them again before you answer.";
+    return { ...issue, problem: issue.problem === null ? notice : `${issue.problem} ${notice}` };
+  };
+  return { ...info, open: info.open.map(note), recent: info.recent.map(note) };
 }
 function parseFirstPage(repository, now) {
   return {
@@ -8701,7 +8712,7 @@ async function fetchSnapshot(options) {
     }
     const more = await call(`refs page ${pages + 1}`, REFS_PAGE_QUERY, refsPageVariables(cursor, owner, repo));
     if (!more.ok) {
-      if (more.error.code !== "deadline") return more;
+      if (more.error.code !== "deadline" && timeLeft() >= MIN_CALL_MS) return more;
       problems.push({ code: "branches-truncated", message: "The time limit ran out while the branches were read. The list is not complete." });
       break;
     }
@@ -8715,18 +8726,21 @@ async function fetchSnapshot(options) {
   }
   branches.sort((a, b) => Date.parse(b.date) - Date.parse(a.date) || a.name.localeCompare(b.name));
   const decisions = [];
+  const cutDecisions = /* @__PURE__ */ new Set();
   for (const decision of page.decisions) {
     let current = decision;
     let count = 0;
     while (current.moreCommentsAfter !== null) {
       if (count >= MAX_COMMENT_PAGES) {
         problems.push({ code: "decision-comments-truncated", message: `Decision ${String(current.raw.number)} has too many comments. Its answer may be missing.` });
+        cutDecisions.add(Number(current.raw.number));
         break;
       }
       const more = await call(`comments of decision ${String(current.raw.number)}`, COMMENTS_PAGE_QUERY, commentsPageVariables(Number(current.raw.number), current.moreCommentsAfter, owner, repo));
       if (!more.ok) {
-        if (more.error.code !== "deadline") return more;
+        if (more.error.code !== "deadline" && timeLeft() >= MIN_CALL_MS) return more;
         problems.push({ code: "decision-comments-truncated", message: `The time limit ran out while the comments of decision ${String(current.raw.number)} were read. Its answer may be missing.` });
+        cutDecisions.add(Number(current.raw.number));
         break;
       }
       const issue = repositoryOf(more.data)?.issue;
@@ -8746,7 +8760,7 @@ async function fetchSnapshot(options) {
     branches,
     github,
     ci: page.ci,
-    decisions: decisionsInfoOf(decisions, now.getTime(), `${owner}/${repo}`),
+    decisions: withCutNotices(decisionsInfoOf(decisions, now.getTime(), `${owner}/${repo}`), cutDecisions),
     workstreams: [],
     main: { status: null, roadmap: null, migration: null },
     problems,

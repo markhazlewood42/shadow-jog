@@ -1059,13 +1059,30 @@ describe('the ask for more info', () => {
     expect(askSend()?.disabled).toBe(false);
   });
 
-  it('a question of only zero-width characters is not sent: the box shows its error state', async () => {
+  it('a question of only zero-width characters is not sent: Send question waits', async () => {
     await show();
     await press(buttonNamed('Ask for more info'));
     await typeAsk('\u200B\u200C\u200D\u2060\uFEFF');
+    // The button waits, as for an empty box, and a press sends nothing.
+    expect(askSend()?.disabled).toBe(true);
     await press(askSend());
     expect(server.posts).toHaveLength(0);
-    expect(container.querySelector('[role="alert"]')?.textContent).toContain('A question needs text');
+  });
+
+  it('a question of an invisible character keeps Send question disabled, like an empty one', async () => {
+    await show();
+    await press(buttonNamed('Ask for more info'));
+    await typeAsk('­ㅤ⠀');
+    expect(askSend()?.disabled).toBe(true);
+  });
+
+  it('a question with a control character is not sent: the box shows the error of the server before it sends', async () => {
+    await show();
+    await press(buttonNamed('Ask for more info'));
+    await typeAsk('Why?\u0001');
+    await press(askSend());
+    expect(server.posts).toHaveLength(0);
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('control character');
   });
 
   it('sends the question as { note } to the ask route with the token, once, and never posts an answer', async () => {

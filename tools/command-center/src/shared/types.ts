@@ -608,10 +608,21 @@ export type DocDecision = { number: number; title: string; anchor: string };
 export const MAX_NOTE_CHARS = 2000;
 
 /**
- * True when a question has no word in it: it is empty, or it holds only whitespace and the zero-width characters (U+200B, U+200C, U+200D, U+2060, U+FEFF), which `trim` keeps.
- * The local route, the hosted function and the question box all use this one rule.
+ * True when a question has no word in it: it is empty, or it holds only characters that show nothing. These are whitespace (and the NEL U+0085, which `\s` misses), the format
+ * characters (category Cf: the soft hyphen, the bidi controls, U+200B to U+200F, U+2060 to U+2064, U+FEFF), the Hangul fillers (U+115F, U+1160, U+3164, U+FFA0), the blank braille
+ * pattern (U+2800), the Mongolian vowel separator (U+180E), the combining grapheme joiner (U+034F) and the variation selectors.
+ * The local route, the hosted function and the question box all use this one rule. It is an alternation, so no joiner stands inside a character class.
  */
-export const isBlankQuestion = (text: string): boolean => /^[\s\u200B\u200C\u200D\u2060\uFEFF]*$/.test(text);
+export const isBlankQuestion = (text: string): boolean => /^(?:\s|\p{Cf}|\u0085|\u034F|\u115F|\u1160|\u180E|\u2800|\u3164|\uFFA0|[\uFE00-\uFE0F]|[\u{E0100}-\u{E01EF}])*$/u.test(text);
+
+/** A question as the server compares and writes it: line ends made alike (a comment typed on the web has CR LF) and both ends trimmed. */
+export const normalizeQuestion = (words: string): string => words.replace(/\r\n?/g, '\n').trim();
+
+/** The length of a question as the server counts it (UTF-16 units, after `normalizeQuestion`). The question box and both servers check this one number against MAX_NOTE_CHARS. */
+export const questionLength = (text: string): number => normalizeQuestion(text).length;
+
+/** Control characters that a note may not have: all of them but the tab and the two line breaks. They have no use in a note, and a null character cannot be sent as an argument. */
+export const BAD_NOTE_CHARACTERS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/;
 
 /**
  * The writes of an answer, in the order the server makes them. `unflag` (step 0) takes the label `needs-info` off, when it is on. An Ask has two steps, named like the first two of an

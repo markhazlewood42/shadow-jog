@@ -1,5 +1,6 @@
 import type { DecisionRead } from '../server/decisions/module';
 import { readDecisionIssue } from '../server/decisions/parse';
+import type { DecisionIssue, DecisionsInfo } from '../shared/types';
 import { STALE_AFTER_DAYS } from '../shared/workstream';
 import {
   ANSWER_EVENTS_PAGE_QUERY,
@@ -154,7 +155,7 @@ export async function graphql(options: FetchOptions, label: string, query: strin
   if (errors.length > 0 && !isRecord(body.data)) {
     return fail('graphql-error', problems[0]?.message ?? `GitHub reported an error (${label}).`);
   }
-  if (!isRecord(body.data)) return fail('bad-response', `The reply of GitHub has no data (${label}).`, { status: response.status });
+  if (!isRecord(body.data)) return fail('bad-response', `The reply of GitHub has no data (${label}).`, { status: response.status, field: 'data' });
 
   const limit = body.data.rateLimit;
   const cost: CallCost = { call: label, cost: isRecord(limit) && typeof limit.cost === 'number' ? limit.cost : 0, remaining: isRecord(limit) && typeof limit.remaining === 'number' ? limit.remaining : -1 };
@@ -181,6 +182,20 @@ function recentIsCut(list: unknown, now: Date): boolean {
 function retryAfterOf(response: { headers: Headers }): { retryAfter?: number } {
   const seconds = Number(response.headers.get('retry-after'));
   return Number.isFinite(seconds) && seconds >= 0 && response.headers.get('retry-after') !== null && response.headers.get('retry-after') !== '' ? { retryAfter: seconds } : {};
+}
+
+/**
+ * Puts a notice on each decision whose comments were cut. The newest comment is the one that holds the answer, so without the notice an answered decision would show as
+ * open, with the answer form, and nothing would say why. The notice is the `problem` of the issue, which the decision page shows above the question.
+ */
+function withCutNotices(info: DecisionsInfo, cut: ReadonlySet<number>): DecisionsInfo {
+  if (cut.size === 0) return info;
+  const note = (issue: DecisionIssue): DecisionIssue => {
+    if (!cut.has(issue.number)) return issue;
+    const notice = 'Not all comments were read, so a newer answer may be missing. Reload to read them again before you answer.';
+    return { ...issue, problem: issue.problem === null ? notice : `${issue.problem} ${notice}` };
+  };
+  return { ...info, open: info.open.map(note), recent: info.recent.map(note) };
 }
 
 /** Everything that call 1 reads from the repository, parsed. Throws a ShapeError for a field that is missing or null. */
@@ -291,8 +306,9 @@ export async function fetchSnapshot(options: FetchOptions): Promise<Result<Snaps
     }
     const more = await call(`refs page ${pages + 1}`, REFS_PAGE_QUERY, refsPageVariables(cursor, owner, repo));
     if (!more.ok) {
-      // The deadline ran out in the middle of the pages: the data of call 1 is good, so keep it and say that the list is cut.
-      if (more.error.code !== 'deadline') return more;
+      // The deadline ran out in the middle of the pages: the data of call 1 is good, so keep it and say that the list is cut. The cut-off can also come while the
+      // request is in flight (the abort then reads as `network`), so no time left counts as the deadline too.
+      if (more.error.code !== 'deadline' && timeLeft() >= MIN_CALL_MS) return more;
       problems.push({ code: 'branches-truncated', message: 'The time limit ran out while the branches were read. The list is not complete.' });
       break;
     }
@@ -308,19 +324,23 @@ export async function fetchSnapshot(options: FetchOptions): Promise<Result<Snaps
 
   // ---- the rest of the comments of a decision (the answer is the newest comment, so none may be missed) ----
   const decisions: DecisionRaw[] = [];
+  // The numbers of the decisions whose comments are not all read. The page shows a notice on each (see below), because the newest comment may be the answer.
+  const cutDecisions = new Set<number>();
   for (const decision of page.decisions) {
     let current = decision;
     let count = 0;
     while (current.moreCommentsAfter !== null) {
       if (count >= MAX_COMMENT_PAGES) {
         problems.push({ code: 'decision-comments-truncated', message: `Decision ${String(current.raw.number)} has too many comments. Its answer may be missing.` });
+        cutDecisions.add(Number(current.raw.number));
         break;
       }
       const more = await call(`comments of decision ${String(current.raw.number)}`, COMMENTS_PAGE_QUERY, commentsPageVariables(Number(current.raw.number), current.moreCommentsAfter, owner, repo));
       if (!more.ok) {
         // As for the branches: keep what is read, and say that the answer of this decision may be missing.
-        if (more.error.code !== 'deadline') return more;
+        if (more.error.code !== 'deadline' && timeLeft() >= MIN_CALL_MS) return more;
         problems.push({ code: 'decision-comments-truncated', message: `The time limit ran out while the comments of decision ${String(current.raw.number)} were read. Its answer may be missing.` });
+        cutDecisions.add(Number(current.raw.number));
         break;
       }
       const issue = repositoryOf(more.data)?.issue;
@@ -342,7 +362,7 @@ export async function fetchSnapshot(options: FetchOptions): Promise<Result<Snaps
     branches,
     github,
     ci: page.ci,
-    decisions: decisionsInfoOf(decisions, now.getTime(), `${owner}/${repo}`),
+    decisions: withCutNotices(decisionsInfoOf(decisions, now.getTime(), `${owner}/${repo}`), cutDecisions),
     workstreams: [],
     main: { status: null, roadmap: null, migration: null },
     problems,

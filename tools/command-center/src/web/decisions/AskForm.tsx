@@ -1,7 +1,7 @@
 import { Button, Label, TextArea, TextField } from '@heroui/react';
 import { CircleQuestionMark, LoaderCircle, Send } from 'lucide-react';
 import { type FormEvent } from 'react';
-import { type DecisionIssue, MAX_NOTE_CHARS } from '../../shared/types';
+import { type DecisionIssue, MAX_NOTE_CHARS, isBlankQuestion } from '../../shared/types';
 import { ASK_STEP_LABEL, type AnswerDraft, FailureBox, askRetryLine } from './AnswerForm';
 import { Notice } from './DecisionCard';
 
@@ -27,7 +27,7 @@ export function AskForm({ issue, draft }: { issue: DecisionIssue; draft: AnswerD
   const busy = sending || draft.status === 'sending';
   const open = draft.askOpen;
   const text = draft.askText;
-  const empty = text.trim() === '';
+  const empty = isBlankQuestion(text);
   const showUnfinished = issue.phase === 'ask-unfinished' && draft.failure === null;
   const unfinished = showUnfinished ? newestQuestion(issue) : null;
 

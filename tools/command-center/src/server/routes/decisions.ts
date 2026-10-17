@@ -1,6 +1,6 @@
 import type { Context, Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
-import { type AnswerErrorBody, type DecisionDetail, type DecisionIssue, type DecisionsInfo, MAX_NOTE_CHARS, type Panel, isBlankQuestion } from '../../shared/types';
+import { type AnswerErrorBody, type DecisionDetail, type DecisionIssue, type DecisionsInfo, MAX_NOTE_CHARS, type Panel, isBlankQuestion, questionLength } from '../../shared/types';
 import type { Config } from '../config';
 import { answerDecision, askDecision, askText, checkAnswer, checkAsk } from '../decisions/answer';
 import { BAD_NOTE_CHARACTERS, MAX_ISSUE_NUMBER, MAX_OPTION_CHARS } from '../decisions/answer-core';
@@ -79,7 +79,7 @@ async function readAskRequest(c: Context): Promise<{ text: string } | Response> 
   if (typeof body.note !== 'string') return c.json(apiError('bad-request', say('requestAskNeedsText', { max: MAX_NOTE_CHARS })), 422);
   const text = askText(body.note);
   if (isBlankQuestion(text)) return c.json(apiError('bad-request', say('requestAskNeedsText', { max: MAX_NOTE_CHARS })), 422);
-  if (text.length > MAX_NOTE_CHARS) return c.json(apiError('note-too-long', say('noteTooLong', { max: MAX_NOTE_CHARS })), 422);
+  if (questionLength(text) > MAX_NOTE_CHARS) return c.json(apiError('note-too-long', say('noteTooLong', { max: MAX_NOTE_CHARS })), 422);
   if (BAD_NOTE_CHARACTERS.test(text)) return c.json(apiError('bad-note', say('noteBadCharacter')), 422);
   return { text };
 }

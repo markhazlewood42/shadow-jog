@@ -254,8 +254,8 @@ describe('server messages', () => {
   });
 
   it('every message is used by the server', () => {
-    // No dead message: each id appears in a file of src/server or src/hosted (the hosted function uses `say` too) other than the message file.
-    const source = [...filesUnder(join(PACKAGE_DIR, 'src', 'server')), ...filesUnder(join(PACKAGE_DIR, 'src', 'hosted'))]
+    // No dead message: each id appears in a file of src/server, src/hosted or src/web (the hosted function and the question box use `say` too) other than the message file.
+    const source = [...filesUnder(join(PACKAGE_DIR, 'src', 'server')), ...filesUnder(join(PACKAGE_DIR, 'src', 'hosted')), ...filesUnder(join(PACKAGE_DIR, 'src', 'web'))]
       .filter((file) => !file.endsWith('messages.ts'))
       .map((file) => readFileSync(file, 'utf8'))
       .join('\n');
@@ -267,6 +267,6 @@ describe('server messages', () => {
 function filesUnder(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
     const path = join(dir, name);
-    return statSync(path).isDirectory() ? filesUnder(path) : path.endsWith('.ts') ? [path] : [];
+    return statSync(path).isDirectory() ? filesUnder(path) : /\.tsx?$/.test(path) ? [path] : [];
   });
 }

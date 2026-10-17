@@ -122,6 +122,7 @@ describe('POST /api/decisions/<n>/ask', () => {
     ['a note of only spaces', { note: '  \n ' }, 422],
     ['a note of only zero-width characters', { note: '\u200B\u200C\u200D\u2060\uFEFF' }, 422],
     ['a note of spaces and a zero-width space', { note: ' \u200B\n\uFEFF ' }, 422],
+    ['a note of invisible format and filler characters', { note: '\u00AD\u3164\u2800\u202E\u034F\uFE0F' }, 422],
     ['a note that is not text', { note: 5 }, 422],
     ['a note over the limit', { note: 'x'.repeat(MAX_NOTE_CHARS + 1) }, 422],
     ['a note with a control character', { note: 'a\u0000b' }, 422],
