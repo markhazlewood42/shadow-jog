@@ -22,6 +22,7 @@ import {
   blobImage,
   buildCalibrationItems,
   boundaryF,
+  bboxOf,
   boxScan,
   candidateFromRef,
   chamfer,
@@ -32,7 +33,9 @@ import {
   deltaE00,
   distinctCalibration,
   edgeMask,
+  EMD_WORST,
   emd,
+  faceSkin,
   flipH,
   formatVerdict,
   gateMeasures,
@@ -61,6 +64,8 @@ import {
   scanKit,
   setPixel,
   signature,
+  S3_TRANSFORMS,
+  MATCH_SHARE,
   textureDensity,
   toGroups,
   valueStructure,
@@ -78,6 +83,8 @@ const hexPack = (h: string) => pack(Number.parseInt(h.slice(1, 3), 16), Number.p
 const put = (img: Img, x: number, y: number, hex: string) => setPixel(img, x, y, hexPack(hex));
 const clear = (img: Img, x: number, y: number) => img.data.fill(0, (y * img.w + x) * 4, (y * img.w + x) * 4 + 4);
 const find = (items: LineItem[], id: string, nameRe?: RegExp) => items.find((i) => i.id === id && (!nameRe || nameRe.test(i.name)));
+// Skin cells in the checker's own face rows (eye rows 5 to 10 from the top of the figure).
+const faceSkinCells = (img: Img): number => faceSkin(img, bboxOf(img) as NonNullable<ReturnType<typeof bboxOf>>, [5, 10]).count;
 const failing = (items: LineItem[]) => items.filter((i) => i.status === 'fail').map((i) => `${i.id} ${i.name}`);
 
 beforeAll(() => {
@@ -199,6 +206,12 @@ describe('measures', () => {
   });
   it('palette EMD: 0 for the same palette, the dE00 for two single colors', () => {
     expect(paletteEmd(spec.given, spec.given)).toBeCloseTo(0, 6);
+    // F7: an image with no opaque cell is the worst case, never a perfect match
+    const empty = newImage(32, 32);
+    expect(paletteEmd(empty, spec.given)).toBe(EMD_WORST);
+    expect(paletteEmd(spec.given, empty)).toBe(EMD_WORST);
+    expect(paletteEmd(empty, empty)).toBe(EMD_WORST);
+    expect(EMD_WORST).toBeGreaterThan(4); // far over the start line, so the line cannot pass on an empty image
     const a = newImage(32, 32);
     const b = newImage(32, 32);
     for (let i = 0; i < 20; i++) {
@@ -364,12 +377,43 @@ describe('hard-line checker', () => {
     for (let y = 5; y <= 10; y++) for (let x = 0; x < 32; x++) if (opaqueAt(img, x, y) && colorClass(img.data[(y * 32 + x) * 4] ?? 0, img.data[(y * 32 + x) * 4 + 1] ?? 0, img.data[(y * 32 + x) * 4 + 2] ?? 0) === 'skin') put(img, x, y, '#7f8587');
     mustFail(img, 'HL-FACE', undefined, { facing: 's' });
   });
-  it('HL-FACE: ne allows skin only on the near cheek edge', () => {
-    const ne = candidateFromRef(loadReference('ne'), spec);
-    expect(find(run(ne.img, { facing: 'ne', labels: ne.labels }).items, 'HL-FACE')?.status).toBe('pass');
-    const img = clone(ne.img);
-    for (let y = 6; y <= 9; y++) for (let x = 12; x < 16; x++) put(img, x, y, '#e4b086'); // skin in the middle of the head
-    mustFail(img, 'HL-FACE', undefined, { facing: 'ne', labels: ne.labels });
+  it('HL-FACE: ne and nw allow skin only on the near cheek edge (F4: the planted skin stays under the max, so only the edge rule can fail)', () => {
+    const rule = (gates.hardLines.faceSkin as unknown as Record<string, { max: number; edgeCols: number }>).ne as { max: number; edgeCols: number };
+    for (const facing of ['ne', 'nw']) {
+      const cand = candidateFromRef(loadReference(facing), spec) as { img: Img; labels: (string | null)[] };
+      const base = run(cand.img, { facing, labels: cand.labels });
+      expect(find(base.items, 'HL-FACE')?.status, facing).toBe('pass');
+      // Head columns per row, from the labels the checker itself uses (head parts: hair, skin, lenses, beard).
+      const head = new Set(['hair', 'skin', 'lenses', 'beard']);
+      const span = (y: number) => {
+        const xs = [...Array(32).keys()].filter((x) => head.has(cand.labels[y * 32 + x] as string));
+        return { lo: Math.min(...xs), hi: Math.max(...xs) };
+      };
+      const plant = (where: 'middle' | 'edge') => {
+        const img = clone(cand.img);
+        const cells: number[][] = [];
+        const room = Math.min(4, rule.max - faceSkinCells(cand.img)); // stay under the max
+        for (let y = 6; y <= 9 && cells.length < room; y++) {
+          const { lo, hi } = span(y);
+          const xs = where === 'middle' ? [lo + rule.edgeCols + 1, lo + rule.edgeCols + 2] : [lo, lo + 1];
+          for (const x of xs) if (cells.length < room && x - lo > (where === 'middle' ? rule.edgeCols : -1) && opaqueAt(img, x, y) && hi - x > (where === 'middle' ? rule.edgeCols : -1)) cells.push([x, y]);
+        }
+        for (const [x, y] of cells) put(img, x as number, y as number, '#e4b086');
+        return img;
+      };
+      const mid = plant('middle');
+      const count = (img: Img) => faceSkinCells(img);
+      // The planted image stays under the max, so the max rule cannot be what fails.
+      expect(count(mid), `${facing} skin count under the max`).toBeLessThanOrEqual(rule.max);
+      expect(count(mid)).toBeGreaterThan(count(cand.img));
+      const bad = find(run(mid, { facing, labels: cand.labels }).items, 'HL-FACE');
+      expect(bad?.status, facing).toBe('fail');
+      expect(bad?.detail, facing).toMatch(/away from the cheek edge/);
+      // The same count of skin cells on the cheek edge passes.
+      const edge = plant('edge');
+      expect(count(edge)).toBeLessThanOrEqual(rule.max);
+      expect(find(run(edge, { facing, labels: cand.labels }).items, 'HL-FACE')?.status, `${facing} edge`).toBe('pass');
+    }
   });
   it('HL-DISTINCT: a facing that equals another facing, or its flip, fails', () => {
     const g = { ...gates, hardLines: { ...gates.hardLines, distinctN: 20 } };
@@ -465,8 +509,64 @@ describe('calibration set and runner', () => {
     const t1 = items.filter((i) => i.id.startsWith('t1:'));
     expect(t1.map((i) => [i.id, i.group])).toEqual([['t1:s', 'pass-real']]);
   });
-  it('at least 4 target measures separate the groups (the T0 pass line)', () => {
-    expect(res.gating.length).toBeGreaterThanOrEqual(4);
+  it('the plan fallback follows the count: fewer than passMeasures gating measures means Mark gates the facing', () => {
+    // T0 pass line: at least 4 measures separate. When they do not, plan section 4 hands the facing to Mark. The runner, gates.json and the grade verdict all say so.
+    expect(res.markGates).toBe(res.gating.length < gates.passMeasures);
+    expect((gates as unknown as { calibration: { markGates: boolean; gatingCount: number } }).calibration.markGates).toBe(res.markGates);
+    expect((gates as unknown as { calibration: { markGates: boolean; gatingCount: number } }).calibration.gatingCount).toBe(res.gating.length);
+    const c = candidateFromRef(loadReference('s'), spec);
+    const v = grade(c.img, { facing: 's', labels: c.labels, spec, gates });
+    expect(v.markGates).toBe(res.gating.length < gates.passMeasures);
+    if (v.markGates) expect(v.notes.join(' ')).toMatch(/Mark gates this facing/);
+    // a gates file with enough gating measures does not hand the facing to Mark
+    const four = JSON.parse(JSON.stringify(gates)) as Gates;
+    Object.keys(four.targetMeasures).forEach((k, i) => {
+      const m = four.targetMeasures[k];
+      if (m) m.role = i < 4 ? 'gate' : 'report';
+    });
+    expect(grade(c.img, { facing: 's', labels: c.labels, spec, gates: four }).markGates).toBe(false);
+    four.passMeasures = 5;
+    expect(grade(c.img, { facing: 's', labels: c.labels, spec, gates: four }).markGates).toBe(true);
+  });
+  it('F6: every item in a gating group is scored on all part groups, the groups the gate runs on', () => {
+    const scored = res.items.filter((i) => i.group !== 'info');
+    expect(scored.filter((i) => i.groupsOnly)).toEqual([]);
+    const walk = res.items.filter((i) => /^walk\d+:vs-given$/.test(i.id));
+    expect(walk.length).toBe(7);
+    for (const w of walk) expect(w.group).toBe('pass-real');
+    // the head-and-torso variant is kept as an info item, in no group
+    const ht = res.items.filter((i) => /^walk\d+:head-torso$/.test(i.id));
+    expect(ht.length).toBe(7);
+    for (const h of ht) {
+      expect(h.group).toBe('info');
+      expect(h.groupsOnly).toEqual(['hair', 'face', 'torso']);
+    }
+  });
+  it('F6: the head-and-torso sensitivity run swaps the two groups, and an unknown scope throws', () => {
+    const sens = runCalibration({ spec, gates, walkScope: 'head-torso' });
+    expect(sens.items.filter((i) => i.group === 'pass-real' && /^walk\d+:head-torso$/.test(i.id)).length).toBe(7);
+    expect(sens.items.filter((i) => i.group === 'pass-real' && /^walk\d+:vs-given$/.test(i.id)).length).toBe(0);
+    // the walk frames' worst pass value is higher when only head and torso count, for the part mIoU
+    const pm = (r: ReturnType<typeof runCalibration>) => r.table.find((t) => t.key === 'partMiou')?.passWorst.v ?? 0;
+    expect(pm(sens)).toBeGreaterThan(pm(res));
+    expect(() => runCalibration({ spec, gates, walkScope: 'nope' as never })).toThrow(/walkScope/);
+  });
+  it('F8: the near copies are rescaled to 31 (the as-is item) and 33, as plan section 4 says, not to 30 and 32', () => {
+    const ids = res.items.filter((i) => i.group === 'pass-near').map((i) => i.id.split(':')[1]);
+    expect(ids).not.toContain('scale30');
+    expect(ids).not.toContain('scale32');
+    expect(ids.filter((i) => i === 'scale33').length).toBe(REF_FACINGS.length);
+    for (const f of REF_FACINGS) {
+      const item = (id: string) => res.items.find((i) => i.id === `${f}:${id}`);
+      const ref = loadReference(f);
+      // as-is is the 31 px rescale; scale33 is the 33 px rescale. A 33 px figure does not fit the 32 px canvas: the top rows are cut off, which is why it is a measure-only item.
+      expect(item('as-is')?.cand.data, `${f} as-is`).toEqual(candidateFromRef(ref, spec, { h: 31 }).img.data);
+      expect(item('scale33')?.cand.data, `${f} scale33`).toEqual(candidateFromRef(ref, spec, { h: 33 }).img.data);
+      expect(item('scale33')?.cand.data, `${f} 33 differs from 31`).not.toEqual(item('as-is')?.cand.data);
+      expect(item('scale33')?.note, f).toMatch(/33 px/);
+      expect(item('scale33')?.hardLines, f).toBe(false);
+      expect(bboxOf(item('as-is')?.cand as Img)?.h, `${f} as-is height`).toBe(31);
+    }
   });
   it('a separating measure has its gate between the worst pass and the best fail', () => {
     for (const t of res.table.filter((r) => r.separates)) {
@@ -510,7 +610,7 @@ describe('gates (fail path for each target measure)', () => {
       const row = r.rows.find((x) => x.key === key);
       expect(row?.pass, key).toBe(false);
       // The whole verdict fails only when the measure gates.
-      expect(r.pass, key).toBe(m.role === 'report' ? true : false);
+      expect(r.pass, key).toBe(m.role === 'report');
       const ok = gateMeasures({ ...good, [key]: m.dir === 'min' ? gate + 0.001 : gate - 0.001 } as never, gates);
       expect(ok.rows.find((x) => x.key === key)?.pass, key).toBe(true);
     }
@@ -622,6 +722,65 @@ describe('kit scan', () => {
     // a part shift of 1 px
     const shifted = placeScaled(spec.given, null, { s: 31, dx: 1, anchor: 'none', size: 32 }).img;
     expect(scanImages([{ name: 'shift', img: shifted }], { refs: r, given: spec.given })).toEqual([]);
+  });
+  // F5: the tests above use real references, and no real reference patch matches the given, so they pass with or without the ignore rule.
+  // These use a synthetic reference that IS the given (and its mirror), so only the ignore rule keeps the kit patch from being a finding.
+  describe('F5: the ignore rule and the share floor can fail', () => {
+    const givenRefs = () => [
+      { name: 'given-as-ref', img: spec.given, mirrored: false },
+      { name: 'given-as-ref', img: flipH(spec.given), mirrored: true },
+    ];
+    // Built here by hand (not with applyTransform), so a change to the transform code or to S3_TRANSFORMS shows.
+    const moved = (dx: number, dy: number): Img => {
+      const out = newImage(32, 32);
+      for (let y = 0; y < 32; y++)
+        for (let x = 0; x < 32; x++) {
+          const X = x + dx;
+          const Y = y + dy;
+          if (X >= 0 && Y >= 0 && X < 32 && Y < 32 && spec.given.data[(y * 32 + x) * 4 + 3] === 255) out.data.set(spec.given.data.subarray((y * 32 + x) * 4, (y * 32 + x) * 4 + 4), (Y * 32 + X) * 4);
+        }
+      return out;
+    };
+    const mirror35 = (): Img => {
+      const out = newImage(32, 32);
+      for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) if (35 - x >= 0 && 35 - x < 32 && spec.given.data[(y * 32 + (35 - x)) * 4 + 3] === 255) out.data.set(spec.given.data.subarray((y * 32 + (35 - x)) * 4, (y * 32 + (35 - x)) * 4 + 4), (y * 32 + x) * 4);
+      return out;
+    };
+    const cases: [string, () => Img][] = [
+      ['identity', () => spec.given],
+      ['mirror about 17.5', mirror35],
+      ['shift x +1', () => moved(1, 0)],
+      ['shift x -1', () => moved(-1, 0)],
+      ['shift y +1', () => moved(0, 1)],
+      ['shift y -1', () => moved(0, -1)],
+    ];
+    for (const [name, make] of cases) {
+      it(`${name}: ignored by the default S3 transforms, and a finding when the ignore rule is off`, () => {
+        const img = make();
+        expect(scanImages([{ name, img }], { refs: givenRefs(), given: spec.given }), `${name} with the rule`).toEqual([]);
+        expect(scanImages([{ name, img }], { refs: givenRefs(), given: spec.given, transforms: [] }).length, `${name} without the rule`).toBeGreaterThan(0);
+      });
+    }
+    it('the default transform list holds exactly these six', () => {
+      const keys = (S3_TRANSFORMS as { kind: string; axis?: number; dx?: number; dy?: number }[]).map((t) => `${t.kind}:${t.axis ?? ''}:${t.dx ?? ''}:${t.dy ?? ''}`).sort();
+      expect(keys).toEqual(['identity:::', 'mirror:35::', 'shift::-1:0', 'shift::0:-1', 'shift::0:1', 'shift::1:0'].sort());
+    });
+    it('the share floor: 6 of 64 cells changed (90.6 percent) is found, 7 of 64 (89.1 percent) is not', () => {
+      const palette = ['#9ea5a8', '#61693c', '#e4b086', '#16180d'];
+      const ref = newImage(8, 8);
+      for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) put(ref, x, y, palette[(x + 2 * y) % 4] as string);
+      const kitWith = (changed: number) => {
+        const kit = clone(ref);
+        for (let k = 0; k < changed; k++) put(kit, k, 0, '#030102'); // a color far from all four
+        return kit;
+      };
+      const blank = newImage(8, 8);
+      const refs8 = [{ name: 'synthetic', img: ref, mirrored: false }];
+      expect(MATCH_SHARE).toBe(0.9);
+      expect(scanImages([{ name: 'k6', img: kitWith(6) }], { refs: refs8, given: blank }).length).toBe(1);
+      expect(scanImages([{ name: 'k7', img: kitWith(7) }], { refs: refs8, given: blank })).toEqual([]);
+      expect(scanImages([{ name: 'k0', img: kitWith(0) }], { refs: refs8, given: blank }).length).toBe(1);
+    });
   });
   it('a given patch that is NOT at the same place or a transform is not ignored when it matches a reference', () => {
     // Plant the reference patch on top of the given-equal image: the planted cells must still be found.

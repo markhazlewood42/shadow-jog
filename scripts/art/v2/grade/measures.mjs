@@ -288,8 +288,15 @@ export function emd(sigA, sigB) {
   return cost / U;
 }
 
-/** Palette EMD between two images, in dE00 units. */
-export const paletteEmd = (a, b, k = 16) => emd(signature(a, k), signature(b, k));
+/** The palette EMD of an image with no opaque cell: the dE00 between black and white. An empty image must never read as a perfect match (0). */
+export const EMD_WORST = 100;
+/** Palette EMD between two images, in dE00 units. An image with no opaque cell gives EMD_WORST (fail closed). */
+export function paletteEmd(a, b, k = 16) {
+  const sa = signature(a, k);
+  const sb = signature(b, k);
+  if (!sa.length || !sb.length) return EMD_WORST;
+  return emd(sa, sb);
+}
 
 // ---------------------------------------------------------------- rank 7: landmark PCK
 

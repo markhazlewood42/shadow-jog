@@ -1,8 +1,8 @@
 // Calibration set and runner (plan v2 section 4, R3 section 5). Grader-only: it reads the Sprite Fusion references.
 //   node scripts/art/v2/grade/calibrate.mjs [--write-gates] [--out <report.md>] [--json <file>] [--t1 <dir>]
 // Groups:
-//   pass-near    each reference as a candidate (walk palette, near-black outline, 31 px): as it is, shifted 1 px, rescaled to 30 and 32 px,
-//                and with 5 percent of its interior cells moved one ramp step
+//   pass-near    each reference as a candidate (walk palette, near-black outline): as it is at 31 px (the plan's 31), shifted 1 px, rescaled to 33 px,
+//                and with 5 percent of its interior cells moved one ramp step. A candidate is always made at 31 px, so the plan's 31 rescale is the as-is item.
 //   pass-real    the walk frames against the given (same character, same facing, another pose). A slot for T1 outputs: --t1 <dir> reads
 //                <facing>.png files and adds them (T1 outputs judged same-style by G1 and G2, once they exist)
 //   fail-near    the adjacent reference facing (45 and 90 degrees), the round 8 facings, the rig v2 facings (PA-CM-01 is round 8)
@@ -141,7 +141,7 @@ const NEAR = {
  * facing is the facing name the hard lines see. exempt lists hard-line ids that this variant breaks by construction.
  * labels: the candidate part labels. An item made from a reference carries that reference's hand labels (what a template would give),
  * and an item with unknown parts (another character, a blob, an older round, a walk frame) uses the automatic labeler (labels null).
- * groupsOnly: measure only these part groups (the walk frames, part by part: limbs move between frames, so only head and torso count).
+ * groupsOnly: measure only these part groups. No gating item uses it (F6): a gate must be calibrated on the groups it runs on. Only the info item 'walk:head-torso' does.
  */
 export function buildCalibrationItems({ spec = loadSpec(), t1Dir = null } = {}) {
   const ramps = JSON.parse(readFileSync(`${dirname(GATES_PATH)}/../../headtest/palette.json`, 'utf8')).ramps;
@@ -154,21 +154,20 @@ export function buildCalibrationItems({ spec = loadSpec(), t1Dir = null } = {}) 
   for (const f of REF_FACINGS) {
     const base = from(f);
     const mk = (id, c, note, extra = {}) => add({ id: `${f}:${id}`, group: 'pass-near', target: f, facing: f, cand: c.img, labels: c.labels, note, ...extra });
-    mk('as-is', base, 'reference as candidate');
+    mk('as-is', base, 'reference as candidate, rescaled to 31 px (the plan value 31)');
     mk('shift+1x', from(f, { dx: 1 }), 'shifted 1 px right');
     mk('shift-1x', from(f, { dx: -1 }), 'shifted 1 px left');
     mk('shift-1y', from(f, { dy: -1 }), 'shifted 1 px up (measure only: it breaks the bottom-row line by construction)', { hardLines: false });
-    mk('scale30', from(f, { h: 30 }), 'rescaled to 30 px (measure only: a smaller head and rows by construction)', { hardLines: false });
-    mk('scale32', from(f, { h: 32 }), 'rescaled to 32 px (measure only)', { hardLines: false });
+    mk('scale33', from(f, { h: 33 }), 'rescaled to 33 px (the plan value 33; measure only: 33 rows do not fit the 32 px canvas, so the top rows are cut off)', { hardLines: false });
     mk('recolor5', { img: recolorStep(base.img, ramps, `${f}:recolor5`), labels: base.labels }, '5 percent of interior cells moved one ramp step');
   }
 
-  // pass-real: walk frames against the given, part by part (head and torso)
+  // pass-real: walk frames against the given. Scored on the whole figure, the 7 part groups the gate runs on (F6).
   const walk = loadWalkFrames();
   walk.forEach((fr, k) => {
     if (k === 4) return;
-    add({ id: `walk${k}:vs-given`, group: 'pass-real', target: 'se', facing: 'se', cand: fr, groupsOnly: ['hair', 'face', 'torso'], note: `walk frame ${k} against the given (frame 4), head and torso only` });
-    add({ id: `walk${k}:vs-given-full`, group: 'info', target: 'se', facing: 'se', cand: fr, note: `walk frame ${k} against the given, all parts (pose differences included)` });
+    add({ id: `walk${k}:vs-given`, group: 'pass-real', target: 'se', facing: 'se', cand: fr, note: `walk frame ${k} against the given (frame 4), all part groups (pose differences included)` });
+    add({ id: `walk${k}:head-torso`, group: 'info', target: 'se', facing: 'se', cand: fr, groupsOnly: ['hair', 'face', 'torso'], note: `walk frame ${k} against the given, head and torso only (info: the earlier pass-real scoring, which the gate does not run on)` });
   });
   if (t1Dir && existsSync(t1Dir)) {
     for (const f of [...REF_FACINGS, 'se'])
@@ -265,9 +264,16 @@ function separation(m, rows) {
 }
 
 /** Run the whole calibration. Returns { rows, table, gating, hardLines, distinct, info }. */
-export function runCalibration({ spec = loadSpec(), gates = loadGates(), t1Dir = null, autoLabels = false, log = () => {} } = {}) {
+export function runCalibration({ spec = loadSpec(), gates = loadGates(), t1Dir = null, autoLabels = false, walkScope = 'all', log = () => {} } = {}) {
   const items = buildCalibrationItems({ spec, t1Dir });
   if (autoLabels) for (const it of items) it.labels = null; // sensitivity run: every candidate is labeled by the automatic labeler
+  if (walkScope === 'head-torso') {
+    // Sensitivity run: the realistic pass group is the walk frames scored on head and torso only (the scoring before F6), not on the groups the gate runs on.
+    for (const it of items) {
+      if (/^walk\d+:vs-given$/.test(it.id)) it.group = 'info';
+      else if (/^walk\d+:head-torso$/.test(it.id)) it.group = 'pass-real';
+    }
+  } else if (walkScope !== 'all') throw new Error(`unknown walkScope ${walkScope}`);
   const targets = targetsFor(spec);
   const distinct = distinctCalibration(spec);
   const gatesWithN = { ...gates, hardLines: { ...gates.hardLines, distinctN: distinct.n } };
@@ -305,7 +311,8 @@ export function runCalibration({ spec = loadSpec(), gates = loadGates(), t1Dir =
   // The same lines with the proposed re-set applied: how many should-pass items pass, how many should-fail items are still caught.
   const reset = resetOf(metricRows, gatesWithN.hardLines);
   const lineRowsReset = runLines({ ...gatesWithN, hardLines: { ...gatesWithN.hardLines, reset, useReset: true } });
-  return { rows, table, gating, hardLines, lineRows, lineRowsReset, reset, distinct, items, metricRows };
+  // Plan section 4: if fewer than passMeasures measures gate, Mark gates the facing. The grade command prints that.
+  return { rows, table, gating, markGates: gating.length < gates.passMeasures, hardLines, lineRows, lineRowsReset, reset, distinct, items, metricRows };
 }
 
 /** The re-set values of the lines that failed should-pass items (gates.json hardLines.reset). */
@@ -350,7 +357,7 @@ export function metricCalibration(lineRows) {
 
 const f2 = (v) => (Number.isFinite(v) ? v.toFixed(3) : String(v));
 
-export function formatReport(res, gates, { date = new Date().toISOString().slice(0, 10), auto = null } = {}) {
+export function formatReport(res, gates, { date = new Date().toISOString().slice(0, 10), auto = null, walkHT = null, autoHT = null } = {}) {
   const L = [];
   const count = (g) => res.rows.filter((r) => r.group === g).length;
   L.push(`# Rook v2 grade: calibration report (${date})`, '');
@@ -358,7 +365,7 @@ export function formatReport(res, gates, { date = new Date().toISOString().slice
   L.push(`Items: pass-near ${count('pass-near')}, pass-real ${count('pass-real')}, fail-near ${count('fail-near')}, fail-far ${count('fail-far')}, info ${count('info')}. Candidate labels come from the automatic labeler (parts.mjs), target labels from the hand labels (refs/).`, '');
   L.push(`**Measures that separate the groups: ${res.gating.length} of ${res.table.length}. Pass line: at least ${gates.passMeasures}. ${res.gating.length >= gates.passMeasures ? 'PASS.' : 'FAIL: fewer than 4 measures can gate, so Mark gates each facing (plan section 4).'}**`, '');
   L.push('A gate is the middle between the worst should-pass value and the best should-fail value. A measure that does not separate is a report line.', '');
-  L.push('How the groups were made: the near copies and the adjacent-facing items carry the hand labels of their reference (what a proxy template would give a candidate). The walk frames (the realistic pass group) are measured part by part, head and torso only, after the alignment on the whole figure, with the automatic labeler. Round 8, rig v2, Hex, Sable and the blob use the automatic labeler. The T1 outputs are not here yet: pass --t1 <dir> with <facing>.png files to add them to the realistic pass group.', '');
+  L.push('How the groups were made: the near copies and the adjacent-facing items carry the hand labels of their reference (what a proxy template would give a candidate). The walk frames (the realistic pass group) are measured on the whole figure, all 7 part groups, the same groups the gate runs on, with the automatic labeler. A head-and-torso-only variant of each walk frame is an info item (walkN:head-torso), in no group. Round 8, rig v2, Hex, Sable and the blob use the automatic labeler. The T1 outputs are not here yet: pass --t1 <dir> with <facing>.png files to add them to the realistic pass group.', '');
   L.push('| Measure | Dir | Start | Worst pass (item) | Best fail (item) | Separates | Near copies only | Pair accuracy | Proposed gate | Role |', '|---|---|---|---|---|---|---|---|---|---|');
   for (const t of res.table)
     L.push(`| ${t.name} | ${t.dir} | ${t.start} | ${f2(t.passWorst.v)} (${t.passWorst.id}) | ${f2(t.failBest.v)} (${t.failBest.id}) | ${t.separates ? 'yes' : 'no'} | ${t.separatesNearOnly ? 'yes' : 'no'} | ${(t.pairAccuracy * 100).toFixed(1)}% | ${t.gate === null ? 'none' : f2(t.gate)} | ${t.separates ? 'gate' : 'report'} |`);
@@ -369,6 +376,13 @@ export function formatReport(res, gates, { date = new Date().toISOString().slice
   for (const t of notSep) L.push(`- ${t.name}: report line. The best should-fail item ${t.failBest.id} (${f2(t.failBest.v)}) is at least as good as the worst should-pass item ${t.passWorst.id} (${f2(t.passWorst.v)}).`);
   if (auto) {
     L.push('', `Label sensitivity: when every candidate is labeled by the automatic labeler (no hand labels for the near copies and adjacent facings), ${auto.gating.length} measures separate (${auto.gating.join(', ') || 'none'}). The numbers above assume template-quality labels on the candidate. Without a template, expect the part-based measures (part mIoU, smallest part, PCK, texture) to be noisier.`);
+  }
+  if (auto || walkHT) {
+    L.push('', '### Gates under each scoring (F6)', '', 'Main = the scoring above: near copies carry hand labels, the walk frames are scored on all part groups like the gate. Auto labels = every candidate labeled by the automatic labeler. Walk head and torso = the walk frames scored on head and torso only (the earlier scoring; the gate never runs on that region), alone and together with automatic labels. A gate is the middle of worst pass and best fail; the margin is their gap.', '');
+    const cols = [['main', res], ['auto labels', auto], ['walk head and torso', walkHT], ['walk head and torso + auto labels', autoHT]].filter(([, r]) => r);
+    L.push(`| Measure | ${cols.map(([n]) => `${n}: gate (margin)`).join(' | ')} |`, `|---|${cols.map(() => '---').join('|')}|`);
+    for (const t of res.table) L.push(`| ${t.name} | ${cols.map(([, r]) => { const x = r.table.find((y) => y.key === t.key); return x.separates ? `${f2(x.gate)} (${f2(x.margin)})` : `no (worst pass ${f2(x.passWorst.v)}, best fail ${f2(x.failBest.v)})`; }).join(' | ')} |`);
+    L.push('', `Measures that gate: ${cols.map(([n, r]) => `${n} ${r.gating.length}`).join(', ')}. Pass line: at least ${gates.passMeasures}.`);
   }
   L.push('', '## Hard lines on the calibration set', '', `Distinct-facing line: N = ${res.distinct.n}. ${res.distinct.note}. Smallest pair: ${res.distinct.min.a} against ${res.distinct.min.b}, ${res.distinct.min.cells} cells.`, '');
   L.push('A line that fails a should-pass item is re-set before round 1 (plan section 4). Each facing is checked against the given-based lines of target.json; the reference facings are not walk frames, so some given-based lines fail them.', '', '| Line | Fails should-pass items | Catches should-fail items |', '|---|---|---|');
@@ -406,7 +420,7 @@ export function writeGates(res, gates, { date = new Date().toISOString().slice(0
   g.hardLines.reset = res.reset;
   g.hardLines.useReset = g.hardLines.useReset ?? false;
   g.calibratedOn = date;
-  g.calibration = { gating: res.gating, gatingCount: res.gating.length, passLine: g.passMeasures, items: Object.fromEntries(['pass-near', 'pass-real', 'fail-near', 'fail-far', 'info'].map((k) => [k, res.rows.filter((r) => r.group === k).length])) };
+  g.calibration = { gating: res.gating, gatingCount: res.gating.length, passLine: g.passMeasures, markGates: res.markGates, walkScope: 'all', items: Object.fromEntries(['pass-near', 'pass-real', 'fail-near', 'fail-far', 'info'].map((k) => [k, res.rows.filter((r) => r.group === k).length])) };
   writeFileSync(path, `${JSON.stringify(g, null, 2)}\n`);
   return g;
 }
@@ -417,7 +431,9 @@ function main() {
   const gates = loadGates();
   const res = runCalibration({ gates, t1Dir: opt('--t1'), log: a.includes('--verbose') ? console.log : () => {} });
   const auto = runCalibration({ gates, t1Dir: opt('--t1'), autoLabels: true });
-  const report = formatReport(res, gates, { auto });
+  const walkHT = runCalibration({ gates, t1Dir: opt('--t1'), walkScope: 'head-torso' });
+  const autoHT = runCalibration({ gates, t1Dir: opt('--t1'), walkScope: 'head-torso', autoLabels: true });
+  const report = formatReport(res, gates, { auto, walkHT, autoHT });
   const out = opt('--out');
   if (out) {
     mkdirSync(dirname(out), { recursive: true });

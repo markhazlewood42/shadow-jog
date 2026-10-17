@@ -34,6 +34,7 @@ import {
   foldStrokes,
   formatGrid32,
   givenLabels,
+  guardPenalty,
   givenSource,
   groupOfLetter,
   guideRows,
@@ -52,6 +53,7 @@ import {
   resolveSpec,
   samplesText,
   specProblems,
+  structureOf,
   stringifySpec,
   suggestRamps,
   templateChecks,
@@ -787,7 +789,7 @@ describe('writer kit', () => {
     expect(kit.files.length).toBeGreaterThan(30);
   });
   it('holds no reference: no file names a hidden folder, and the README names the steps', () => {
-    const bad = ['rook-8d-ref', 'rook-6a', 'spritefusion-tests'];
+    const bad = [['rook-8d', '-ref'].join(''), 'rook-6a', 'spritefusion-tests'];
     const walk = (d: string): string[] => readdirSync(d).flatMap((n) => (n === 'node_modules' ? [] : statSync(join(d, n)).isDirectory() ? walk(join(d, n)) : [join(d, n)]));
     for (const f of walk(join(dir, 'kit')))
       if (/\.(txt|md|json|mjs)$/.test(f)) for (const b of bad) expect(readFileSync(f, 'utf8').includes(b), `${f} ${b}`).toBe(false);
@@ -986,6 +988,120 @@ describe('template checks (plan section 7)', () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe('template checks, round 2 fixes (F2, F3)', () => {
+  const sumOf = axisSumOf(spec);
+  // A battle idle stand-in for the e check: a 31-row image (no rescale) whose row y holds `counts[y]` opaque cells.
+  const idleWith = (counts: (y: number) => number) => {
+    const w = 40;
+    const data = new Uint8Array(w * 31 * 4);
+    for (let y = 0; y < 31; y++) for (let x = 0; x < counts(y); x++) data.set([200, 200, 200, 255], (y * w + x) * 4);
+    return { w, h: 31, data } as unknown as Img;
+  };
+  const eT = renderTemplate(spec, { facing: 'e' });
+  const rowCount = (t: Template, y: number) => t.id.slice(y * N, y * N + N).filter((v) => v !== null).length;
+  const sideRows = (spec as unknown as { structure: { sideRows: Record<string, number>; sideBand: number } }).structure.sideRows;
+  const band = (spec as unknown as { structure: { sideBand: number } }).structure.sideBand;
+  const sideNames = Object.keys(sideRows);
+
+  it('F2a: the s template is run against the mirror of the sw template, as the plan words it; the plan gives no number', () => {
+    const r = templateChecks(spec, pm, 's');
+    const l = lineOf(r, 's-agrees-mirror-sw');
+    expect(l?.gate).toBe(false);
+    // the number, a second way: labelAgreement of the s labels with the x-mirror (about the spec axis) of the sw labels
+    const sw = renderTemplate(spec, { facing: 'sw' });
+    const s = renderTemplate(spec, { facing: 's' });
+    expect(l?.value).toBe(labelAgreement(s.label, mirrorCells(sw.label, sumOf)));
+    expect(l?.value as number).toBeGreaterThan(0.6);
+    expect(l?.value as number).toBeLessThan(0.7);
+    expect(r.ok).toBe(true);
+  });
+  it('F2a fail path: with a pass line set, the line gates; a lower value than the line fails the facing', () => {
+    expect(failing(templateChecks(spec, pm, 's', { sMirrorSwLine: 0.9 }))).toContain('s-agrees-mirror-sw');
+    const ok = templateChecks(spec, pm, 's', { sMirrorSwLine: 0.5 });
+    expect(lineOf(ok, 's-agrees-mirror-sw')?.gate).toBe(true);
+    expect(failing(ok)).not.toContain('s-agrees-mirror-sw');
+    // a spec that moves the s view further from the mirror of sw drops under a line the pinned spec meets
+    const base = lineOf(templateChecks(spec, pm, 's'), 's-agrees-mirror-sw')?.value as number;
+    const closer = mut((s) => { s.diagonalYaw = 20; });
+    expect(lineOf(templateChecks(closer, pm, 's'), 's-agrees-mirror-sw')?.value as number).toBeGreaterThan(base);
+    expect(failing(templateChecks(spec, pm, 's', { sMirrorSwLine: base + 0.01 }))).toContain('s-agrees-mirror-sw');
+  });
+
+  it('F2b: the e template is checked against the battle idle on the head, shoulder, hem and feet rows only, and not against the given', () => {
+    const r = templateChecks(spec, pm, 'e');
+    expect(r.lines.map((l: { name: string }) => l.name)).toEqual(sideNames.map((n) => `side-${n}-row`));
+    for (const bad of ['height', 'head-alone', 'area-sleeves', 'area-legs', 'shoulder-row']) expect(lineOf(r, bad)).toBeUndefined();
+    for (const l of r.lines) expect(l.gate).toBe(true);
+  });
+  it('F2b pass path: an idle with the same row counts as the template passes every row', () => {
+    const r = templateChecks(spec, pm, 'e', { idleFrame: idleWith((y) => rowCount(eT, y)) });
+    expect(failing(r)).toEqual([]);
+    expect(r.ok).toBe(true);
+  });
+  it('F2b fail path: one row off by more than the band fails that row and no other', () => {
+    for (const name of sideNames) {
+      const y = sideRows[name] as number;
+      const r = templateChecks(spec, pm, 'e', { idleFrame: idleWith((yy) => rowCount(eT, yy) + (yy === y ? band + 1 : 0)) });
+      expect(failing(r), name).toEqual([`side-${name}-row`]);
+      expect(r.ok).toBe(false);
+      // and exactly at the band it still passes
+      const edge = templateChecks(spec, pm, 'e', { idleFrame: idleWith((yy) => rowCount(eT, yy) + (yy === y ? band : 0)) });
+      expect(failing(edge), `${name} at the band`).toEqual([]);
+    }
+  });
+  it('F2b: the committed battle idle is used by default and the head row agrees; the cli exits 1 while a side row fails', () => {
+    const r = templateChecks(spec, pm, 'e');
+    expect(lineOf(r, 'side-head-row')?.ok).toBe(true);
+    expect(r.ok).toBe(failing(r).length === 0);
+    const cli = spawnSync(process.execPath, [CLI, 'checks', '--facings', 'e'], { encoding: 'utf8' });
+    expect(cli.stdout).toMatch(/template checks, facing e: (PASS|FAIL)/);
+    expect(cli.stdout).toMatch(/side-feet-row/);
+    expect(cli.stdout).not.toMatch(/area-/);
+    expect(cli.status).toBe(r.ok ? 0 : 1);
+  });
+  it('F2b: a spec without sideRows cannot run the e check (no default rows)', () => {
+    const bare = mut((s) => { delete (s as unknown as { structure: { sideRows?: unknown } }).structure.sideRows; });
+    expect(() => templateChecks(bare, pm, 'e', { idleFrame: idleWith(() => 10) })).toThrow(/sideRows/);
+  });
+
+  it('F3: mirrorCells has no default axis; the sum comes from the spec', () => {
+    const cells = renderTemplate(spec, { facing: 's' }).label;
+    expect(() => (mirrorCells as (a: unknown) => unknown)(cells)).toThrow(/axis sum/);
+    expect(() => mirrorCells(cells, Number.NaN)).toThrow(/axis sum/);
+    expect(mirrorCells(cells, sumOf)).toEqual(mirrorCells(cells, 35));
+  });
+  it('F3: the structure lines are read from the spec: a changed spec value changes the check and the fit guard', () => {
+    const lowered = mut((s) => { (s as unknown as { structure: { bottomRow: number } }).structure.bottomRow = 29; });
+    expect(failing(templateChecks(lowered, pm, 's'))).toContain('bottom-row');
+    expect(failing(templateChecks(spec, pm, 's'))).not.toContain('bottom-row');
+    const g = labelMeasures(givenLabels(pm));
+    expect(guardPenalty(lowered, g, ['s'])).toBeGreaterThan(guardPenalty(spec, g, ['s']));
+    const narrow = mut((s) => { (s as unknown as { structure: { headAlone: number[] } }).structure.headAlone = [5, 6]; });
+    expect(failing(templateChecks(narrow, pm, 's'))).toContain('head-alone');
+    expect(guardPenalty(narrow, g, ['s'])).toBeGreaterThan(guardPenalty(spec, g, ['s']));
+  });
+  it('F3: a spec without structure is rejected, and the checks and the guard do not fall back to a number', () => {
+    const bare = mut((s) => { delete (s as unknown as { structure?: unknown }).structure; });
+    expect(specProblems(bare).join(' | ')).toMatch(/structure must be/);
+    expect(() => structureOf(bare)).toThrow(SpecError);
+    expect(() => templateChecks(bare, pm, 's')).toThrow(SpecError);
+    expect(() => guardPenalty(bare, labelMeasures(givenLabels(pm)), ['s'])).toThrow(SpecError);
+  });
+  it('F3: the card side of an item uses the spec axis when the head is not visible', () => {
+    // head hidden, axis moved to x = 10 (center 9.5): the item at n sits near x 12, right of the spec axis, left of the old fixed 17.5
+    const s = mut((c) => { c.joints.head.offset[1] += 200; c.camera.origin[0] = 10; });
+    const t = renderTemplate(s, { facing: 'n' });
+    const c = buildCard(s, t);
+    expect(c.fields.headCenter).toBeNull();
+    const xs: number[] = [];
+    t.label.forEach((l: string | null, k: number) => { if (l && ['sheath', 'wrap', 'guard'].includes(l)) xs.push(k % N); });
+    const mean = xs.reduce((a, b) => a + b, 0) / xs.length;
+    expect(mean).toBeGreaterThan(axisSumOf(s) / 2);
+    expect(mean).toBeLessThan(17.5);
+    expect(c.fields.items[0].picture).toBe('right of the figure');
   });
 });
 

@@ -7,7 +7,7 @@ import { inBox, PART_NAMES } from '../../pipeline/decompose.mjs';
 import { letterAt } from '../../headtest/lib.mjs';
 import { AREA_GROUPS, labelMeasures } from './measures.mjs';
 import { partPoint, project, renderTemplate } from './render.mjs';
-import { SIZE, idsOfLabel, levelOfLetter } from './spec.mjs';
+import { SIZE, idsOfLabel, levelOfLetter, structureOf } from './spec.mjs';
 
 export const FIT_LINES = { mIoU: 0.85, landmarkPx: 1.0 };
 const r4 = (v) => Math.round(v * 10000) / 10000;
@@ -260,10 +260,12 @@ function distanceMaps(gl, blank) {
  */
 export function guardPenalty(spec, gm, facings) {
   let pen = 0;
+  const st = structureOf(spec); // the structure lines of the character (height, bottom row, head alone), the same numbers as the template checks
+  const [haMin, haMax] = st.headAlone;
   for (const f of facings) {
     const m = labelMeasures(renderTemplate(spec, { facing: f }).label);
-    pen += Math.max(0, Math.abs(m.height - 31) - 1) * 0.2 + Math.abs(m.bottom - 30) * 0.2;
-    pen += Math.max(0, Math.abs(m.headAlone - gm.headAlone) - 1) * 0.1 + Math.max(0, (m.headAlone < 13 ? 13 - m.headAlone : 0) + (m.headAlone > 15 ? m.headAlone - 15 : 0)) * 0.1;
+    pen += Math.max(0, Math.abs(m.height - st.height) - st.heightTol) * 0.2 + Math.abs(m.bottom - st.bottomRow) * 0.2;
+    pen += Math.max(0, Math.abs(m.headAlone - gm.headAlone) - st.headAloneTol) * 0.1 + Math.max(0, (m.headAlone < haMin ? haMin - m.headAlone : 0) + (m.headAlone > haMax ? m.headAlone - haMax : 0)) * 0.1;
     for (const k of ['shoulder', 'hip']) pen += m[k] === null ? 0.3 : Math.max(0, Math.abs(m[k] - gm[k]) - 1) * 0.05;
     for (const [name, labels] of Object.entries(AREA_GROUPS)) {
       if (name === 'item') continue;

@@ -9,25 +9,25 @@
       "start": 0.85,
       "calibrated": null,
       "role": "report",
-      "worstPass": 0.8379,
+      "worstPass": 0.8883,
       "bestFail": 1
     },
     "partMiou": {
       "name": "Part mIoU (area weighted)",
       "dir": "min",
       "start": 0.7,
-      "calibrated": 0.6749,
-      "role": "gate",
-      "worstPass": 0.7005,
+      "calibrated": null,
+      "role": "report",
+      "worstPass": 0.5633,
       "bestFail": 0.6494
     },
     "partMin": {
       "name": "Smallest part IoU",
       "dir": "min",
       "start": 0.5,
-      "calibrated": 0.2136,
-      "role": "gate",
-      "worstPass": 0.3125,
+      "calibrated": null,
+      "role": "report",
+      "worstPass": 0,
       "bestFail": 0.1148
     },
     "chamferMean": {
@@ -36,7 +36,7 @@
       "start": 0.6,
       "calibrated": null,
       "role": "report",
-      "worstPass": 0.8187,
+      "worstPass": 0.9169,
       "bestFail": 0.4408
     },
     "chamferP95": {
@@ -45,16 +45,16 @@
       "start": 1.5,
       "calibrated": null,
       "role": "report",
-      "worstPass": 2,
+      "worstPass": 2.2361,
       "bestFail": 1
     },
     "valueR": {
       "name": "Value structure r (8x8, interior)",
       "dir": "min",
       "start": 0.8,
-      "calibrated": 0.8372,
-      "role": "gate",
-      "worstPass": 0.8476,
+      "calibrated": null,
+      "role": "report",
+      "worstPass": 0.5953,
       "bestFail": 0.8269
     },
     "colorMatch": {
@@ -99,7 +99,7 @@
       "start": 0.1,
       "calibrated": null,
       "role": "report",
-      "worstPass": 0.3654,
+      "worstPass": 0.45,
       "bestFail": 0.1923
     }
   },
@@ -199,15 +199,14 @@
   },
   "calibration": {
     "gating": [
-      "partMiou",
-      "partMin",
-      "valueR",
       "colorMatch"
     ],
-    "gatingCount": 4,
+    "gatingCount": 1,
     "passLine": 4,
+    "markGates": true,
+    "walkScope": "all",
     "items": {
-      "pass-near": 35,
+      "pass-near": 30,
       "pass-real": 7,
       "fail-near": 18,
       "fail-far": 15,

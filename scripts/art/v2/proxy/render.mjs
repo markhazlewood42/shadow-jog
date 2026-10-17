@@ -225,8 +225,12 @@ export const cellOf = (t, x, y) => y * t.w + x;
 export const isOpaqueAt = (t, x, y) => x >= 0 && y >= 0 && x < t.w && y < t.h && t.id[y * t.w + x] !== null;
 export const opaqueCount = (t) => t.id.filter((v) => v !== null).length;
 
-/** Mirror a per-cell array of a 32x32 template left to right about the figure axis: x <-> axisSum - x (35 for an axis at x = 18). */
-export function mirrorCells(arr, axisSum = 35) {
+/**
+ * Mirror a per-cell array of a 32x32 template left to right about the figure axis: x <-> axisSum - x (35 for an axis at x = 18).
+ * axisSum has no default: take it from the spec with axisSumOf(spec). A default here would be a character constant in code (the 6a fault).
+ */
+export function mirrorCells(arr, axisSum) {
+  if (!Number.isFinite(axisSum)) throw new Error('mirrorCells needs the axis sum of the spec: axisSumOf(spec)');
   const out = Array.isArray(arr) ? Array(arr.length) : new arr.constructor(arr.length);
   for (let y = 0; y < SIZE; y++)
     for (let x = 0; x < SIZE; x++) {

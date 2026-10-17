@@ -39,6 +39,9 @@
 //   landmarks   { <name>: { part, at: [x,y,z], given: [x, y] } }
 //                 part      the part id the 3D point is anchored to; at is relative to that part's primitive centre (or to point a for capsules)
 //                 given     where this feature sits in the given frame, in cell coordinates (a cell centre is x + 0.5 in edge coordinates)
+//   structure   { height, heightTol, bottomRow, headAlone: [min, max], headAloneTol }   the structure hard lines of the plan (section 4) for this character:
+//                 figure height in rows and its tolerance, the bottom row, the allowed head-alone width and how far it may stray from the given. The checks and the fit guard read it.
+//                 Optional sideRows { head, shoulder, hem, feet } (row numbers) and sideBand (cells): the e landmark check against the battle idle (checks.mjs). Values from the v1 plan (stage B: +-2 band).
 //   folds       [ { part, from: [x,y,z], to: [x,y,z] } ]   a fold stroke from a support point toward the pull, in joint space of the part. At most 2 per part.
 //
 // Facings (yaw of the figure about Y, degrees): s 0, se 45, e 90, ne 135, n 180, nw 225, w 270, sw 315.
@@ -161,6 +164,9 @@ export function specProblems(raw) {
     if (!Array.isArray(it.parts) || it.parts.some((id) => !(id in parts))) p.push(`item ${n}: parts must list part ids`);
     if (it.side !== '-x' && it.side !== '+x') p.push(`item ${n}: side must be "-x" or "+x"`);
   }
+  const st = spec.structure;
+  if (!st || !isNum(st.height) || !isNum(st.heightTol) || !isNum(st.bottomRow) || !isNum(st.headAloneTol) || !isVec(st.headAlone, 2) || !(st.headAlone[0] <= st.headAlone[1])) p.push('structure must be { height, heightTol, bottomRow, headAlone: [min, max], headAloneTol }');
+  else if (st.sideRows !== undefined && (!Object.values(st.sideRows).every((v) => Number.isInteger(v) && v >= 0 && v < SIZE) || !isNum(st.sideBand))) p.push('structure.sideRows must map names to rows 0 to 31, and structure.sideBand must be a number');
   if (!spec.face || !(spec.face.joint in joints) || !isVec(spec.face.at)) p.push('face must be { joint, at: [x, y, z] }');
   for (const [n, lm] of Object.entries(spec.landmarks ?? {})) {
     if (!(lm.part in parts)) p.push(`landmark ${n}: part "${lm.part}" does not exist`);
@@ -183,6 +189,12 @@ export function validateSpec(spec) {
   return spec;
 }
 export const loadSpec = (path) => validateSpec(JSON.parse(readFileSync(path, 'utf8')));
+/** The structure hard-line numbers of a spec. Throws when the spec has none: there is no default, because a default is a character constant in code. */
+export function structureOf(spec) {
+  const st = spec?.structure;
+  if (!st || !Number.isFinite(st.height) || !Number.isFinite(st.bottomRow) || !Array.isArray(st.headAlone)) throw new SpecError(['spec.structure is missing: { height, heightTol, bottomRow, headAlone, headAloneTol }']);
+  return st;
+}
 export const partIds = (spec) => Object.keys(spec.parts);
 /** Yaw in degrees of a facing name at the default diagonal angle of 45. */
 export const yawOf = (facing) => {

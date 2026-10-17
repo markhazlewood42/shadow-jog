@@ -85,6 +85,8 @@ export function neighborhoodShare(a: Img, b: Img, tau?: number): number;
 export function colorMatch(cand: Img, ref: Img, tau?: number): { mean: number; candToRef: number; refToCand: number };
 export function signature(img: Img, k?: number): { lab: Lab; w: number }[];
 export function emd(a: { lab: Lab; w: number }[], b: { lab: Lab; w: number }[]): number;
+export const EMD_WORST: number;
+export const EMD_WORST: number;
 export function paletteEmd(a: Img, b: Img, k?: number): number;
 export function pck(
   candLm: Record<string, number[]>,
@@ -200,6 +202,7 @@ export interface Calibration {
   rows: (CalItem & MeasureResult)[];
   table: SeparationRow[];
   gating: string[];
+  markGates: boolean;
   hardLines: { line: string; id: string; failsShouldPass: string[]; catchesShouldFail: number; shouldFailTotal: number }[];
   lineRows: { id: string; group: string; pass: boolean; failed: string[]; items: LineItem[]; metrics: Record<string, { value: number; dir: 'min' | 'max'; limit: number | null }> }[];
   distinct: { n: number; min: { a: string; b: string; cells: number }; note: string };
@@ -214,8 +217,8 @@ export function rigFacing(facing: string): Img;
 export function buildCalibrationItems(opts?: { spec?: Spec; t1Dir?: string | null }): CalItem[];
 export function targetsFor(spec: Spec): Record<string, Target>;
 export function distinctCalibration(spec?: Spec): { n: number; min: { a: string; b: string; cells: number }; note: string };
-export function runCalibration(opts?: { spec?: Spec; gates?: Gates; t1Dir?: string | null; log?: (s: string) => void }): Calibration;
-export function formatReport(res: Calibration, gates: Gates, opts?: { date?: string }): string;
+export function runCalibration(opts?: { spec?: Spec; gates?: Gates; t1Dir?: string | null; autoLabels?: boolean; walkScope?: 'all' | 'head-torso'; log?: (s: string) => void }): Calibration;
+export function formatReport(res: Calibration, gates: Gates, opts?: { date?: string; auto?: Calibration | null; walkHT?: Calibration | null; autoHT?: Calibration | null }): string;
 export function writeGates(res: Calibration, gates: Gates, opts?: { date?: string; path?: string }): Gates;
 
 // grade.mjs
@@ -232,6 +235,7 @@ export interface Verdict {
   anchors: { name: string; composite: number; passCount: number; pass: boolean; beaten: boolean }[];
   targetPass: boolean;
   anchorsPass: boolean;
+  markGates: boolean;
   pass: boolean;
 }
 export function grade(

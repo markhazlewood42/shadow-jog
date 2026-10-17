@@ -4,7 +4,7 @@
 // Columns are cell coordinates: a cell x covers x to x+1, so "17.5" lies between columns 17 and 18.
 import { HEAD_PARTS, PARTS } from '../../pipeline/decompose.mjs';
 import { apply, dot, norm } from './math.mjs';
-import { cameraBasis, guideRows, project } from './render.mjs';
+import { axisSumOf, cameraBasis, guideRows, project } from './render.mjs';
 import { SIZE, resolveSpec } from './spec.mjs';
 
 const r1 = (v) => Math.round(v * 10) / 10;
@@ -117,7 +117,7 @@ export function buildCard(rawSpec, t) {
     const byLabel = Object.fromEntries(labels.map((l) => [l, cellsOf(t, [l])]));
     const all = labels.flatMap((l) => byLabel[l]);
     const cx = all.length ? all.reduce((s, c) => s + c[0], 0) / all.length : null;
-    return { name, side: it.side, cells: byLabel, picture: cx === null ? 'not visible' : cx < (headCenter ?? 17.5) ? 'left of the figure' : 'right of the figure' };
+    return { name, side: it.side, cells: byLabel, picture: cx === null ? 'not visible' : cx < (headCenter ?? axisSumOf(spec) / 2) ? 'left of the figure' : 'right of the figure' };
   });
   const fields = {
     facing: t.facing, yaw: t.yaw, pitchDeg: spec.camera.pitchDeg, light: { vector: spec.light.vector, words: lightWords(spec) },

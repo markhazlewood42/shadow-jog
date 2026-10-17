@@ -432,6 +432,15 @@
       "side": "-x"
     }
   },
+  "structure": {
+    "height": 31,
+    "heightTol": 1,
+    "bottomRow": 30,
+    "headAlone": [13,15],
+    "headAloneTol": 1,
+    "sideRows": { "head": 5, "shoulder": 14, "hem": 25, "feet": 29 },
+    "sideBand": 2
+  },
   "face": {
     "joint": "head",
     "at": [0,0.1,7.99]

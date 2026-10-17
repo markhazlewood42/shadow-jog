@@ -112,6 +112,9 @@ export function grade(candRaw, opts) {
       return { name: a.name, composite: ag.composite, passCount: ag.passCount, pass: ag.pass, beaten: g.composite > ag.composite && g.passCount >= ag.passCount };
     });
     verdict.targetPass = g.pass;
+    // Plan section 4: fewer than passMeasures gating measures means Mark gates the facing. A tool pass is then not a final pass.
+    verdict.markGates = g.gatingCount < (gates.passMeasures ?? 4);
+    if (verdict.markGates) verdict.notes.push(`Only ${g.gatingCount} of ${Object.keys(gates.targetMeasures).length} measures gate (the plan needs ${gates.passMeasures ?? 4}): Mark gates this facing (plan section 4).`);
   } else {
     // e and w: hard lines, BF1 against the proxy template, landmark PCK against s and ne.
     const need = gates.noReference.bf1Template;
@@ -122,6 +125,7 @@ export function grade(candRaw, opts) {
     verdict.target = { mode: 'no-reference', bf1Template: bf1, bf1Need: need, pckVsSAndNe: p.pck, pckDist: p.dist, pass: tpl && p.pck === 1, note: 'e and w have no reference. A G2 same-character pick against the given, and Mark, also gate.' };
     verdict.anchors = [];
     verdict.targetPass = verdict.target.pass;
+    verdict.markGates = true; // e and w have no reference: a G2 pick and Mark also gate
     if (!opts.template) verdict.notes.push('No template silhouette was given, so BF1 against the template cannot pass.');
   }
   verdict.anchorsPass = verdict.anchors.every((a) => a.beaten);
@@ -136,6 +140,7 @@ export function formatVerdict(v) {
     L.push(`  alignment: scale ${v.target.transform.s}, shift ${v.target.transform.dx},${v.target.transform.dy}`);
     for (const r of v.target.rows) L.push(`  ${r.role === 'gate' ? (r.pass ? 'pass  ' : 'FAIL  ') : 'report'} ${r.name}: ${r.value.toFixed(3)} (${r.dir === 'min' ? 'at least' : 'at most'} ${r.gate}${r.calibrated ? '' : ', start value, not calibrated'})`);
   } else L.push(`  no reference: BF1 vs template ${v.target.bf1Template === null ? 'n/a' : v.target.bf1Template.toFixed(3)} (need ${v.target.bf1Need}), PCK vs s and ne ${v.target.pckVsSAndNe.toFixed(2)}`);
+  if (v.markGates && v.target.mode === 'reference') L.push(`  note: ${v.notes[v.notes.length - 1]}`);
   for (const a of v.anchors) L.push(`  anchor ${a.name}: ${a.beaten ? 'beaten' : 'NOT beaten'} (anchor composite ${a.composite.toFixed(2)}, ${a.passCount} gates passed)`);
   return L.join('\n');
 }
