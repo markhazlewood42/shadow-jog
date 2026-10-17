@@ -590,6 +590,8 @@ describe('answerDecision and checkAnswer', () => {
         raisedBy: null, waitsOn: null, createdAt: '', answer: null, problem: null,
       },
       progress: { comment: null, labelsSwapped: false, closed: state !== 'open' },
+      ask: { needsInfo: false, pendingQuestion: null },
+      labels: ['decision'],
       staleDecided: false,
     });
     expect(checkAnswer(null, 'A', null)).toMatchObject({ ok: false, status: 404, code: 'decision-not-found' });

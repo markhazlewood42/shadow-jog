@@ -1,13 +1,14 @@
 import { OWNER, REPO } from '../github-api/queries';
-import type { AnswerExecutor, StepError } from '../server/decisions/answer-core';
-import { LABEL_DECIDED, LABEL_DECISION } from '../server/decisions/parse';
+import type { AnswerExecutor, AskExecutor, StepError } from '../server/decisions/answer-core';
+import { LABEL_DECIDED, LABEL_DECISION, LABEL_NEEDS_INFO } from '../server/decisions/parse';
 
 // The hosted executor of an answer (the local one is src/server/decisions/answer.ts, with `gh`). It writes through the REST API of GitHub, with the token of
-// Mark's account, and it can write exactly three things to exactly one issue of the one repository that is a constant of this code:
+// Mark's account, and it can write exactly these things to exactly one issue of the one repository that is a constant of this code:
 //
-//   1. POST   /repos/<repo>/issues/<n>/comments        { body }               the comment `Decision: <option>. <note>`
+//   1. POST   /repos/<repo>/issues/<n>/comments        { body }               the comment `Decision: <option>. <note>`, or `Question: <text>` (an Ask)
 //   2. the labels: DELETE .../labels/decided (only when another account put it on), POST .../labels { labels: ["decided"] }, DELETE .../labels/decision
 //   3. PATCH  /repos/<repo>/issues/<n>                 { state: "closed" }    the close
+//   4. the label of an ask: POST .../labels { labels: ["needs-info"] } (an Ask), DELETE .../labels/needs-info (step 0 of an answer)
 //
 // Every write goes through `ghWrite`, which checks the method, the path and the body against that list before it sends anything. It is the same idea as the allow-list
 // of the runner for `gh` (src/server/runner.ts): a bug elsewhere in the hosted code cannot write anything else, and cannot write to another repository or another issue.
@@ -43,8 +44,10 @@ export function isAllowedWrite(request: WriteRequest, number: number): boolean {
   const base = issuePath(number);
   const { method, path, body } = request;
   if (method === 'POST' && path === `${base}/comments`) return isRecord(body) && sameKeys(body, ['body']) && typeof body.body === 'string';
-  if (method === 'POST' && path === `${base}/labels`) return isRecord(body) && sameKeys(body, ['labels']) && Array.isArray(body.labels) && body.labels.length === 1 && body.labels[0] === LABEL_DECIDED;
-  if (method === 'DELETE' && (path === `${base}/labels/${LABEL_DECIDED}` || path === `${base}/labels/${LABEL_DECISION}`)) return body === undefined;
+  if (method === 'POST' && path === `${base}/labels`) return isRecord(body) && sameKeys(body, ['labels']) && Array.isArray(body.labels) && body.labels.length === 1 && (body.labels[0] === LABEL_DECIDED || body.labels[0] === LABEL_NEEDS_INFO);
+  if (method === 'DELETE' && (path === `${base}/labels/${LABEL_DECIDED}` || path === `${base}/labels/${LABEL_DECISION}` || path === `${base}/labels/${LABEL_NEEDS_INFO}`)) {
+    return body === undefined;
+  }
   if (method === 'PATCH' && path === base) return isRecord(body) && sameKeys(body, ['state']) && body.state === 'closed';
   return false;
 }
@@ -104,8 +107,8 @@ export type RestExecutorDeps = {
   remainingMs: () => number;
 };
 
-/** The hosted executor: the three writes, each through `ghWrite`. A step that the deadline cuts short fails with the code `deadline`, and a Retry resumes. */
-export function createRestExecutor(deps: RestExecutorDeps): AnswerExecutor {
+/** The hosted executor: the writes of an answer and of an Ask, each through `ghWrite`. A step that the deadline cuts short fails with the code `deadline`, and a Retry resumes. */
+export function createRestExecutor(deps: RestExecutorDeps): AnswerExecutor & AskExecutor {
   const { token, number, send, remainingMs } = deps;
   const base = issuePath(number);
 
@@ -124,6 +127,9 @@ export function createRestExecutor(deps: RestExecutorDeps): AnswerExecutor {
   }
 
   return {
+    // Step 0 of an answer: a label that is not on the issue (404) is off already.
+    unflag: () => write({ method: 'DELETE', path: `${base}/labels/${LABEL_NEEDS_INFO}` }, true),
+    flag: () => write({ method: 'POST', path: `${base}/labels`, body: { labels: [LABEL_NEEDS_INFO] } }),
     comment: (body) => write({ method: 'POST', path: `${base}/comments`, body: { body } }),
     async labels(clearDecided) {
       if (clearDecided) {

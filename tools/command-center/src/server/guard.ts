@@ -41,11 +41,11 @@ export function createHostGuard(port: number): MiddlewareHandler {
   };
 }
 
-/** The one path that may be written to: Mark's answer to a decision. */
-const ANSWER_PATH = /^\/api\/decisions\/\d+\/answer$/;
+/** The two paths that may be written to: Mark's answer to a decision, and his ask for more info on it. */
+const ANSWER_PATH = /^\/api\/decisions\/\d+\/(?:answer|ask)$/;
 
 /**
- * Answers 405 to every method except GET, with one exception: POST to the decision answer path.
+ * Answers 405 to every method except GET, with one exception: POST to the decision answer path or ask path.
  * The server is read-only, so a request that would change something is refused before any route
  * sees it. The `Allow` header of the refusal names the method that the path does take: POST for the
  * answer path, and GET for every other.

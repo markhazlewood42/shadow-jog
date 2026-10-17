@@ -2,7 +2,7 @@ import type { Context, Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { type AnswerErrorBody, type DecisionDetail, type DecisionIssue, type DecisionsInfo, MAX_NOTE_CHARS, type Panel } from '../../shared/types';
 import type { Config } from '../config';
-import { answerDecision, checkAnswer } from '../decisions/answer';
+import { answerDecision, askDecision, askText, checkAnswer, checkAsk } from '../decisions/answer';
 import { BAD_NOTE_CHARACTERS, MAX_ISSUE_NUMBER, MAX_OPTION_CHARS } from '../decisions/answer-core';
 import { readDecision } from '../decisions/module';
 import type { DocIndex } from '../docs/index';
@@ -16,7 +16,8 @@ import { createRefreshGate, registerPanelRoute } from './panel';
 //
 //   GET  /api/decisions            the Panel of the open decisions and the recent answers
 //   GET  /api/decisions/<n>        one decision, with the doc sections it links to, as the docs have them now
-//   POST /api/decisions/<n>/answer Mark's answer. The one write route of the command center.
+//   POST /api/decisions/<n>/answer Mark's answer.
+//   POST /api/decisions/<n>/ask    Mark's ask for more info: a `Question:` comment and the label `needs-info`. The issue stays open.
 //
 // The two reads take only a number from the request, never a path: the sections are looked up in the doc index by the
 // doc id and the heading id that the issue gave, and a lookup in a map of the index cannot reach a file.
@@ -63,6 +64,24 @@ async function readRequest(c: Context): Promise<{ option: string; note: string |
   if (note.length > MAX_NOTE_CHARS) return c.json(apiError('note-too-long', say('noteTooLong', { max: MAX_NOTE_CHARS })), 422);
   if (BAD_NOTE_CHARACTERS.test(note)) return c.json(apiError('bad-note', say('noteBadCharacter')), 422);
   return { option: body.option, note: note === '' ? null : note };
+}
+
+/** The question of an ask, or the answer to send back when the request is not one this route can take: `{ note }` of 1 to 2000 characters, and no `option`. */
+async function readAskRequest(c: Context): Promise<{ text: string } | Response> {
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json(apiError('bad-json', say('requestNotJson')), 400);
+  }
+  if (!isRecord(body)) return c.json(apiError('bad-request', say('requestAskNeedsText', { max: MAX_NOTE_CHARS })), 400);
+  if (body.option !== undefined) return c.json(apiError('bad-request', say('requestAskHasOption')), 422);
+  if (typeof body.note !== 'string') return c.json(apiError('bad-request', say('requestAskNeedsText', { max: MAX_NOTE_CHARS })), 422);
+  const text = askText(body.note);
+  if (text === '') return c.json(apiError('bad-request', say('requestAskNeedsText', { max: MAX_NOTE_CHARS })), 422);
+  if (text.length > MAX_NOTE_CHARS) return c.json(apiError('note-too-long', say('noteTooLong', { max: MAX_NOTE_CHARS })), 422);
+  if (BAD_NOTE_CHARACTERS.test(text)) return c.json(apiError('bad-note', say('noteBadCharacter')), 422);
+  return { text };
 }
 
 /** The decision in a Panel of the decisions, or null: from the data of a good panel, or from the last good data of a failed one. */
@@ -128,7 +147,9 @@ export function registerDecisionsRoutes(app: Hono, deps: DecisionsRoutesDeps): v
   // refuses the GET, so that the answer path says "405, use POST" for every other method.
   app.get('/api/decisions/:number/answer', (c) => c.json(apiError('method-not-allowed', say('answerNeedsPost')), 405, { Allow: 'POST' }));
 
-  // The numbers of the issues that an answer is writing to now. See the answer route.
+  app.get('/api/decisions/:number/ask', (c) => c.json(apiError('method-not-allowed', say('answerNeedsPost')), 405, { Allow: 'POST' }));
+
+  // The numbers of the issues that an answer (or an ask) is writing to now. See the answer route.
   const writing = new Set<number>();
 
   // Mark's answer. Everything that can make a write wrong is checked before the first write, in this order:
@@ -166,9 +187,49 @@ export function registerDecisionsRoutes(app: Hono, deps: DecisionsRoutesDeps): v
         const checked = checkAnswer(read, request.option, request.note);
         if (!checked.ok) return c.json(apiError(checked.code, checked.message), checked.status);
 
+        // The label `needs-info` comes off first when it is on the issue (step 0): `checked.from` says so.
         const result = await answerDecision({ config, runner, number, option: request.option, note: request.note, from: checked.from, ...(checked.clearDecided === true ? { clearDecided: true } : {}) });
         // A write was tried, so GitHub may have changed, also when a step failed: the earlier steps are on the issue. Look again now, so
         // that every page sees the answer (or the half answer) at once and does not wait for the next load a minute away.
+        await decisions.get(true);
+
+        if (result.ok) return c.json({ ok: true });
+        const failed: AnswerErrorBody = { ok: false, step: result.step, error: result.error };
+        return c.json(failed, 502);
+      } finally {
+        writing.delete(number);
+      }
+    },
+  );
+
+  // Mark's ask for more info. The same gates as the answer, in the same order (guard, body, one write at a time, a fresh read of the issue), and then two writes, from the first
+  // step that is not done: the `Question:` comment, and the label `needs-info`. The issue stays open, and no `Decision:` comment, no `decided` and no close is ever written.
+  app.post(
+    '/api/decisions/:number/ask',
+    createWriteGuard(token),
+    bodyLimit({ maxSize: MAX_BODY_BYTES, onError: (c) => c.json(apiError('too-large', say('requestTooLarge', { max: MAX_BODY_BYTES })), 413) }),
+    async (c) => {
+      const number = issueNumber(c.req.param('number'));
+      if (number === null) return c.json(apiError('not-found', say('noSuchDecision')), 404);
+      const request = await readAskRequest(c);
+      if (request instanceof Response) return request;
+
+      if (writing.has(number)) return c.json(apiError('answer-in-progress', say('answerInProgress', { number })), 409);
+      writing.add(number);
+      try {
+        let read: Awaited<ReturnType<typeof readDecision>>;
+        try {
+          read = await readDecision(config, runner, number);
+        } catch (error) {
+          if (error instanceof PanelError) return c.json(apiError(error.code, error.message), 502);
+          throw error;
+        }
+        const checked = checkAsk(read, request.text);
+        if (!checked.ok) return c.json(apiError(checked.code, checked.message), checked.status);
+        // `from` is null when the same question is asked and flagged already: nothing to write.
+        if (checked.from === null) return c.json({ ok: true });
+
+        const result = await askDecision({ config, runner, number, text: checked.text, from: checked.from });
         await decisions.get(true);
 
         if (result.ok) return c.json({ ok: true });

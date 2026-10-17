@@ -172,7 +172,7 @@ function checkGhApi(repo: string, args: string[]): Checked {
   return accept(args);
 }
 
-/** The three writes. Each is one exact shape, because a write is the one thing that must not drift. */
+/** The writes: a comment, an edit of labels, and a close. Each is one exact shape, because a write is the one thing that must not drift. */
 function checkGhComment(repo: string, args: string[]): Checked {
   // gh issue comment <number> --body <text>
   const [, , number, flag, body] = args;
@@ -186,12 +186,15 @@ function checkGhComment(repo: string, args: string[]): Checked {
 
 function checkGhEdit(repo: string, args: string[]): Checked {
   // gh issue edit <number> with the label swap decision -> decided, or with --remove-label decided alone (the answer takes a
-  // `decided` that another account put on off first, so that its own --add-label makes a new event), and nothing else
+  // `decided` that another account put on off first, so that its own --add-label makes a new event), or with --add-label needs-info
+  // alone (an Ask) or --remove-label needs-info alone (step 0 of an answer), and nothing else
   const [, , number, ...flags] = args;
   const add = ['--add-label', 'decided'];
   const remove = ['--remove-label', 'decision'];
   const clear = ['--remove-label', 'decided'];
-  if (!isNumber(number) || !(sameList(flags, [...add, ...remove]) || sameList(flags, [...remove, ...add]) || sameList(flags, clear))) {
+  const flag = ['--add-label', 'needs-info'];
+  const unflag = ['--remove-label', 'needs-info'];
+  if (!isNumber(number) || !(sameList(flags, [...add, ...remove]) || sameList(flags, [...remove, ...add]) || sameList(flags, clear) || sameList(flags, flag) || sameList(flags, unflag))) {
     return refuse(say('reasonEdit'));
   }
   return accept(['issue', 'edit', '--repo', repo, number, ...flags]);

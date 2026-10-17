@@ -176,10 +176,13 @@ export const MESSAGES = {
   requestTooLarge: 'The request is larger than {max} bytes.',
   noteTooLong: 'The note is longer than {max} characters. Shorten it.',
   noteBadCharacter: 'The note has a control character that cannot be sent.',
+  requestAskNeedsText: 'A question needs text in "note": 1 to {max} characters.',
+  requestAskHasOption: 'A question takes no "option".',
+  askNotDecision: 'Decision #{number} has no decision label, so it cannot take a question. Finish its answer first.',
 
   // ---- the server itself: guards, missing routes and files ----
   hostNotAllowed: 'This server only answers to localhost and 127.0.0.1 on its own port.',
-  readOnlyServer: 'This server only reads. The one write is the answer to a decision.',
+  readOnlyServer: 'This server only reads. The writes are the answer to a decision and the ask for more info.',
   writeNeedsToken: 'A write needs the token of this run. Reload the page.',
   writeCrossSite: 'A write must come from this site.',
   writeNeedsJson: 'A write must be JSON (Content-Type: application/json).',
@@ -208,7 +211,7 @@ export const MESSAGES = {
   reasonComment: 'a comment is exactly: issue comment <number> --body <text>',
   reasonCommentText: 'a comment needs text',
   reasonCommentLong: 'a comment is at most {max} characters',
-  reasonEdit: 'an edit must swap the label decision for decided, or remove decided',
+  reasonEdit: 'an edit must swap decision for decided, remove decided, or add or remove needs-info',
   reasonClose: 'a close is exactly: issue close <number>',
   reasonAuth: 'gh auth status takes no options',
   reasonNotOnList: 'gh {command} is not on the list',
