@@ -1,7 +1,7 @@
 import { Chip } from '@heroui/react';
-import { Check, CircleDot, ExternalLink, Info, Lock, Star } from 'lucide-react';
+import { Check, CircleDot, Clock, ExternalLink, Info, Lock, MessageSquareText, Star } from 'lucide-react';
 import { type ReactNode, useId } from 'react';
-import type { DecisionIssue } from '../../shared/types';
+import type { DecisionIssue, DecisionThreadEntry } from '../../shared/types';
 
 // The pieces of a decision page that show what the issue says. Every word that comes from the issue (its
 // title, the question, the options, the notes) is text that GitHub holds and that any account could have
@@ -33,7 +33,7 @@ export function Notice({ children }: { children: ReactNode }) {
 }
 
 /** A link to the issue on GitHub. It opens in a new tab, so the icon says that it leaves the site. */
-function IssueLink({ url, className = '', children }: { url: string; className?: string; children: ReactNode }) {
+export function IssueLink({ url, className = '', children }: { url: string; className?: string; children: ReactNode }) {
   return (
     <a href={url} target="_blank" rel="noreferrer" className={`inline-flex items-center gap-1 text-cc-link underline underline-offset-2 cc-focus-ring ${className}`}>
       {children}
@@ -60,6 +60,24 @@ function StateChip({ issue }: { issue: DecisionIssue }) {
       </Chip>
     );
   }
+  // Asked for more info: it waits for a session, not for Mark.
+  if (issue.phase === 'needs-info' || issue.phase === 'needs-info-empty') {
+    return (
+      <Chip size="sm" className="gap-1 border border-cc-rule-solid">
+        <Clock aria-hidden className="size-3" />
+        <Chip.Label>Waiting for info</Chip.Label>
+      </Chip>
+    );
+  }
+  // A session answered Mark's question: he can decide now.
+  if (issue.phase === 'info-posted') {
+    return (
+      <Chip color="accent" variant="primary" size="sm" className="gap-1">
+        <MessageSquareText aria-hidden className="size-3" />
+        <Chip.Label>More info posted</Chip.Label>
+      </Chip>
+    );
+  }
   // Open: it waits for Mark. Amber, as the open decisions are on the list of the engine decisions.
   return (
     <Chip color="accent" variant="primary" size="sm" className="gap-1">
@@ -75,6 +93,44 @@ export function SectionLabel({ children }: { children: ReactNode }) {
     <h2 className="text-xs font-medium tracking-wide text-cc-soft uppercase">
       {children}
     </h2>
+  );
+}
+
+/** What a thread comment is called on the page. A `Decision:` comment is the ask point of a backfilled decision: Mark's note from the answer that was reopened. */
+const THREAD_LABEL: Record<DecisionThreadEntry['kind'], string> = {
+  question: 'Your question',
+  info: 'Info posted',
+  decision: 'Your note from the earlier answer',
+};
+
+/**
+ * The thread of the ask for more info: the ask point and the later questions and infos, oldest first. Every word is the text of a comment and is put into the page as text: a link
+ * shows as its address, so an `Info:` that points at a committed picture does not make a live link, and markup shows as the characters. A comment over 4000 characters is cut, with a link to the rest on GitHub.
+ */
+export function AskThread({ issue }: { issue: DecisionIssue }) {
+  const thread = issue.thread ?? [];
+  if (thread.length === 0) return null;
+  return (
+    <section className="flex flex-col gap-3">
+      <SectionLabel>Questions and info</SectionLabel>
+      <ol aria-label="Questions and info" className="flex flex-col gap-2">
+        {thread.map((entry, index) => (
+          // A thread is made again as a whole, so the place in it is the key.
+          <li key={`${index}:${entry.kind}:${entry.at}`} className="flex flex-col gap-1 rounded-md border border-cc-rule bg-cc-paper px-4 py-3">
+            <p className="flex flex-wrap items-baseline gap-x-2 text-xs text-cc-soft">
+              <span className="font-medium tracking-wide uppercase">{THREAD_LABEL[entry.kind]}</span>
+              {entry.at !== '' && <time dateTime={entry.at}>{dayOf(entry.at)}</time>}
+            </p>
+            <p className="break-words whitespace-pre-line">{entry.text}</p>
+            {entry.cut && issue.url !== '' && (
+              <p className="text-sm">
+                <IssueLink url={issue.url}>Read the rest on GitHub</IssueLink>
+              </p>
+            )}
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }
 
@@ -172,6 +228,9 @@ export function DecisionCard({ issue }: { issue: DecisionIssue }) {
       </header>
 
       {issue.problem !== null && <Notice>{issue.problem}</Notice>}
+      {issue.state === 'open' && issue.phase === 'needs-info' && <Notice>You asked for more info. A session will answer on the issue.</Notice>}
+      {issue.state === 'open' && issue.phase === 'needs-info-empty' && <Notice>Waiting for info: no question found. A session will remove the label.</Notice>}
+      {issue.state === 'open' && issue.phase === 'info-posted' && <Notice>More info posted. Read it below, then answer or ask again.</Notice>}
       {halfAnswer && issue.answer !== null && (
         <Notice>The comment for option {issue.answer.option} is on GitHub. The issue is still open. Send the answer to finish.</Notice>
       )}

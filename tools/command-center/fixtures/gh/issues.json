@@ -1,7 +1,8 @@
 {
   "labels": [
     "decision",
-    "decided"
+    "decided",
+    "needs-info"
   ],
   "issues": [
     {
