@@ -43,6 +43,18 @@ The box closes **2026-10-24**, whatever state the spike is in. Round caps (below
 - **Anything else** (for example the box closes before step 4) is NO-GO or ABANDONED. Mark makes that call.
 - **A second answer (it does not gate GO).** The agreement between the graders and Mark on at least 10 pairwise picks. At 70 percent or more, graders can gate later art loops, with Mark at the checkpoints only. Below 70 percent, Mark stays the gate, and each miss goes into the pack's calibration set. Ten picks is a small sample, so the record states the count with the rate.
 
+### Amendment 1 (Mark, 2026-10-17, before any v2 code)
+
+Mark chose plan v2 option A: amend this spike and run v2 inside the box, with the code-built proxy (medium C). Plan: `rook-turnaround/art-pipeline-plan-v2.md` at commit 9c3ad8b.
+
+- The GO and NO-GO lines above stay. These lines are added to them.
+- **Hard lines.** Every new facing also passes the hard lines of plan v2 section 4. The head-alone width is 13 to 15 px (the given is 14, within 1 px). Height stays 31 plus or minus 1, and the shoulder and hip rows stay within 1 px of the given.
+- **Target gates.** Every new facing passes the target measures of plan v2 section 4 against the matching Sprite Fusion reference (s, n, ne, nw, sw), after alignment, on opaque cells only. The thresholds come from the calibration set in section 4, committed before round 1. A facing with no reference (e, w) passes the section 4 no-reference gates (BF1 at least 0.90 against the proxy template, landmark PCK against s and ne) and the section 7 template check against the battle idle (head, shoulder, hem and feet rows), and Mark gates it.
+- **Distance to the target only.** No verdict compares a candidate with an earlier round (PA-CM-01).
+- **Clean Rook (Mark, Q2).** A reference score never changes Rook's proxy spec or structure card. Writers never see the references or the 6a truth.
+- **Regression.** T1 (the 6a boxes, two arms) runs before round 1, with the pass lines of plan v2 section 7.
+- **Strategy change, not stop.** A failed line leads to the change lines of plan v2 section 7 and a new round within the round caps of plan v2 section 5. This amends the NO-GO list for the cap case: when a NO-GO trigger holds after the caps, the case goes to Mark, who chooses NO-GO or a new strategy round. The NO-GO list otherwise stands (Mark, 2026-10-17, recorded in the workstream file: keep iterating on everything).
+
 ## Steps
 
 0. **Measure the target.** Unzip the walk sheet to the git-ignored `media/rook-turnaround/`. Pick the given frame. Write the target numbers to `docs/spikes/rook-turnaround/target.json`: the walk palette, the near-black colors, body height, head width, outline ratio and cluster-size spread. The battle idle (`public/art/crew/rook/idle/`, 79x68, facing right) is the design reference for the side facing. It has its own 22 colors and shares none with the walk palette, so the checker takes the palette for each asset. Height and head-width checks compare 32x32 frames only.

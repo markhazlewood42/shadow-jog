@@ -157,3 +157,11 @@ Opus consult (dispatch named per Mark's standing approval) wrote `art-pipeline-p
 | 3 | One sentence: every arm 2 input from the given uses the blanked given; Haiku fix verifier | | PASS | Minor: arm 1 inputs stated (done) |
 
 Open for Mark (plan section 8): Q1 spike frame (amend this spike or a new spike doc) and the proxy (approve, or path B); Q2 reference-informed fixes for Rook (yes or no). Both block work.
+
+**Mark's answers (2026-10-17).** Q1: amend this spike (Option A), keep draft PR #142, and use the proxy (path A). Q2: no. Keep Rook clean: a reference score never changes Rook's proxy spec or structure card. Next: amend the spike exit criteria (committed before any T0 code), then T0 tools under the lean loop.
+
+| Round | What changed | Numbers | Verdict | Named fixes |
+|---|---|---|---|---|
+| Amendment 1, r1 | Spike doc "Amendment 1" (Q1 option A with the proxy, Q2 clean Rook); Haiku verifier | | FAIL (3 Important) | Battle-idle check is in section 7, not 4; NO-GO wording; round caps |
+| Amendment 1, r2 | Fixes on 3 lines | | FAIL (1 Important) | State that the cap case amends the NO-GO list |
+| Amendment 1, r3 | The verifier's exact sentence applied | | PASS (exact fix text) | |
