@@ -121,7 +121,7 @@ describe('pixlint hard lines (just inside passes, just past fails)', () => {
 
   it('PA-04 lists every orphan with x,y and tags head-area and outline orphans', () => {
     const img = newImage(32, 32);
-    const pts = Array.from({ length: 12 }, (_, i) => [2 + 2 * i, 5]);
+    const pts = Array.from({ length: 12 }, (_, i): [number, number] => [2 + 2 * i, 5]);
     for (const [x, y] of pts) img.data.set(INK, (y * 32 + x) * 4);
     const detail = run(img).find((i) => i.id === 'PA-04')?.detail ?? '';
     for (const [x, y] of pts) expect(detail).toContain(`${x},${y}HO`);
@@ -132,7 +132,7 @@ describe('pixlint hard lines (just inside passes, just past fails)', () => {
     const many = (n: number) => {
       const img = newImage(40, 1);
       const colors = Array.from({ length: n }, (_, i) => `#${(i + 16).toString(16).padStart(2, '0')}0000`);
-      colors.forEach((c, i) => img.data.set(rgb(c), i * 4));
+      for (const [i, c] of colors.entries()) img.data.set(rgb(c), i * 4);
       return { img, colors };
     };
     const at = (n: number, withRef: boolean) => {
