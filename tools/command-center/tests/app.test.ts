@@ -64,7 +64,7 @@ describe('the address rules', () => {
     const body = await (await app.request('/api/health', { method: 'DELETE', headers: { host } })).json();
     expect(body).toMatchObject({ ok: false, error: { code: 'method-not-allowed' } });
 
-    // The one write route is let through to the router. (Until the decisions task adds the route
+    // The answer write route (one of the two, with ask) is let through to the router. (Until the decisions task adds the route
     // it answers 404; what matters here is that the method gate does not turn it away.)
     const answer = await app.request('/api/decisions/12/answer', { method: 'POST', headers: { host } });
     expect(answer.status).not.toBe(405);
