@@ -1,0 +1,143 @@
+{
+ "facing": "n",
+ "source": "spritefusion-tests/rook-8d-ref/n.png",
+ "size": [
+  33,
+  33
+ ],
+ "method": [
+  "First pass: parts.mjs autoLabel (color class plus position in the opaque box), frozen in autoRows.",
+  "Hand edits from label-edits.json, applied in order (listed in edits). Made by reading the 16x label viewer and the ASCII class map.",
+  "Landmarks computed by parts.mjs landmarksOf from rows, then landmarkEdits.",
+  "Sleeves are not separated from the coat here: the auto pass labels both as coat, and the mIoU groups merge them anyway."
+ ],
+ "autoRows": [
+  ".............HHHHHH..............",
+  "...........HHHHHHHHH.............",
+  "..........HHHHHHHHHHH............",
+  ".........HHHHHHHHHHHHH...........",
+  ".........HHHHHHHHHHHHHH..........",
+  ".........HHHHHHHHHHHHHH..........",
+  "........HHHHHHHHHHHHHH...........",
+  "........HHHHHHHHHHHHHH...........",
+  ".........HHHHHHHHHHHHH.UUU.......",
+  ".........HHHHHHHHHHHHLLUUU.......",
+  ".........HHHHHHHHHHHH.LUU........",
+  "...........HHHHHHHHH.LLLU........",
+  "..........CCCCCCCCCCKKLL.........",
+  ".........CCCCCCCCCCCLKK..........",
+  ".........CCCCCCCCCCCLUU..........",
+  "........CCCCCCCCCCCKUUCC.........",
+  "........CCCCCCCCCCKKKCCC.........",
+  "........CCCCCCCCCKKKCCCC.........",
+  ".......CCCCCCCCCKKKCCCCCC........",
+  ".......CCCCCCCCCKKCCCCCCC........",
+  ".......CCCCCCCCNNCCCCCCCC........",
+  ".......CCCCCCCNNNCCCCCCCC........",
+  ".......NNNCCCCNNCCCCCCNNN........",
+  ".......NNNNCCNNCCCCCCCNNN........",
+  "........NNNCCNCCCCCCCCNN.........",
+  ".........NCCCCCCCCCCCCN..........",
+  ".........CCCCCCCCCCCCCC..........",
+  "..........CCCCCCCCCCCC...........",
+  "..........GGGGG.GGGGGG...........",
+  ".........GGGGGG..GGGGG...........",
+  ".........TTTTT...TTTTTT..........",
+  "........TTTTTT...TTTTTT..........",
+  "........TTTTTT...TTTTTT.........."
+ ],
+ "edits": [
+  {
+   "box": [
+    19,
+    7,
+    26,
+    16
+   ],
+   "part": "guard",
+   "from": [
+    "lenses"
+   ],
+   "why": "n has no face. The orange cells right of the head are the brass guard and handle of the katana"
+  },
+  {
+   "box": [
+    12,
+    18,
+    19,
+    25
+   ],
+   "part": "sheath",
+   "from": [
+    "hands"
+   ],
+   "why": "the dark brown diagonal across the back is the sheath. The hand rule took it for cuffs"
+  }
+ ],
+ "landmarkEdits": {},
+ "rows": [
+  ".............HHHHHH..............",
+  "...........HHHHHHHHH.............",
+  "..........HHHHHHHHHHH............",
+  ".........HHHHHHHHHHHHH...........",
+  ".........HHHHHHHHHHHHHH..........",
+  ".........HHHHHHHHHHHHHH..........",
+  "........HHHHHHHHHHHHHH...........",
+  "........HHHHHHHHHHHHHH...........",
+  ".........HHHHHHHHHHHHH.UUU.......",
+  ".........HHHHHHHHHHHHUUUUU.......",
+  ".........HHHHHHHHHHHH.UUU........",
+  "...........HHHHHHHHH.UUUU........",
+  "..........CCCCCCCCCCKKUU.........",
+  ".........CCCCCCCCCCCUKK..........",
+  ".........CCCCCCCCCCCUUU..........",
+  "........CCCCCCCCCCCKUUCC.........",
+  "........CCCCCCCCCCKKKCCC.........",
+  "........CCCCCCCCCKKKCCCC.........",
+  ".......CCCCCCCCCKKKCCCCCC........",
+  ".......CCCCCCCCCKKCCCCCCC........",
+  ".......CCCCCCCCKKCCCCCCCC........",
+  ".......CCCCCCCKKKCCCCCCCC........",
+  ".......NNNCCCCKKCCCCCCNNN........",
+  ".......NNNNCCKKCCCCCCCNNN........",
+  "........NNNCCKCCCCCCCCNN.........",
+  ".........NCCCCCCCCCCCCN..........",
+  ".........CCCCCCCCCCCCCC..........",
+  "..........CCCCCCCCCCCC...........",
+  "..........GGGGG.GGGGGG...........",
+  ".........GGGGGG..GGGGG...........",
+  ".........TTTTT...TTTTTT..........",
+  "........TTTTTT...TTTTTT..........",
+  "........TTTTTT...TTTTTT.........."
+ ],
+ "landmarks": {
+  "crown": [
+   15.5,
+   0
+  ],
+  "hand1": [
+   8.55,
+   23.18
+  ],
+  "hand2": [
+   22.78,
+   23.11
+  ],
+  "hem": [
+   15.5,
+   27
+  ],
+  "heel1": [
+   10.5,
+   32
+  ],
+  "heel2": [
+   19.5,
+   32
+  ],
+  "itemTop": [
+   24,
+   8
+  ]
+ }
+}

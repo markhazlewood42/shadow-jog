@@ -1,0 +1,145 @@
+{
+ "facing": "ne",
+ "source": "spritefusion-tests/rook-8d-ref/ne.png",
+ "size": [
+  32,
+  32
+ ],
+ "method": [
+  "First pass: parts.mjs autoLabel (color class plus position in the opaque box), frozen in autoRows.",
+  "Hand edits from label-edits.json, applied in order (listed in edits). Made by reading the 16x label viewer and the ASCII class map.",
+  "Landmarks computed by parts.mjs landmarksOf from rows, then landmarkEdits.",
+  "Sleeves are not separated from the coat here: the auto pass labels both as coat, and the mIoU groups merge them anyway."
+ ],
+ "autoRows": [
+  ".............HHHHH..............",
+  "...........HHHHHHHHH............",
+  "..........HHHHHHHHHHHH..........",
+  ".........HHHHHHHHHHHHH..........",
+  "........HHHHHHHHHHHHHHH.........",
+  "........HHHHHHHHHHHHHHH.........",
+  ".......HHHHHHHHHHHHHHH..........",
+  ".......HHHHHHHHHHHHHHH..........",
+  "........HHHHHHHHHHHFHH..........",
+  ".........HHHHHHHHHLFHH..........",
+  "..........HHHHHHHHHFHF..........",
+  ".......UUUHHHHHHHHFHH...........",
+  ".......UUUCCCCCCCCHHH...........",
+  "........UKCCCCCCCCCHH...........",
+  "........KKKUCCCCCCCCCC..........",
+  "........KUUUUCCCCCCCCC..........",
+  "........CUUKCCCCCCCCCC..........",
+  ".......CCCKKKCCCCCCCCCC.........",
+  ".......CCCCKKKCCCCCCCCC.........",
+  ".......CCCCCKNCCCCCCCCC.........",
+  ".......CCCCCNNNCCCCCCCC.........",
+  ".......CCCCCCNNNCCCCNNNN........",
+  ".......NNCCCCCNNNCCCNNNN........",
+  ".......NNNCCCCCNNCCCNNNN........",
+  ".........NCCCCCCCCCCCNN.........",
+  ".........CCCCCCCCCCCCC..........",
+  ".........CCCCCCCCCCCC...........",
+  "..........GGGGGGGGGGG...........",
+  ".........GGGGG.GGGGGG...........",
+  ".........TTTTTT.TTTTTT..........",
+  ".........TTTTTT.TTTTTTT.........",
+  ".........TTTTTT.TTTTTTT........."
+ ],
+ "edits": [
+  {
+   "box": [
+    11,
+    17,
+    18,
+    25
+   ],
+   "part": "sheath",
+   "from": [
+    "hands"
+   ],
+   "why": "sheath diagonal over the coat, taken for cuffs by the hand rule"
+  },
+  {
+   "cells": [
+    [
+     18,
+     9
+    ]
+   ],
+   "part": "skin",
+   "from": [
+    "lenses"
+   ],
+   "why": "dark orange shading on the near cheek, not a lens. ne shows no lens"
+  }
+ ],
+ "landmarkEdits": {},
+ "rows": [
+  ".............HHHHH..............",
+  "...........HHHHHHHHH............",
+  "..........HHHHHHHHHHHH..........",
+  ".........HHHHHHHHHHHHH..........",
+  "........HHHHHHHHHHHHHHH.........",
+  "........HHHHHHHHHHHHHHH.........",
+  ".......HHHHHHHHHHHHHHH..........",
+  ".......HHHHHHHHHHHHHHH..........",
+  "........HHHHHHHHHHHFHH..........",
+  ".........HHHHHHHHHFFHH..........",
+  "..........HHHHHHHHHFHF..........",
+  ".......UUUHHHHHHHHFHH...........",
+  ".......UUUCCCCCCCCHHH...........",
+  "........UKCCCCCCCCCHH...........",
+  "........KKKUCCCCCCCCCC..........",
+  "........KUUUUCCCCCCCCC..........",
+  "........CUUKCCCCCCCCCC..........",
+  ".......CCCKKKCCCCCCCCCC.........",
+  ".......CCCCKKKCCCCCCCCC.........",
+  ".......CCCCCKKCCCCCCCCC.........",
+  ".......CCCCCKKKCCCCCCCC.........",
+  ".......CCCCCCKKKCCCCNNNN........",
+  ".......NNCCCCCKKKCCCNNNN........",
+  ".......NNNCCCCCKKCCCNNNN........",
+  ".........NCCCCCCCCCCCNN.........",
+  ".........CCCCCCCCCCCCC..........",
+  ".........CCCCCCCCCCCC...........",
+  "..........GGGGGGGGGGG...........",
+  ".........GGGGG.GGGGGG...........",
+  ".........TTTTTT.TTTTTT..........",
+  ".........TTTTTT.TTTTTTT.........",
+  ".........TTTTTT.TTTTTTT........."
+ ],
+ "landmarks": {
+  "crown": [
+   15,
+   0
+  ],
+  "chin": [
+   18,
+   11
+  ],
+  "hand1": [
+   8,
+   22.83
+  ],
+  "hand2": [
+   21.5,
+   22.29
+  ],
+  "hem": [
+   14.5,
+   26
+  ],
+  "heel1": [
+   11.5,
+   31
+  ],
+  "heel2": [
+   19,
+   31
+  ],
+  "itemTop": [
+   8,
+   11
+  ]
+ }
+}
