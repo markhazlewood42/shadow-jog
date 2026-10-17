@@ -62,7 +62,7 @@ def build_meshes():
     """All parts at the rest pose. Returns {name: object}."""
     o = {}
     # head (bone 'head')
-    o["hair"] = ball("hair", "hair", "head", (0, 0.24, 2.62), (0.74, 0.6, 0.64))
+    o["hair"] = ball("hair", "hair", "head", (0, 0.24, 2.62), (0.72, 0.58, 0.64))
     o["face"] = ball("face", "skin", "head", (0, -0.1, 2.28), (0.54, 0.52, 0.56))
     o["beard"] = ball("beard", "beard", "head", (0, -0.28, 2.0), (0.42, 0.36, 0.3))
     o["glasses"] = box("glasses", "lenses", "head", (0, -0.6, 2.38), (0.86, 0.14, 0.28), bevel=0.04)
@@ -252,7 +252,7 @@ def battle_specs(rig):
         "thigh.L": [("x", 36), ("z", 14)], "shin.L": [("x", -36)],
         "thigh.R": [("x", -56), ("z", -10)], "shin.R": [("x", 62)],
     }
-    out["downSwing"] = (stance2, (0.0, -1.1, 1.15), (0.0, -0.9, -0.44))
+    out["downSwing"] = (stance2, (0.0, -0.8, 1.35), (0.0, -0.62, -0.78))
     return out
 
 

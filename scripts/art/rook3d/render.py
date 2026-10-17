@@ -31,6 +31,8 @@ FIELD = {"size": 32, "margin": 8, "pitch": 20.0, "target_h": 31}
 BATTLE = {"w": 79, "h": 68, "pitch": 16.0, "yaw": 72.0, "ppu": 19.0, "origin": (39, 62)}
 TOON = (0.30, 0.66)  # light value thresholds between dark/mid and mid/light
 AMBIENT = 0.12
+BAYER = ((-0.375, 0.125), (0.375, -0.125))  # 2x2 ordered dither, added to the light value before the toon thresholds
+DITHER = {"hair": 0.2, "beard": 0.2, "coat": 0.16, "sleeves": 0.16, "legs": 0.12}  # texture pass (round 3): amplitude per part
 LIGHT_DIR = Vector((0.5, -0.45, 0.75)).normalized()  # toward the light, in camera-rig space (x right, -y toward the camera)
 
 
@@ -184,7 +186,7 @@ def compose(idpass, lightpass, ramps):
             p = labels[y][x]
             if not p:
                 continue
-            v = min(1.0, lit[y][x][0] / 255.0 + AMBIENT)
+            v = min(1.0, lit[y][x][0] / 255.0 + AMBIENT) + BAYER[y & 1][x & 1] * DITHER.get(p, 0.0)
             out[y][x] = hexrgb(ramps[p][toon_step(v)]) + (255,)
     return out, labels
 
@@ -249,8 +251,8 @@ def main():
     S, M = FIELD["size"], FIELD["margin"]
     big = S + 2 * M
     focus = (0, 0, 1.6)
-    manifest = {"pitch": FIELD["pitch"], "light": list(LIGHT_DIR), "toon": list(TOON), "ppu": {}, "frames": [], "katana_cam_x": {}}
-    kat = Vector((((0.65 - 0.75 - 1.3) / 3.0), 0.62, ((0.85 + 2.25 + 2.8) / 3.0)))
+    manifest = {"pitch": FIELD["pitch"], "light": list(LIGHT_DIR), "toon": list(TOON), "ppu": {}, "frames": [], "hilt_cam_x": {}}
+    kat = Vector((((-0.75 - 1.3) / 2.0), 0.62, 0.0))  # the hilt (guard and wrap) of the back katana, over Rook's right shoulder
 
     for facing, yaw in FACINGS.items():
         # fit: the pixels-per-unit that makes this facing's passing pose 31 px tall (found per facing, the same for its 4 frames)
@@ -261,7 +263,7 @@ def main():
             ppu = ppu * FIELD["target_h"] / (bb[3] - bb[1] + 1)
         manifest["ppu"][facing] = round(ppu, 4)
         a = math.radians(yaw)
-        manifest["katana_cam_x"][facing] = round((kat.x * math.cos(a) - kat.y * math.sin(a)) * ppu, 3)
+        manifest["hilt_cam_x"][facing] = round((kat.x * math.cos(a) - kat.y * math.sin(a)) * ppu, 3)
         for i, f in enumerate(frames["walk"]):
             rows, labs = shoot(f, yaw, FIELD["pitch"], ppu, (big, big), focus, "walk", True, False, "f")
             bb = bbox(labs)

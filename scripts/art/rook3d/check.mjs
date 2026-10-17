@@ -18,7 +18,7 @@ if (!dir) throw new Error('usage: check.mjs <out dir> [--json file]');
 const manifest = JSON.parse(readFileSync(`${dir}/manifest.json`, 'utf8'));
 const target = readTarget();
 const spec = loadSpec();
-const KATANA = new Set(['sheath', 'guard', 'wrap']);
+const HILT = new Set(['guard', 'wrap']); // the sheath is often hidden behind the body; the hilt over the right shoulder shows in most facings
 
 const sha = (p) => createHash('sha256').update(readFileSync(p)).digest('hex').slice(0, 16);
 const byName = (items, id, rx) => items.find((i) => i.id === id && (!rx || rx.test(i.name)));
@@ -67,14 +67,14 @@ for (const f of manifest.frames) {
       lines: res.items.map((i) => `${i.status === 'pass' ? '+' : i.status === 'fail' ? 'FAIL' : '.'} ${i.id} ${i.name}: ${i.value}`),
       failed: res.items.filter((i) => i.status === 'fail').map((i) => `${i.id} ${i.name}: ${i.value}`),
     });
-    // katana side: the pixel centroid of the katana parts against the 3D prediction (camera x of the katana centroid, px from the body axis)
+    // katana side: the pixel centroid of the hilt against the 3D prediction (camera x of the hilt, px from the body axis)
     const ks = [];
-    for (let i = 0; i < labels.length; i++) if (KATANA.has(labels[i])) ks.push(i % 32);
+    for (let i = 0; i < labels.length; i++) if (HILT.has(labels[i])) ks.push(i % 32);
     if (ks.length) {
       const cx = ks.reduce((a, v) => a + v, 0) / ks.length + 0.5 - 16;
-      const pred = manifest.katana_cam_x[f.facing];
+      const pred = manifest.hilt_cam_x[f.facing];
       row.katana = { px: ks.length, centroidX: Number(cx.toFixed(2)), predictedX: pred, agree: Math.abs(pred) < 1 || Math.sign(pred) === Math.sign(cx) };
-    } else row.katana = { px: 0, centroidX: null, predictedX: manifest.katana_cam_x[f.facing], agree: null };
+    } else row.katana = { px: 0, centroidX: null, predictedX: manifest.hilt_cam_x[f.facing], agree: null };
   } else {
     const lint = lintFrame(img, { palette: target.battleIdle.palette, ref: null, ranges: null, facing: false });
     const get = (id, rx) => lint.find((i) => i.id === id && rx.test(i.name));
@@ -106,6 +106,6 @@ for (const fc of [...new Set(gates.map((r) => r.facing))]) {
 }
 console.log('\nfailed lines');
 for (const r of rows) if (r.failed.length) console.log(`${r.name}: ${r.failed.join(' ; ')}`);
-console.log('\nkatana side (pixel centroid x from the body axis, predicted x from the 3D model)');
+console.log('\nkatana side (hilt pixel centroid x from the body axis, predicted x from the 3D model)');
 for (const r of rows) if (r.katana) console.log(`${r.name}: ${r.katana.px} px, centroid ${r.katana.centroidX}, predicted ${r.katana.predictedX}, agree ${r.katana.agree}`);
 if (jsonOut) writeFileSync(jsonOut, `${JSON.stringify(rows, null, 1)}\n`);

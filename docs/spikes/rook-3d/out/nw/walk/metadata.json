@@ -1,0 +1,12 @@
+{
+  "type": "animation",
+  "prompt": "Rook from a 3D model, facing nw, 4-frame walk (frame 0 is the passing pose), rendered by scripts/art/rook3d",
+  "width": 128,
+  "height": 32,
+  "frame_w": 32,
+  "frame_h": 32,
+  "frame_count": 4,
+  "fps": 8,
+  "preview": "preview-8x.png",
+  "spritesheet": "spritesheet.png"
+}

@@ -1,0 +1,116 @@
+frame | off-palette | half-alpha | outline | height | bottom | head | orphans | gate (exit line 1) | all checker lines | hash
+s_walk0 | 0 off-palette colors | 0 px | 100.0% of 112 edge px | 31 | 30 | 14 | 10 | yes | NO | 74d96302f0d511d4
+s_walk1 | 0 off-palette colors | 0 px | 100.0% of 107 edge px | 31 | 30 | 14 | 7 | yes | NO | be649033e3b5097c
+s_walk2 | 0 off-palette colors | 0 px | 100.0% of 112 edge px | 31 | 30 | 14 | 11 | yes | NO | 3a911fbc624d0a35
+s_walk3 | 0 off-palette colors | 0 px | 100.0% of 107 edge px | 31 | 30 | 14 | 7 | yes | NO | 0024a6b14e174849
+se_walk0 | 0 off-palette colors | 0 px | 100.0% of 96 edge px | 31 | 30 | 13 | 17 | yes | NO | 58abd166ceba7a5f
+se_walk1 | 0 off-palette colors | 0 px | 100.0% of 98 edge px | 30 | 30 | 14 | 20 | yes | NO | 2dfeb8e52352837e
+se_walk2 | 0 off-palette colors | 0 px | 100.0% of 92 edge px | 30 | 30 | 13 | 18 | yes | NO | 273ae9b209026d07
+se_walk3 | 0 off-palette colors | 0 px | 100.0% of 103 edge px | 30 | 30 | 14 | 17 | yes | NO | 3f3b5abaf49d03ea
+e_walk0 | 0 off-palette colors | 0 px | 100.0% of 74 edge px | 31 | 30 | 14 | 6 | yes | NO | 9c15303d8fb6bbfa
+e_walk1 | 0 off-palette colors | 0 px | 100.0% of 79 edge px | 31 | 30 | 14 | 10 | yes | NO | f6c7116bc0a01cba
+e_walk2 | 0 off-palette colors | 0 px | 100.0% of 75 edge px | 31 | 30 | 14 | 7 | yes | NO | 113110d5dadbb57b
+e_walk3 | 0 off-palette colors | 0 px | 100.0% of 88 edge px | 31 | 30 | 14 | 12 | yes | NO | 443e33ee42c174d1
+ne_walk0 | 0 off-palette colors | 0 px | 100.0% of 82 edge px | 30 | 30 | 15 | 12 | yes | NO | e86fb02f848071d3
+ne_walk1 | 0 off-palette colors | 0 px | 100.0% of 96 edge px | 31 | 30 | 15 | 7 | yes | NO | 1e76da1ea0b7b810
+ne_walk2 | 0 off-palette colors | 0 px | 100.0% of 84 edge px | 31 | 30 | 15 | 14 | yes | NO | 616063847c6b5b54
+ne_walk3 | 0 off-palette colors | 0 px | 100.0% of 90 edge px | 31 | 30 | 15 | 16 | yes | NO | d9a60efae886afdf
+n_walk0 | 0 off-palette colors | 0 px | 100.0% of 130 edge px | 31 | 30 | 14 | 14 | yes | NO | ca42165afc0ce147
+n_walk1 | 0 off-palette colors | 0 px | 100.0% of 129 edge px | 31 | 30 | 14 | 8 | yes | NO | 4f90eb9fec01704d
+n_walk2 | 0 off-palette colors | 0 px | 100.0% of 130 edge px | 31 | 30 | 14 | 14 | yes | NO | 9fc36ddc89b83bd4
+n_walk3 | 0 off-palette colors | 0 px | 100.0% of 132 edge px | 31 | 30 | 14 | 9 | yes | NO | 3c8b8bbd462d4a4b
+nw_walk0 | 0 off-palette colors | 0 px | 100.0% of 91 edge px | 31 | 30 | 15 | 18 | yes | NO | 6dccc3261cf78ae7
+nw_walk1 | 0 off-palette colors | 0 px | 100.0% of 97 edge px | 30 | 30 | 15 | 10 | yes | NO | 5d340d0ac6a960f7
+nw_walk2 | 0 off-palette colors | 0 px | 100.0% of 92 edge px | 30 | 30 | 15 | 18 | yes | NO | b236e95c72a5b5d5
+nw_walk3 | 0 off-palette colors | 0 px | 100.0% of 105 edge px | 31 | 30 | 15 | 15 | yes | NO | 1a67c5ccc41cb67c
+w_walk0 | 0 off-palette colors | 0 px | 100.0% of 77 edge px | 31 | 30 | 14 | 9 | yes | NO | f26fea75efda715a
+w_walk1 | 0 off-palette colors | 0 px | 100.0% of 93 edge px | 31 | 30 | 14 | 12 | yes | NO | 3ec0c674b27e67b1
+w_walk2 | 0 off-palette colors | 0 px | 100.0% of 76 edge px | 31 | 30 | 14 | 10 | yes | NO | d6082bb925240ba4
+w_walk3 | 0 off-palette colors | 0 px | 100.0% of 81 edge px | 31 | 30 | 14 | 13 | yes | NO | 725c9919a00bec1e
+sw_walk0 | 0 off-palette colors | 0 px | 100.0% of 83 edge px | 31 | 30 | 14 | 10 | yes | NO | e2a4eaf07a3c79bd
+sw_walk1 | 0 off-palette colors | 0 px | 100.0% of 94 edge px | 30 | 30 | 15 | 10 | yes | NO | c5156f460cb50880
+sw_walk2 | 0 off-palette colors | 0 px | 100.0% of 84 edge px | 31 | 30 | 14 | 10 | yes | NO | 04fcddc6cf1bbe9d
+sw_walk3 | 0 off-palette colors | 0 px | 100.0% of 84 edge px | 30 | 30 | 15 | 14 | yes | NO | 358da14eef163a6e
+battle_ready | 0 off-palette colors | 0 px | 100.0% of 220 edge px | 56 | 63 | - | 11 | yes | - | 181e14aa4791040c
+battle_downSwing | 0 off-palette colors | 0 px | 100.0% of 235 edge px | 60 | 67 | - | 20 | yes | - | 55fb4fedc99c6102
+
+gate (the 6 exit-criteria lines): 34 of 34 frames; walk frames 32 of 32
+other checker lines (reported, not exit lines): walk frames with a failure 32 of 32; failing ids HL-HIP HL-FLAT HL-SHOULDER PA-07
+
+per facing (walk frames 0-3): height | bottom | head | outline min % | orphans max | gate frames
+s | 31 | 30 | 14 | 100.0 | 11 | 4/4
+se | 30-31 | 30 | 13-14 | 100.0 | 20 | 4/4
+e | 31 | 30 | 14 | 100.0 | 12 | 4/4
+ne | 30-31 | 30 | 15 | 100.0 | 16 | 4/4
+n | 31 | 30 | 14 | 100.0 | 14 | 4/4
+nw | 30-31 | 30 | 15 | 100.0 | 18 | 4/4
+w | 31 | 30 | 14 | 100.0 | 13 | 4/4
+sw | 30-31 | 30 | 14-15 | 100.0 | 14 | 4/4
+
+failed lines
+s_walk0: HL-HIP hip row within 1 px of the given: 23, given 25 ; HL-FLAT texture density per part at least 0.8x the given: hair 0.47 < 0.85; face 0.66 < 0.87; hands 0.57 < 0.65; item 0.33 < 0.94
+s_walk1: HL-FLAT texture density per part at least 0.8x the given: hair 0.47 < 0.85; face 0.66 < 0.87; torso 0.61 < 0.73; hands 0.43 < 0.65; item 0.71 < 0.94
+s_walk2: HL-HIP hip row within 1 px of the given: 23, given 25 ; HL-FLAT texture density per part at least 0.8x the given: hair 0.47 < 0.85; face 0.66 < 0.87; hands 0.57 < 0.65; item 0.33 < 0.94
+s_walk3: HL-FLAT texture density per part at least 0.8x the given: hair 0.47 < 0.85; face 0.66 < 0.87; torso 0.60 < 0.73; hands 0.50 < 0.65; item 0.71 < 0.94
+se_walk0: HL-SHOULDER shoulder row within 1 px of the given: 9, given 11 ; HL-FLAT texture density per part at least 0.8x the given: hair 0.56 < 0.85; face 0.78 < 0.87; torso 0.65 < 0.73; hands 0.33 < 0.65; item 0.89 < 0.94
+se_walk1: HL-FLAT texture density per part at least 0.8x the given: hair 0.53 < 0.85; face 0.65 < 0.87; torso 0.62 < 0.73; hands 0.64 < 0.65; item 0.64 < 0.94
+se_walk2: HL-FLAT texture density per part at least 0.8x the given: hair 0.56 < 0.85; face 0.78 < 0.87; torso 0.65 < 0.73; hands 0.27 < 0.65; item 0.89 < 0.94
+se_walk3: HL-FLAT texture density per part at least 0.8x the given: hair 0.53 < 0.85; face 0.65 < 0.87; torso 0.69 < 0.73; hands 0.61 < 0.65; item 0.64 < 0.94
+e_walk0: HL-FLAT texture density per part at least 0.8x the given: hair 0.52 < 0.85; face 0.57 < 0.87; torso 0.51 < 0.73; hands 0.44 < 0.65; boots 0.39 < 0.52; item 0.38 < 0.94
+e_walk1: HL-FLAT texture density per part at least 0.8x the given: hair 0.52 < 0.85; face 0.56 < 0.87; torso 0.58 < 0.73; hands 0.42 < 0.65; legs 0.44 < 0.48; item 0.49 < 0.94
+e_walk2: HL-FLAT texture density per part at least 0.8x the given: hair 0.52 < 0.85; face 0.57 < 0.87; torso 0.51 < 0.73; hands 0.44 < 0.65; item 0.38 < 0.94
+e_walk3: HL-FLAT texture density per part at least 0.8x the given: hair 0.52 < 0.85; face 0.56 < 0.87; torso 0.64 < 0.73; hands 0.59 < 0.65; item 0.52 < 0.94
+ne_walk0: HL-SHOULDER shoulder row within 1 px of the given: 9, given 11 ; HL-HIP hip row within 1 px of the given: 27, given 25 ; HL-FLAT texture density per part at least 0.8x the given: hair 0.52 < 0.85; face 0.70 < 0.87; torso 0.44 < 0.73; hands 0.44 < 0.65; legs 0.14 < 0.48; boots 0.41 < 0.52; item 0.33 < 0.94
+ne_walk1: HL-SHOULDER shoulder row within 1 px of the given: 7, given 11 ; HL-FLAT texture density per part at least 0.8x the given: hair 0.49 < 0.85; face 0.77 < 0.87; torso 0.41 < 0.73; hands 0.53 < 0.65; legs 0.38 < 0.48; item 0.35 < 0.94
+ne_walk2: HL-SHOULDER shoulder row within 1 px of the given: 7, given 11 ; HL-FLAT texture density per part at least 0.8x the given: hair 0.51 < 0.85; face 0.70 < 0.87; torso 0.44 < 0.73; hands 0.44 < 0.65; legs 0.05 < 0.48; item 0.33 < 0.94
+ne_walk3: HL-SHOULDER shoulder row within 1 px of the given: 8, given 11 ; HL-FLAT texture density per part at least 0.8x the given: hair 0.50 < 0.85; face 0.77 < 0.87; torso 0.40 < 0.73; hands 0.62 < 0.65; legs 0.25 < 0.48; item 0.35 < 0.94
+n_walk0: PA-07 head width within 1 px of the given: 21, given 19 ; HL-HIP hip row within 1 px of the given: 23, given 25 ; HL-FLAT texture density per part at least 0.8x the given: hair 0.55 < 0.85; torso 0.70 < 0.73; hands 0.56 < 0.65; item 0.46 < 0.94
+n_walk1: PA-07 head width within 1 px of the given: 21, given 19 ; HL-HIP hip row within 1 px of the given: 23, given 25 ; HL-FLAT texture density per part at least 0.8x the given: hair 0.51 < 0.85; torso 0.50 < 0.73; hands 0.50 < 0.65; legs 0.45 < 0.48; item 0.33 < 0.94
+n_walk2: PA-07 head width within 1 px of the given: 21, given 19 ; HL-HIP hip row within 1 px of the given: 23, given 25 ; HL-FLAT texture density per part at least 0.8x the given: hair 0.55 < 0.85; torso 0.70 < 0.73; hands 0.56 < 0.65; item 0.46 < 0.94
+n_walk3: PA-07 head width within 1 px of the given: 21, given 19 ; HL-HIP hip row within 1 px of the given: 23, given 25 ; HL-FLAT texture density per part at least 0.8x the given: hair 0.51 < 0.85; torso 0.50 < 0.73; hands 0.56 < 0.65; legs 0.45 < 0.48; item 0.33 < 0.94
+nw_walk0: HL-SHOULDER shoulder row within 1 px of the given: 9, given 11 ; HL-FLAT texture density per part at least 0.8x the given: hair 0.52 < 0.85; face 0.67 < 0.87; torso 0.66 < 0.73; hands 0.50 < 0.65; legs 0.37 < 0.48; item 0.39 < 0.94
+nw_walk1: HL-SHOULDER shoulder row within 1 px of the given: 9, given 11 ; HL-FLAT texture density per part at least 0.8x the given: hair 0.47 < 0.85; face 0.50 < 0.87; torso 0.42 < 0.73; hands 0.60 < 0.65; item 0.44 < 0.94
+nw_walk2: HL-FLAT texture density per part at least 0.8x the given: hair 0.52 < 0.85; face 0.67 < 0.87; torso 0.65 < 0.73; hands 0.50 < 0.65; item 0.39 < 0.94
+nw_walk3: HL-SHOULDER shoulder row within 1 px of the given: 8, given 11 ; HL-HIP hip row within 1 px of the given: 23, given 25 ; HL-FLAT texture density per part at least 0.8x the given: hair 0.49 < 0.85; face 0.50 < 0.87; torso 0.59 < 0.73; item 0.35 < 0.94
+w_walk0: HL-FLAT texture density per part at least 0.8x the given: hair 0.49 < 0.85; face 0.80 < 0.87; torso 0.56 < 0.73; hands 0.44 < 0.65; item 0.31 < 0.94
+w_walk1: HL-FLAT texture density per part at least 0.8x the given: hair 0.56 < 0.85; face 0.69 < 0.87; torso 0.44 < 0.73; hands 0.59 < 0.65; legs 0.00 < 0.48; item 0.48 < 0.94
+w_walk2: HL-FLAT texture density per part at least 0.8x the given: hair 0.49 < 0.85; face 0.80 < 0.87; torso 0.55 < 0.73; hands 0.44 < 0.65; boots 0.33 < 0.52; item 0.31 < 0.94
+w_walk3: HL-FLAT texture density per part at least 0.8x the given: hair 0.55 < 0.85; face 0.69 < 0.87; torso 0.61 < 0.73; hands 0.40 < 0.65; item 0.32 < 0.94
+sw_walk0: HL-SHOULDER shoulder row within 1 px of the given: 9, given 11 ; HL-FLAT texture density per part at least 0.8x the given: hair 0.59 < 0.85; face 0.55 < 0.87; torso 0.51 < 0.73; hands 0.50 < 0.65; legs 0.11 < 0.48; item 0.29 < 0.94
+sw_walk1: HL-FLAT texture density per part at least 0.8x the given: hair 0.59 < 0.85; face 0.57 < 0.87; torso 0.53 < 0.73; legs 0.47 < 0.48
+sw_walk2: HL-SHOULDER shoulder row within 1 px of the given: 9, given 11 ; HL-FLAT texture density per part at least 0.8x the given: hair 0.59 < 0.85; face 0.55 < 0.87; torso 0.51 < 0.73; hands 0.50 < 0.65; legs 0.25 < 0.48; item 0.29 < 0.94
+sw_walk3: HL-FLAT texture density per part at least 0.8x the given: hair 0.59 < 0.85; face 0.57 < 0.87; torso 0.61 < 0.73; hands 0.46 < 0.65; legs 0.39 < 0.48; item 0.56 < 0.94
+
+katana side (hilt pixel centroid x from the body axis, predicted x from the 3D model)
+s_walk0: 22 px, centroid -9.14, predicted -9.532, agree true
+s_walk1: 21 px, centroid -9.17, predicted -9.532, agree true
+s_walk2: 22 px, centroid -9.14, predicted -9.532, agree true
+s_walk3: 21 px, centroid -9.17, predicted -9.532, agree true
+se_walk0: 23 px, centroid -9.24, predicted -10.469, agree true
+se_walk1: 22 px, centroid -10.09, predicted -10.469, agree true
+se_walk2: 23 px, centroid -9.24, predicted -10.469, agree true
+se_walk3: 22 px, centroid -10.09, predicted -10.469, agree true
+e_walk0: 28 px, centroid -5.5, predicted -5.965, agree true
+e_walk1: 27 px, centroid -6.46, predicted -5.965, agree true
+e_walk2: 28 px, centroid -5.5, predicted -5.965, agree true
+e_walk3: 27 px, centroid -6.46, predicted -5.965, agree true
+ne_walk0: 28 px, centroid 2.36, predicted 2.857, agree true
+ne_walk1: 26 px, centroid 1.5, predicted 2.857, agree true
+ne_walk2: 28 px, centroid 2.36, predicted 2.857, agree true
+ne_walk3: 26 px, centroid 1.5, predicted 2.857, agree true
+n_walk0: 29 px, centroid 9.67, predicted 10.213, agree true
+n_walk1: 25 px, centroid 9.62, predicted 10.213, agree true
+n_walk2: 29 px, centroid 9.67, predicted 10.213, agree true
+n_walk3: 25 px, centroid 9.62, predicted 10.213, agree true
+nw_walk0: 23 px, centroid 10.67, predicted 11.191, agree true
+nw_walk1: 24 px, centroid 11.17, predicted 11.191, agree true
+nw_walk2: 23 px, centroid 10.67, predicted 11.191, agree true
+nw_walk3: 24 px, centroid 11.17, predicted 11.191, agree true
+w_walk0: 7 px, centroid 6.79, predicted 5.965, agree true
+w_walk1: 5 px, centroid 7.5, predicted 5.965, agree true
+w_walk2: 7 px, centroid 6.79, predicted 5.965, agree true
+w_walk3: 5 px, centroid 7.5, predicted 5.965, agree true
+sw_walk0: 6 px, centroid -4.33, predicted -2.663, agree true
+sw_walk1: 5 px, centroid -3.7, predicted -2.663, agree true
+sw_walk2: 6 px, centroid -4.33, predicted -2.663, agree true
+sw_walk3: 5 px, centroid -3.7, predicted -2.663, agree true

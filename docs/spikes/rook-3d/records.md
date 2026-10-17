@@ -41,3 +41,30 @@ Change: head narrower (hair rx 0.74, glasses 0.86 wide), torso top raised 0.1, b
 Palette 0 off-palette and 0 half-alpha on all 34 frames. Battle poses: outline 100.0% on both. Gate: 32 of 34 frames (walk 30 of 32). Fails: ne_walk0 and ne_walk2 head alone 16 (limit 15).
 Other checker lines (reported): HL-FLAT texture density fails on 32 of 32 walk frames (hair 0.4 to 0.5 of the given), HL-SHOULDER on 9, HL-HIP on 8, PA-07 head width on 4.
 Verdict: fail on 2 frames. Named fixes for round 3: ne head width; a texture pass (ordered dither on the toon steps, hair strands) for HL-FLAT; the downSwing blade leaves the 79 px frame on the right.
+
+## Round 3 (texture pass, ne head, downSwing)
+
+Change: texture pass = 2x2 ordered dither added to the light value before the toon thresholds (hair and beard 0.20, coat and sleeves 0.16, legs 0.12); hair radius 0.74 to 0.72; downSwing blade aimed down so it stays in the 79x68 frame. Check refinement (made after seeing the sw result): the katana-side check compares the hilt (guard and wrap pixels) with the 3D position of the hilt, not the whole katana, because the sheath is hidden behind the body at sw (7 visible px).
+
+| facing | height | bottom | head alone | outline min % | orphans max | gate frames |
+|---|---|---|---|---|---|---|
+| s | 31 | 30 | 14 | 100.0 | 11 | 4/4 |
+| se | 30-31 | 30 | 13-14 | 100.0 | 20 | 4/4 |
+| e | 31 | 30 | 14 | 100.0 | 12 | 4/4 |
+| ne | 30-31 | 30 | 15 | 100.0 | 16 | 4/4 |
+| n | 31 | 30 | 14 | 100.0 | 14 | 4/4 |
+| nw | 30-31 | 30 | 15 | 100.0 | 18 | 4/4 |
+| w | 31 | 30 | 14 | 100.0 | 13 | 4/4 |
+| sw | 30-31 | 30 | 14-15 | 100.0 | 14 | 4/4 |
+
+| battle pose (79x68) | off-palette (battleIdle palette) | half-alpha | outline % | orphans | body box |
+|---|---|---|---|---|---|
+| ready | 0 | 0 | 100.0 of 220 edge px | 11 | 56 tall |
+| downSwing | 0 | 0 | 100.0 of 235 edge px | 20 | 60 tall |
+
+- Gate (exit line 1): 34 of 34 frames (32 walk, 2 battle). Orphans 6 to 20 on walk frames (checker limit 40, 1.25 x the given's 32).
+- Katana side: the hilt pixel centroid and the 3D prediction agree in sign on 32 of 32 walk frames (hilt on screen-left at s, se, e, ne; screen-right at n, nw, w; sw hilt at screen-left from the back-left view). The numbers are in `docs/spikes/rook-3d/out/check.txt`.
+- Determinism: two full runs (`scripts/art/rook3d/run.sh`) give 69 identical files (34 PNGs, 34 label grids, manifest) by sha256, list hash afc07a9c2877d17c, in 7 s per run. Hashes of every frame: `out/sha256.txt`.
+- Not in the exit lines, reported: HL-FLAT texture density fails on 32 of 32 walk frames (hair about 0.5 of the given, even after the dither), HL-SHOULDER on 10, HL-HIP on 8, PA-07 head width on 4. The look gap to the Sprite Fusion given is mostly this: flat toon blocks, no hand-placed texture.
+- Pose cost (exit line 6): `ready` and `downSwing` are one tuple each in `battle_specs` (body angles, grip point, blade direction) in `rook_model.py`; changing downSwing was 1 line plus a 7 s re-render, no drawing.
+- Verdict: all hard lines hold on all frames. Whether it looks like Rook or like pixel art is Mark's gate (lines 2, 3 by a blind grader, and 7). Read of the pictures: the field facings read as a 3D toon model, and the battle poses (silver sleeves, no coat shape) are weaker than the PixelLab idle.

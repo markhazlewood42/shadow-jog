@@ -7,4 +7,4 @@ state: active
 updated: 2026-10-17
 ---
 
-Mark approved the spike on 2026-10-17. Exit criteria: docs/spikes/rook-3d.md (committed before code). Step 0: Blender 5.2.2 LTS runs headless on the local Windows machine. Next: build in scripts/art/rook3d/, records in docs/spikes/rook-3d/records.md. Draft PR, never merged.
+Mark approved the spike on 2026-10-17. Exit criteria: docs/spikes/rook-3d.md (committed before code). Step 0 in the cloud: the Blender download host is blocked, apt gave Blender 4.0.2, which renders headless (Cycles, CPU). Built in scripts/art/rook3d/ (model, rig, keyframed motions, 8-facing renderer, checker, sheets, run.sh). Three build rounds are in docs/spikes/rook-3d/records.md: after round 3 all 34 frames pass the hard lines and two runs are byte-identical. Outputs in docs/spikes/rook-3d/out/ (contact-sheet.png, per-facing sheets, 8x previews). Next: a fresh verifier grades the exit criteria, then Mark's look gate (not done). Draft PR, never merged.
