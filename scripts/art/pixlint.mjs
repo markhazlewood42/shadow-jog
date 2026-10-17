@@ -260,6 +260,8 @@ export function readPaletteFile(path, key = null) {
 export function lintFile(path, o = {}) {
   const img = readPng(path);
   const [fw, fh] = o.frameSize ?? [img.w, img.h];
+  const frameCount = Math.floor(img.w / fw) * Math.floor(img.h / fh);
+  if (o.frame !== undefined && o.frame >= frameCount) throw new Error(`--frame ${o.frame} is past the last frame (${path} has ${frameCount} frames of ${fw}x${fh})`);
   const all = o.frames ?? (o.all ? splitFrames(img, fw, fh) : [crop(img, ((o.frame ?? 0) * fw) % img.w, Math.floor(((o.frame ?? 0) * fw) / img.w) * fh, fw, fh)]);
   const labels = o.all ? all.map((_, i) => `frame ${i}`) : [o.frame !== undefined ? `frame ${o.frame}` : 'image'];
   const target = o.target ?? null;
