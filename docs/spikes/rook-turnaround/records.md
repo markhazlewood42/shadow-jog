@@ -187,3 +187,14 @@ Runner (Sonnet, engineer pack) and reader (Haiku, engineer pack), one round over
 
 Decision (orchestrator): path B does not solve the stop line (n 0.457) and its se number is mostly copy, so neither path is picked. Opus consult C2 (standing-approved, named here) redesigns from these numbers. In parallel, a Sonnet fix builder fixes the T0b and T0a tool findings. Rook stays clean: no spec or card number changes from a reference score.
 | 2 | Fix round F1 to F8 (Sonnet builder, 9b70a82); one Sonnet fix verifier | 228 of 228 tests, tsc and biome exit 0. s vs mirror(sw) 0.642 (info, plan gives no number). e vs battle idle: head 16/16 pass; shoulder 8/17, hem 5/20, feet 4/10 fail (idle holds the blade). Calibration on the gate's own groups: **1 gate** (color match 0.756, margin 0.077); part mIoU (pass 0.563, fail 0.649) and value r do not separate. Plan fallback: Mark gates the facing | PASS (tools) | None. Open: walk frames in another pose may be unfit as realistic passes (T1 outputs do not exist yet) |
+
+## Step 7-4: consult C2, the path pick (2026-10-17)
+
+Opus consult C2 (standing-approved, named here) from the step 7-3 numbers: `consult-c2.md`. Pick: path C, a hybrid. The proxy gives layout only. Copy the given's pixels by integer shifts and mirrors, with relight on flip. A code painter fills hidden texture from same-part, same-light patches. An LLM pass covers face, hands, item and seams only (at most 25 percent of cells), and must beat code-only in a blind 2AFC. References become report lines.
+
+| Round | What changed | Numbers | Verdict | Named fixes |
+|---|---|---|---|---|
+| 1 | Consult, 106 lines; Sonnet verifier (pixel-artist-characters) | Score 7.5. Re-run: template check with the plan's ±2 px shift: n path B 0.617, proxy 0.502, given 0.424. flip(given) fails color match (0.648 vs 0.756). Walk frames pass orphans at 1.25x (worst 1.094). Proxy se on the 7-group area measure 0.878 | FAIL (4 Important) | I-1 mirror breaks one-light rule; I-2 budget count; I-3 pass lines without fail paths, freeze rule; I-4 rise range and stale gates |
+| 2 | Fix round by the same Opus author, 129 lines; Haiku fix verifier | Budget 11 spent + 49 = 60 | PASS | Minor: state that s and n run together; method note on flip(given) 0.640 |
+
+Open for Mark (consult section F): Q1 reference gates, Q2 se fit line, Q3 template look. Q1 and Q2 block the next steps.
