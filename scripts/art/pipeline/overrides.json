@@ -1,0 +1,18 @@
+{
+  "note": "Hand overrides for the stage A part map. Key 'x,y' = the cell, value = the part. Rules in decompose.mjs run first; these win over the rules. Add a line here only when no letter-and-region rule fits.",
+  "cells": {
+    "11,11": "sheath",
+    "11,12": "sheath",
+    "13,16": "sleeves",
+    "14,16": "sleeves",
+    "13,17": "sleeves",
+    "22,17": "sleeves",
+    "22,18": "sleeves",
+    "22,19": "sleeves"
+  },
+  "why": {
+    "11,11 and 11,12": "Two steel-gray cells (#4e555b) left of the collar. They sit on the katana tail, not on the hair. Assigned to the sheath.",
+    "13,16 14,16 13,17": "The sleeve seam on the left jumps right by one cell on rows 16 and 17. The seam cells belong to the sleeve.",
+    "22,17 22,18 22,19": "The right sleeve seam sits one cell left of the sleeve box on rows 17 to 19. The seam cells belong to the sleeve."
+  }
+}

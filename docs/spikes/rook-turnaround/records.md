@@ -77,3 +77,25 @@ One Fable consult (Mark approved the one dispatch) wrote `art-pipeline-plan.md`:
 Open for Mark (plan section "Questions"): approve the plan or not; two spike amendments (per-facing order, head-alone gate); mirror sheath patch; side-proxy fallback; one-frame idle; tiles in E1.
 
 **Mark approved the art-pipeline plan on 2026-10-17.** Next: step 0 tools (lean loop), then the held-out invention test (6a) and the back-of-head early test (6b). The plan's other questions come up when each one blocks work.
+
+## Step 4-0: art-pipeline step 0 tools (2026-10-17)
+
+Plan section 1 "Step 0". New `scripts/art/pipeline/` (decompose, masks, classify, walk, region), tests in `tests/art-pipeline.test.ts`, data under `target.json` key `pipeline` (additions only). Lean loop: Sonnet builder, Sonnet runner, Haiku reader.
+
+| Round | What changed | Numbers | Verdict | Named fixes |
+|---|---|---|---|---|
+| 1 | Stage A-C scripts, overlay, head-alone metric, walk metrics, planted-foot finder, region-blank scorer, 6a boxes | 91/91 tests; tsc, biome exit 0 | FAIL (runner 1 Important, reader 4 Important) | F1 S floor untested; F2 no isolated D test; F3 right-mask checks pass by clamp; F4 back views copy front cells; F5 5 percent edge; F6 6a boxes too small; F7 hair run 4 |
+| 2 | Fix round on F1 to F7 (one fresh Sonnet verifier, source mutations) | 112/112 tests; tsc, biome exit 0 | PASS | Minor: the up-right arm patch counts as transform (plan line 31 can also read it as invent) |
+
+Measured on the given (432 opaque cells, 13 parts): head alone 14 px (x11 to 24). Walk: bottom row 30 on all 8 frames, bob 8 9 8 7 8 9 8 7, planted foot shift at most 1 px. Hair runs reach 4, and the plan says 3: the rule data uses the measured 4.
+
+| Mask | Height, bottom | Head alone | Copy / transform / invent | Invented share (plan estimate) |
+|---|---|---|---|---|
+| down | 31, 30 | 14 | 194 / 194 / 28 | 6.7 (15) |
+| up | 31, 30 | 14 | 21 / 43 / 352 | 84.6 (55) |
+| up-right | 31, 30 | 13 | 44 / 87 / 253 | 65.9 (45) |
+| right (proxy) | 31, 30 | 19 | 0 / 0 / 501 | 100 (70) |
+
+The right proxy from the battle idle FAILS 4 lines (head alone 19, landmark shoulder, hem, feet). It is not a usable target. It blocks only the right facing, which is last (plan question 2).
+
+6a boxes: hairWing x11..17, y0..10 (67 opaque, 45 hair); coat x13..17, y11..25 (75 opaque, 67 coat). For a band with a reference of 0, the band is 0 to one unit (one stray pixel passes, two fail).
