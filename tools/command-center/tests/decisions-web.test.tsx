@@ -1010,3 +1010,229 @@ describe('the banner on a doc page', () => {
     expect(container.querySelector('aside')?.outerHTML).not.toContain('cc-accent');
   });
 });
+
+// ---- the ask for more info (docs/command-center/needs-info-brief.md) ----
+
+const askBox = () => container.querySelector<HTMLTextAreaElement>('form[aria-label="Ask for more info on this decision"] textarea');
+const askForm = () => container.querySelector<HTMLFormElement>('form[aria-label="Ask for more info on this decision"]');
+const askSend = () => askForm()?.querySelector<HTMLButtonElement>('button[type="submit"]') ?? null;
+const answerSend = () => container.querySelector<HTMLButtonElement>('form[aria-label="Answer this decision"] button[type="submit"]');
+const buttonNamed = (name: string) => [...container.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent?.trim() === name) ?? null;
+const thread = () => container.querySelector('ol[aria-label="Questions and info"]');
+
+async function typeAsk(words: string): Promise<void> {
+  const box = askBox();
+  if (box === null) throw new Error('no question box');
+  await act(async () => {
+    const setValue = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
+    setValue?.call(box, words);
+    box.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+}
+
+const entry = (kind: 'question' | 'info' | 'decision', body: string, at: string, cut = false) => ({ kind, text: body, at, cut });
+const asking = (over: Partial<DecisionDetail> = {}): DecisionDetail =>
+  detail({ phase: 'needs-info', thread: [entry('question', 'What does option C cost to undo?', '2026-10-06T09:00:00Z')], ...over });
+
+describe('the ask for more info', () => {
+  it('has a button "Ask for more info" that opens its own box "Your question", apart from the note of the answer', async () => {
+    await show();
+    expect(askForm()).toBeNull();
+    expect(buttonNamed('Ask for more info')).not.toBeNull();
+    await press(buttonNamed('Ask for more info'));
+    expect(container.querySelector('form[aria-label="Ask for more info on this decision"] label')?.textContent).toBe('Your question');
+    // The answer form keeps its own note box, and the two are different fields.
+    expect(container.querySelectorAll('textarea')).toHaveLength(2);
+    expect(noteBox()).not.toBe(askBox());
+  });
+
+  it('an empty question box disables Send question, and a question enables it', async () => {
+    await show();
+    await press(buttonNamed('Ask for more info'));
+    expect(askSend()?.textContent).toContain('Send question');
+    expect(askSend()?.disabled).toBe(true);
+    await typeAsk('   ');
+    expect(askSend()?.disabled).toBe(true);
+    await typeAsk('What does C cost?');
+    expect(askSend()?.disabled).toBe(false);
+  });
+
+  it('sends the question as { note } to the ask route with the token, once, and never posts an answer', async () => {
+    await show();
+    await press(buttonNamed('Ask for more info'));
+    await typeAsk('What does C cost?');
+    await press(askSend());
+    expect(server.posts).toHaveLength(1);
+    expect(server.posts[0]?.body).toEqual({ note: 'What does C cost?' });
+    expect(server.posts[0]?.headers.get('x-cc-token')).toBe('token-for-the-test');
+    expect(text()).toContain('Question sent. Wait for GitHub.');
+  });
+
+  it('a double click sends one request, and while the question is on its way the answer button waits too', async () => {
+    await show();
+    await choose('A');
+    await press(buttonNamed('Ask for more info'));
+    await typeAsk('Why?');
+    holdNext = true;
+    await act(async () => {
+      askSend()?.click();
+    });
+    await settle();
+    expect(server.posts).toHaveLength(1);
+    expect(askSend()?.disabled).toBe(true);
+    expect(answerSend()?.disabled).toBe(true);
+    await act(async () => {
+      askSend()?.click();
+      askSend()?.click();
+      container.querySelector('form[aria-label="Answer this decision"]')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    });
+    expect(server.posts).toHaveLength(1);
+    await act(async () => {
+      release?.();
+    });
+    await settle();
+    expect(server.posts).toHaveLength(1);
+  });
+
+  it('a failed question shows the failed step and keeps the text for another try', async () => {
+    server.answers = [{ status: 502, body: { ok: false, step: 'label', error: { code: 'gh-failed', message: 'gh failed: x' } } }];
+    await show();
+    await press(buttonNamed('Ask for more info'));
+    await typeAsk('Why is C slow?');
+    await press(askSend());
+    const lines = [...(alert()?.querySelectorAll('p') ?? [])].map((paragraph) => paragraph.textContent);
+    expect(lines).toEqual(['Question posted · Label not added', 'gh failed: x', 'gh-failed', 'The box keeps your question. Retry does not post the question again.']);
+    expect(askBox()?.value).toBe('Why is C slow?');
+    // A refusal that wrote nothing.
+    server.answers = [{ status: 409, body: { ok: false, error: { code: 'not-open', message: 'Closed.' } } }];
+    server.posts = [];
+    await press(askSend());
+    expect([...(alert()?.querySelectorAll('p') ?? [])].map((paragraph) => paragraph.textContent)[0]).toBe('Question not sent');
+  });
+
+  it('pass line 6 (page): the backfill shape shows "Waiting for info" with Mark\'s old note as the question, and the form preselects no option', async () => {
+    server.detail = {
+      status: 200,
+      body: good(detail({ phase: 'needs-info', answer: null, thread: [entry('decision', 'Option B. I need to see how this plays out.', '2026-10-05T16:00:00Z')] })),
+    };
+    await show();
+    expect(text()).toContain('Waiting for info');
+    expect(text()).toContain('Your note from the earlier answer');
+    expect(text()).toContain('Option B. I need to see how this plays out.');
+    for (const option of OPTIONS) expect(radio(option.id)?.checked, option.id).toBe(false);
+    expect(sendButton()?.disabled).toBe(true);
+    expect(noteBox()?.value).toBe('');
+    expect(text()).not.toContain('Send the answer to finish');
+  });
+
+  it('pass line 8 (page): two questions in the thread are both on the page, oldest first', async () => {
+    server.detail = {
+      status: 200,
+      body: good(asking({ thread: [entry('question', 'First question?', '2026-10-06T08:00:00Z'), entry('question', 'Second question?', '2026-10-06T09:00:00Z')] })),
+    };
+    await show();
+    const items = [...(thread()?.querySelectorAll('li') ?? [])].map((li) => li.textContent ?? '');
+    expect(items).toHaveLength(2);
+    expect(items[0]).toContain('First question?');
+    expect(items[1]).toContain('Second question?');
+    expect(items[0]).toContain('Your question');
+    expect(text()).toContain('Waiting for info');
+  });
+
+  it('shows an info as "Info posted" and the state as "More info posted"', async () => {
+    server.detail = {
+      status: 200,
+      body: good(detail({ phase: 'info-posted', thread: [entry('question', 'Why?', '2026-10-06T08:00:00Z'), entry('info', 'Because it keeps backups small.', '2026-10-06T09:30:00Z')] })),
+    };
+    await show();
+    expect(text()).toContain('More info posted');
+    expect(text()).toContain('Info posted');
+    expect(text()).toContain('Because it keeps backups small.');
+    // Mark decides again: the form is there with no option chosen.
+    expect(radio('A')).not.toBeNull();
+    expect(radio('A')?.checked).toBe(false);
+  });
+
+  it('pass line 7: the thread shows comment text as text: a script tag and a markdown link are characters, not elements', async () => {
+    const hostile = '<script>window.__pwned = 1</script> <img src=x onerror="window.__pwned=1"> [click](https://example.com/evil) https://example.com/plain';
+    server.detail = { status: 200, body: good(asking({ thread: [entry('question', hostile, '2026-10-06T08:00:00Z'), entry('info', hostile, '2026-10-06T09:00:00Z')] })) };
+    await show();
+    const list = thread();
+    expect(list?.textContent).toContain(hostile);
+    expect(list?.querySelector('script')).toBeNull();
+    expect(list?.querySelector('img')).toBeNull();
+    expect(list?.querySelector('a')).toBeNull(); // no link at all: a link shows as its address
+    expect((window as unknown as { __pwned?: number }).__pwned).toBeUndefined();
+  });
+
+  it('a comment that was cut shows "Read the rest on GitHub" with the issue link; one that was not cut shows none', async () => {
+    server.detail = { status: 200, body: good(asking({ thread: [entry('info', 'x'.repeat(4000), '2026-10-06T09:00:00Z', true), entry('question', 'short?', '2026-10-06T09:30:00Z')] })) };
+    await show();
+    const items = [...(thread()?.querySelectorAll('li') ?? [])];
+    const link = items[0]?.querySelector('a');
+    expect(link?.textContent).toBe('Read the rest on GitHub');
+    expect(link?.getAttribute('href')).toBe('https://github.com/fixture-owner/fixture-repo/issues/41');
+    expect(items[1]?.querySelector('a')).toBeNull();
+  });
+
+  it('question sent, label missing: shows the notice and a Retry button that sends the same question text', async () => {
+    server.detail = { status: 200, body: good(detail({ phase: 'ask-unfinished', thread: [entry('question', 'Why is C slow?', '2026-10-06T09:00:00Z')] })) };
+    await show();
+    expect(text()).toContain('Question sent, label missing');
+    await press(buttonNamed('Retry'));
+    expect(server.posts).toHaveLength(1);
+    expect(server.posts[0]?.body).toEqual({ note: 'Why is C slow?' });
+  });
+
+  it('needs-info with no question and no info: "Waiting for info: no question found"', async () => {
+    server.detail = { status: 200, body: good(detail({ phase: 'needs-info-empty', thread: [] })) };
+    await show();
+    expect(text()).toContain('Waiting for info: no question found');
+  });
+
+  it('an answered decision has no ask box and no thread', async () => {
+    server.detail = { status: 200, body: good(answered()) };
+    await show();
+    expect(buttonNamed('Ask for more info')).toBeNull();
+    expect(thread()).toBeNull();
+  });
+
+  it('a decision with no phase (a snapshot of an older build) reads as open', async () => {
+    await show();
+    expect(text()).toContain('Open');
+    expect(text()).not.toContain('Waiting for info');
+    expect(thread()).toBeNull();
+  });
+
+  it('the new sentences are short: no sentence over 20 words and no contraction', async () => {
+    const seen: { sentence: string; words: number }[] = [];
+    const states = [
+      asking(),
+      detail({ phase: 'needs-info-empty' }),
+      detail({ phase: 'info-posted', thread: [entry('info', 'Here it is.', '2026-10-06T09:30:00Z')] }),
+      detail({ phase: 'ask-unfinished', thread: [entry('question', 'Why?', '2026-10-06T09:00:00Z')] }),
+    ];
+    for (const state of states) {
+      server.detail = { status: 200, body: good(state) };
+      await show();
+      seen.push(...sentencesOnPage());
+      await startOver();
+    }
+    server.answers = [{ status: 502, body: { ok: false, step: 'comment', error: { code: 'gh-failed', message: 'gh failed.' } } }];
+    server.detail = { status: 200, body: good(detail()) };
+    await show();
+    await press(buttonNamed('Ask for more info'));
+    await typeAsk('Why?');
+    await press(askSend());
+    seen.push(...sentencesOnPage());
+    const all = seen.map((item) => item.sentence);
+    for (const known of ['Question sent, label missing.', 'Waiting for info: no question found.', 'Question not posted', 'Send question']) {
+      expect(
+        all.some((sentence) => sentence.includes(known)),
+        known,
+      ).toBe(true);
+    }
+    expect(seen.filter((item) => item.words > 20)).toEqual([]);
+    expect(all.filter((sentence) => CONTRACTION.test(sentence))).toEqual([]);
+  });
+});

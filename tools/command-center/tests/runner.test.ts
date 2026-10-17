@@ -61,6 +61,8 @@ describe('the runner', () => {
       ['gh issue edit (labels in one order)', 'gh', ['issue', 'edit', '7', '--add-label', 'decided', '--remove-label', 'decision'], ['issue', 'edit', '--repo', REPO, '7', '--add-label', 'decided', '--remove-label', 'decision']],
       ['gh issue edit (labels in the other order)', 'gh', ['issue', 'edit', '7', '--remove-label', 'decision', '--add-label', 'decided'], ['issue', 'edit', '--repo', REPO, '7', '--remove-label', 'decision', '--add-label', 'decided']],
       ['gh issue edit (decided taken off alone, before the answer puts it on again)', 'gh', ['issue', 'edit', '7', '--remove-label', 'decided'], ['issue', 'edit', '--repo', REPO, '7', '--remove-label', 'decided']],
+      ['gh issue edit (needs-info put on alone, by an Ask)', 'gh', ['issue', 'edit', '7', '--add-label', 'needs-info'], ['issue', 'edit', '--repo', REPO, '7', '--add-label', 'needs-info']],
+      ['gh issue edit (needs-info taken off alone, by step 0 of an answer)', 'gh', ['issue', 'edit', '7', '--remove-label', 'needs-info'], ['issue', 'edit', '--repo', REPO, '7', '--remove-label', 'needs-info']],
       ['gh issue close', 'gh', ['issue', 'close', '7'], ['issue', 'close', '--repo', REPO, '7']],
     ];
 
@@ -190,6 +192,14 @@ describe('the runner', () => {
       ['gh issue edit with a body', 'gh', ['issue', 'edit', '7', '--body', 'x']],
       ['gh issue edit with a title and the labels', 'gh', ['issue', 'edit', '7', '--add-label', 'decided', '--remove-label', 'decision', '--title', 'x']],
       ['gh issue edit with no number', 'gh', ['issue', 'edit', '--add-label', 'decided', '--remove-label', 'decision']],
+      ['gh issue edit adding needs-info with decided', 'gh', ['issue', 'edit', '7', '--add-label', 'needs-info', '--add-label', 'decided']],
+      ['gh issue edit adding needs-info and removing decision', 'gh', ['issue', 'edit', '7', '--add-label', 'needs-info', '--remove-label', 'decision']],
+      ['gh issue edit removing needs-info and decided', 'gh', ['issue', 'edit', '7', '--remove-label', 'needs-info', '--remove-label', 'decided']],
+      ['gh issue edit adding needs-info twice', 'gh', ['issue', 'edit', '7', '--add-label', 'needs-info', '--add-label', 'needs-info']],
+      ['gh issue edit adding needs-info in the other case', 'gh', ['issue', 'edit', '7', '--add-label', 'Needs-Info']],
+      ['gh issue edit adding needs-info with the equals form', 'gh', ['issue', 'edit', '7', '--add-label=needs-info']],
+      ['gh issue edit adding needs-info with a title', 'gh', ['issue', 'edit', '7', '--add-label', 'needs-info', '--title', 'x']],
+      ['gh issue edit removing a label like needs-info', 'gh', ['issue', 'edit', '7', '--remove-label', 'needs-info-x']],
       ['gh issue close with a reason', 'gh', ['issue', 'close', '7', '--reason', 'not planned']],
       ['gh issue close with a comment', 'gh', ['issue', 'close', '7', '--comment', 'x']],
       ['gh issue close with a word', 'gh', ['issue', 'close', 'seven']],
