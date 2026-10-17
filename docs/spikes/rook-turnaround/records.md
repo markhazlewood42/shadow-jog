@@ -119,3 +119,18 @@ Mark made an 8-direction run in Sprite Fusion outside this spike, and kept the 5
 | 2 | Fix round on K1 to K5 (one fresh Sonnet verifier, mutation and paste attacks) | 114 tests; check all, sanity all exit 0 | PASS | Minor: the sweep at unused layouts needs 80 percent of cells to flag a leak |
 
 Writer kits have no feature list: a list for the hidden box would come from the truth. Graders get a MUST list made from the truth. This is a deviation from plan 6a line 72.
+
+## Step 6a: held-out invention test (2026-10-17)
+
+3 Sonnet writers (effort high) per box, Level 0, one round plus one fix round with scores only. Exact and tolerant count all box cells; the opaque-cell share is in brackets.
+
+| Box | Round | Exact (opaque) | Tolerant | Bands | Verdict |
+|---|---|---|---|---|---|
+| hairWing (77 cells, 67 opaque) | 1 | 42.9, 49.4, 49.4 (34 to 42) | 55.8, 53.2, 57.1 | w2 passes all four; w1, w3 fail S | FAIL |
+| hairWing | 2 | 45.5, 49.4, 49.4 | 55.8, 58.4, 57.1 | all fail S and orphans (texture overcorrected) | FAIL |
+| coat (75 cells, all opaque) | 1 | 46.7, 41.3, 40.0 | 48.0, 49.3, 42.7 | T, S too high (speckle; the real coat is flat panels) | FAIL |
+| coat | 2 | 58.7, 56.0, 41.3 | 60.0, 61.3, 44.0 | S and orphans too low | FAIL |
+
+Lines: exact at least 60, tolerant at least 80, bands. No writer reached tolerant 80. The fix round traded one band for the other and did not move exact on the hair. Writers on the hair box drew a front-facing symmetric face from the mirror; the real frame is a three-quarter view. Graders did not run: the checker gates first.
+
+**Result: 6a FAIL.** Per plan section 6, the rules do not carry enough information to invent, so 6b is not run, and the invent stages for up, up-right and right drop. The plan keeps the copy and transform constructions (down by fuse, the down and down-left walks, the mirrors). Mark decides the next step.
