@@ -26,13 +26,13 @@ The box closes **2026-10-24**, whatever state the spike is in. Round caps (below
 - **Given frame:** the walk frame with the feet closest together. Step 0 picks it and names it in `target.json`.
 - **New facings:** the four pictures that step 3 makes.
 - **Edge pixel:** an opaque pixel next to a transparent pixel (4 neighbors).
-- **Near-black:** one of the darkest colors of the walk palette. Step 0 lists them in `target.json`, from the outline colors of the walk sheet.
+- **Near-black:** a color with luminance under 60 (of 255). Step 0 lists the walk palette colors that qualify in `target.json`.
 - **Orphan pixel:** an opaque pixel whose color matches none of its 8 neighbors.
 
 ## Exit criteria (written before any code, dated 2026-10-17)
 
 - **GO if all of these hold:**
-  - **Hard lines (checker).** Every new facing uses only walk palette colors. It has no half-transparent pixel. Its outline is near-black on at least 95 percent of edge pixels (the Sprite Fusion sheets measure 98 to 99). Its body height and head width are within 1 px of the given frame. Its orphan pixels are only ones the character pack allows (an eye highlight, for example).
+  - **Hard lines (checker).** Every new facing uses only walk palette colors. It has no half-transparent pixel. Its outline is near-black on at least 93 percent of edge pixels (the walk frames measure 94.4 to 100). Its body height and head width are within 1 px of the given frame. Its orphan pixels and its 1-2 px regions are at most 1.25 times the count in the given frame (the walk frames have 22 to 35 orphans and 60 to 72 small regions).
   - **Same character, same game (Mark, blind).** Mark sees each new facing at 1x and 4x next to the given frame, in a random order with decoys from step 2. Each new facing gets "same character, same game" from him.
   - **Better than today.** Mark sees the full new set and the full rig v2 Rook set (`public/art/rig/field.json`) once, side by side at 1x on a Lantern Row screenshot. He prefers the new set.
   - **No pixel directing.** Every facing passes within the round caps. Mark does not direct pixel fixes on any facing.
