@@ -212,8 +212,19 @@ Mark asked whether a 3D game with pixel shaders would be easier. Opus research R
 
 **Result (Mark, 2026-10-17):** the cloud session finished, and Mark judged the results very bad. Mark calls `spike/rook-3d` a failure. Path C (2D sprite art) stays the only method. The handoff step "compare rook-3d with path C" is dropped.
 
-## Step 7-5: grade kit round 3, consult C2 step 2 (2026-10-17, unverified)
+## Step 7-5: grade kit round 3, consult C2 step 2 (2026-10-17)
 
 | Build | What | Numbers | Verdict | Notes |
 |---|---|---|---|---|
 | Grade kit r3 (Sonnet) | Three tiers (style, structure, reference report); style calibration; `facing-checks.json` (R2 and PA rule ids); facing-ID harness (no model run); aligned template check report | 287 tests, tsc 0, biome 0 (biome checks only 2 files). 16 new gate lines go red on mutation. Style: 9 of 10 lines separate (PA-09 pinned, catches 0 of 11). Structure: given and 8 walk frames pass; swapped facings caught 24 of 30 (80 percent, C6 line 90); n reference fails item outline, sw fails lit side. Template check, best of ±2 px and scale 31-33 (path B / proxy / given): s 0.652 / 0.585 / 0.644; n 0.635 / 0.498 / 0.456; ne 0.552 / 0.513 / 0.459; nw 0.530 / 0.504 / 0.448; sw 0.650 / 0.626 / 0.640 | Lean loop pending | Judgment calls: flattening group floor 25 cells (a walk frame fails at 20); facing-ID set 10 items with 4 flips; PA-20 hand size is a report line (given hands 8 and 5 px); legs report-only in the lit-side line |
+
+Lean loop (engineer pack). Reports: `C:/Users/markh/AppData/Local/Temp/rook-v2/t0-r3/verify/runner-r1.md`, `reader-r1.md`, `fix-r2.md`; fix build `t0-r3/fix-r2.md`.
+
+| Round | What | Numbers | Verdict | Named fixes |
+|---|---|---|---|---|
+| 1 | Runner (Sonnet), reader (Haiku) | 287 tests, tsc 0, biome 0 (the .mjs not linted: 3 errors when linted). Style calibration byte-identical, 11 of 11 should-fail caught. 13 mutations red, 2 survive | FAIL (runner 7.0, reader 6.0; 0 Critical, 10 Important) | N1 reference-never-gates test cannot fail; N2 facing-ID need fixed at 9; N3 C6 swap line not built; N4 n and sw references fail own facing; N5 green by skipping (Temp paths, early return); N6 floor tests assert at least 20; N7 S-SMALL gates without separating; N8 PA-20 made report-only; N9 ST-LIT legs; N10 e and w rows from the given, not the battle idle; N11 facingRules checks absent, not stated; N12 minors |
+| 2 | Fix build (Sonnet); one Sonnet fix verifier | 327 tests, tsc 0, biome 0 (now covers `scripts/art/v2/grade/**/*.mjs`). Swap line (`swaprate.mjs`) 22 of 30, 73 percent, **C6 line 90 FAILED** and kept; cross-class 18 of 18, within-class 4 of 12 (the facing-ID grader carries s/se/sw and ne/nw). ST-ITEM 0.93 to 0.84 (grader-side, reference-informed: n reference 84.6 percent; no-outline item still fails). sw reference fails ST-LIT: recorded as inconsistent with the se light, line not loosened. Hand bound 12 px (walk max 9 plus a quarter). Fixtures in `tests/fixtures/art-v2/` (no reference by md5) | PASS (8.6) | Minor for the step 3 build: the "missing file throws" test asserts only that files exist; `calibrate.mjs` returns an internal `markGates` key; a 9 to 12 px mitten hand passes |
+
+Orchestrator re-sets (for Mark to reverse): flattening group floor 20 to 25 (walk0 0.780 at 20, no candidate result seen); facing-ID calibration set 10 items with 4 flips; PA-20 hand upper bound 12 px gates, "2 to 3 px" a report line; legs report-only in ST-LIT (leg sign flips +5.7 to -16.0 over the walk frames; hair and torso catch the un-relit mirror); e and w gate on ST-SIDE (battle idle rows) plus Mark, no BF1 (Amendment 2 replaced the line that held it); a gating line that cannot be measured fails its tier.
+
+**Budget:** Mark raised the C2 agent budget from 60 to 80 calls (2026-10-17). Spent: 11 before Mark's answers, Amendment 2 (2), grade kit r3 builder (1), round 1 (2), fix builder (1), fix verifier (1) = 18 of 80.

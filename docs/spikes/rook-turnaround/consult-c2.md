@@ -64,7 +64,7 @@ The hard lines fail for the same reason. The given-relative lines (orphans, PA-0
 | Line | Now | New | Basis | Who |
 |---|---|---|---|---|
 | Orphans, PA-09 | 1.25x, tested on references | 1.25x unchanged, calibrated on walk frames | A3 | none (exit line kept) |
-| Flattening | 0.8x per part | 0.8x per group of 20 or more cells, plus the whole figure | A3 | orchestrator, recorded |
+| Flattening | 0.8x per part | 0.8x per group of 20 or more cells (re-set to 25 by calibration, walk0 0.780 at 20), plus the whole figure | A3 | orchestrator, recorded |
 | PA-07 head width | ±1 of se | removed; head alone 13 to 15 stays | width depends on facing | orchestrator |
 | PA-06 box width | ±4 of se | report only | same | orchestrator |
 | Reference gates (mIoU, value r, color) | gate | report only | A1, A3 | **Mark (Q1)** |
@@ -86,7 +86,7 @@ The hard lines fail for the same reason. The given-relative lines (orphans, PA-0
 6. Round 1, s and n: 3 Sonnet writers per facing in round 1 and 1 after (plan section 5), fresh G1 and G2 per facing per round, 1 Haiku isolation reader per round. Cap 3 rounds per facing. **At the cap:** the best candidate and its numbers go to Mark: accept, NO-GO, or #110 (the Amendment 1 cap case).
 7. e, then ne from se and e. Run ne only after n passes. Same seats, caps and cap path. Needs a new budget (below).
 
-**Budget against the 60 cap.**
+**Budget against the 60 cap.** (Mark raised the cap to 80 on 2026-10-17: records.md step 7-5.)
 
 | Item | Calls |
 |---|---|
