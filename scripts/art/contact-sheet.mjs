@@ -201,7 +201,7 @@ function loadSpec(spec, fw, fh) {
   const path = m[1];
   const sel = m[2];
   const img = readPng(path);
-  if (sel === undefined) return [{ img, label: path.split('/').pop() }];
+  if (sel === undefined) return [{ img, label: path.split('/').pop(), path }];
   const fs = splitFrames(img, fw, fh);
   if (sel === 'all') return fs.map((f, i) => ({ img: f, label: `${path.split('/').pop()} F${i}`, index: i, path }));
   const i = Number(sel);

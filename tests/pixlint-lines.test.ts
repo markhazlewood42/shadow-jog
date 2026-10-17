@@ -107,6 +107,29 @@ describe('pixlint hard lines (just inside passes, just past fails)', () => {
     expect(status(run(mix(11), opts), 'PA-08', '>=')).toBe('fail');
   });
 
+  it('PA-08 across facings: 90 percent of pixels use colors found in another image of the set (100 px: 90 pass, 89 fail)', () => {
+    const X = '#123456';
+    const others = pal.filter((c) => c !== X);
+    const mix = (off: number) => {
+      const img = box(10, 10, 10, 10);
+      for (let i = 0; i < off; i++) img.data.set(rgb(X), ((10 + Math.floor(i / 10)) * 32 + 10 + (i % 10)) * 4);
+      return img;
+    };
+    const opts = { palette: [...pal, X], setColors: others };
+    const find = (items: { id: string; name: string; status: string; value: string }[], name: string) => items.find((i) => i.id === 'PA-08' && i.name.startsWith(name));
+    const pass = run(mix(10), opts);
+    expect(find(pass, '>= 90% of pixels use colors found')?.status).toBe('pass');
+    expect(find(pass, '>= 90% of pixels use colors found')?.value).toContain('90.0%');
+    const fail = run(mix(11), opts);
+    expect(find(fail, '>= 90% of pixels use colors found')?.status).toBe('fail');
+    expect(find(fail, '>= 90% of pixels use colors found')?.value).toContain('89.0%');
+    // The old "step 3 adds it" line is replaced, and "same part, same color" stays a grader check.
+    expect(find(pass, 'same part, same color')).toMatchObject({ status: 'skipped', value: 'grader check' });
+    expect(pass.filter((i) => i.name.startsWith('same part, same color'))).toHaveLength(1);
+    // Without the option the old line stays.
+    expect(find(run(mix(10)), 'same part, same color')?.value).toBe('skipped');
+  });
+
   it('PA-04 and PA-09: 1.25x the reference count (reference 8: 10 passes, 11 fails)', () => {
     const dots = (n: number) => {
       const img = newImage(32, 32);

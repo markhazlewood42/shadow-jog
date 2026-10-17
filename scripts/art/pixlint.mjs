@@ -9,6 +9,8 @@
 //   --palette-from <png>   the palette is every opaque color of that PNG (all of its frames)
 //   --target <target.json> the measured target (docs/spikes/rook-turnaround/target.json)
 //   --ref <png> [--ref-frame N]  a reference frame for the facing check; default: the numbers of the given frame in the target
+//   --facings <png>,<png>  lint this image as one facing of a set: the list is the other images of the set (the other facings and the given frame).
+//                          PA-08 then needs 90 percent of the opaque pixels to use colors found in at least one of them
 //   --json                 machine-readable output
 // Exit code 1 when any check fails.
 //
@@ -70,6 +72,7 @@ export function paletteSet(list) {
  * opts.ref       reference numbers { bodyHeight, headWidth, bboxWidth, bottomRow, orphans, smallRegions, colors, itemSide } at the same scale, or null
  * opts.refColors the reference palette (colors of the reference frame or sheet), or null
  * opts.katana    list of the item (katana) colors, or []
+ * opts.setColors colors of the other images of a facing set (PA-08 across facings), or null
  * opts.facing    true to run the facing checks (height, head width, item side): only for frames of the reference's size
  * opts.ranges    for a scale with no single given frame (the battle idle): { orphans: [lo, hi], smallRegions: [lo, hi] }
  */
@@ -207,7 +210,30 @@ export function lintFrame(img, opts) {
   } else {
     out.push(item('PA-08', 'palette shared with the reference', 'skipped', 'skipped', 'compares 32x32 frames against the walk palette only'));
   }
-  out.push(item('PA-08', 'same part, same color across facings', 'skipped', 'skipped', 'needs a second facing to compare; step 3 adds it'));
+  if (opts.setColors) {
+    const setPal = paletteSet(opts.setColors);
+    let total = 0;
+    let shared = 0;
+    for (let y = 0; y < img.h; y++) {
+      for (let x = 0; x < img.w; x++) {
+        if (!isOpaque(img, x, y)) continue;
+        total++;
+        if (setPal.has(colorAt(img, x, y))) shared++;
+      }
+    }
+    const frac = total ? shared / total : 0;
+    out.push(
+      item(
+        'PA-08',
+        `>= ${LINES.sharedPixels * 100}% of pixels use colors found in another facing of the set`,
+        frac >= LINES.sharedPixels ? 'pass' : 'fail',
+        `${(frac * 100).toFixed(1)}% (${shared} of ${total} px)`,
+      ),
+      item('PA-08', 'same part, same color across facings', 'skipped', 'grader check', 'not scriptable: the grader compares each part (coat, hair, katana) across the facings'),
+    );
+  } else {
+    out.push(item('PA-08', 'same part, same color across facings', 'skipped', 'skipped', 'needs a second facing to compare; step 3 adds it'));
+  }
 
   // PA-21 (facing check): which side the katana is on. Reported, never a gate: a mirror moves it, and Mark judges that.
   if (opts.facing && opts.katana?.length) {
@@ -293,9 +319,10 @@ export function lintFile(path, o = {}) {
     facing = true;
   }
   const katana = o.katana ?? target?.katanaColors ?? [];
+  const setColors = o.facings?.length ? [...new Set(o.facings.flatMap((p) => colorsOf(readPng(p))))] : null;
   const results = all.map((f, i) => ({
     label: labels[i] ?? `frame ${i}`,
-    items: lintFrame(f, { palette, ref, refColors, katana, facing, ranges }),
+    items: lintFrame(f, { palette, ref, refColors, katana, facing, ranges, setColors }),
   }));
   if (o.all) results.push({ label: 'animation', items: lintAnimation(all) });
   return results;
@@ -319,6 +346,7 @@ function parseArgs(argv) {
     else if (a === '--palette-key') o.paletteKey = val();
     else if (a === '--palette-from') o.paletteFrom = val();
     else if (a === '--target') o.targetFile = val();
+    else if (a === '--facings') o.facings = (val() ?? '').split(',').filter(Boolean);
     else if (a === '--ref') o.refImage = val();
     else if (a === '--ref-frame') {
       o.refFrame = Number(val());
@@ -336,9 +364,10 @@ function main() {
   try {
     o = parseArgs(process.argv.slice(2));
     if (!o.file || !existsSync(o.file)) {
-      console.error('usage: node scripts/art/pixlint.mjs <image.png> [--frame N | --all] [--frame-size WxH] (--palette <file> [--palette-key a.b] | --palette-from <png>) [--target <target.json>] [--ref <png>] [--json]');
+      console.error('usage: node scripts/art/pixlint.mjs <image.png> [--frame N | --all] [--frame-size WxH] (--palette <file> [--palette-key a.b] | --palette-from <png>) [--target <target.json>] [--ref <png>] [--facings <png>,<png>...] [--json]');
       process.exit(2);
     }
+    for (const f of o.facings ?? []) if (!existsSync(f)) throw new Error(`--facings: no such file ${f}`);
     if (o.paletteFile) o.palette = readPaletteFile(o.paletteFile, o.paletteKey);
     if (o.targetFile) o.target = JSON.parse(readFileSync(o.targetFile, 'utf8'));
     results = lintFile(o.file, o);
