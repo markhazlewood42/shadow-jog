@@ -11,7 +11,8 @@
 // Cell order: down, down-right, right, up-right, up, up-left, left, down-left.
 // The mirrored cells: up-left mirrors up-right, left mirrors right, down-left mirrors the given frame (down-right).
 // Each cell is drawn at 4x with its label above and at 1x below it. For each mirrored cell where the mirror moves the katana
-// to the other shoulder, one line is printed. The checker only reports it; Mark judges whether it matters.
+// to the other shoulder, one line is printed. Each note names the side of the carried item in the source cell; the mirrored
+// cell has it on the other side. The checker only reports it; Mark judges whether it matters.
 import { existsSync, readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { drawText } from './contact-sheet.mjs';
@@ -113,17 +114,25 @@ function main() {
   const argv = process.argv.slice(2);
   const o = { out: 'media/rook-turnaround/sheets/turnaround.png', target: 'docs/spikes/rook-turnaround/target.json', frameSize: [32, 32] };
   const flags = { '--given': 'given', '--down': 'down', '--up': 'up', '--right': 'right', '--up-right': 'upRight', '--out': 'out', '--target': 'target' };
+  const usage = 'usage: node scripts/art/turnaround.mjs --given <png>:<n> --down <png> --up <png> --right <png> --up-right <png> [--out file] [--target target.json] [--frame-size WxH]';
   for (let i = 0; i < argv.length; i++) {
-    if (argv[i] === '--frame-size') o.frameSize = (argv[++i] ?? '').split('x').map(Number);
-    else if (flags[argv[i]]) o[flags[argv[i]]] = argv[++i];
-    else {
+    if (argv[i] === '--frame-size' || flags[argv[i]]) {
+      const flag = argv[i];
+      const v = argv[++i];
+      if (v === undefined || v.startsWith('--')) {
+        console.error(`turnaround: ${flag} needs a value\n${usage}`);
+        process.exit(2);
+      }
+      if (flag === '--frame-size') o.frameSize = v.split('x').map(Number);
+      else o[flags[flag]] = v;
+    } else {
       console.error(`turnaround: unknown argument ${argv[i]}`);
       process.exit(2);
     }
   }
   const need = ['given', 'down', 'up', 'right', 'upRight'];
   if (need.some((k) => !o[k])) {
-    console.error('usage: node scripts/art/turnaround.mjs --given <png>:<n> --down <png> --up <png> --right <png> --up-right <png> [--out file] [--target target.json] [--frame-size WxH]');
+    console.error(usage);
     process.exit(2);
   }
   try {
@@ -131,9 +140,15 @@ function main() {
       const p = k === 'given' ? o.given.replace(/:\d+$/, '') : o[k];
       if (!existsSync(p)) throw new Error(`no such file ${p}`);
     }
-    const katana = existsSync(o.target) ? (JSON.parse(readFileSync(o.target, 'utf8')).katanaColors ?? []) : [];
+    if (!existsSync(o.target)) throw new Error(`no such file ${o.target}`);
+    const katana = JSON.parse(readFileSync(o.target, 'utf8')).katanaColors ?? [];
     const [fw, fh] = o.frameSize;
+    if (o.frameSize.length !== 2 || !o.frameSize.every((n) => Number.isInteger(n) && n > 0)) throw new Error('--frame-size needs WxH, for example 32x32');
     const sprites = { given: loadGiven(o.given, fw, fh), down: readPng(o.down), up: readPng(o.up), right: readPng(o.right), upRight: readPng(o.upRight) };
+    for (const k of need) {
+      const { w, h } = sprites[k];
+      if (w !== fw || h !== fh) throw new Error(`${k} is ${w}x${h}, not ${fw}x${fh}`);
+    }
     const { sheet, notes } = buildTurnaround(sprites, katana);
     writePng(sheet, o.out);
     for (const n of notes) console.log(n);

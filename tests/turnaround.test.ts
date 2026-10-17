@@ -1,5 +1,5 @@
 /** turnaround.mjs: cell order, the three mirrors, and the printed note when a mirror moves the katana. */
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -88,5 +88,50 @@ describe('turnaround strip', () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  describe('bad command lines exit 2', () => {
+    const run = (args: string[]) => spawnSync('node', ['scripts/art/turnaround.mjs', ...args], { encoding: 'utf8' });
+    const withFiles = (fn: (f: (n: string, img: ReturnType<typeof sprite>) => string, dir: string) => void) => {
+      const dir = mkdtempSync(join(tmpdir(), 'turnaround-'));
+      try {
+        fn((n, img) => {
+          writePng(img, join(dir, n));
+          return join(dir, n);
+        }, dir);
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    };
+    const full = (f: (n: string, img: ReturnType<typeof sprite>) => string) => ['--given', f('g.png', given), '--down', f('d.png', set.down), '--up', f('u.png', set.up), '--right', f('r.png', set.right), '--up-right', f('ur.png', set.upRight)];
+
+    it('a value flag with no value', () => {
+      for (const flag of ['--target', '--frame-size', '--out', '--given', '--down', '--up', '--right', '--up-right']) {
+        const r = run([flag]);
+        expect(r.status).toBe(2);
+        expect(r.stderr).toContain(`${flag} needs a value`);
+        expect(r.stderr).toContain('usage:');
+      }
+    });
+
+    it('a --target file that does not exist', () => {
+      withFiles((f, dir) => {
+        const r = run([...full(f), '--out', join(dir, 's.png'), '--target', join(dir, 'nope.json')]);
+        expect(r.status).toBe(2);
+        expect(r.stderr.trim().split('\n')).toHaveLength(1);
+        expect(r.stderr).toContain('no such file');
+      });
+    });
+
+    it('an input frame that is not 32x32', () => {
+      withFiles((f, dir) => {
+        const args = full(f);
+        args[args.indexOf('--down') + 1] = f('big.png', newImage(48, 32) as ReturnType<typeof sprite>);
+        const r = run([...args, '--out', join(dir, 's.png')]);
+        expect(r.status).toBe(2);
+        expect(r.stderr.trim().split('\n')).toHaveLength(1);
+        expect(r.stderr).toContain('down is 48x32, not 32x32');
+      });
+    });
   });
 });

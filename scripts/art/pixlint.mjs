@@ -346,7 +346,10 @@ function parseArgs(argv) {
     else if (a === '--palette-key') o.paletteKey = val();
     else if (a === '--palette-from') o.paletteFrom = val();
     else if (a === '--target') o.targetFile = val();
-    else if (a === '--facings') o.facings = (val() ?? '').split(',').filter(Boolean);
+    else if (a === '--facings') {
+      o.facings = (val() ?? '').split(',').filter(Boolean);
+      if (!o.facings.length) throw new Error('--facings needs one or more PNG files, separated by commas');
+    }
     else if (a === '--ref') o.refImage = val();
     else if (a === '--ref-frame') {
       o.refFrame = Number(val());

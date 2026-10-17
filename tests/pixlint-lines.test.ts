@@ -1,4 +1,5 @@
 /** pixlint hard lines and the target.json numbers. A frame just inside a line passes; a frame just past it fails. */
+import { spawnSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 import target from '../docs/spikes/rook-turnaround/target.json';
 import { colorsOf, luminance, measureFrame } from '../scripts/art/metrics.mjs';
@@ -128,6 +129,22 @@ describe('pixlint hard lines (just inside passes, just past fails)', () => {
     expect(pass.filter((i) => i.name.startsWith('same part, same color'))).toHaveLength(1);
     // Without the option the old line stays.
     expect(find(run(mix(10)), 'same part, same color')?.value).toBe('skipped');
+  });
+
+  it('PA-08 across facings: an image with no opaque pixels fails the share line (0 of 0 px), with no divide by zero', () => {
+    const items = run(newImage(32, 32), { palette: pal, setColors: pal });
+    const line = items.find((i) => i.id === 'PA-08' && i.name.startsWith('>= 90% of pixels use colors found'));
+    expect(line?.status).toBe('fail');
+    expect(line?.value).toContain('0 of 0 px');
+  });
+
+  it('--facings with no file names exits 2 with one line', () => {
+    for (const v of ['', ',', ',,']) {
+      const r = spawnSync('node', ['scripts/art/pixlint.mjs', IDLE, '--facings', v], { encoding: 'utf8' });
+      expect(r.status).toBe(2);
+      expect(r.stderr.trim().split('\n')).toHaveLength(1);
+      expect(r.stderr).toContain('--facings needs');
+    }
   });
 
   it('PA-04 and PA-09: 1.25x the reference count (reference 8: 10 passes, 11 fails)', () => {
