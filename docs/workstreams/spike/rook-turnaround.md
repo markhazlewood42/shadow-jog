@@ -3,8 +3,8 @@ type: workstream
 title: Spike, Rook turnaround in the Sprite Fusion style
 branch: spike/rook-turnaround
 roadmap: E1
-state: review
+state: active
 updated: 2026-10-17
 ---
 
-Spike doc with exit criteria is drafted (`docs/spikes/rook-turnaround.md`). No spike code before Mark approves it. Draft PR, never merged.
+Mark approved the spike doc and the 80-agent cap on 2026-10-17. Running: step 0 (measure the target) and step 1 (pixkit, pixlint, contact sheet). Draft PR, never merged.
