@@ -9,7 +9,7 @@ One table per step (the lean loop). Spike doc: `../rook-turnaround.md`.
 | Build | `target.json`; `scripts/art/pixkit/`, `metrics.mjs`, `measure-target.mjs`, `pixlint.mjs`, `contact-sheet.mjs`; tests; `pngjs` dev dependency (2d859f5) | Given frame 4: height 31, head width 19, outline 96.81 percent, 32 orphans, 66 small regions. Walk: 22 colors, 7 near-black; frames 94.44 to 100 percent outline, 22 to 35 orphans, 60 to 72 small regions. Idle: 22 colors, none shared | | |
 | 1 | Runner (pixel artist, characters) and reader (engineer) | pixlint: 8 walk frames pass, idle passes, warden and a half-transparent image fail (exit 1) | Runner PASS, reader FAIL (2 Important: a test passed by construction, hard lines had no fail-path tests) | Revert the package.json description change; one-line errors for bad args; PA-04 lists every orphan; PA-08 reports its skipped half |
 | 2 | Fix commits fd105eb, 984f756: target.json palette for the idle test, pinned numbers, a fail-path test per hard line, diffGrids test | Mutations of 93 percent, head width, 1.25x and palette subset each fail a test | FAIL (1 Important: `--frame` past the last frame printed a FAIL report, exit 1) | |
-| 3 | `--frame` past the last frame: one line, exit 2 | | | |
+| 3 | f52ecba: `--frame` past the last frame gives one line, exit 2 | Frames 8 and 99 exit 2; frame 7 lints and exits 0; 39 art tests pass | PASS | |
 
 Notes:
 - "1-2 px regions" uses pack item PA-09 (4 luminance steps, then 4-connected components of 1 or 2 px). That definition gives the doc's 60 to 72. Same-color components give 108 to 132 and stay in `target.json` as `smallRegionsSameColor`.
