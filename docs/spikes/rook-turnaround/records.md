@@ -134,3 +134,14 @@ Writer kits have no feature list: a list for the hidden box would come from the 
 Lines: exact at least 60, tolerant at least 80, bands. No writer reached tolerant 80. The fix round traded one band for the other and did not move exact on the hair. Writers on the hair box drew a front-facing symmetric face from the mirror; the real frame is a three-quarter view. Graders did not run: the checker gates first.
 
 **Result: 6a FAIL.** Per plan section 6, the rules do not carry enough information to invent, so 6b is not run, and the invent stages for up, up-right and right drop. The plan keeps the copy and transform constructions (down by fuse, the down and down-left walks, the mirrors). Mark decides the next step.
+
+## Step 7-0: learnings record (2026-10-17)
+
+`learnings.md`: everything learned from step 2 through 6a, for the v2 consult. Lean loop, 1 verifier (pixel-artist-characters pack).
+
+| Round | What changed | Numbers | Verdict | Named fixes |
+|---|---|---|---|---|
+| 1 | Sonnet writer, 128 lines | Score 5.5 | FAIL (1 Critical, 7 Important) | C1 hair box is 77 cells, not about 70; I1 medium label; I2, I3 inferences as facts; I4 kit axis is 17.5 (boxkit.mjs AXIS = 35), face axis near 19.5 by the part map; I5 state after 6a; I6 glossary, tools, writer inputs; I7 estimate sentence |
+| 2 | Fix round, 194 lines; Mark's scope and method notes added | All named numbers match records.md | PASS (Haiku fix verifier) | Minor: M2 long number line |
+
+Opus dispatches (Mark, 2026-10-17: Opus standing-approved for research and consult agents on this art project): R1 Sprite Fusion and LLM pixel methods, R2 turnaround craft, R3 sprite grading measures.
