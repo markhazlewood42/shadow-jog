@@ -66,6 +66,13 @@
     "minCells": 2,
     "maxCells": 12,
     "maxBasis": "Orchestrator re-set (fix round 2, N8). PA-20 says a hand is a 2 to 3 px cluster, but the given's own hands are 8 and 5 px of skin and the 8 walk frames reach 9 px, so 3 cannot gate this character. The gate is the largest walk-frame hand cluster (9) plus a quarter of it, rounded up (3): 12. A mitten hand (a skin block over 12 px) fails. A test recomputes this bound from the walk frames.",
+    "compact": {
+      "minSideMax": 3,
+      "minCells": 8,
+      "fillMax": 0.85,
+      "rule": "PA-20 (a mitten is a filled near-square block; walk hands are not)",
+      "basis": "Fix round of build r1 (Minor from the last loop: the 9 to 12 px band let a mitten through). Measured on the 8 walk frames only: no hand cluster has a side of 4 or more, and the clusters of 8 px or more fill 0.58 to 0.75 of their box, so a fill above 0.85 from 8 px, or a short side of 4 or more, is a block. If a walk frame ever failed this, the line would be a known gap instead."
+    },
     "reportCells": 3,
     "maxNote": "PA-20's 2 to 3 px hand size is kept as a report line (ST-HANDS-MAX): clusters over 3 px are counted, none of them fails below maxCells.",
     "farHandMin": {

@@ -239,7 +239,6 @@ export interface Calibration {
   rows: (CalItem & MeasureResult)[];
   table: SeparationRow[];
   gating: string[];
-  markGates: boolean;
   hardLines: { line: string; id: string; failsShouldPass: string[]; catchesShouldFail: number; shouldFailTotal: number }[];
   lineRows: { id: string; group: string; pass: boolean; failed: string[]; items: LineItem[]; metrics: Record<string, { value: number; dir: 'min' | 'max'; limit: number | null }> }[];
   distinct: { n: number; min: { a: string; b: string; cells: number }; note: string };
@@ -397,7 +396,7 @@ export interface FacingChecks {
   rowTol: { value: number; rule: string };
   guideRows: { eyeFacings: string[]; rule: string };
   eyes: Record<string, EyeRule>;
-  hands: { minCells: number; maxCells: number; maxBasis: string; reportCells: number; maxNote: string; farHandMin: { facings: string[]; value: number; rule: string }; count: Record<string, { min: number; max: number }>; rule: string };
+  hands: { minCells: number; maxCells: number; maxBasis: string; compact: { minSideMax: number; minCells: number; fillMax: number; rule: string; basis: string }; reportCells: number; maxNote: string; farHandMin: { facings: string[]; value: number; rule: string }; count: Record<string, { min: number; max: number }>; rule: string };
   item: { edgeNearBlackMin: number; minEdgeCells: number; reset: { from: number; to: number; basis: string }; rule: string };
   litSide: { facings: string[]; groups: string[]; reportGroups: string[]; minAbsAtSe: number; legsEvidence: string; rule: string };
   sideGuide: { facings: string[]; rowTol: { value: number; rule: string }; note: string };
@@ -413,7 +412,7 @@ export function eyeCells(img: Img, labels: Labels): Cell[];
 export function maxRun(cells: Cell[]): number;
 export function eyeSummary(img: Img, labels: Labels): { cells: number; clusters: number; widthMax: number; rowSpread: number; meanRow: number | null };
 export function guideRows(img: Img, labels: Labels): { headTop: number | null; eye: number | null; shoulder: number | null; hip: number | null; foot: number | null };
-export function handClusters(img: Img, labels: Labels): { size: number; width: number; x: number }[];
+export function handClusters(img: Img, labels: Labels): { size: number; width: number; x: number; w: number; h: number; fill: number }[];
 export function itemEdge(img: Img, labels: Labels): { cells: number; edge: number; dark: number; share: number | null };
 export function litMinusShadow(img: Img, labels: Labels, group: string): number | null;
 export function sideGuide(img: Img): { headTop: number; skin: number | null; split: number | null; foot: number; h: number } | null;

@@ -313,7 +313,7 @@ export function runCalibration({ spec = loadSpec(), gates = loadGates(), t1Dir =
   const reset = resetOf(metricRows, gatesWithN.hardLines);
   const lineRowsReset = runLines({ ...gatesWithN, hardLines: { ...gatesWithN.hardLines, reset, useReset: true } });
   // Plan section 4: if fewer than passMeasures measures gate, Mark gates the facing. The grade command prints that.
-  return { rows, table, gating, markGates: gating.length < gates.passMeasures, hardLines, lineRows, lineRowsReset, reset, distinct, items, metricRows };
+  return { rows, table, gating, hardLines, lineRows, lineRowsReset, reset, distinct, items, metricRows };
 }
 
 /** The re-set values of the lines that failed should-pass items (gates.json hardLines.reset). */

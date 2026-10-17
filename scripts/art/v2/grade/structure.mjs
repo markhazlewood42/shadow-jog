@@ -104,7 +104,13 @@ export function guideRows(img, labels) {
 export function handClusters(img, labels) {
   const cells = cellsWhere(img, labels, (p, x, y) => p === 'hands' && classAt(img, x, y) === 'skin');
   const cl = clustersOf(cells, 8);
-  return cl.map((c) => ({ size: c.length, width: maxRun(c), x: c.reduce((s, [x]) => s + x, 0) / c.length }));
+  return cl.map((c) => {
+    const xs = c.map(([x]) => x);
+    const ys = c.map(([, y]) => y);
+    const w = Math.max(...xs) - Math.min(...xs) + 1;
+    const h = Math.max(...ys) - Math.min(...ys) + 1;
+    return { size: c.length, width: maxRun(c), x: c.reduce((s, [x]) => s + x, 0) / c.length, w, h, fill: c.length / (w * h) };
+  });
 }
 
 /** Item edge: the share of the item cells (sheath, guard, wrap) that touch transparency and are near-black. */
@@ -254,6 +260,10 @@ export function structureLines(img, { facing, spec, labels = null, checks = load
     if (small.length) why.push(`${small.length} hand cluster(s) too small (${small.map((x) => `${x.size}px`).join(', ')}; needs ${h.minCells}${far ? `, the far hand ${h.farHandMin.value}` : ''})`);
     const huge = hs.filter((x) => x.size > h.maxCells);
     if (huge.length) why.push(`${huge.length} hand cluster(s) too large (${huge.map((x) => `${x.size}px`).join(', ')}; allows ${h.maxCells}, a mitten hand)`);
+    // Compactness (PA-20, the mitten hand): a mitten is a filled, near-square block. Walk hands are not: no walk cluster has a side of 4 or more, and none of 8 px or more fills 0.85 of its box.
+    const cp = h.compact;
+    const blocks = hs.filter((x) => Math.min(x.w, x.h) > cp.minSideMax || (x.size >= cp.minCells && x.fill > cp.fillMax + 1e-9));
+    if (blocks.length) why.push(`${blocks.length} hand cluster(s) form a filled block, a mitten (${blocks.map((x) => `${x.size}px in ${x.w}x${x.h}, fill ${x.fill.toFixed(2)}`).join('; ')}; allows a short side of ${cp.minSideMax} and a fill of ${cp.fillMax} from ${cp.minCells} px)`);
     out.push(item('ST-HANDS', `each hand is a distinct cluster of ${h.minCells} to ${h.maxCells} px`, why.length ? 'fail' : 'pass', hs.map((x) => `${x.size}px`).join(', ') || 'none', why.join('; ') || h.rule));
     const big = hs.filter((x) => x.size > h.reportCells);
     out.push(item('ST-HANDS-MAX', `hand clusters of at most ${h.reportCells} px (the pack's 2 to 3 px; a report line)`, 'info', big.length ? `${big.length} over` : 'ok', h.maxNote));

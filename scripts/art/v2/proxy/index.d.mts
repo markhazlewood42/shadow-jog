@@ -117,3 +117,4 @@ export function writePreview(...args: any[]): any;
 export function writeRebuild(...args: any[]): any;
 export function writeSamples(...args: any[]): any;
 export function yawOf(...args: any[]): any;
+export * from './pathc-types.mjs';

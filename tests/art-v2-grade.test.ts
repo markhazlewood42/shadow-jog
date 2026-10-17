@@ -4,7 +4,7 @@
  * Every hard line and every gate has a fail-path test: a mutated input must fail the named line.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -19,6 +19,8 @@ import {
   align,
   applyEdits,
   autoLabel,
+  clearPixel,
+  handClusters,
   blobImage,
   buildCalibrationItems,
   boundaryF,
@@ -554,12 +556,20 @@ describe('calibration set and runner', () => {
     expect(count('fail-far')).toBeGreaterThanOrEqual(15);
     expect(res.rows.filter((r) => r.id.includes('round8')).length).toBe(3);
   });
-  it('round 8 is a committed fixture: all four facings exist, and a missing file throws instead of dropping items', () => {
+  it('round 8 is a committed fixture: all four facings exist, and every missing file throws from calibrate.mjs instead of dropping items', () => {
     expect(ROUND8_DIR.replace(/\\/g, '/')).toMatch(/tests\/fixtures\/art-v2\/round8$/);
     for (const f of ['down', 'right', 'up', 'up-right']) expect(existsSync(join(ROUND8_DIR, `${f}.png`)), f).toBe(true);
     const nowhere = join(tmp, 'no-round8');
     expect(() => buildCalibrationItems({ spec, round8Dir: nowhere })).toThrow(/round 8 fixture missing/);
     expect(() => buildStyleItems(spec, { round8Dir: nowhere })).toThrow(/round 8 fixture missing/);
+    // one file missing in an otherwise complete folder: the throw names that file (the calibration reads down, up and up-right; the style set reads all four)
+    for (const missing of ['down', 'right', 'up', 'up-right']) {
+      const dir = join(tmp, `round8-without-${missing}`);
+      mkdirSync(dir, { recursive: true });
+      for (const f of ['down', 'right', 'up', 'up-right']) if (f !== missing) copyFileSync(join(ROUND8_DIR, `${f}.png`), join(dir, `${f}.png`));
+      expect(() => buildStyleItems(spec, { round8Dir: dir }), `style set without ${missing}`).toThrow(new RegExp(`round 8 fixture missing: .*${missing}[.]png`));
+      if (missing !== 'right') expect(() => buildCalibrationItems({ spec, round8Dir: dir }), `calibration without ${missing}`).toThrow(new RegExp(`round 8 fixture missing: .*${missing}[.]png`));
+    }
   });
   it('has a slot for T1 outputs: <facing>.png files in a folder join the realistic pass group', () => {
     const dir = join(tmp, 't1');
@@ -570,7 +580,7 @@ describe('calibration set and runner', () => {
     expect(t1.map((i) => [i.id, i.group])).toEqual([['t1:s', 'pass-real']]);
   });
   it('the reference calibration is kept as a record: reference measures are report lines only (Amendment 2 Q1)', () => {
-    expect(res.markGates).toBe(res.gating.length < gates.passMeasures);
+    expect(res).not.toHaveProperty('markGates');
     for (const m of Object.values(gates.targetMeasures)) expect(m.role).toBe('report');
     const c = candidateFromRef(loadReference('s'), spec);
     const v = grade(c.img, { facing: 's', labels: c.labels, spec, gates });
@@ -1393,6 +1403,56 @@ describe('structure tier (B3): reference-free lines, each with a fail path', () 
     expect(r?.detail).toMatch(/too large/);
     // the 3 px of PA-20 stays a report line, which counts the clusters over it
     expect(st(lines(spec.given, 's'), 'ST-HANDS-MAX')?.status).toBe('info');
+  });
+  it('ST-HANDS compactness (build r1 fix): a 9 to 12 px filled block is a mitten and fails; the walk-size hands pass; the line goes red when its limits are removed', () => {
+    const checks = loadFacingChecks();
+    const cp = checks.hands.compact;
+    expect(cp.rule).toMatch(/PA-20/);
+    // the numbers are measured on the 8 walk frames: no cluster has a side of 4 or more, and no cluster of 8 px or more fills more than 0.85 of its box
+    let walkMaxSide = 0;
+    let walkMaxFill = 0;
+    for (const fr of loadWalkFramesForTest())
+      for (const h of handClusters(fr, autoLabel(fr))) {
+        walkMaxSide = Math.max(walkMaxSide, Math.min(h.w, h.h));
+        if (h.size >= cp.minCells) walkMaxFill = Math.max(walkMaxFill, h.fill);
+      }
+    expect(walkMaxSide).toBeLessThanOrEqual(cp.minSideMax);
+    expect(walkMaxFill).toBeLessThanOrEqual(cp.fillMax);
+    // a mitten of 9 px (3 by 3) and one of 12 px (4 by 4 without its corners, a side of 4) replace the right hand of the given
+    const rightHand = (): [number, number][] => {
+      const cells: [number, number][] = [];
+      for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) if (spec.givenLabels[y * 32 + x] === 'hands' && colorClass(spec.given.data[(y * 32 + x) * 4] ?? 0, spec.given.data[(y * 32 + x) * 4 + 1] ?? 0, spec.given.data[(y * 32 + x) * 4 + 2] ?? 0) === 'skin') cells.push([x, y]);
+      const mid = (Math.min(...cells.map(([x]) => x)) + Math.max(...cells.map(([x]) => x))) / 2;
+      return cells.filter(([x]) => x > mid);
+    };
+    const withBlock = (shape: [number, number][]) => {
+      const img = clone(spec.given);
+      const labels: Labels = [...spec.givenLabels];
+      const old = rightHand();
+      const x0 = Math.min(...old.map(([x]) => x));
+      const y0 = Math.min(...old.map(([, y]) => y));
+      for (const [x, y] of old) clearPixel(img, x, y);
+      for (const [dx, dy] of shape) {
+        put(img, x0 + dx, y0 + dy, '#e4b086');
+        labels[(y0 + dy) * 32 + x0 + dx] = 'hands';
+      }
+      return { img, labels };
+    };
+    const block9: [number, number][] = [];
+    for (let dy = 0; dy < 3; dy++) for (let dx = 0; dx < 3; dx++) block9.push([dx, dy]);
+    const block12: [number, number][] = [];
+    for (let dy = 0; dy < 4; dy++) for (let dx = 0; dx < 4; dx++) if (!((dx === 0 || dx === 3) && (dy === 0 || dy === 3))) block12.push([dx, dy]);
+    for (const [name, shape] of [['3 by 3', block9], ['4 by 4 without corners', block12]] as const) {
+      const m = withBlock(shape);
+      const r = st(lines(m.img, 's', m.labels), 'ST-HANDS');
+      expect(r?.status, `${name}: ${r?.value}`).toBe('fail');
+      expect(r?.detail, name).toMatch(/filled block, a mitten/);
+      // mutation: with the compactness limits removed the same picture passes the size band again (so the new line is what catches it)
+      const loose = structureLines(m.img, { facing: 's', spec, labels: m.labels, checks: { ...checks, hands: { ...checks.hands, compact: { ...cp, minSideMax: 99, fillMax: 2 } } } });
+      expect(st(loose, 'ST-HANDS')?.status, `${name} without the line`).toBe('pass');
+    }
+    // the 8 walk frames and the given still pass
+    for (const [k, fr] of loadWalkFramesForTest().entries()) expect(st(structureLines(fr, { facing: 'se', spec, labels: null }), 'ST-HANDS')?.status, `walk ${k}`).toBe('pass');
   });
   it('ST-ITEM (N4): the line is re-set to 0.84 from the walk frames and the references; no outline fails, and the boundary is pinned', () => {
     const it = loadFacingChecks().item;

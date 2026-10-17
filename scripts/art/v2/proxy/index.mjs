@@ -15,3 +15,8 @@ export * from './rebuild.mjs';
 export * from './checks.mjs';
 export * from './measures.mjs';
 export * from './preview.mjs';
+export * from './layout.mjs';
+export * from './ramp.mjs';
+export * from './transplant.mjs';
+export * from './codepaint.mjs';
+export * from './detailmask.mjs';
