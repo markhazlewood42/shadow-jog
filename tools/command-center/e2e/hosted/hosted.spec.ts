@@ -575,5 +575,91 @@ for (const [label, size] of [
       await expect(page.getByRole('region', { name: 'Answer', exact: true })).toContainText('Answered A');
       await expect(answerForm(page)).toHaveCount(0);
     });
+
+    // ---- asking for more info (docs/command-center/needs-info-brief.md): the same function, action "ask" ----
+    const askForm = (page: Page) => page.getByRole('form', { name: 'Ask for more info on this decision' });
+    const asked = { ok: true, ask: { text: 'What does option B cost to undo?', at: '2026-10-12T12:00:05.000Z' } };
+    const thread = (page: Page) => page.getByRole('list', { name: 'Questions and info' });
+
+    test('ask: sends one JSON POST with action "ask" and the question as note, and shows Waiting for info at once, while the snapshot still says open', async ({ page }) => {
+      const mock = await mockApi(page, { snapshot: { json: world.snapshot }, live: { json: world.live }, answer: { json: asked } });
+      await page.goto('/decisions/61');
+      await expect(page.getByRole('button', { name: 'Ask for more info' })).toBeVisible();
+      await page.getByRole('button', { name: 'Ask for more info' }).click();
+      await expect(askForm(page).getByRole('button', { name: 'Send question' })).toBeDisabled();
+      await askForm(page).getByLabel('Your question').fill('What does option B cost to undo?');
+      await askForm(page).getByRole('button', { name: 'Send question' }).click();
+
+      await expect(page.getByRole('region', { name: 'Decision', exact: true }).getByText('Waiting for info', { exact: true })).toBeVisible();
+      await expect(thread(page)).toContainText('What does option B cost to undo?');
+      await expect(askForm(page)).toHaveCount(0);
+      expect(mock.hits.answer).toEqual([{ body: { number: 61, action: 'ask', note: 'What does option B cost to undo?' }, contentType: 'application/json', method: 'POST' }]);
+      await expectNoSidewaysScroll(page);
+    });
+
+    test('ask: a double click on Send question sends one request, and the failed step is named with the question kept', async ({ page }) => {
+      const mock = await mockApi(page, { snapshot: { json: world.snapshot }, live: { json: world.live }, answer: { ...serverError(502, 'rejected', 'GitHub refused the change.', 'label'), delayMs: 300 } });
+      await page.goto('/decisions/61');
+      await page.getByRole('button', { name: 'Ask for more info' }).click();
+      await askForm(page).getByLabel('Your question').fill('Why?');
+      await askForm(page).getByRole('button', { name: 'Send question' }).dblclick();
+      const alert = page.getByRole('alert');
+      await expect(alert).toContainText('Question posted · Label not added');
+      await expect(alert).toContainText('rejected');
+      expect(mock.hits.answer).toHaveLength(1);
+      await expect(askForm(page).getByLabel('Your question')).toHaveValue('Why?');
+      await expectNoSidewaysScroll(page);
+    });
+
+    test('ask: a decision the snapshot has as waiting for info shows the thread as text, and the answer form is still there', async ({ page }) => {
+      const hostile = '<script>window.__pwned = 1</script> [a link](https://example.com/x)';
+      const waiting = decision(61, {
+        phase: 'needs-info',
+        thread: [
+          { kind: 'decision', text: 'Option A. I need more detail.', at: '2026-10-12T09:00:00.000Z', cut: false },
+          { kind: 'question', text: hostile, at: '2026-10-12T10:00:00.000Z', cut: false },
+        ],
+      });
+      await mockApi(page, { snapshot: { json: snapshot({ decisions: { open: [waiting], recent: [] } }) }, live: { json: world.live } });
+      await page.goto('/decisions/61');
+      await expect(page.getByRole('region', { name: 'Decision', exact: true }).getByText('Waiting for info', { exact: true })).toBeVisible();
+      await expect(thread(page)).toContainText(hostile);
+      await expect(thread(page).locator('script, a')).toHaveCount(0);
+      await expect(answerForm(page)).toBeVisible();
+      await expect(answerForm(page).getByRole('radio', { name: /Option A/ })).not.toBeChecked();
+      expect(await page.evaluate(() => (window as unknown as { __pwned?: number }).__pwned)).toBeUndefined();
+      await expectNoSidewaysScroll(page);
+    });
+
+    test('ask: Retry on a question whose label is missing sends the same question text', async ({ page }) => {
+      const unfinished = decision(61, { phase: 'ask-unfinished', thread: [{ kind: 'question', text: 'Why is B slow?', at: '2026-10-12T10:00:00.000Z', cut: false }] });
+      const mock = await mockApi(page, {
+        snapshot: { json: snapshot({ decisions: { open: [unfinished], recent: [] } }) },
+        live: { json: world.live },
+        answer: { json: { ok: true, ask: { text: 'Why is B slow?', at: '2026-10-12T12:00:05.000Z' } } },
+      });
+      await page.goto('/decisions/61');
+      await expect(page.getByText('Question sent, label missing')).toBeVisible();
+      await page.getByRole('button', { name: 'Retry', exact: true }).click();
+      await expect(page.getByRole('region', { name: 'Decision', exact: true }).getByText('Waiting for info', { exact: true })).toBeVisible();
+      expect(mock.hits.answer.map((hit) => hit.body)).toEqual([{ number: 61, action: 'ask', note: 'Why is B slow?' }]);
+    });
+
+    test('ask: the Now page splits Your move into Waiting for you and Waiting for info, with More info posted first', async ({ page }) => {
+      const open = [
+        decision(61, { phase: 'needs-info', thread: [{ kind: 'question', text: 'Why?', at: '2026-10-12T10:00:00.000Z', cut: false }] }),
+        decision(62, { question: 'Fresh info?' }),
+        decision(63, { question: 'Has the info?', phase: 'info-posted', thread: [{ kind: 'info', text: 'Here.', at: '2026-10-12T11:00:00.000Z', cut: false }] }),
+      ];
+      await mockApi(page, { snapshot: { json: snapshot({ decisions: { open, recent: [] } }) }, live: { json: liveAnswer('not-running') } });
+      await page.goto('/');
+      const yourMove = page.getByRole('region', { name: 'Your move', exact: true });
+      const forYou = yourMove.getByRole('list', { name: 'What waits for Mark' });
+      await expect(forYou.getByRole('listitem').first()).toContainText('Decision #63');
+      await expect(forYou.getByRole('listitem').first()).toContainText('More info posted');
+      await expect(forYou.getByRole('listitem').nth(1)).toContainText('Decision #62');
+      await expect(forYou).not.toContainText('Decision #61');
+      await expect(yourMove.getByRole('list', { name: 'Waiting for info' })).toContainText('Decision #61');
+    });
   });
 }
