@@ -7,11 +7,11 @@ import type { Hub } from '../hub';
 import { say } from '../messages';
 import type { RunResult, Runner } from '../runner';
 import { POLL_EVERY_MS, PanelError, type PanelSource, createPanelSource } from '../source';
-import { type AnswerProgress, DECISION_FIELDS, LABEL_DECIDED, LABEL_DECISION, addDecision, flattenEventPages, isRecent, parseDecisionIssue, readDecisionIssue, sortDecisions } from './parse';
+import { type AnswerProgress, type AskProgress, DECISION_FIELDS, LABEL_DECIDED, LABEL_DECISION, addDecision, flattenEventPages, isRecent, parseDecisionIssue, readDecisionIssue, sortDecisions } from './parse';
 
 // The decisions module: the decision issues of the repository, as a Panel of the ones that wait for Mark and the ones
-// he answered in the last week. It reads GitHub through `gh`, and only reads: the one write of the command center (the
-// answer) is in answer.ts, and it goes through the same runner, which has an exact list of the calls it allows.
+// he answered in the last week. It reads GitHub through `gh`, and only reads: the writes of the command center (the
+// answer and the ask) are in answer.ts, and it goes through the same runner, which has an exact list of the calls it allows.
 //
 // What it reads, and why:
 //   - `gh issue list --label decision --author <Mark> --state open`: the decisions that wait.
@@ -173,10 +173,14 @@ export function bannersOf(info: DecisionsInfo, docId: string): DocDecision[] {
   return banners;
 }
 
-/** A decision as GitHub holds it now, with how far its answer has got. */
+/** A decision as GitHub holds it now, with how far its answer has got, and the labels and the ask cycle that an Ask is checked against. */
 export type DecisionRead = {
   issue: DecisionIssue;
   progress: AnswerProgress;
+  /** The label `needs-info` and the question that waits for an info (see `AskProgress`). The state itself is `issue.phase`. */
+  ask: AskProgress;
+  /** The names of the labels on the issue, in lower case. */
+  labels: string[];
   /** The label `decided` is on the issue and Mark's account did not put it on: an answer must take it off first, to make an event of Mark's. */
   staleDecided: boolean;
 };

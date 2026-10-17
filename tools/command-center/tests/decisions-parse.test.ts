@@ -101,6 +101,8 @@ describe('parseDecisionIssue: the template', () => {
       createdAt: '2026-10-05T10:00:00Z',
       answer: null,
       problem: null,
+      phase: 'open',
+      thread: [],
     });
   });
 
@@ -452,6 +454,8 @@ describe('parseDecisionIssue: a body that is not a decision', () => {
       createdAt: '2026-10-05T14:00:00Z',
       answer: null,
       problem: expect.stringMatching(/does not follow the decision template/),
+      phase: 'open',
+      thread: [],
     });
     // It is an issue of Mark's all the same: it is listed, and he can open it on GitHub.
     expect(decision.problem).toMatch(/GitHub/);

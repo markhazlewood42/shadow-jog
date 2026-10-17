@@ -7381,6 +7381,9 @@ function slug(value, maintainCase) {
   return value.replace(regex, "").replace(/ /g, "-");
 }
 
+// src/shared/types.ts
+var THREAD_TEXT_CHARS = 4e3;
+
 // src/shared/doc-slug.ts
 var slugOf = (id) => id.replace(/\.md$/i, "").replace(/^docs\//, "");
 
@@ -7522,12 +7525,17 @@ var MESSAGES = {
   requestNotJson: "The request body is not JSON.",
   requestNoOption: 'The request must be a JSON object with an "option" text.',
   requestNoteNotText: 'The "note" of the request must be text.',
+  requestBadAction: 'The "action" of the request must be "answer" or "ask".',
+  requestNoNumber: "The request must have the number of an issue.",
   requestTooLarge: "The request is larger than {max} bytes.",
   noteTooLong: "The note is longer than {max} characters. Shorten it.",
   noteBadCharacter: "The note has a control character that cannot be sent.",
+  requestAskNeedsText: 'A question needs text in "note": 1 to {max} characters.',
+  requestAskHasOption: 'A question takes no "option".',
+  askNotDecision: "Decision #{number} has no decision label, so it cannot take a question. Finish its answer first.",
   // ---- the server itself: guards, missing routes and files ----
   hostNotAllowed: "This server only answers to localhost and 127.0.0.1 on its own port.",
-  readOnlyServer: "This server only reads. The one write is the answer to a decision.",
+  readOnlyServer: "This server only reads. The writes are the answer to a decision and the ask for more info.",
   writeNeedsToken: "A write needs the token of this run. Reload the page.",
   writeCrossSite: "A write must come from this site.",
   writeNeedsJson: "A write must be JSON (Content-Type: application/json).",
@@ -7555,7 +7563,7 @@ var MESSAGES = {
   reasonComment: "a comment is exactly: issue comment <number> --body <text>",
   reasonCommentText: "a comment needs text",
   reasonCommentLong: "a comment is at most {max} characters",
-  reasonEdit: "an edit must swap the label decision for decided, or remove decided",
+  reasonEdit: "an edit must swap decision for decided, remove decided, or add or remove needs-info",
   reasonClose: "a close is exactly: issue close <number>",
   reasonAuth: "gh auth status takes no options",
   reasonNotOnList: "gh {command} is not on the list",
@@ -7698,6 +7706,7 @@ function splitPullRequests(all, now) {
 // src/server/decisions/parse.ts
 var LABEL_DECISION = "decision";
 var LABEL_DECIDED = "decided";
+var LABEL_NEEDS_INFO = "needs-info";
 var isRecord2 = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
 var text2 = (value) => typeof value === "string" ? value : "";
 function millisOf2(iso) {
@@ -7711,18 +7720,66 @@ function readAnswerComment(body) {
   const note = (match[2] ?? "").replace(/\r\n/g, "\n").trim();
   return { option: match[1], note: note === "" ? null : note };
 }
-function newestAnswer(comments) {
-  if (!Array.isArray(comments)) return null;
+var QUESTION_COMMENT = /^Question:/;
+var INFO_COMMENT = /^Info:/;
+var normalizeQuestion = (words) => words.replace(/\r\n?/g, "\n").trim();
+var isNewer = (a, b) => a.ms > b.ms || a.ms === b.ms && a.index > b.index;
+function newestOf(comments) {
   let newest = null;
-  for (const comment of comments) {
-    if (!isRecord2(comment) || !isRecord2(comment.author) || !isMarkLogin(comment.author.login)) continue;
-    const answer = readAnswerComment(text2(comment.body));
-    if (answer === null) continue;
+  for (const comment of comments) if (newest === null || isNewer(comment, newest)) newest = comment;
+  return newest;
+}
+function markComments(comments) {
+  if (!Array.isArray(comments)) return [];
+  const found = [];
+  comments.forEach((comment, index) => {
+    if (!isRecord2(comment) || !isRecord2(comment.author) || !isMarkLogin(comment.author.login)) return;
+    const body = text2(comment.body);
     const at = text2(comment.createdAt);
-    const ms = millisOf2(at);
-    if (newest === null || ms >= newest.ms) newest = { ...answer, at, ms };
+    const base = { at, ms: millisOf2(at), index };
+    const answer = readAnswerComment(body);
+    if (answer !== null) found.push({ ...base, kind: "decision", text: answer.note === null ? `Option ${answer.option}` : `Option ${answer.option}. ${answer.note}`, answer });
+    else if (QUESTION_COMMENT.test(body)) found.push({ ...base, kind: "question", text: normalizeQuestion(body.slice("Question:".length)), answer: null });
+    else if (INFO_COMMENT.test(body)) found.push({ ...base, kind: "info", text: normalizeQuestion(body.slice("Info:".length)), answer: null });
+  });
+  return found.sort((a, b) => isNewer(a, b) ? 1 : -1);
+}
+function phaseOf(hasLabel, askPoint, info) {
+  if (hasLabel) {
+    if (askPoint !== null && (info === null || isNewer(askPoint, info))) return "needs-info";
+    return info !== null ? "info-posted" : "needs-info-empty";
   }
-  return newest === null ? null : { option: newest.option, note: newest.note, at: newest.at };
+  if (askPoint !== null && info !== null && isNewer(info, askPoint)) return "info-posted";
+  return askPoint?.kind === "question" ? "ask-unfinished" : "open";
+}
+function cutText(words) {
+  if (words.length <= THREAD_TEXT_CHARS) return { text: words, cut: false };
+  const last = words.charCodeAt(THREAD_TEXT_CHARS - 1);
+  const end = last >= 55296 && last <= 56319 ? THREAD_TEXT_CHARS - 1 : THREAD_TEXT_CHARS;
+  return { text: words.slice(0, end), cut: true };
+}
+function decisionOf(comment) {
+  return comment?.answer == null ? null : { option: comment.answer.option, note: comment.answer.note, at: comment.at };
+}
+function readAsk(comments, hasLabel) {
+  const all = markComments(comments);
+  const questions = all.filter((comment) => comment.kind === "question");
+  const infos = all.filter((comment) => comment.kind === "info");
+  const newestDecision = newestOf(all.filter((comment) => comment.kind === "decision"));
+  const newestQuestion = newestOf(questions);
+  const info = newestOf(infos);
+  const askPoint = newestOf([newestDecision, newestQuestion].filter((comment) => comment !== null));
+  const phase = phaseOf(hasLabel, askPoint, info);
+  const half = !hasLabel && newestDecision !== null && (newestQuestion === null || isNewer(newestDecision, newestQuestion)) && (info === null || isNewer(newestDecision, info));
+  const decisionShown = newestDecision !== null && (askPoint === newestDecision || info === null || isNewer(newestDecision, info));
+  const thread = phase === "open" ? [] : [...questions, ...infos, ...decisionShown && newestDecision !== null ? [newestDecision] : []].sort((a, b) => isNewer(a, b) ? 1 : -1).map((comment) => ({ kind: comment.kind, at: comment.at, ...cutText(comment.text) }));
+  return {
+    phase,
+    thread,
+    halfAnswer: half ? decisionOf(newestDecision) : null,
+    newestDecision: decisionOf(newestDecision),
+    pendingQuestion: askPoint?.kind === "question" && (info === null || isNewer(askPoint, info)) ? askPoint.text : null
+  };
 }
 function labelNamesOf(raw) {
   if (!Array.isArray(raw.labels)) return [];
@@ -7876,7 +7933,9 @@ function readDecisionIssue(rawIssue, events) {
   if (!hasDecided && !labels.includes(LABEL_DECISION)) return null;
   const closed = text2(rawIssue.state).toUpperCase() === "CLOSED";
   const decidedByMark = hasDecided && decidedLabelIsMarks(events);
-  const written = newestAnswer(rawIssue.comments);
+  const needsInfo = labels.includes(LABEL_NEEDS_INFO);
+  const reading = readAsk(rawIssue.comments, needsInfo);
+  const written = closed ? reading.newestDecision : reading.halfAnswer;
   const answer = written === null ? null : { ...written, complete: closed && decidedByMark };
   const issue = {
     number,
@@ -7885,15 +7944,20 @@ function readDecisionIssue(rawIssue, events) {
     state: answer?.complete ? "answered" : closed ? "closed" : "open",
     ...readBody(rawIssue.body),
     createdAt: text2(rawIssue.createdAt),
-    answer
+    answer,
+    // The ask cycle is for open decisions: a closed issue keeps the rules of an answer.
+    phase: closed ? "open" : reading.phase,
+    thread: closed ? [] : reading.thread
   };
   return {
     issue,
     progress: {
-      comment: written === null ? null : { option: written.option, note: written.note },
+      comment: reading.halfAnswer === null ? null : { option: reading.halfAnswer.option, note: reading.halfAnswer.note },
       labelsSwapped: decidedByMark && !labels.includes(LABEL_DECISION),
       closed
     },
+    ask: { needsInfo, pendingQuestion: reading.pendingQuestion },
+    labels,
     staleDecided: hasDecided && !decidedByMark
   };
 }

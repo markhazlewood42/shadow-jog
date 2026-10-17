@@ -3,12 +3,14 @@ import { LoaderCircle, Send, TriangleAlert } from 'lucide-react';
 import { type FormEvent, useCallback, useRef, useState } from 'react';
 import { type AnswerStep, type DecisionAnswer, type DecisionIssue, MAX_NOTE_CHARS } from '../../shared/types';
 import { ApiError, postJson } from '../api';
-import { answerOf, sendHostedAnswer } from '../hosted/answer';
+import { answerOf, sendHostedAnswer, sendHostedAsk } from '../hosted/answer';
 import { OptionBadge, RecommendedChip } from './DecisionCard';
 
 // How Mark answers a decision: he picks an option, adds a note if he wants, and sends it. The server then posts a
 // comment on the GitHub issue, swaps its label and closes it (three calls, one after the other, and any of them can fail).
 // When one fails the form shows the error and keeps his choice and his note, and a retry carries on where the answer stopped.
+//
+// The ask for more info (AskForm.tsx) shares the draft of this page: its text, its status and its failure live here too, and one in-flight guard covers both send buttons.
 //
 // The same form serves the hosted page (VITE_HOSTED=1), which posts to the function `/api/answer` instead of the local server (src/web/hosted/answer.ts). The flag is a constant of
 // the build, so each build keeps only its own way to send, and the hosted build holds no trace of the local write token.
@@ -33,9 +35,20 @@ export type AnswerDraft = {
   setChoice(id: string): void;
   setNote(text: string): void;
   send(option: string, note: string): Promise<void>;
+  /** The ask for more info (AskForm.tsx): whether its box is open, the question Mark types, and what came of sending it. */
+  askOpen: boolean;
+  askText: string;
+  askStatus: 'idle' | 'sending' | 'failed' | 'sent';
+  askFailure: AnswerFailure | null;
+  /** The hosted page only: the question as the function wrote it, so that the page shows "Waiting for info" before the snapshot (up to 15 s old) catches up. Always null on the local page. */
+  asked: { text: string; at: string } | null;
+  setAskOpen(open: boolean): void;
+  setAskText(text: string): void;
+  /** Sends a question. Retry of a question whose label step failed sends the same text: the server then adds the label only. */
+  sendAsk(text: string): Promise<void>;
 };
 
-const isStep = (value: unknown): value is AnswerStep => value === 'comment' || value === 'label' || value === 'close';
+const isStep = (value: unknown): value is AnswerStep => value === 'unflag' || value === 'comment' || value === 'label' || value === 'close';
 
 /** What an error of the server (or of the connection) says about a failed answer. */
 function failureOf(error: unknown): AnswerFailure {
@@ -57,7 +70,12 @@ export function useAnswerDraft(number: number, onWritten: () => void): AnswerDra
   const [status, setStatus] = useState<AnswerDraft['status']>('idle');
   const [failure, setFailure] = useState<AnswerFailure | null>(null);
   const [answered, setAnswered] = useState<DecisionAnswer | null>(null);
-  // Set at once, before React re-renders: a fast double click would otherwise send two answers, and post two comments.
+  const [askOpen, setAskOpen] = useState(false);
+  const [askText, setAskText] = useState('');
+  const [askStatus, setAskStatus] = useState<AnswerDraft['askStatus']>('idle');
+  const [askFailure, setAskFailure] = useState<AnswerFailure | null>(null);
+  const [asked, setAsked] = useState<AnswerDraft['asked']>(null);
+  // Set at once, before React re-renders: a fast double click would otherwise send two answers, and post two comments. One guard for the answer and the question: either send blocks the other.
   const inFlight = useRef(false);
 
   const send = useCallback(
@@ -94,11 +112,47 @@ export function useAnswerDraft(number: number, onWritten: () => void): AnswerDra
     [number, onWritten],
   );
 
-  return { choice, note, status, failure, answered, setChoice, setNote, send };
+  const sendAsk = useCallback(
+    async (text: string) => {
+      if (inFlight.current) return;
+      inFlight.current = true;
+      setAskStatus('sending');
+      setAskFailure(null);
+      try {
+        if (HOSTED) {
+          const sent = await sendHostedAsk(number, text);
+          if (sent.ok) {
+            setAsked(sent.ask);
+            setAskStatus('sent');
+            setAskText('');
+            setAskOpen(false);
+          } else {
+            setAskStatus('failed');
+            setAskFailure(sent.failure);
+          }
+        } else {
+          await postJson(`/api/decisions/${number}/ask`, { note: text });
+          setAskStatus('sent');
+          setAskText('');
+          setAskOpen(false);
+        }
+      } catch (error) {
+        setAskStatus('failed');
+        setAskFailure(failureOf(error));
+      } finally {
+        inFlight.current = false;
+      }
+      onWritten();
+    },
+    [number, onWritten],
+  );
+
+  return { choice, note, status, failure, answered, setChoice, setNote, send, askOpen, askText, askStatus, askFailure, asked, setAskOpen, setAskText, sendAsk };
 }
 
 /** What a failed step means for the answer, as labels: the steps that are done before it, then the step that failed. */
 const STEP_LABEL: Record<AnswerStep, string> = {
+  unflag: 'Info flag not removed · Answer not posted',
   comment: 'Answer not posted',
   label: 'Answer posted · Label not changed',
   close: 'Answer posted · Label changed · Issue not closed',
@@ -107,19 +161,31 @@ const STEP_LABEL: Record<AnswerStep, string> = {
 /** What the retry does. Steps that are done are not done again, so a retry after the comment step does not post the comment twice. */
 function retryLine(step: AnswerStep | null): string {
   const keeps = 'The form keeps your choice and note.';
-  return step === 'label' || step === 'close' ? `${keeps} Retry does not post the comment again.` : `${keeps} Press Retry to send again.`;
+  return step === 'label' || step === 'close' ? `${keeps} Retry does not post the comment again.` : step === 'unflag' ? `${keeps} Retry takes the flag off, then posts the comment once.` : `${keeps} Press Retry to send again.`;
 }
 
-function FailureBox({ failure }: { failure: AnswerFailure }) {
+/** What a failed step of an Ask means, as labels. The two steps are named like the first two of an answer. */
+export const ASK_STEP_LABEL: Partial<Record<AnswerStep, string>> = {
+  comment: 'Question not posted',
+  label: 'Question posted · Label not added',
+};
+
+/** What the retry of an Ask does: the question is kept, and a Retry after the comment step does not post it again. */
+export function askRetryLine(step: AnswerStep | null): string {
+  const keeps = 'The box keeps your question.';
+  return step === 'label' ? `${keeps} Retry does not post the question again.` : `${keeps} Press Send question to try again.`;
+}
+
+export function FailureBox({ failure, labels = STEP_LABEL, retry = retryLine, noStep = 'Answer not sent' }: { failure: AnswerFailure; labels?: Partial<Record<AnswerStep, string>>; retry?: (step: AnswerStep | null) => string; noStep?: string }) {
   return (
     <div role="alert" className="flex items-start gap-3 rounded-md border border-cc-rule-solid bg-cc-paper px-4 py-3">
       {/* The icon is ink, not amber: a page may have one or two amber items (the Look), and here they are the state chip and the Retry button. */}
       <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0 text-cc-ink" />
       <div className="min-w-0 flex-1 text-sm">
-        <p className="font-medium">{failure.step === null ? 'Answer not sent' : STEP_LABEL[failure.step]}</p>
+        <p className="font-medium">{failure.step === null ? noStep : (labels[failure.step] ?? noStep)}</p>
         <p className="mt-1 break-words">{failure.message}</p>
         <p className="mt-1 font-mono text-xs text-cc-muted">{failure.code}</p>
-        <p className="mt-2 text-cc-muted">{retryLine(failure.step)}</p>
+        <p className="mt-2 text-cc-muted">{retry(failure.step)}</p>
       </div>
     </div>
   );
@@ -136,12 +202,14 @@ export function AnswerForm({ issue, draft }: { issue: DecisionIssue; draft: Answ
   const choice = draft.choice ?? half?.option ?? null;
   const note = draft.note ?? half?.note ?? '';
   const sending = draft.status === 'sending';
+  // The question and the answer are one write at a time: while either is on its way, both send buttons wait.
+  const busy = sending || draft.askStatus === 'sending';
   const retrying = draft.status === 'failed';
 
   function submit(event: FormEvent<HTMLFormElement>) {
     // The page sends the answer itself (the content policy of the server forbids a form to go anywhere).
     event.preventDefault();
-    if (choice === null || sending) return;
+    if (choice === null || busy) return;
     void draft.send(choice, note);
   }
 
@@ -177,7 +245,7 @@ export function AnswerForm({ issue, draft }: { issue: DecisionIssue; draft: Answ
       )}
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <Button type="submit" variant="primary" isDisabled={choice === null || sending}>
+        <Button type="submit" variant="primary" isDisabled={choice === null || busy}>
           {sending ? <LoaderCircle aria-hidden className="size-4 motion-safe:animate-spin" /> : <Send aria-hidden className="size-4" />}
           {sending ? 'Sending…' : retrying ? 'Retry' : 'Send answer'}
         </Button>

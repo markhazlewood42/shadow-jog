@@ -1,6 +1,15 @@
 import { posix } from 'node:path';
 import { slug as headingId } from 'github-slugger';
-import type { DecisionAnswer, DecisionDocLink, DecisionIssue, DecisionOption, DecisionsInfo } from '../../shared/types';
+import {
+  type DecisionAnswer,
+  type DecisionDocLink,
+  type DecisionIssue,
+  type DecisionOption,
+  type DecisionPhase,
+  type DecisionThreadEntry,
+  type DecisionsInfo,
+  THREAD_TEXT_CHARS,
+} from '../../shared/types';
 import { slugOf } from '../../shared/doc-slug';
 import { decodeOrKeep } from '../docs/links';
 import { httpUrl, isMarkLogin } from '../github/github';
@@ -21,13 +30,17 @@ import { PanelError } from '../source';
 //      names Mark. Closing it and labeling it are not enough on their own.
 //   4. Every word of the issue is text. The parser returns plain strings and builds no html. The page shows them as
 //      text, so a script tag in an issue shows as the characters `<script>`.
+//   5. A `Question:` or `Info:` comment counts only when Mark's account wrote it, and the label `needs-info` is read by presence only: a label has no actor
+//      in the issue JSON, so it grants nothing. These two only change what the page shows (see `phaseOf`); they never give a write.
 //
 // The module that calls the parser (module.ts) decides which gh calls to make. The parser is a pure function of what
-// gh printed, so a test can feed it any issue, and so can the one write route when it reads an issue again.
+// gh printed, so a test can feed it any issue, and so can the write routes when they read an issue again.
 
 /** The names of the two labels. An open decision has `decision`; the answer swaps it for `decided`. */
 export const LABEL_DECISION = 'decision';
 export const LABEL_DECIDED = 'decided';
+/** The label of an ask for more info (docs/command-center/needs-info-brief.md). A session takes it off when it has answered. */
+export const LABEL_NEEDS_INFO = 'needs-info';
 
 /** The fields that gh is asked for: the ones that the parser reads. `gh issue view` and `gh issue list` both print them. */
 export const DECISION_FIELDS = 'number,title,url,state,labels,author,body,comments,createdAt';
@@ -69,21 +82,124 @@ function readAnswerComment(body: string): { option: string; note: string | null 
   return { option: match[1] as string, note: note === '' ? null : note };
 }
 
-/** The newest answer that Mark's account wrote, or null. A comment of another account is never looked at. */
-function newestAnswer(comments: unknown): { option: string; note: string | null; at: string } | null {
-  if (!Array.isArray(comments)) return null;
-  let newest: { option: string; note: string | null; at: string; ms: number } | null = null;
+// ---- the comments of Mark that the ask cycle reads ----
+
+/** The comment that asks for more info, and the one that a session answers it with: the first thing in the comment, with this case (the session rule in CLAUDE.md says "starts with"). */
+const QUESTION_COMMENT = /^Question:/;
+const INFO_COMMENT = /^Info:/;
+
+/** The text of the comment that asks for more info: `Question: <text>`. */
+export const questionComment = (text: string): string => `Question: ${text}`;
+
+/** A question as a retry compares it: line ends made alike (a comment typed on the web has CR LF) and both ends trimmed. */
+export const normalizeQuestion = (words: string): string => words.replace(/\r\n?/g, '\n').trim();
+
+/** One comment of Mark's that the ask cycle reads. `index` is its place in gh's list (the order of writing), which tells two comments with the same time apart. */
+type MarkComment = { kind: 'decision' | 'question' | 'info'; text: string; at: string; ms: number; index: number; answer: { option: string; note: string | null } | null };
+
+/** Whether `a` is newer than `b`: by time, and of two with the same time (or no time) the one later in gh's list. */
+const isNewer = (a: MarkComment, b: MarkComment): boolean => a.ms > b.ms || (a.ms === b.ms && a.index > b.index);
+
+/** The newest of some comments, or null. */
+function newestOf(comments: readonly MarkComment[]): MarkComment | null {
+  let newest: MarkComment | null = null;
   // A plain loop and not forEach: TypeScript does not see an assignment made inside a callback, so it would take `newest` for null after the loop.
-  for (const comment of comments) {
-    if (!isRecord(comment) || !isRecord(comment.author) || !isMarkLogin(comment.author.login)) continue;
-    const answer = readAnswerComment(text(comment.body));
-    if (answer === null) continue;
+  for (const comment of comments) if (newest === null || isNewer(comment, newest)) newest = comment;
+  return newest;
+}
+
+/** Mark's `Decision:`, `Question:` and `Info:` comments, oldest first. A comment of another account is never looked at (a look-alike login included). */
+function markComments(comments: unknown): MarkComment[] {
+  if (!Array.isArray(comments)) return [];
+  const found: MarkComment[] = [];
+  comments.forEach((comment, index) => {
+    if (!isRecord(comment) || !isRecord(comment.author) || !isMarkLogin(comment.author.login)) return;
+    const body = text(comment.body);
     const at = text(comment.createdAt);
-    const ms = millisOf(at);
-    // The newest one wins. Two with the same time (or no time) are told apart by their place in gh's list, which is in the order of writing: the later one wins (>=).
-    if (newest === null || ms >= newest.ms) newest = { ...answer, at, ms };
+    const base = { at, ms: millisOf(at), index };
+    const answer = readAnswerComment(body);
+    if (answer !== null) found.push({ ...base, kind: 'decision', text: answer.note === null ? `Option ${answer.option}` : `Option ${answer.option}. ${answer.note}`, answer });
+    else if (QUESTION_COMMENT.test(body)) found.push({ ...base, kind: 'question', text: normalizeQuestion(body.slice('Question:'.length)), answer: null });
+    else if (INFO_COMMENT.test(body)) found.push({ ...base, kind: 'info', text: normalizeQuestion(body.slice('Info:'.length)), answer: null });
+  });
+  return found.sort((a, b) => (isNewer(a, b) ? 1 : -1));
+}
+
+/**
+ * The state of an open decision in the ask cycle. Words: the ASK POINT is the newest of Mark's comments that starts with `Question:` or `Decision:`; the NEWEST INFO is the
+ * newest of his that starts with `Info:`. The first rule that holds wins (docs/command-center/needs-info-brief.md, "States and their order"):
+ *
+ *   1. `needs-info` is set, and the ask point is newer than the newest info (or there is no info)       -> needs-info
+ *   2. `needs-info` is set, and the newest info is newer than the ask point (or there is no ask point) -> info-posted (a session stopped before it took the label off)
+ *   3. `needs-info` is set, and there is no ask point and no info (only by a hand edit)                 -> needs-info-empty
+ *   4. no `needs-info`, and the newest info is newer than the ask point                                 -> info-posted
+ *   5. no `needs-info`, and the ask point is a `Question:`                                              -> ask-unfinished (the comment landed, the label did not)
+ *   6. no `needs-info`, and the ask point is a `Decision:`                                              -> open, with a half answer
+ *   7. otherwise                                                                                        -> open
+ */
+function phaseOf(hasLabel: boolean, askPoint: MarkComment | null, info: MarkComment | null): DecisionPhase {
+  if (hasLabel) {
+    if (askPoint !== null && (info === null || isNewer(askPoint, info))) return 'needs-info';
+    return info !== null ? 'info-posted' : 'needs-info-empty';
   }
-  return newest === null ? null : { option: newest.option, note: newest.note, at: newest.at };
+  if (askPoint !== null && info !== null && isNewer(info, askPoint)) return 'info-posted';
+  return askPoint?.kind === 'question' ? 'ask-unfinished' : 'open';
+}
+
+/** What the ask cycle of one issue says: the phase, the thread for the page, and the facts that the write path needs. */
+type AskReading = {
+  phase: DecisionPhase;
+  thread: DecisionThreadEntry[];
+  /**
+   * Mark's newest `Decision:` comment, when it is the answer in progress: the label `needs-info` is off, and no `Question:` or `Info:` is newer. Null otherwise: a `Decision:` comment
+   * that a question or an info came after is the note of an earlier answer, and a new answer posts its own comment.
+   */
+  halfAnswer: { option: string; note: string | null; at: string } | null;
+  /** Mark's newest `Decision:` comment, whatever came after it. A closed issue shows it as its answer. */
+  newestDecision: { option: string; note: string | null; at: string } | null;
+  /** The text of the ask point when it is a `Question:` that no info has answered (the whole text, line ends made alike), or null. The retry of an Ask compares with it. */
+  pendingQuestion: string | null;
+};
+
+/** The first `THREAD_TEXT_CHARS` UTF-16 units of the text. The cut never falls inside a surrogate pair: when the last kept unit is a high surrogate, one less is kept. */
+function cutText(words: string): { text: string; cut: boolean } {
+  if (words.length <= THREAD_TEXT_CHARS) return { text: words, cut: false };
+  const last = words.charCodeAt(THREAD_TEXT_CHARS - 1);
+  const end = last >= 0xd800 && last <= 0xdbff ? THREAD_TEXT_CHARS - 1 : THREAD_TEXT_CHARS;
+  return { text: words.slice(0, end), cut: true };
+}
+
+function decisionOf(comment: MarkComment | null): { option: string; note: string | null; at: string } | null {
+  return comment?.answer == null ? null : { option: comment.answer.option, note: comment.answer.note, at: comment.at };
+}
+
+function readAsk(comments: unknown, hasLabel: boolean): AskReading {
+  const all = markComments(comments);
+  const questions = all.filter((comment) => comment.kind === 'question');
+  const infos = all.filter((comment) => comment.kind === 'info');
+  const newestDecision = newestOf(all.filter((comment) => comment.kind === 'decision'));
+  const newestQuestion = newestOf(questions);
+  const info = newestOf(infos);
+  const askPoint = newestOf([newestDecision, newestQuestion].filter((comment): comment is MarkComment => comment !== null));
+  const phase = phaseOf(hasLabel, askPoint, info);
+
+  const half = !hasLabel && newestDecision !== null && (newestQuestion === null || isNewer(newestDecision, newestQuestion)) && (info === null || isNewer(newestDecision, info));
+  // The thread: every question and every info, and Mark's newest `Decision:` when it is the ask point or no info is newer than it (his note, as the question of a backfilled decision).
+  const decisionShown = newestDecision !== null && (askPoint === newestDecision || info === null || isNewer(newestDecision, info));
+  const thread: DecisionThreadEntry[] =
+    phase === 'open'
+      ? []
+      : [...questions, ...infos, ...(decisionShown && newestDecision !== null ? [newestDecision] : [])]
+          .sort((a, b) => (isNewer(a, b) ? 1 : -1))
+          .map((comment) => ({ kind: comment.kind, at: comment.at, ...cutText(comment.text) }));
+
+  return {
+    phase,
+    thread,
+    halfAnswer: half ? decisionOf(newestDecision) : null,
+    newestDecision: decisionOf(newestDecision),
+    pendingQuestion: askPoint?.kind === 'question' && (info === null || isNewer(askPoint, info)) ? askPoint.text : null,
+  };
 }
 
 // ---- the labels ----
@@ -328,6 +444,14 @@ export type AnswerProgress = {
   closed: boolean;
 };
 
+/** What the ask cycle of an issue needs from the write path (checkAsk, nextAskStep). */
+export type AskProgress = {
+  /** The label `needs-info` is on the issue (by presence only: a label has no actor). */
+  needsInfo: boolean;
+  /** The text of the ask point when it is a `Question:` that no `Info:` has answered (line ends made alike, trimmed), or null. A retry of an Ask compares with it. */
+  pendingQuestion: string | null;
+};
+
 /**
  * Reads an issue as a decision, with how far its answer has got. Null when the issue is not a trusted decision: it is not
  * an issue (no number), its author is not Mark, or it has neither the label `decision` nor the label `decided`
@@ -336,7 +460,10 @@ export type AnswerProgress = {
  * `events` is the list of events of the issue (see flattenEventPages). Without them an issue is never answered,
  * because nothing then shows who put the label `decided` on it.
  */
-export function readDecisionIssue(rawIssue: unknown, events: unknown): { issue: DecisionIssue; progress: AnswerProgress; staleDecided: boolean } | null {
+export function readDecisionIssue(
+  rawIssue: unknown,
+  events: unknown,
+): { issue: DecisionIssue; progress: AnswerProgress; ask: AskProgress; labels: string[]; staleDecided: boolean } | null {
   if (!isRecord(rawIssue)) return null;
   const { number } = rawIssue;
   if (typeof number !== 'number' || !Number.isInteger(number) || number < 1) return null;
@@ -349,7 +476,10 @@ export function readDecisionIssue(rawIssue: unknown, events: unknown): { issue: 
 
   const closed = text(rawIssue.state).toUpperCase() === 'CLOSED';
   const decidedByMark = hasDecided && decidedLabelIsMarks(events);
-  const written = newestAnswer(rawIssue.comments);
+  const needsInfo = labels.includes(LABEL_NEEDS_INFO);
+  const reading = readAsk(rawIssue.comments, needsInfo);
+  // A closed issue shows its newest `Decision:` as its answer. An open one shows only the answer in progress: a `Decision:` that a question or an info came after is an old note (see `readAsk`).
+  const written = closed ? reading.newestDecision : reading.halfAnswer;
   const answer: DecisionAnswer | null = written === null ? null : { ...written, complete: closed && decidedByMark };
 
   const issue: DecisionIssue = {
@@ -360,14 +490,19 @@ export function readDecisionIssue(rawIssue: unknown, events: unknown): { issue: 
     ...readBody(rawIssue.body),
     createdAt: text(rawIssue.createdAt),
     answer,
+    // The ask cycle is for open decisions: a closed issue keeps the rules of an answer.
+    phase: closed ? 'open' : reading.phase,
+    thread: closed ? [] : reading.thread,
   };
   return {
     issue,
     progress: {
-      comment: written === null ? null : { option: written.option, note: written.note },
+      comment: reading.halfAnswer === null ? null : { option: reading.halfAnswer.option, note: reading.halfAnswer.note },
       labelsSwapped: decidedByMark && !labels.includes(LABEL_DECISION),
       closed,
     },
+    ask: { needsInfo, pendingQuestion: reading.pendingQuestion },
+    labels,
     staleDecided: hasDecided && !decidedByMark,
   };
 }

@@ -108,7 +108,7 @@ Mark works on the game and the engine across many sessions. The docs, the tools 
 
 **Later (the design keeps room for these):** more actions (tick review items, leave notes for agents, start agents), the visual editors from `docs/IDEAS.md` entry 1, and other projects.
 
-**Revision 2 does not change:** the decision inbox, the docs navigation, the engine review aids, the PlasmaUI panels, the look, and the one write route.
+**Revision 2 does not change:** the decision inbox, the docs navigation, the engine review aids, the PlasmaUI panels, the look, and the two write actions (answer and ask).
 
 **Revision 3 (changed scope):** a hosted view on Vercel is now in scope (section 4.3). It shows Shadow Jog only.
 - **In scope since revision 3.1 (Mark, 2026-10-16):** decision answers from the hosted page (section 5.5.1).
@@ -124,7 +124,7 @@ Mark works on the game and the engine across many sessions. The docs, the tools 
 - **Server:** Node and TypeScript. It has one module for each source: docs, status, git, GitHub, decisions, Claude sessions, and (revision 2) live agents. Each module builds its part of an index in memory and serves it through a JSON API (`/api/...`). A file watcher rebuilds only the part that changed and pushes an event to the open page (server-sent events).
 - **Page app:** React, Vite, Tailwind v4 and Lucide icons. The Now page draws its panels with PlasmaUI (section 4.1). The docs pages use HeroUI v3, with a theme from the shared tokens (section 4.2). The routes are `/` (Now), `/docs/...`, `/decisions/<number>`, and `/agents`.
 - **Markdown:** the server parses each doc once. One pass gives the HTML, the headings (for the outline), the links (for backlinks), the frontmatter, and the text for search.
-- **Safety:** the server reads only from an allow-list: the shadow-jog repo, the `shadow-jog-phaser` checkout, the Shadow Jog session folders under `~/.claude/projects/`, and (revision 2) the process list folder `~/.claude/sessions` (files named `<pid>.json`, read only). No API route takes a raw file path. The doc source route (section 5.7) takes the slug of an indexed doc. The only write route is `POST /api/decisions/<number>/answer`. It posts Mark's answer through `gh` and changes the issue's labels. It makes no git operation and writes no file. It accepts only a same-origin request that carries a token the server makes at each start, so another web page in the browser cannot call it.
+- **Safety:** the server reads only from an allow-list: the shadow-jog repo, the `shadow-jog-phaser` checkout, the Shadow Jog session folders under `~/.claude/projects/`, and (revision 2) the process list folder `~/.claude/sessions` (files named `<pid>.json`, read only). No API route takes a raw file path. The doc source route (section 5.7) takes the slug of an indexed doc. The write actions are two: `POST /api/decisions/<number>/answer` and `POST /api/decisions/<number>/ask`. They post Mark's answer or question through `gh` and change the issue's labels. It makes no git operation and writes no file. It accepts only a same-origin request that carries a token the server makes at each start, so another web page in the browser cannot call it.
 - **Room for actions:** a later write action is a new route in one module. The read side does not change.
 
 ### 4.1 PlasmaUI on the Now page
@@ -263,6 +263,7 @@ The page reads from top to bottom, in order of importance:
 - **How Mark answers:** he picks an option and can add a note. The server posts a comment ("Decision: <option>. <note>") through `gh`, swaps the label `decision` for `decided`, and closes the issue.
 - **How agents use it:** a rule in `CLAUDE.md` says how to raise a decision issue, and to read the answer with `gh` before acting on it. Agents trust only comments and labels from Mark's account (`markhazlewood42`), because the repo is public and anyone can comment. The agent that needs the answer records it in the docs through its PR, and links that PR in the issue.
 - **Errors:** if `gh` fails, the form keeps Mark's choice, shows the error, and offers a retry.
+- **(Revision 3.2) Ask for more info:** Mark can say "I need more info" instead of answering. He writes a question in a second box, apart from the note of the answer. The server posts a comment `Question: <text>` and then adds the label `needs-info`. The issue stays open and keeps `decision`. A session answers on the issue with a comment `Info: <text>` and takes `needs-info` off. The page then shows "More info posted" and Mark decides. Brief: [needs-info-brief.md](needs-info-brief.md). The states and the Ask are in section 5.5.1.
 - **(Revision 3.1) Hosted page:** Mark answers from the hosted page with the same form. The function `POST /api/answer` writes the comment, the label and the close with the token of his account (section 5.5.1). The decision also links to its issue on GitHub.
 
 ### 5.5.1 Hosted answer (revision 3.1, Mark 2026-10-16)
@@ -275,6 +276,30 @@ Mark answers a decision 100% from the hosted page ("I NEVER WANT TO RUN COMMAND 
 - **Page.** The hosted decision page shows the same answer form. It posts to `/api/answer` and, on success, shows the decision as answered from the reply at once (the snapshot can be up to 15 s old). Failures keep the choice and the note and offer Retry. A retry resumes at the first step that is not done, so it does not post the comment twice.
 - **Accepted risks.** Anyone who passes Vercel Authentication can answer as Mark: his login, and also any Shareable Link or external user if Mark ever makes one (setup keeps both off). The write token sits in Vercel for its whole life, and `snapshot` and `docs` now hold a write-capable token (they still make only GET calls). Two tabs that submit in the same second can post two identical comments, because functions share no memory. The read rule still reads one answer, the newest `Decision:` comment. `CC_ORIGIN` holds one address: a request on any other alias or deployment URL is refused with 403 `wrong-host`.
 - **Rollback.** Revert the PR (the merge redeploys the read-only page) and set the token's Issues permission back to read-only.
+
+**Ask for more info (revision 3.2, Mark 2026-10-16).** Brief and options: [needs-info-brief.md](needs-info-brief.md) (Mark chose option A: one function, an allowlisted field).
+
+- **Trust.** Sessions run `gh` with Mark's token, so a session comment is also by `markhazlewood42`. The login cannot tell Mark from a session. The prefix does, by convention only: Mark writes `Decision:` and `Question:`, a session writes `Info:` and `Recorded in`, and a session never starts a comment with `Decision:` or `Question:`. `Question:` and `Info:` grant no write power: a wrong prefix can only change what the page shows. A label has no actor in the issue JSON, so `needs-info` is read by presence only. The reader rule for an answer does not change.
+- **States.** The ask point is the newest of Mark's comments that starts with `Question:` or `Decision:`. The newest info is the newest of his that starts with `Info:`. For an open decision the first rule that holds wins (`phaseOf` in `src/server/decisions/parse.ts`):
+
+  | # | Rule | State | Page shows |
+  |---|---|---|---|
+  | 1 | `needs-info` set, ask point newer than the newest info | `needs-info` | "Waiting for info", with the questions |
+  | 2 | `needs-info` set, newest info newer than the ask point (or no ask point) | `info-posted` | "More info posted". A session removes the leftover label |
+  | 3 | `needs-info` set, no ask point and no info (a hand edit) | `needs-info-empty` | "Waiting for info: no question found" |
+  | 4 | No `needs-info`, newest info newer than the ask point | `info-posted` | "More info posted", sorted first, with the thread |
+  | 5 | No `needs-info`, the ask point is a `Question:` | `ask-unfinished` | "Your question is posted, but it is not flagged for a session", with "Flag again" (adds the label only); hidden while an answer on the page has a failure, because a half answer also gives rule 5 (its first step took the label off) |
+  | 6 | No `needs-info`, the ask point is a `Decision:` | `open`, half answer | "Send the answer to finish", as before |
+  | 7 | Otherwise | `open` | As before |
+
+  Rules 1 to 4 come before rule 6, so an old `Decision:` comment is a half answer only with no `needs-info` and no newer `Question:` or `Info:`. A closed issue keeps the rules of an answer.
+- **The Ask action.** `POST /api/answer` takes the field `action`: `"answer"` (the default when the field is absent) or `"ask"`. Any other value gives 422. For `"ask"`, `note` is the question (1 to 2000 characters, no control character but line breaks, which become `\n`), and an `option` gives 422. Every gate above runs first, with the same codes, for both actions. `checkAsk`: 404 for a pull request, a missing issue or an issue not by Mark; 409 for a closed or answered issue, and for an open issue without the label `decision`. Asking again on a `needs-info` issue is allowed. The local twin is `POST /api/decisions/<n>/ask`.
+- **Ask writes, in order:** (1) the comment `Question: <text>`, (2) the label `needs-info`. A failed comment writes nothing. A failed label leaves rule 5, visible on the page, and Retry adds the label only. Resume: step 1 is done when the ask point is a `Question:` that no `Info:` answered, with the same text after line breaks are made alike and both ends trimmed. Step 2 is done when `needs-info` is on the issue.
+- **Step 0 of an answer.** When `needs-info` is on the issue, an answer first takes it off (the step `unflag`), then writes the comment, the label swap and the close. Step 0 is done when the label is off. So a `Decision:` comment is only written on an issue without `needs-info`, and the resume of a half answer (rule 6) works as before. A `Decision:` comment that a `Question:` or `Info:` came after, or one found while `needs-info` is set, is the note of an earlier answer, not progress: the new answer posts its own comment.
+- **Allowlists.** `ghWrite()` (hosted) and `runner.ts` (local) allow the shapes of an answer (comment, label swap, the removal of a `decided` that another account put on, close) and two more on the fixed repo: add the label `needs-info` alone, and remove it alone. Nothing else.
+- **Page.** A second button, "Ask for more info", opens its own box, "Your question", with "Send question" (off while the box is empty). Above the forms a thread shows the ask point and the later questions and infos, oldest first, as plain text (a link shows as its address). A comment over 4000 characters is cut, with "Read the rest on GitHub". After a hosted Ask succeeds, the page shows "Waiting for info" at once, until the snapshot has the question. The Now page splits the open decisions into "Waiting for you" (a decision with fresh info first) and "Waiting for info".
+- **Sessions.** The rule in `CLAUDE.md` ("Decisions for Mark") lists `needs-info` issues at session start, answers each with one `Info:` comment, and removes the label.
+- **Accepted risk: no lock on the hosted Ask.** The hosted function has no per-issue lock (functions share no memory; the local server has one). Two tabs that send the same question at once can both pass the resume check and post two identical `Question:` comments. We do not build a lock.
 
 ### 5.6 Status panel (revision 2)
 

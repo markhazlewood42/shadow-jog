@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ANSWER_URL, PROTECTION_MESSAGE, SETUP_MESSAGE, UNAVAILABLE_MESSAGE, answerFailureOf, answerOf, sendHostedAnswer } from '../src/web/hosted/answer';
+import { ANSWER_URL, PROTECTION_MESSAGE, SETUP_MESSAGE, UNAVAILABLE_MESSAGE, answerFailureOf, answerOf, sendHostedAnswer, sendHostedAsk } from '../src/web/hosted/answer';
 import { type FetchFn, LOGIN_MESSAGE, postHostedJson } from '../src/web/hosted/fetch';
 
 // How the hosted page sends Mark's answer and sorts what comes back (src/web/hosted/fetch.ts and answer.ts). The browser is replaced by a small fake `fetch`.
@@ -109,5 +109,32 @@ describe('sendHostedAnswer', () => {
 
   it('turns the reply into the answer of the decision page (complete)', () => {
     expect(answerOf({ option: 'B', note: 'n', at: '2026-10-16T10:00:00.000Z' })).toEqual({ option: 'B', note: 'n', at: '2026-10-16T10:00:00.000Z', complete: true });
+  });
+});
+
+describe('sendHostedAsk', () => {
+  it('posts { number, action: "ask", note } to /api/answer and returns the question as written', async () => {
+    const bodies: unknown[] = [];
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      bodies.push(JSON.parse(String(init.body)));
+      return new Response(JSON.stringify({ ok: true, ask: { text: 'Why?', at: '2026-10-16T10:00:00.000Z' } }), { status: 200, headers: { 'content-type': 'application/json' } });
+    });
+    expect(await sendHostedAsk(61, 'Why?')).toEqual({ ok: true, ask: { text: 'Why?', at: '2026-10-16T10:00:00.000Z' } });
+    expect(bodies).toEqual([{ number: 61, action: 'ask', note: 'Why?' }]);
+  });
+
+  it('treats a 200 with an unknown shape (an answer reply, say) as a failure, never as a sent question', async () => {
+    vi.stubGlobal('fetch', async () => new Response(JSON.stringify({ ok: true, answer: { option: 'B', note: null, at: 'x' } }), { status: 200, headers: { 'content-type': 'application/json' } }));
+    expect(await sendHostedAsk(61, 'Why?')).toMatchObject({ ok: false, failure: { step: null, code: 'bad-response' } });
+  });
+
+  it('keeps the failed step of a write that stopped (the label step of a question)', async () => {
+    vi.stubGlobal('fetch', async () => new Response(JSON.stringify({ ok: false, step: 'label', error: { code: 'rejected', message: 'GitHub refused the change.' } }), { status: 502, headers: { 'content-type': 'application/json' } }));
+    expect(await sendHostedAsk(61, 'Why?')).toMatchObject({ ok: false, failure: { step: 'label', code: 'rejected' } });
+  });
+
+  it('knows the step unflag of an answer', async () => {
+    vi.stubGlobal('fetch', async () => new Response(JSON.stringify({ ok: false, step: 'unflag', error: { code: 'timeout', message: 'x' } }), { status: 502, headers: { 'content-type': 'application/json' } }));
+    expect(await sendHostedAnswer(61, 'B', '')).toMatchObject({ ok: false, failure: { step: 'unflag' } });
   });
 });

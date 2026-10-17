@@ -85,11 +85,22 @@ export function questionOf(title: string): string {
   return stripped === '' ? title.trim() : stripped;
 }
 
+/** Whether a decision waits for a session and not for Mark: he asked for more info and no `Info:` came yet (the phases `needs-info` and `needs-info-empty`). */
+const waitsForInfo = (issue: DecisionIssue): boolean => issue.phase === 'needs-info' || issue.phase === 'needs-info-empty';
+
 function decisionItem(issue: DecisionIssue): YourMoveItem {
   const at = orNull(issue.createdAt);
   // An issue that does not follow the template cannot be answered on its page. The item says so and links to the issue itself, where Mark can read it and fix it.
   if (issue.problem !== null) return { source: 'decision-issue', text: `Decision #${issue.number} is unreadable: ${issue.problem}`, href: orNull(issue.url), light: null, at };
-  return { source: 'decision-issue', text: `Decision #${issue.number}: ${questionOf(issue.title)}`, href: `/decisions/${issue.number}`, light: null, at };
+  return {
+    source: 'decision-issue',
+    text: `Decision #${issue.number}: ${questionOf(issue.title)}`,
+    href: `/decisions/${issue.number}`,
+    light: null,
+    at,
+    ...(waitsForInfo(issue) ? { waitingForInfo: true as const } : {}),
+    ...(issue.phase === 'info-posted' ? { tag: 'More info posted' } : {}),
+  };
 }
 
 function askItems(ask: LiveAsk, nowMs: number): YourMoveItem[] {
@@ -103,12 +114,19 @@ function askItems(ask: LiveAsk, nowMs: number): YourMoveItem[] {
 }
 
 /**
- * The list, most blocking first: the open decision issues (a decision stops work, and only Mark can answer it), then the live asks.
+ * The list, most blocking first: the open decision issues (a decision stops work, and only Mark can answer it), then the live asks. A decision with fresh info
+ * (`info-posted`) comes first, because a session answered it and Mark can decide now. A decision that Mark asked about and that waits for a session
+ * (`waitingForInfo`) comes last: the panel lists it apart, under "Waiting for info", and it does not count as an item for Mark.
  */
 export function buildYourMoveItems(input: YourMoveInput): YourMoveItem[] {
+  const open = input.decisions.filter((issue) => issue.state === 'open');
+  const posted = open.filter((issue) => issue.phase === 'info-posted');
+  const waiting = open.filter(waitsForInfo);
+  const others = open.filter((issue) => issue.phase !== 'info-posted' && !waitsForInfo(issue));
   return [
-    ...input.decisions.filter((issue) => issue.state === 'open').map(decisionItem),
+    ...[...posted, ...others].map(decisionItem),
     ...input.asks.flatMap((ask) => askItems(ask, input.nowMs)),
+    ...waiting.map(decisionItem),
   ].filter(hasActionPlace);
 }
 

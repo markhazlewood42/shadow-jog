@@ -7381,6 +7381,10 @@ function slug(value, maintainCase) {
   return value.replace(regex, "").replace(/ /g, "-");
 }
 
+// src/shared/types.ts
+var THREAD_TEXT_CHARS = 4e3;
+var MAX_NOTE_CHARS = 2e3;
+
 // src/shared/doc-slug.ts
 var slugOf = (id) => id.replace(/\.md$/i, "").replace(/^docs\//, "");
 
@@ -7522,12 +7526,17 @@ var MESSAGES = {
   requestNotJson: "The request body is not JSON.",
   requestNoOption: 'The request must be a JSON object with an "option" text.',
   requestNoteNotText: 'The "note" of the request must be text.',
+  requestBadAction: 'The "action" of the request must be "answer" or "ask".',
+  requestNoNumber: "The request must have the number of an issue.",
   requestTooLarge: "The request is larger than {max} bytes.",
   noteTooLong: "The note is longer than {max} characters. Shorten it.",
   noteBadCharacter: "The note has a control character that cannot be sent.",
+  requestAskNeedsText: 'A question needs text in "note": 1 to {max} characters.',
+  requestAskHasOption: 'A question takes no "option".',
+  askNotDecision: "Decision #{number} has no decision label, so it cannot take a question. Finish its answer first.",
   // ---- the server itself: guards, missing routes and files ----
   hostNotAllowed: "This server only answers to localhost and 127.0.0.1 on its own port.",
-  readOnlyServer: "This server only reads. The one write is the answer to a decision.",
+  readOnlyServer: "This server only reads. The writes are the answer to a decision and the ask for more info.",
   writeNeedsToken: "A write needs the token of this run. Reload the page.",
   writeCrossSite: "A write must come from this site.",
   writeNeedsJson: "A write must be JSON (Content-Type: application/json).",
@@ -7555,7 +7564,7 @@ var MESSAGES = {
   reasonComment: "a comment is exactly: issue comment <number> --body <text>",
   reasonCommentText: "a comment needs text",
   reasonCommentLong: "a comment is at most {max} characters",
-  reasonEdit: "an edit must swap the label decision for decided, or remove decided",
+  reasonEdit: "an edit must swap decision for decided, remove decided, or add or remove needs-info",
   reasonClose: "a close is exactly: issue close <number>",
   reasonAuth: "gh auth status takes no options",
   reasonNotOnList: "gh {command} is not on the list",
@@ -7610,6 +7619,7 @@ function httpUrl(value) {
 // src/server/decisions/parse.ts
 var LABEL_DECISION = "decision";
 var LABEL_DECIDED = "decided";
+var LABEL_NEEDS_INFO = "needs-info";
 var isRecord2 = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
 var text = (value) => typeof value === "string" ? value : "";
 function millisOf(iso) {
@@ -7626,18 +7636,67 @@ function readAnswerComment(body) {
   const note = (match[2] ?? "").replace(/\r\n/g, "\n").trim();
   return { option: match[1], note: note === "" ? null : note };
 }
-function newestAnswer(comments) {
-  if (!Array.isArray(comments)) return null;
+var QUESTION_COMMENT = /^Question:/;
+var INFO_COMMENT = /^Info:/;
+var questionComment = (text3) => `Question: ${text3}`;
+var normalizeQuestion = (words) => words.replace(/\r\n?/g, "\n").trim();
+var isNewer = (a, b) => a.ms > b.ms || a.ms === b.ms && a.index > b.index;
+function newestOf(comments) {
   let newest = null;
-  for (const comment of comments) {
-    if (!isRecord2(comment) || !isRecord2(comment.author) || !isMarkLogin(comment.author.login)) continue;
-    const answer = readAnswerComment(text(comment.body));
-    if (answer === null) continue;
+  for (const comment of comments) if (newest === null || isNewer(comment, newest)) newest = comment;
+  return newest;
+}
+function markComments(comments) {
+  if (!Array.isArray(comments)) return [];
+  const found = [];
+  comments.forEach((comment, index) => {
+    if (!isRecord2(comment) || !isRecord2(comment.author) || !isMarkLogin(comment.author.login)) return;
+    const body = text(comment.body);
     const at = text(comment.createdAt);
-    const ms = millisOf(at);
-    if (newest === null || ms >= newest.ms) newest = { ...answer, at, ms };
+    const base = { at, ms: millisOf(at), index };
+    const answer = readAnswerComment(body);
+    if (answer !== null) found.push({ ...base, kind: "decision", text: answer.note === null ? `Option ${answer.option}` : `Option ${answer.option}. ${answer.note}`, answer });
+    else if (QUESTION_COMMENT.test(body)) found.push({ ...base, kind: "question", text: normalizeQuestion(body.slice("Question:".length)), answer: null });
+    else if (INFO_COMMENT.test(body)) found.push({ ...base, kind: "info", text: normalizeQuestion(body.slice("Info:".length)), answer: null });
+  });
+  return found.sort((a, b) => isNewer(a, b) ? 1 : -1);
+}
+function phaseOf(hasLabel, askPoint, info) {
+  if (hasLabel) {
+    if (askPoint !== null && (info === null || isNewer(askPoint, info))) return "needs-info";
+    return info !== null ? "info-posted" : "needs-info-empty";
   }
-  return newest === null ? null : { option: newest.option, note: newest.note, at: newest.at };
+  if (askPoint !== null && info !== null && isNewer(info, askPoint)) return "info-posted";
+  return askPoint?.kind === "question" ? "ask-unfinished" : "open";
+}
+function cutText(words) {
+  if (words.length <= THREAD_TEXT_CHARS) return { text: words, cut: false };
+  const last = words.charCodeAt(THREAD_TEXT_CHARS - 1);
+  const end = last >= 55296 && last <= 56319 ? THREAD_TEXT_CHARS - 1 : THREAD_TEXT_CHARS;
+  return { text: words.slice(0, end), cut: true };
+}
+function decisionOf(comment) {
+  return comment?.answer == null ? null : { option: comment.answer.option, note: comment.answer.note, at: comment.at };
+}
+function readAsk(comments, hasLabel) {
+  const all = markComments(comments);
+  const questions = all.filter((comment) => comment.kind === "question");
+  const infos = all.filter((comment) => comment.kind === "info");
+  const newestDecision = newestOf(all.filter((comment) => comment.kind === "decision"));
+  const newestQuestion = newestOf(questions);
+  const info = newestOf(infos);
+  const askPoint = newestOf([newestDecision, newestQuestion].filter((comment) => comment !== null));
+  const phase = phaseOf(hasLabel, askPoint, info);
+  const half = !hasLabel && newestDecision !== null && (newestQuestion === null || isNewer(newestDecision, newestQuestion)) && (info === null || isNewer(newestDecision, info));
+  const decisionShown = newestDecision !== null && (askPoint === newestDecision || info === null || isNewer(newestDecision, info));
+  const thread = phase === "open" ? [] : [...questions, ...infos, ...decisionShown && newestDecision !== null ? [newestDecision] : []].sort((a, b) => isNewer(a, b) ? 1 : -1).map((comment) => ({ kind: comment.kind, at: comment.at, ...cutText(comment.text) }));
+  return {
+    phase,
+    thread,
+    halfAnswer: half ? decisionOf(newestDecision) : null,
+    newestDecision: decisionOf(newestDecision),
+    pendingQuestion: askPoint?.kind === "question" && (info === null || isNewer(askPoint, info)) ? askPoint.text : null
+  };
 }
 function labelNamesOf(raw) {
   if (!Array.isArray(raw.labels)) return [];
@@ -7791,7 +7850,9 @@ function readDecisionIssue(rawIssue, events) {
   if (!hasDecided && !labels.includes(LABEL_DECISION)) return null;
   const closed = text(rawIssue.state).toUpperCase() === "CLOSED";
   const decidedByMark = hasDecided && decidedLabelIsMarks(events);
-  const written = newestAnswer(rawIssue.comments);
+  const needsInfo = labels.includes(LABEL_NEEDS_INFO);
+  const reading = readAsk(rawIssue.comments, needsInfo);
+  const written = closed ? reading.newestDecision : reading.halfAnswer;
   const answer = written === null ? null : { ...written, complete: closed && decidedByMark };
   const issue = {
     number,
@@ -7800,15 +7861,20 @@ function readDecisionIssue(rawIssue, events) {
     state: answer?.complete ? "answered" : closed ? "closed" : "open",
     ...readBody(rawIssue.body),
     createdAt: text(rawIssue.createdAt),
-    answer
+    answer,
+    // The ask cycle is for open decisions: a closed issue keeps the rules of an answer.
+    phase: closed ? "open" : reading.phase,
+    thread: closed ? [] : reading.thread
   };
   return {
     issue,
     progress: {
-      comment: written === null ? null : { option: written.option, note: written.note },
+      comment: reading.halfAnswer === null ? null : { option: reading.halfAnswer.option, note: reading.halfAnswer.note },
       labelsSwapped: decidedByMark && !labels.includes(LABEL_DECISION),
       closed
     },
+    ask: { needsInfo, pendingQuestion: reading.pendingQuestion },
+    labels,
     staleDecided: hasDecided && !decidedByMark
   };
 }
@@ -8151,17 +8217,18 @@ async function fetchDecisionForAnswer(options, number) {
 var MAX_OPTION_CHARS = 64;
 var BAD_NOTE_CHARACTERS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/;
 var MAX_ISSUE_NUMBER = 2147483647;
-var STEPS = ["comment", "label", "close"];
+var STEPS = ["unflag", "comment", "label", "close"];
 async function runAnswer(request) {
   const { executor } = request;
   for (const step of STEPS.slice(STEPS.indexOf(request.from ?? "comment"))) {
-    const error = step === "comment" ? await executor.comment(answerComment(request.option, request.note ?? null)) : step === "label" ? await executor.labels(request.clearDecided === true) : await executor.close();
+    const error = step === "unflag" ? await executor.unflag() : step === "comment" ? await executor.comment(answerComment(request.option, request.note ?? null)) : step === "label" ? await executor.labels(request.clearDecided === true) : await executor.close();
     if (error !== null) return { ok: false, step, error };
   }
   return { ok: true };
 }
 var reject = (status, code, message) => ({ ok: false, status, code, message });
 function nextStep(read, option, note) {
+  if (read.ask.needsInfo) return "unflag";
   const { comment, labelsSwapped } = read.progress;
   if (comment === null || comment.option !== option || comment.note !== note) return "comment";
   return labelsSwapped ? "close" : "label";
@@ -8179,6 +8246,29 @@ function checkAnswer(found, option, note) {
   }
   return { ok: true, from: nextStep(found, option, note), ...found.staleDecided ? { clearDecided: true } : {} };
 }
+async function runAsk(request) {
+  if (request.from === "comment") {
+    const failed = await request.executor.comment(questionComment(request.text));
+    if (failed !== null) return { ok: false, step: "comment", error: failed };
+  }
+  const error = await request.executor.flag();
+  return error === null ? { ok: true } : { ok: false, step: "label", error };
+}
+function nextAskStep(read, text3) {
+  if (read.ask.pendingQuestion !== text3) return "comment";
+  return read.ask.needsInfo ? null : "label";
+}
+function checkAsk(found, text3) {
+  if (found === null) return reject(404, "decision-not-found", say("decisionNotFound"));
+  const { issue } = found;
+  if (issue.state === "answered") {
+    return reject(409, "already-answered", issue.answer === null ? say("decisionAnswered", { number: issue.number }) : say("decisionAnsweredWith", { number: issue.number, option: issue.answer.option }));
+  }
+  if (issue.state === "closed") return reject(409, "not-open", say("decisionClosed", { number: issue.number }));
+  if (!found.labels.includes(LABEL_DECISION)) return reject(409, "not-a-decision", say("askNotDecision", { number: issue.number }));
+  return { ok: true, from: nextAskStep(found, text3), text: text3 };
+}
+var askText = normalizeQuestion;
 
 // src/server/publish/protection.ts
 function isStrictVercelLogin(location, base) {
@@ -8192,9 +8282,6 @@ function isStrictVercelLogin(location, base) {
   if (url.protocol !== "https:" || url.hostname !== "vercel.com" || url.port !== "" || url.username !== "" || url.password !== "") return false;
   return /^\/(?:sso-api|sso|login)(?:\/|$)/.test(url.pathname);
 }
-
-// src/shared/types.ts
-var MAX_NOTE_CHARS = 2e3;
 
 // src/hosted/env.ts
 var GITHUB_TOKEN_VAR = "GITHUB_TOKEN";
@@ -8268,8 +8355,10 @@ function isAllowedWrite(request, number) {
   const base = issuePath(number);
   const { method, path, body } = request;
   if (method === "POST" && path === `${base}/comments`) return isRecord4(body) && sameKeys(body, ["body"]) && typeof body.body === "string";
-  if (method === "POST" && path === `${base}/labels`) return isRecord4(body) && sameKeys(body, ["labels"]) && Array.isArray(body.labels) && body.labels.length === 1 && body.labels[0] === LABEL_DECIDED;
-  if (method === "DELETE" && (path === `${base}/labels/${LABEL_DECIDED}` || path === `${base}/labels/${LABEL_DECISION}`)) return body === void 0;
+  if (method === "POST" && path === `${base}/labels`) return isRecord4(body) && sameKeys(body, ["labels"]) && Array.isArray(body.labels) && body.labels.length === 1 && (body.labels[0] === LABEL_DECIDED || body.labels[0] === LABEL_NEEDS_INFO);
+  if (method === "DELETE" && (path === `${base}/labels/${LABEL_DECIDED}` || path === `${base}/labels/${LABEL_DECISION}` || path === `${base}/labels/${LABEL_NEEDS_INFO}`)) {
+    return body === void 0;
+  }
   if (method === "PATCH" && path === base) return isRecord4(body) && sameKeys(body, ["state"]) && body.state === "closed";
   return false;
 }
@@ -8322,6 +8411,9 @@ function createRestExecutor(deps) {
     }
   }
   return {
+    // Step 0 of an answer: a label that is not on the issue (404) is off already.
+    unflag: () => write({ method: "DELETE", path: `${base}/labels/${LABEL_NEEDS_INFO}` }, true),
+    flag: () => write({ method: "POST", path: `${base}/labels`, body: { labels: [LABEL_NEEDS_INFO] } }),
     comment: (body) => write({ method: "POST", path: `${base}/comments`, body: { body } }),
     async labels(clearDecided) {
       if (clearDecided) {
@@ -8409,13 +8501,26 @@ async function readBody2(request) {
   } catch {
     return refuse(400, "bad-json", say("requestNotJson"));
   }
-  if (!isRecord5(body) || typeof body.option !== "string" || body.option === "" || body.option.length > MAX_OPTION_CHARS) return refuse(422, "bad-request", say("requestNoOption"));
-  if (typeof body.number !== "number" || !Number.isInteger(body.number) || body.number < 1 || body.number > MAX_ISSUE_NUMBER) return refuse(422, "bad-request", "The request must have the number of an issue.");
+  if (!isRecord5(body)) return refuse(422, "bad-request", say("requestAskNeedsText", { max: MAX_NOTE_CHARS }));
+  if (body.action !== void 0 && body.action !== "answer" && body.action !== "ask") return refuse(422, "bad-request", say("requestBadAction"));
+  if (body.action === "ask") return readAsk2(body);
+  if (typeof body.option !== "string" || body.option === "" || body.option.length > MAX_OPTION_CHARS) return refuse(422, "bad-request", say("requestNoOption"));
+  if (typeof body.number !== "number" || !Number.isInteger(body.number) || body.number < 1 || body.number > MAX_ISSUE_NUMBER) return refuse(422, "bad-request", say("requestNoNumber"));
   if (body.note !== void 0 && body.note !== null && typeof body.note !== "string") return refuse(422, "bad-request", say("requestNoteNotText"));
   const note = typeof body.note === "string" ? body.note.trim() : "";
   if (note.length > MAX_NOTE_CHARS) return refuse(422, "note-too-long", say("noteTooLong", { max: MAX_NOTE_CHARS }));
   if (BAD_NOTE_CHARACTERS.test(note)) return refuse(422, "bad-note", say("noteBadCharacter"));
-  return { number: body.number, option: body.option, note: note === "" ? null : note };
+  return { action: "answer", number: body.number, option: body.option, note: note === "" ? null : note };
+}
+function readAsk2(body) {
+  if (typeof body.number !== "number" || !Number.isInteger(body.number) || body.number < 1 || body.number > MAX_ISSUE_NUMBER) return refuse(422, "bad-request", say("requestNoNumber"));
+  if (body.option !== void 0) return refuse(422, "bad-request", say("requestAskHasOption"));
+  if (typeof body.note !== "string") return refuse(422, "bad-request", say("requestAskNeedsText", { max: MAX_NOTE_CHARS }));
+  const text3 = askText(body.note);
+  if (text3 === "") return refuse(422, "bad-request", say("requestAskNeedsText", { max: MAX_NOTE_CHARS }));
+  if (text3.length > MAX_NOTE_CHARS) return refuse(422, "note-too-long", say("noteTooLong", { max: MAX_NOTE_CHARS }));
+  if (BAD_NOTE_CHARACTERS.test(text3)) return refuse(422, "bad-note", say("noteBadCharacter"));
+  return { action: "ask", number: body.number, text: text3 };
 }
 async function handleAnswer(request, deps) {
   const now = deps.now ?? Date.now;
@@ -8444,9 +8549,18 @@ async function handleAnswer(request, deps) {
     const found = await fetchDecisionForAnswer({ token, fetchImpl: send, timeoutMs: CALL_TIMEOUT_MS }, wanted.number);
     if (!found.ok) return refuse(502, "github", mapAdapterError(found.error).error);
     if (found.data === "too-many") return refuse(502, "too-many", "The issue has too many comments or labels to read. Nothing was written.");
+    const executor = createRestExecutor({ token, number: wanted.number, send, remainingMs: () => deadlineAt - now() });
+    if (wanted.action === "ask") {
+      const asked = checkAsk(found.data, wanted.text);
+      if (!asked.ok) return refuse(asked.status, asked.code, asked.message);
+      if (asked.from !== null) {
+        const outcome = await runAsk({ executor, text: wanted.text, from: asked.from });
+        if (!outcome.ok) return refuse(502, outcome.error.code, outcome.error.message, { step: outcome.step });
+      }
+      return jsonResponse({ ok: true, ask: { text: wanted.text, at: new Date(now()).toISOString() } }, 200, CACHE.none);
+    }
     const checked = checkAnswer(found.data, wanted.option, wanted.note);
     if (!checked.ok) return refuse(checked.status, checked.code, checked.message);
-    const executor = createRestExecutor({ token, number: wanted.number, send, remainingMs: () => deadlineAt - now() });
     const result = await runAnswer({ executor, option: wanted.option, note: wanted.note, from: checked.from, ...checked.clearDecided === true ? { clearDecided: true } : {} });
     if (!result.ok) return refuse(502, result.error.code, result.error.message, { step: result.step });
     return jsonResponse({ ok: true, answer: { option: wanted.option, note: wanted.note, at: new Date(now()).toISOString() } }, 200, CACHE.none);

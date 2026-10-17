@@ -95,7 +95,7 @@ export async function fetchHostedJson<T>(url: string, fetchImpl: FetchFn = (targ
 }
 
 /**
- * POSTs JSON to a function of this site (the answer to a decision, the only write of the hosted page). It is sorted like a read: a redirect, a 401 or an HTML page is the lost
+ * POSTs JSON to a function of this site (the answer to a decision, one of the two writes of the hosted page, with the ask). It is sorted like a read: a redirect, a 401 or an HTML page is the lost
  * Vercel login, and nothing throws. An error answer keeps the word of the server (`serverCode`), its sentence, and the `step` of a write that failed, because the form shows each
  * of them in its own way. The browser adds `Origin` and `Sec-Fetch-Site` by itself, and the function checks both.
  */

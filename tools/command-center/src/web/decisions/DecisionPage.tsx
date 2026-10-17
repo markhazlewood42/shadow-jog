@@ -5,7 +5,8 @@ import { docPath } from '../docs/paths';
 import { useDocumentTitle } from '../docs/useDocumentTitle';
 import { usePanel } from '../usePanel';
 import { AnswerForm, useAnswerDraft } from './AnswerForm';
-import { DecisionCard, Notice, OptionList, SectionLabel } from './DecisionCard';
+import { AskForm } from './AskForm';
+import { AskThread, DecisionCard, Notice, OptionList, SectionLabel } from './DecisionCard';
 
 /**
  * The page of a decision reloads when the decisions change (an answer, a new decision) and when the docs change: whether a linked
@@ -100,16 +101,34 @@ function shownDecision(detail: DecisionDetail, answered: DecisionAnswer | null):
   return answered !== null && detail.state === 'open' ? { ...detail, state: 'answered', answer: answered } : detail;
 }
 
-/** A decision in full: what the issue says, the form (or the options, when it cannot be answered), and the links to the docs under it. */
+/**
+ * On the hosted page, right after Mark's question is written, the function's reply is the truth and the snapshot can be 15 s old: the decision is shown as "Waiting for info",
+ * with his question in the thread, until the snapshot has the question itself (its newest question, pending, with the same text). The local page never has such a reply (`asked` is null).
+ */
+export function withAsked(detail: DecisionDetail, asked: { text: string; at: string } | null): DecisionDetail {
+  if (asked === null || detail.state !== 'open') return detail;
+  const thread = detail.thread ?? [];
+  // The snapshot has the question: it is the truth, except that a retry only added the label, which the snapshot may not show yet. Only the newest question counts, and only while it is pending:
+  // the same text as an older question that a session answered before this ask is a new question. An info from after the ask answers it, so the snapshot is the truth then.
+  const newest = thread.findLast((entry) => entry.kind === 'question');
+  const askedAt = Date.parse(asked.at);
+  const answeredBefore = newest !== undefined && thread.slice(thread.lastIndexOf(newest) + 1).some((entry) => entry.kind === 'info' && Date.parse(entry.at) < askedAt);
+  if (newest?.text === asked.text && !answeredBefore) return detail.phase === 'ask-unfinished' ? { ...detail, phase: 'needs-info' } : detail;
+  return { ...detail, phase: 'needs-info', answer: null, thread: [...thread, { kind: 'question', text: asked.text, at: asked.at, cut: false }] };
+}
+
+/** A decision in full: what the issue says, the thread of questions and info, the form (or the options, when it cannot be answered), the ask box, and the links to the docs under it. */
 function DecisionView({ detail, draft }: { detail: DecisionDetail; draft: ReturnType<typeof useAnswerDraft> }) {
-  const shown = shownDecision(detail, draft.answered);
+  const shown = withAsked(shownDecision(detail, draft.answered), draft.asked);
   const answerable = shown.state === 'open' && shown.options.length > 0;
   return (
     <div className="flex flex-col gap-8">
       <DecisionCard issue={shown} />
+      <AskThread issue={shown} />
       {/* Two tabs can post different options, and the newest comment wins, so the page asks Mark to confirm what GitHub holds. */}
       {draft.answered !== null && <Notice>Reload to confirm.</Notice>}
       {answerable ? <AnswerForm issue={shown} draft={draft} /> : <OptionList issue={shown} />}
+      {shown.state === 'open' && <AskForm issue={shown} draft={draft} />}
       <LinkedDocs detail={shown} />
     </div>
   );

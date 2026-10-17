@@ -1,5 +1,5 @@
 import { fetchDecisionForAnswer } from '../github-api';
-import { BAD_NOTE_CHARACTERS, MAX_ISSUE_NUMBER, MAX_OPTION_CHARS, checkAnswer, runAnswer } from '../server/decisions/answer-core';
+import { BAD_NOTE_CHARACTERS, MAX_ISSUE_NUMBER, MAX_OPTION_CHARS, askText, checkAnswer, checkAsk, runAnswer, runAsk } from '../server/decisions/answer-core';
 import { say } from '../server/messages';
 import { isStrictVercelLogin } from '../server/publish/protection';
 import { MAX_NOTE_CHARS } from '../shared/types';
@@ -11,6 +11,10 @@ import { CACHE, jsonResponse } from './http';
 // `POST /api/answer` (docs/command-center/hosted-answer-brief.md, option B): Mark answers a decision from the hosted page. The function writes with the token in
 // `GITHUB_TOKEN`, which is Mark's own fine-grained token, so the comment and the label are by `markhazlewood42`, as the "Decisions for Mark" rule in CLAUDE.md needs.
 //
+// The same function takes Mark's ask for more info (docs/command-center/needs-info-brief.md, option A): the body field `action` is `"answer"` (the default) or `"ask"`. Every gate
+// below runs for both. An ask writes a `Question:` comment and then the label `needs-info`, and never a `Decision:` comment, the label `decided` or a close. An answer on an issue
+// that has `needs-info` takes the label off first (step 0).
+//
 // WHO MAY CALL IT. Vercel Authentication is the gate that says who clicked: only Mark's Vercel login gets through to this function. The function cannot read who
 // passed the gate, and several other things also pass it (a Shareable Link, the Protection Bypass for Automation secret, an external user that Mark adds). So the
 // function adds checks that FAIL CLOSED when the gate is gone or has a hole. They run in this order, and the first that fails ends the request. Nothing is written
@@ -21,7 +25,7 @@ import { CACHE, jsonResponse } from './http';
 //    3. the Host header is the host of CC_ORIGIN (403 wrong-host): so the probe below always tests the host that took this request
 //    4. Content-Type is JSON (415): a plain HTML form cannot send it
 //    5. Origin is CC_ORIGIN and Sec-Fetch-Site is same-origin (403 cross-site): another site in Mark's browser cannot post with his Vercel cookie
-//    6. the body: size, JSON, number, option and note (413, 400, 422)
+//    6. the body: size, JSON, action, number, option and note (413, 400, 422)
 //    7. the bypass secret variable is not set (503 bypass-on)
 //    8. the protection probe: CC_ORIGIN/api/snapshot, with no cookie, must answer with the Vercel login (503 protection-unproven)
 //    9. the token belongs to Mark's account (500 misconfigured, 502 github)
@@ -71,7 +75,7 @@ async function protectionProven(send: HttpFetch, origin: string): Promise<boolea
   }
 }
 
-type Wanted = { number: number; option: string; note: string | null };
+type Wanted = { action: 'answer'; number: number; option: string; note: string | null } | { action: 'ask'; number: number; text: string };
 
 /** The bytes of the body, or null when it is over `max` bytes. The read stops at the first chunk that passes the cap, so a body of any size costs at most `max` plus one chunk. */
 async function readCapped(request: Request, max: number): Promise<Uint8Array | null> {
@@ -112,14 +116,31 @@ async function readBody(request: Request): Promise<Wanted | Response> {
   } catch {
     return refuse(400, 'bad-json', say('requestNotJson'));
   }
-  // Fields that are not named here (a repo, an owner, labels) are ignored: the repo is a constant of the code, and so are the three writes.
-  if (!isRecord(body) || typeof body.option !== 'string' || body.option === '' || body.option.length > MAX_OPTION_CHARS) return refuse(422, 'bad-request', say('requestNoOption'));
-  if (typeof body.number !== 'number' || !Number.isInteger(body.number) || body.number < 1 || body.number > MAX_ISSUE_NUMBER) return refuse(422, 'bad-request', 'The request must have the number of an issue.');
+  // Fields that are not named here (a repo, an owner, labels) are ignored: the repo is a constant of the code, and so are the writes.
+  // A body that is not an object does not say what it is (an answer or an ask), so it gets the message of the ask, as on the local route.
+  if (!isRecord(body)) return refuse(422, 'bad-request', say('requestAskNeedsText', { max: MAX_NOTE_CHARS }));
+  // `action` is an allow-list: absent means an answer, and anything but the two words writes nothing.
+  if (body.action !== undefined && body.action !== 'answer' && body.action !== 'ask') return refuse(422, 'bad-request', say('requestBadAction'));
+  if (body.action === 'ask') return readAsk(body);
+  if (typeof body.option !== 'string' || body.option === '' || body.option.length > MAX_OPTION_CHARS) return refuse(422, 'bad-request', say('requestNoOption'));
+  if (typeof body.number !== 'number' || !Number.isInteger(body.number) || body.number < 1 || body.number > MAX_ISSUE_NUMBER) return refuse(422, 'bad-request', say('requestNoNumber'));
   if (body.note !== undefined && body.note !== null && typeof body.note !== 'string') return refuse(422, 'bad-request', say('requestNoteNotText'));
   const note = typeof body.note === 'string' ? body.note.trim() : '';
   if (note.length > MAX_NOTE_CHARS) return refuse(422, 'note-too-long', say('noteTooLong', { max: MAX_NOTE_CHARS }));
   if (BAD_NOTE_CHARACTERS.test(note)) return refuse(422, 'bad-note', say('noteBadCharacter'));
-  return { number: body.number, option: body.option, note: note === '' ? null : note };
+  return { action: 'answer', number: body.number, option: body.option, note: note === '' ? null : note };
+}
+
+/** The body of an Ask: `number`, and `note` as the question (1 to 2000 characters after trimming, line breaks made `\n`). An `option` gives 422: a question picks nothing. */
+function readAsk(body: Record<string, unknown>): Wanted | Response {
+  if (typeof body.number !== 'number' || !Number.isInteger(body.number) || body.number < 1 || body.number > MAX_ISSUE_NUMBER) return refuse(422, 'bad-request', say('requestNoNumber'));
+  if (body.option !== undefined) return refuse(422, 'bad-request', say('requestAskHasOption'));
+  if (typeof body.note !== 'string') return refuse(422, 'bad-request', say('requestAskNeedsText', { max: MAX_NOTE_CHARS }));
+  const text = askText(body.note);
+  if (text === '') return refuse(422, 'bad-request', say('requestAskNeedsText', { max: MAX_NOTE_CHARS }));
+  if (text.length > MAX_NOTE_CHARS) return refuse(422, 'note-too-long', say('noteTooLong', { max: MAX_NOTE_CHARS }));
+  if (BAD_NOTE_CHARACTERS.test(text)) return refuse(422, 'bad-note', say('noteBadCharacter'));
+  return { action: 'ask', number: body.number, text };
 }
 
 export async function handleAnswer(request: Request, deps: AnswerDeps): Promise<Response> {
@@ -169,11 +190,23 @@ export async function handleAnswer(request: Request, deps: AnswerDeps): Promise<
     const found = await fetchDecisionForAnswer({ token, fetchImpl: send, timeoutMs: CALL_TIMEOUT_MS }, wanted.number);
     if (!found.ok) return refuse(502, 'github', mapAdapterError(found.error).error);
     if (found.data === 'too-many') return refuse(502, 'too-many', 'The issue has too many comments or labels to read. Nothing was written.');
+    const executor = createRestExecutor({ token, number: wanted.number, send, remainingMs: () => deadlineAt - now() });
+
+    if (wanted.action === 'ask') {
+      const asked = checkAsk(found.data, wanted.text);
+      if (!asked.ok) return refuse(asked.status, asked.code, asked.message);
+      // 11. the writes of an Ask. `from` is null when the same question is asked and flagged already: nothing to write.
+      if (asked.from !== null) {
+        const outcome = await runAsk({ executor, text: wanted.text, from: asked.from });
+        if (!outcome.ok) return refuse(502, outcome.error.code, outcome.error.message, { step: outcome.step });
+      }
+      return jsonResponse({ ok: true, ask: { text: wanted.text, at: new Date(now()).toISOString() } }, 200, CACHE.none);
+    }
+
     const checked = checkAnswer(found.data, wanted.option, wanted.note);
     if (!checked.ok) return refuse(checked.status, checked.code, checked.message);
 
     // 11. the writes
-    const executor = createRestExecutor({ token, number: wanted.number, send, remainingMs: () => deadlineAt - now() });
     const result = await runAnswer({ executor, option: wanted.option, note: wanted.note, from: checked.from, ...(checked.clearDecided === true ? { clearDecided: true } : {}) });
     if (!result.ok) return refuse(502, result.error.code, result.error.message, { step: result.step });
     return jsonResponse({ ok: true, answer: { option: wanted.option, note: wanted.note, at: new Date(now()).toISOString() } }, 200, CACHE.none);

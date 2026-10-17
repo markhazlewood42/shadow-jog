@@ -517,3 +517,135 @@ test.describe('the answer route of the live server', () => {
     expect(panel.data.sections.map((section) => section.heading)).toEqual(['Storage', 'First run', null]);
   });
 });
+
+test.describe('asking for more info', () => {
+  /** What a session does when it answers: an `Info:` comment by Mark's account, and the label needs-info off. The fake gh has no other way in, so the test edits its store. */
+  function sessionAnswers(number: number, info: string): void {
+    const store = readGhIssues() as GhIssueStore;
+    const issue = store.issues.find((candidate) => candidate.number === number);
+    if (issue === undefined) throw new Error(`no issue ${number}`);
+    (issue.comments as unknown[]).push({ id: 'IC_session_info', author: { login: FAKE_VIEWER }, body: `Info: ${info}`, createdAt: new Date().toISOString() });
+    issue.labels = issue.labels.filter((label) => label.name !== 'needs-info');
+    setGhIssues(store);
+  }
+  const askBox = (page: Page) => page.getByRole('form', { name: 'Ask for more info on this decision' });
+
+  test('E2E: Mark asks for more info, the fake gh records one comment and one label, the issue stays open, and the page reads Waiting for info', async ({ page, request }) => {
+    const problems = watchConsole(page);
+    await page.goto('/decisions/41');
+    await expect(askBox(page)).toHaveCount(0);
+    await page.getByRole('button', { name: 'Ask for more info' }).click();
+    await expect(askBox(page).getByRole('button', { name: 'Send question' })).toBeDisabled(); // nothing is typed yet
+    await askBox(page).getByLabel('Your question').fill('What does option C cost to undo?\nAnd who moves the old caches?');
+    await askBox(page).getByRole('button', { name: 'Send question' }).click();
+
+    const decision = decisionOf(page);
+    await expect(decision.getByText('Waiting for info', { exact: true })).toBeVisible();
+    await expect(page.getByRole('list', { name: 'Questions and info' })).toContainText('What does option C cost to undo?');
+    // The page keeps its answer form: Mark can still answer, and the question box is closed again.
+    await expect(form(page)).toBeVisible();
+    await expect(askBox(page)).toHaveCount(0);
+
+    const repo = 'fixture-owner/fixture-repo';
+    expect(writes().map((call) => call.args)).toEqual([
+      ['issue', 'comment', '--repo', repo, '41', '--body', 'Question: What does option C cost to undo?\nAnd who moves the old caches?'],
+      ['issue', 'edit', '--repo', repo, '41', '--add-label', 'needs-info'],
+    ]);
+    const stored = readGhIssues()?.issues.find((issue) => issue.number === 41);
+    expect(stored?.state).toBe('OPEN');
+    expect(stored?.labels.map((label) => label.name)).toEqual(['decision', 'needs-info']);
+    // The server list has it too, in the phase for a session to answer.
+    const info = await readDecisions(request);
+    expect(info.open.find((issue) => issue.number === 41)?.phase).toBe('needs-info');
+    expect(problems).toEqual([]);
+  });
+
+  test('a write failure keeps the question, and the retry adds the label without a second Question: comment', async ({ page }) => {
+    setGhMode({ mode: 'write-fails', step: 'edit' });
+    await page.goto('/decisions/41');
+    await page.getByRole('button', { name: 'Ask for more info' }).click();
+    await askBox(page).getByLabel('Your question').fill('Why is C slow?');
+    await askBox(page).getByRole('button', { name: 'Send question' }).click();
+    const alert = page.getByRole('alert');
+    await expect(alert).toContainText('Question posted · Label not added');
+    await expect(askBox(page).getByLabel('Your question')).toHaveValue('Why is C slow?');
+    // The page read the issue again: the comment is there and the label is not.
+    await expect(page.getByText('Your question is posted, but it is not flagged for a session')).toBeVisible();
+    expect(writeNames()).toEqual(['issue comment', 'issue edit']);
+
+    setGhMode({ mode: 'ok' });
+    await page.getByRole('button', { name: 'Flag again', exact: true }).click();
+    await expect(decisionOf(page).getByText('Waiting for info', { exact: true })).toBeVisible();
+    expect(commentsOf(41).filter((comment) => comment.body.startsWith('Question:'))).toHaveLength(1);
+    expect(readGhIssues()?.issues.find((issue) => issue.number === 41)?.labels.map((label) => label.name)).toEqual(['decision', 'needs-info']);
+  });
+
+  test('after a session posts Info: the page reads More info posted with the text, and Mark answers: no label removal is left to do', async ({ page, request }) => {
+    await page.goto('/decisions/41');
+    await page.getByRole('button', { name: 'Ask for more info' }).click();
+    await askBox(page).getByLabel('Your question').fill('Why is C slow?');
+    await askBox(page).getByRole('button', { name: 'Send question' }).click();
+    await expect(decisionOf(page).getByText('Waiting for info', { exact: true })).toBeVisible();
+
+    sessionAnswers(41, 'C is slow because it moves old caches once. Plan: docs/guides/setup.md.');
+    await request.get('/api/decisions?refresh=1');
+    await page.reload();
+    await expect(decisionOf(page).getByText('More info posted', { exact: true }).first()).toBeVisible();
+    await expect(page.getByRole('list', { name: 'Questions and info' })).toContainText('C is slow because it moves old caches once.');
+    // The form is there with no option chosen, and the answer finishes the decision as before.
+    await expect(form(page).getByRole('button', { name: 'Send answer' })).toBeDisabled();
+    await optionOf(page, /Move it to a new `cache` folder/).click();
+    await form(page).getByRole('button', { name: 'Send answer' }).click();
+    await expect(decisionOf(page)).toContainText('Answered C');
+    expect(writeNames()).toEqual(['issue comment', 'issue edit', 'issue comment', 'issue edit', 'issue close']);
+  });
+
+  test('an answer sent while the label is still on takes it off first (step 0)', async ({ page }) => {
+    await page.goto('/decisions/41');
+    await page.getByRole('button', { name: 'Ask for more info' }).click();
+    await askBox(page).getByLabel('Your question').fill('Why?');
+    await askBox(page).getByRole('button', { name: 'Send question' }).click();
+    await expect(decisionOf(page).getByText('Waiting for info', { exact: true })).toBeVisible();
+    await optionOf(page, /Keep it in the data folder/).click();
+    await form(page).getByRole('button', { name: 'Send answer' }).click();
+    await expect(decisionOf(page)).toContainText('Answered A');
+    const edits = writes().filter((call) => call.args[1] === 'edit').map((call) => call.args.slice(4));
+    expect(edits).toEqual([
+      ['41', '--add-label', 'needs-info'],
+      ['41', '--remove-label', 'needs-info'],
+      ['41', '--add-label', 'decided', '--remove-label', 'decision'],
+    ]);
+    expect(readGhIssues()?.issues.find((issue) => issue.number === 41)?.labels.map((label) => label.name)).toEqual(['decided']);
+  });
+
+  test('the thread shows an Info: that holds markup as text and runs nothing', async ({ page, request }) => {
+    const problems = watchConsole(page);
+    await page.goto('/decisions/41');
+    await page.getByRole('button', { name: 'Ask for more info' }).click();
+    await askBox(page).getByLabel('Your question').fill('Why?');
+    await askBox(page).getByRole('button', { name: 'Send question' }).click();
+    await expect(decisionOf(page).getByText('Waiting for info', { exact: true })).toBeVisible();
+    sessionAnswers(41, '<script>window.__pwned = 1</script> <img src=x onerror="window.__pwned=1"> [a link](https://example.com/x)');
+    await request.get('/api/decisions?refresh=1');
+    await page.reload();
+    const thread = page.getByRole('list', { name: 'Questions and info' });
+    await expect(thread).toContainText('<script>window.__pwned = 1</script>');
+    await expect(thread).toContainText('[a link](https://example.com/x)');
+    await expect(thread.locator('script, img, a')).toHaveCount(0);
+    expect(await page.evaluate(() => (window as unknown as { __pwned?: number }).__pwned)).toBeUndefined();
+    expect(problems).toEqual([]);
+  });
+
+  test('the Now page lists a decision that waits for info apart, under Waiting for info', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('cc.now.glass', 'off')); // plain panels: this test reads lists, and the glass shaders need a GPU
+    await page.goto('/decisions/41');
+    await page.getByRole('button', { name: 'Ask for more info' }).click();
+    await askBox(page).getByLabel('Your question').fill('Why?');
+    await askBox(page).getByRole('button', { name: 'Send question' }).click();
+    await expect(decisionOf(page).getByText('Waiting for info', { exact: true })).toBeVisible();
+    await page.goto('/');
+    const waiting = page.getByRole('list', { name: 'Waiting for info' });
+    await expect(waiting).toContainText('Decision #41');
+    await expect(page.getByRole('list', { name: 'What waits for Mark' })).not.toContainText('Decision #41');
+  });
+});

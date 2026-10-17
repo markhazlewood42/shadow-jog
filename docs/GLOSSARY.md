@@ -482,6 +482,9 @@ These names come from the Command Center live design (`docs/command-center/desig
 | **Workstream** | One branch and everything that joins to it by branch name: its PR and checks, its roadmap item, its live sessions, its worktree and its state file `docs/workstreams/<branch>.md`. States: active, review, blocked, parked, merged. | `docs/command-center/design.md` section 5.9 |
 | **Reporter** | The local Command Center server run headless. It writes what only this machine knows (sessions, agents, worktrees, uncommitted workstream edits) to one Upstash Redis key, `live`, for the hosted Command Center. Run with `main.ts --reporter` on port 29417. Code: `tools/command-center/src/server/publish/`. | `docs/command-center/design.md` section 11.1 |
 | **Pinned copy** | The reporter's own sparse, shallow clone of `origin/main` (only `tools/command-center`) in the git-ignored folder `.cc-reporter/pinned` of the main checkout. The reporter runs from it, so a branch switch in the shared checkout cannot change its code. The launcher fetches it every 2 minutes. | `tools/command-center/scripts/reporter-launch.mjs` |
+| **`needs-info`** | The GitHub label on a decision issue that Mark asked about. It means a session must answer with an `Info:` comment and then take the label off. | `docs/command-center/design.md` section 5.5.1 |
+| **`Question:` and `Info:` comments** | The start of a comment shows its kind, by convention, like `Decision:`. `Question:` is Mark's question on a decision. `Info:` is a session's answer to it. The prefix gives no write power. | `docs/command-center/design.md` section 5.5.1 |
+| **Waiting for info** | The state of a decision page while the label `needs-info` is set. It shows Mark's questions and no answer form. | `docs/command-center/design.md` section 5.5.1 |
 
 ---
 

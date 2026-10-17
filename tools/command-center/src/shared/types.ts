@@ -530,6 +530,22 @@ export type DecisionDocLink = { docId: string; slug: string; anchor: string; hea
 export type DecisionAnswer = { option: string; note: string | null; at: string; complete: boolean };
 
 /**
+ * Where an open decision is in the ask-for-info cycle: `open` (waits for Mark, as before), `needs-info` (Mark asked, a session answers), `needs-info-empty` (the label is set with no
+ * question and no info: a hand edit), `info-posted` (a session answered, Mark decides again) and `ask-unfinished` (the question comment landed, the label did not: Retry adds it).
+ * The seven rules that pick one are in `phaseOf` (src/server/decisions/parse.ts).
+ */
+export type DecisionPhase = 'open' | 'needs-info' | 'needs-info-empty' | 'info-posted' | 'ask-unfinished';
+
+/**
+ * One comment of the ask thread: a question of Mark's (`Question:`), an answer to it (`Info:`), or Mark's note from an earlier answer (`Decision:`, the ask point of a backfilled decision).
+ * `text` is the comment without its prefix, cut to THREAD_TEXT_CHARS; `cut` says it was cut. The words are plain text.
+ */
+export type DecisionThreadEntry = { kind: 'question' | 'info' | 'decision'; text: string; at: string; cut: boolean };
+
+/** The most characters of one thread comment that the page shows (the rest is on GitHub). */
+export const THREAD_TEXT_CHARS = 4000;
+
+/**
  * One decision issue. `state` is `open` (it waits for Mark, also when an answer stopped half way), `answered`
  * (a closed issue, a trusted `Decision:` comment, and a `decided` label that Mark's account set) or `closed`
  * (closed, and not a complete answer: someone closed it, or the label came from another account).
@@ -555,6 +571,10 @@ export type DecisionIssue = {
   createdAt: string;
   answer: DecisionAnswer | null;
   problem: string | null;
+  /** The place of an open decision in the ask-for-info cycle. Optional because a snapshot that an older build wrote has no such field: absent means `open`. */
+  phase?: DecisionPhase;
+  /** Mark's questions and the answers to them, oldest first. Empty (or absent, in an older snapshot) when `phase` is `open`. */
+  thread?: DecisionThreadEntry[];
 };
 
 /** One linked section of a decision page: the heading and the html of its section as the docs have it now, or nulls when the heading is not in the doc. */
@@ -587,8 +607,11 @@ export type DocDecision = { number: number; title: string; anchor: string };
  */
 export const MAX_NOTE_CHARS = 2000;
 
-/** The three writes of an answer, in the order the server makes them. */
-export type AnswerStep = 'comment' | 'label' | 'close';
+/**
+ * The writes of an answer, in the order the server makes them. `unflag` (step 0) takes the label `needs-info` off, when it is on. An Ask has two steps, named like the first two of an
+ * answer: `comment` (the `Question:` comment) and `label` (the label `needs-info` on).
+ */
+export type AnswerStep = 'unflag' | 'comment' | 'label' | 'close';
 
 /** The body of a failed `POST /api/decisions/<n>/answer`. `step` names the write that failed, when the failure came from a write (the steps before it are done). */
 export type AnswerErrorBody = ApiErrorBody & { step?: AnswerStep };
@@ -612,6 +635,10 @@ export type YourMoveItem = {
   href: string | null;
   light: 'green' | 'yellow' | 'red' | null;
   at: string | null;
+  /** A decision that Mark asked about and a session has not answered: the panel lists it under "Waiting for info", not "Waiting for you". Absent for every other item. */
+  waitingForInfo?: true;
+  /** A short mark beside the words ("More info posted"). Absent for most items. */
+  tag?: string;
 };
 
 /**

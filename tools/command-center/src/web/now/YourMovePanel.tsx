@@ -73,6 +73,7 @@ function ItemRow({ item, now }: { item: YourMoveItem; now: number }) {
               {light.label} light
             </span>
           )}
+          {item.tag !== undefined && <span className="font-medium text-cc-muted">{item.tag}</span>}
           {item.at !== null && <Age iso={item.at} now={now} />}
         </span>
       </p>
@@ -105,21 +106,39 @@ function MissingNotice({ missing }: { missing: YourMoveInfo['missing'] }) {
   );
 }
 
-function YourMoveList({ info, now }: { info: YourMoveInfo; now: number }) {
+/** The items that wait for Mark: every item but the decisions that wait for a session to answer his question. */
+export const itemsForYou = (info: YourMoveInfo): YourMoveItem[] => info.items.filter((item) => item.waitingForInfo !== true);
+
+export function YourMoveList({ info, now }: { info: YourMoveInfo; now: number }) {
+  const forYou = itemsForYou(info);
+  const forInfo = info.items.filter((item) => item.waitingForInfo === true);
   return (
     <div className="flex flex-col gap-3">
-      {info.items.length === 0 ? (
+      {forYou.length === 0 ? (
         <p className="flex items-center gap-2 text-cc-muted">
           <CircleCheck aria-hidden className="size-4 shrink-0 text-cc-ink" />
           Nothing for you
         </p>
       ) : (
-        <ol aria-label="What waits for Mark" className="divide-y divide-cc-rule">
-          {info.items.map((item, index) => (
-            // The list has no id of its own for an item, and a list is made again as a whole, so the place in it is the key.
-            <ItemRow key={`${index}:${item.source}:${item.text}`} item={item} now={now} />
-          ))}
-        </ol>
+        <>
+          {forInfo.length > 0 && <h3 className="text-xs font-medium tracking-wide text-cc-soft uppercase">Waiting for you</h3>}
+          <ol aria-label="What waits for Mark" className="divide-y divide-cc-rule">
+            {forYou.map((item, index) => (
+              // The list has no id of its own for an item, and a list is made again as a whole, so the place in it is the key.
+              <ItemRow key={`${index}:${item.source}:${item.text}`} item={item} now={now} />
+            ))}
+          </ol>
+        </>
+      )}
+      {forInfo.length > 0 && (
+        <>
+          <h3 className="text-xs font-medium tracking-wide text-cc-soft uppercase">Waiting for info</h3>
+          <ol aria-label="Waiting for info" className="divide-y divide-cc-rule">
+            {forInfo.map((item, index) => (
+              <ItemRow key={`${index}:${item.source}:${item.text}`} item={item} now={now} />
+            ))}
+          </ol>
+        </>
       )}
       <MissingNotice missing={info.missing} />
     </div>
@@ -145,7 +164,7 @@ export function YourMovePanel(placement: PanelPlacement) {
   const shown = result.panel === null ? null : result.panel.ok ? result.panel.data : (result.panel.lastGood?.data ?? null);
   return (
     <GlassPanel id="your-move" title="Your move" {...placement}>
-      <PanelContent title="Your move" result={result} aside={shown !== null && shown.items.length > 0 ? <CountChip count={shown.items.length} /> : undefined}>
+      <PanelContent title="Your move" result={result} aside={shown !== null && itemsForYou(shown).length > 0 ? <CountChip count={itemsForYou(shown).length} /> : undefined}>
         {(info) => <YourMoveList info={info} now={now} />}
       </PanelContent>
     </GlassPanel>
