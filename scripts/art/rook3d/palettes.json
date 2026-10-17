@@ -1,0 +1,51 @@
+{
+  "note": "Ramps for the toon steps (dark, mid, light) per part, and the edge color per part. Every color is from target.json: walkPalette for the 32x32 field frames, battleIdle.palette for the 79x68 battle poses.",
+  "walk": {
+    "ramps": {
+      "hair":    ["#4e555b", "#7f8587", "#9ea5a8"],
+      "skin":    ["#c38260", "#d19c77", "#e4b086"],
+      "lenses":  ["#935416", "#db9332", "#db9332"],
+      "beard":   ["#6b7075", "#7e7974", "#9ea5a8"],
+      "coat":    ["#454c29", "#61693c", "#6f7945"],
+      "sleeves": ["#454c29", "#61693c", "#6f7945"],
+      "zipper":  ["#22222b", "#393a45", "#4e555b"],
+      "hands":   ["#c38260", "#d19c77", "#e4b086"],
+      "legs":    ["#22222b", "#393a45", "#4e555b"],
+      "boots":   ["#16180d", "#22222b", "#393a45"],
+      "sheath":  ["#352418", "#846042", "#846042"],
+      "guard":   ["#846042", "#af8e46", "#af8e46"],
+      "wrap":    ["#352418", "#352418", "#846042"],
+      "blade":   ["#6b7075", "#9ea5a8", "#9ea5a8"]
+    },
+    "edge": {
+      "hair": "#393a45", "skin": "#352418", "lenses": "#290827", "beard": "#393a45",
+      "coat": "#353a1d", "sleeves": "#353a1d", "zipper": "#16180d", "hands": "#352418",
+      "legs": "#030102", "boots": "#030102", "sheath": "#352418", "guard": "#352418",
+      "wrap": "#352418", "blade": "#393a45"
+    }
+  },
+  "battle": {
+    "ramps": {
+      "hair":    ["#7d8596", "#988c8b", "#c4c7d1"],
+      "skin":    ["#ad6741", "#ec9d6b", "#ec9d6b"],
+      "lenses":  ["#431204", "#ad6741", "#ec9d6b"],
+      "beard":   ["#776b6a", "#988c8b", "#c4c7d1"],
+      "coat":    ["#2f2d1a", "#474326", "#5f5933"],
+      "sleeves": ["#6c717f", "#969eaf", "#c4c7d1"],
+      "zipper":  ["#201e21", "#323644", "#4f5463"],
+      "hands":   ["#ad6741", "#ec9d6b", "#ec9d6b"],
+      "legs":    ["#323644", "#4f5463", "#575255"],
+      "boots":   ["#220522", "#323644", "#373337"],
+      "sheath":  ["#201e21", "#373337", "#575255"],
+      "guard":   ["#5d4a40", "#776b6a", "#988c8b"],
+      "wrap":    ["#431204", "#5d4a40", "#5d4a40"],
+      "blade":   ["#7d8596", "#c4c7d1", "#f4f7fa"]
+    },
+    "edge": {
+      "hair": "#201e21", "skin": "#431204", "lenses": "#030103", "beard": "#201e21",
+      "coat": "#030103", "sleeves": "#201e21", "zipper": "#030103", "hands": "#431204",
+      "legs": "#030103", "boots": "#030103", "sheath": "#030103", "guard": "#201e21",
+      "wrap": "#030103", "blade": "#323644"
+    }
+  }
+}

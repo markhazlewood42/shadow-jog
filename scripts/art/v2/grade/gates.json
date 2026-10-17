@@ -1,0 +1,216 @@
+{
+  "note": "Gate data for the v2 grade (plan v2 section 4, Amendment 1). `start` values come from R3 and the plan. `calibrated` and `role` are written by `node scripts/art/v2/grade/calibrate.mjs --write-gates` from the calibration set, and the plan says to commit them before round 1. role 'gate' means the measure separates the calibration groups and gates; role 'report' means it does not, so it is a report line only. dir 'min' means the candidate must be at least the value, 'max' at most the value.",
+  "version": 1,
+  "calibratedOn": "2026-10-17",
+  "targetMeasures": {
+    "bf1": {
+      "name": "Boundary F at 1 px",
+      "dir": "min",
+      "start": 0.85,
+      "calibrated": null,
+      "role": "report",
+      "worstPass": 0.8883,
+      "bestFail": 1
+    },
+    "partMiou": {
+      "name": "Part mIoU (area weighted)",
+      "dir": "min",
+      "start": 0.7,
+      "calibrated": null,
+      "role": "report",
+      "worstPass": 0.5633,
+      "bestFail": 0.6494
+    },
+    "partMin": {
+      "name": "Smallest part IoU",
+      "dir": "min",
+      "start": 0.5,
+      "calibrated": null,
+      "role": "report",
+      "worstPass": 0,
+      "bestFail": 0.1148
+    },
+    "chamferMean": {
+      "name": "Outline chamfer, mean px",
+      "dir": "max",
+      "start": 0.6,
+      "calibrated": null,
+      "role": "report",
+      "worstPass": 0.9169,
+      "bestFail": 0.4408
+    },
+    "chamferP95": {
+      "name": "Outline chamfer, p95 px",
+      "dir": "max",
+      "start": 1.5,
+      "calibrated": null,
+      "role": "report",
+      "worstPass": 2.2361,
+      "bestFail": 1
+    },
+    "valueR": {
+      "name": "Value structure r (8x8, interior)",
+      "dir": "min",
+      "start": 0.8,
+      "calibrated": null,
+      "role": "report",
+      "worstPass": 0.5953,
+      "bestFail": 0.8269
+    },
+    "colorMatch": {
+      "name": "Neighborhood color match (dE00 <= 5, 3x3)",
+      "dir": "min",
+      "start": 0.85,
+      "calibrated": 0.756,
+      "role": "gate",
+      "worstPass": 0.7946,
+      "bestFail": 0.7174
+    },
+    "paletteEmd": {
+      "name": "Palette EMD in Lab (dE00)",
+      "dir": "max",
+      "start": 4,
+      "calibrated": null,
+      "role": "report",
+      "worstPass": 4.7613,
+      "bestFail": 4.0447
+    },
+    "pck": {
+      "name": "Landmark PCK at 0.1 x height",
+      "dir": "min",
+      "start": 1,
+      "calibrated": null,
+      "role": "report",
+      "worstPass": 1,
+      "bestFail": 1
+    },
+    "pckHead": {
+      "name": "Head landmark PCK at 0.05 x height",
+      "dir": "min",
+      "start": 1,
+      "calibrated": null,
+      "role": "report",
+      "worstPass": 1,
+      "bestFail": 1
+    },
+    "textureMax": {
+      "name": "Per-part texture density, largest absolute difference",
+      "dir": "max",
+      "start": 0.1,
+      "calibrated": null,
+      "role": "report",
+      "worstPass": 0.45,
+      "bestFail": 0.1923
+    }
+  },
+  "passMeasures": 4,
+  "noReference": {
+    "note": "e and w have no reference. Gates: hard lines, BF1 against the proxy template, landmark PCK (y of head and feet points) against s and ne. Plus a G2 pick and Mark.",
+    "bf1Template": 0.9
+  },
+  "hardLines": {
+    "note": "Numbers of the given come from target.json. `start` values are the plan and Amendment 1 lines. `calibrated` is the re-set value when a line failed a should-pass item (calibrate.mjs writes it).",
+    "outlineMin": 0.93,
+    "height": {
+      "given": 31,
+      "tol": 1
+    },
+    "bottomRow": 30,
+    "headAlone": {
+      "min": 13,
+      "max": 15
+    },
+    "shoulderTol": 1,
+    "hipTol": 1,
+    "countFactor": 1.25,
+    "flatteningFloor": 0.8,
+    "widthTol": {
+      "s": 4,
+      "n": 4
+    },
+    "headWidthFacings": [
+      "s",
+      "n",
+      "se"
+    ],
+    "faceSkin": {
+      "eyeRows": [
+        5,
+        10
+      ],
+      "s": {
+        "min": 10
+      },
+      "sw": {
+        "min": 10
+      },
+      "se": {
+        "min": 10
+      },
+      "n": {
+        "max": 0
+      },
+      "ne": {
+        "max": 10,
+        "edgeCols": 3
+      },
+      "nw": {
+        "max": 10,
+        "edgeCols": 3
+      }
+    },
+    "distinctN": 151,
+    "calibrated": {
+      "PA-04 orphans / given": {
+        "limit": 1.25,
+        "proposedReset": 2.35,
+        "shouldPassOver": 20,
+        "shouldFailStillCaught": 0
+      },
+      "PA-06 box width deviation": {
+        "limit": 4,
+        "proposedReset": 5,
+        "shouldPassOver": 4,
+        "shouldFailStillCaught": 5
+      },
+      "PA-07 head width deviation": {
+        "limit": 1,
+        "proposedReset": 3,
+        "shouldPassOver": 8,
+        "shouldFailStillCaught": 4
+      },
+      "HL-FLAT lowest part ratio": {
+        "limit": 0.8,
+        "proposedReset": 0.25,
+        "shouldPassOver": 14,
+        "shouldFailStillCaught": 15
+      }
+    },
+    "reset": {
+      "orphanFactor": 2.35,
+      "widthTol": {
+        "s": 5,
+        "n": 5
+      },
+      "headWidthTol": 3,
+      "flatteningFloor": 0.25
+    },
+    "useReset": false
+  },
+  "calibration": {
+    "gating": [
+      "colorMatch"
+    ],
+    "gatingCount": 1,
+    "passLine": 4,
+    "markGates": true,
+    "walkScope": "all",
+    "items": {
+      "pass-near": 30,
+      "pass-real": 7,
+      "fail-near": 18,
+      "fail-far": 15,
+      "info": 9
+    }
+  }
+}

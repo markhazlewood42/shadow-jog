@@ -58,6 +58,7 @@ Spike docs on `main` are copies kept as the record. Their code stays on the spik
 |---|---|---|---|---|
 | Side-on battle view | GO (Mark) | 2026-10-04 | [PR #3](https://github.com/markhazlewood42/shadow-jog/pull/3), branch `spike/side-battle` | [`side-battle.md`](side-battle.md), stage design: [`side-battle-stage.md`](side-battle-stage.md), configs: `stage-configs/` |
 | Phaser tooling (stage, editor, Battle Test) | GO (Mark) for the scope in the doc | 2026-10-04 | [PR #4](https://github.com/markhazlewood42/shadow-jog/pull/4), branch `spike/phaser-stage` | [`phaser-stage.md`](phaser-stage.md), tooling UI guide: [`../TOOLING-UI.md`](../TOOLING-UI.md) |
+| Rook turnaround (code-made facings in the Sprite Fusion style) | Approved (Mark), running | 2026-10-17 | [PR #142](https://github.com/markhazlewood42/shadow-jog/pull/142), branch `spike/rook-turnaround` | [`rook-turnaround.md`](rook-turnaround.md) |
 
 Update 2026-10-04 (evening): the Phaser tooling GO now leads to the new engine (decision 17 in `docs/PHASE-0.2.md`), not to a Phaser rebuild. The archive tags wait until the battle stage lands on the new engine.
 

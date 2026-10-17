@@ -1,0 +1,12 @@
+{
+  "type": "animation",
+  "prompt": "Rook from a 3D model, battle pose ready, rendered by scripts/art/rook3d",
+  "width": 79,
+  "height": 68,
+  "frame_w": 79,
+  "frame_h": 68,
+  "frame_count": 1,
+  "fps": 8,
+  "preview": "preview-8x.png",
+  "spritesheet": "spritesheet.png"
+}

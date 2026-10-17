@@ -1,0 +1,442 @@
+{
+ "pitch": 20.0,
+ "light": [
+  0.4962916970252991,
+  -0.4466625154018402,
+  0.744437575340271
+ ],
+ "toon": [
+  0.3,
+  0.66
+ ],
+ "ppu": {
+  "s": 9.3,
+  "se": 9.0,
+  "e": 9.6207,
+  "ne": 9.9747,
+  "n": 9.9643,
+  "nw": 9.6207,
+  "w": 9.6207,
+  "sw": 9.3
+ },
+ "frames": [
+  {
+   "name": "s_walk0",
+   "facing": "s",
+   "kind": "walk",
+   "index": 0,
+   "size": [
+    32,
+    32
+   ],
+   "palette": "walk",
+   "yaw": 0
+  },
+  {
+   "name": "s_walk1",
+   "facing": "s",
+   "kind": "walk",
+   "index": 1,
+   "size": [
+    32,
+    32
+   ],
+   "palette": "walk",
+   "yaw": 0
+  },
+  {
+   "name": "s_walk2",
+   "facing": "s",
+   "kind": "walk",
+   "index": 2,
+   "size": [
+    32,
+    32
+   ],
+   "palette": "walk",
+   "yaw": 0
+  },
+  {
+   "name": "s_walk3",
+   "facing": "s",
+   "kind": "walk",
+   "index": 3,
+   "size": [
+    32,
+    32
+   ],
+   "palette": "walk",
+   "yaw": 0
+  },
+  {
+   "name": "se_walk0",
+   "facing": "se",
+   "kind": "walk",
+   "index": 0,
+   "size": [
+    32,
+    32
+   ],
+   "palette": "walk",
+   "yaw": 45
+  },
+  {
+   "name": "se_walk1",
+   "facing": "se",
+   "kind": "walk",
+   "index": 1,
+   "size": [
+    32,
+    32
+   ],
+   "palette": "walk",
+   "yaw": 45
+  },
+  {
+   "name": "se_walk2",
+   "facing": "se",
+   "kind": "walk",
+   "index": 2,
+   "size": [
+    32,
+    32
+   ],
+   "palette": "walk",
+   "yaw": 45
+  },
+  {
+   "name": "se_walk3",
+   "facing": "se",
+   "kind": "walk",
+   "index": 3,
+   "size": [
+    32,
+    32
+   ],
+   "palette": "walk",
+   "yaw": 45
+  },
+  {
+   "name": "e_walk0",
+   "facing": "e",
+   "kind": "walk",
+   "index": 0,
+   "size": [
+    32,
+    32
+   ],
+   "palette": "walk",
+   "yaw": 90
+  },
+  {
+   "name": "e_walk1",
+   "facing": "e",
+   "kind": "walk",
+   "index": 1,
+   "size": [
+    32,
+    32
+   ],
+   "palette": "walk",
+   "yaw": 90
+  },
+  {
+   "name": "e_walk2",
+   "facing": "e",
+   "kind": "walk",
+   "index": 2,
+   "size": [
+    32,
+    32
+   ],
+   "palette": "walk",
+   "yaw": 90
+  },
+  {
+   "name": "e_walk3",
+   "facing": "e",
+   "kind": "walk",
+   "index": 3,
+   "size": [
+    32,
+    32
+   ],
+   "palette": "walk",
+   "yaw": 90
+  },
+  {
+   "name": "ne_walk0",
+   "facing": "ne",
+   "kind": "walk",
+   "index": 0,
+   "size": [
+    32,
+    32
+   ],
+   "palette": "walk",
+   "yaw": 135
+  },
+  {
+   "name": "ne_walk1",
+   "facing": "ne",
+   "kind": "walk",
+   "index": 1,
+   "size": [
+    32,
+    32
+   ],
+   "palette": "walk",
+   "yaw": 135
+  },
+  {
+   "name": "ne_walk2",
+   "facing": "ne",
+   "kind": "walk",
+   "index": 2,
+   "size": [
+    32,
+    32
+   ],
+   "palette": "walk",
+   "yaw": 135
+  },
+  {
+   "name": "ne_walk3",
+   "facing": "ne",
+   "kind": "walk",
+   "index": 3,
+   "size": [
+    32,
+    32
+   ],
+   "palette": "walk",
+   "yaw": 135
+  },
+  {
+   "name": "n_walk0",
+   "facing": "n",
+   "kind": "walk",
+   "index": 0,
+   "size": [
+    32,
+    32
+   ],
+   "palette": "walk",
+   "yaw": 180
+  },
+  {
+   "name": "n_walk1",
+   "facing": "n",
+   "kind": "walk",
+   "index": 1,
+   "size": [
+    32,
+    32
+   ],
+   "palette": "walk",
+   "yaw": 180
+  },
+  {
+   "name": "n_walk2",
+   "facing": "n",
+   "kind": "walk",
+   "index": 2,
+   "size": [
+    32,
+    32
+   ],
+   "palette": "walk",
+   "yaw": 180
+  },
+  {
+   "name": "n_walk3",
+   "facing": "n",
+   "kind": "walk",
+   "index": 3,
+   "size": [
+    32,
+    32
+   ],
+   "palette": "walk",
+   "yaw": 180
+  },
+  {
+   "name": "nw_walk0",
+   "facing": "nw",
+   "kind": "walk",
+   "index": 0,
+   "size": [
+    32,
+    32
+   ],
+   "palette": "walk",
+   "yaw": 225
+  },
+  {
+   "name": "nw_walk1",
+   "facing": "nw",
+   "kind": "walk",
+   "index": 1,
+   "size": [
+    32,
+    32
+   ],
+   "palette": "walk",
+   "yaw": 225
+  },
+  {
+   "name": "nw_walk2",
+   "facing": "nw",
+   "kind": "walk",
+   "index": 2,
+   "size": [
+    32,
+    32
+   ],
+   "palette": "walk",
+   "yaw": 225
+  },
+  {
+   "name": "nw_walk3",
+   "facing": "nw",
+   "kind": "walk",
+   "index": 3,
+   "size": [
+    32,
+    32
+   ],
+   "palette": "walk",
+   "yaw": 225
+  },
+  {
+   "name": "w_walk0",
+   "facing": "w",
+   "kind": "walk",
+   "index": 0,
+   "size": [
+    32,
+    32
+   ],
+   "palette": "walk",
+   "yaw": 270
+  },
+  {
+   "name": "w_walk1",
+   "facing": "w",
+   "kind": "walk",
+   "index": 1,
+   "size": [
+    32,
+    32
+   ],
+   "palette": "walk",
+   "yaw": 270
+  },
+  {
+   "name": "w_walk2",
+   "facing": "w",
+   "kind": "walk",
+   "index": 2,
+   "size": [
+    32,
+    32
+   ],
+   "palette": "walk",
+   "yaw": 270
+  },
+  {
+   "name": "w_walk3",
+   "facing": "w",
+   "kind": "walk",
+   "index": 3,
+   "size": [
+    32,
+    32
+   ],
+   "palette": "walk",
+   "yaw": 270
+  },
+  {
+   "name": "sw_walk0",
+   "facing": "sw",
+   "kind": "walk",
+   "index": 0,
+   "size": [
+    32,
+    32
+   ],
+   "palette": "walk",
+   "yaw": 315
+  },
+  {
+   "name": "sw_walk1",
+   "facing": "sw",
+   "kind": "walk",
+   "index": 1,
+   "size": [
+    32,
+    32
+   ],
+   "palette": "walk",
+   "yaw": 315
+  },
+  {
+   "name": "sw_walk2",
+   "facing": "sw",
+   "kind": "walk",
+   "index": 2,
+   "size": [
+    32,
+    32
+   ],
+   "palette": "walk",
+   "yaw": 315
+  },
+  {
+   "name": "sw_walk3",
+   "facing": "sw",
+   "kind": "walk",
+   "index": 3,
+   "size": [
+    32,
+    32
+   ],
+   "palette": "walk",
+   "yaw": 315
+  },
+  {
+   "name": "battle_ready",
+   "facing": "e",
+   "kind": "battle",
+   "pose": "ready",
+   "size": [
+    79,
+    68
+   ],
+   "palette": "battle",
+   "yaw": 72.0
+  },
+  {
+   "name": "battle_downSwing",
+   "facing": "e",
+   "kind": "battle",
+   "pose": "downSwing",
+   "size": [
+    79,
+    68
+   ],
+   "palette": "battle",
+   "yaw": 72.0
+  }
+ ],
+ "hilt_cam_x": {
+  "s": -9.532,
+  "se": -10.469,
+  "e": -5.965,
+  "ne": 2.857,
+  "n": 10.213,
+  "nw": 11.191,
+  "w": 5.965,
+  "sw": -2.663
+ }
+}
