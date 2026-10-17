@@ -5,7 +5,7 @@ title: "Command Center: ask for more info on a decision (brief)"
 
 # Brief: ask for more info on a decision
 
-Status: DRAFT for Mark's approval, revision 3 (2026-10-16). Engineer verifier: round 1 7.0, fix round 2 about 8.0 with one new Important, fix round 3 PASS (history at the end). No code before approval.
+Status: APPROVED by Mark on 2026-10-16 (API option A, backfill after the PR merges), revision 3. Engineer verifier: round 1 7.0, fix round 2 about 8.0 with one new Important, fix round 3 PASS (history at the end). No code before approval.
 
 ## Goal
 
