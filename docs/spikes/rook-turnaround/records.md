@@ -205,3 +205,7 @@ Open for Mark (consult section F): Q1 reference gates, Q2 se fit line, Q3 templa
 |---|---|---|---|---|
 | Amendment 2, r1 | Spike doc "Amendment 2"; Haiku verifier (product-manager pack) | | FAIL (1 Critical, 2 Important) | Head width GO line changed silently; re-sets did not name replaced lines; who decided the re-sets |
 | Amendment 2, r2 | Fixes applied; Haiku fix verifier | | PASS | Minor: the GO line says "head width"; Amendment 2 defines it as head alone |
+
+## Side track: R4 and the "Rook from a model" spike (2026-10-17)
+
+Mark asked whether a 3D game with pixel shaders would be easier. Opus research R4 (Mark asked for Opus) says: keep the 2D engine and test option B, 3D characters rendered offline to sprites. Mark: run it beside path C, first as a cloud session (try a headless Blender in the cloud), and fall back to a local headed session so he can watch. Cloud dispatch started on branch `spike/rook-3d`, with its own exit criteria file `docs/spikes/rook-3d.md` committed before any code.
