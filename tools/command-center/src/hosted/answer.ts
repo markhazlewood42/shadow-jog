@@ -117,7 +117,8 @@ async function readBody(request: Request): Promise<Wanted | Response> {
     return refuse(400, 'bad-json', say('requestNotJson'));
   }
   // Fields that are not named here (a repo, an owner, labels) are ignored: the repo is a constant of the code, and so are the writes.
-  if (!isRecord(body)) return refuse(422, 'bad-request', say('requestNoOption'));
+  // A body that is not an object does not say what it is (an answer or an ask), so it gets the message of the ask, as on the local route.
+  if (!isRecord(body)) return refuse(422, 'bad-request', say('requestAskNeedsText', { max: MAX_NOTE_CHARS }));
   // `action` is an allow-list: absent means an answer, and anything but the two words writes nothing.
   if (body.action !== undefined && body.action !== 'answer' && body.action !== 'ask') return refuse(422, 'bad-request', 'The "action" of the request must be "answer" or "ask".');
   if (body.action === 'ask') return readAsk(body);
@@ -130,8 +131,7 @@ async function readBody(request: Request): Promise<Wanted | Response> {
   return { action: 'answer', number: body.number, option: body.option, note: note === '' ? null : note };
 }
 
-/** The body of an Ask: `number`, and `note` as the question (1 to 2000 characters after trimming, line breaks made `
-`). An `option` gives 422: a question picks nothing. */
+/** The body of an Ask: `number`, and `note` as the question (1 to 2000 characters after trimming, line breaks made `\n`). An `option` gives 422: a question picks nothing. */
 function readAsk(body: Record<string, unknown>): Wanted | Response {
   if (typeof body.number !== 'number' || !Number.isInteger(body.number) || body.number < 1 || body.number > MAX_ISSUE_NUMBER) return refuse(422, 'bad-request', 'The request must have the number of an issue.');
   if (body.option !== undefined) return refuse(422, 'bad-request', say('requestAskHasOption'));

@@ -155,6 +155,29 @@ describe('withAsked: the hosted page shows an Ask before the snapshot has it', (
     expect(withAsked(answered, asked)).toBe(answered);
   });
 
+  it('shows the optimistic state when the same text was asked before and a session answered it: only the newest pending question counts', () => {
+    const old = detail({
+      phase: 'info-posted',
+      thread: [
+        { kind: 'question', text: 'Why is C slow?', at: '2026-10-05T09:00:00Z', cut: false },
+        { kind: 'info', text: 'Because.', at: '2026-10-05T11:00:00Z', cut: false },
+      ],
+    });
+    const shown = withAsked(old, asked);
+    expect(shown.phase).toBe('needs-info');
+    expect(shown.thread?.at(-1)).toEqual({ kind: 'question', text: 'Why is C slow?', at: asked.at, cut: false });
+    expect(shown.thread).toHaveLength(3);
+    // A question after the answered one, with other text: the newest question is the one that counts.
+    const other = detail({
+      phase: 'needs-info',
+      thread: [
+        { kind: 'question', text: 'Why is C slow?', at: '2026-10-05T09:00:00Z', cut: false },
+        { kind: 'question', text: 'Why is B slow?', at: '2026-10-05T10:00:00Z', cut: false },
+      ],
+    });
+    expect(withAsked(other, asked).thread).toHaveLength(3);
+  });
+
   it('turns ask-unfinished into needs-info after a Retry that the snapshot does not show yet', () => {
     const unfinished = detail({ phase: 'ask-unfinished', thread: [{ kind: 'question', text: 'Why is C slow?', at: asked.at, cut: false }] });
     expect(withAsked(unfinished, asked).phase).toBe('needs-info');

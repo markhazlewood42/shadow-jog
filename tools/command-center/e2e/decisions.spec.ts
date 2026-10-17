@@ -570,11 +570,11 @@ test.describe('asking for more info', () => {
     await expect(alert).toContainText('Question posted · Label not added');
     await expect(askBox(page).getByLabel('Your question')).toHaveValue('Why is C slow?');
     // The page read the issue again: the comment is there and the label is not.
-    await expect(page.getByText('Question sent, label missing')).toBeVisible();
+    await expect(page.getByText('Your question is posted, but it is not flagged for a session')).toBeVisible();
     expect(writeNames()).toEqual(['issue comment', 'issue edit']);
 
     setGhMode({ mode: 'ok' });
-    await page.getByRole('button', { name: 'Retry', exact: true }).click();
+    await page.getByRole('button', { name: 'Flag again', exact: true }).click();
     await expect(decisionOf(page).getByText('Waiting for info', { exact: true })).toBeVisible();
     expect(commentsOf(41).filter((comment) => comment.body.startsWith('Question:'))).toHaveLength(1);
     expect(readGhIssues()?.issues.find((issue) => issue.number === 41)?.labels.map((label) => label.name)).toEqual(['decision', 'needs-info']);

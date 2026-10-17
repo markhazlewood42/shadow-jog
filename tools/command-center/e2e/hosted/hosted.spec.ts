@@ -631,7 +631,7 @@ for (const [label, size] of [
       await expectNoSidewaysScroll(page);
     });
 
-    test('ask: Retry on a question whose label is missing sends the same question text', async ({ page }) => {
+    test('ask: Flag again on a question whose label is missing sends the same question text', async ({ page }) => {
       const unfinished = decision(61, { phase: 'ask-unfinished', thread: [{ kind: 'question', text: 'Why is B slow?', at: '2026-10-12T10:00:00.000Z', cut: false }] });
       const mock = await mockApi(page, {
         snapshot: { json: snapshot({ decisions: { open: [unfinished], recent: [] } }) },
@@ -639,8 +639,8 @@ for (const [label, size] of [
         answer: { json: { ok: true, ask: { text: 'Why is B slow?', at: '2026-10-12T12:00:05.000Z' } } },
       });
       await page.goto('/decisions/61');
-      await expect(page.getByText('Question sent, label missing')).toBeVisible();
-      await page.getByRole('button', { name: 'Retry', exact: true }).click();
+      await expect(page.getByText('Your question is posted, but it is not flagged for a session')).toBeVisible();
+      await page.getByRole('button', { name: 'Flag again', exact: true }).click();
       await expect(page.getByRole('region', { name: 'Decision', exact: true }).getByText('Waiting for info', { exact: true })).toBeVisible();
       expect(mock.hits.answer.map((hit) => hit.body)).toEqual([{ number: 61, action: 'ask', note: 'Why is B slow?' }]);
     });

@@ -103,13 +103,17 @@ function shownDecision(detail: DecisionDetail, answered: DecisionAnswer | null):
 
 /**
  * On the hosted page, right after Mark's question is written, the function's reply is the truth and the snapshot can be 15 s old: the decision is shown as "Waiting for info",
- * with his question in the thread, until the snapshot has the question itself (a question with the same text in its thread). The local page never has such a reply (`asked` is null).
+ * with his question in the thread, until the snapshot has the question itself (its newest question, pending, with the same text). The local page never has such a reply (`asked` is null).
  */
 export function withAsked(detail: DecisionDetail, asked: { text: string; at: string } | null): DecisionDetail {
   if (asked === null || detail.state !== 'open') return detail;
   const thread = detail.thread ?? [];
-  // The snapshot has the question: it is the truth, except that a retry only added the label, which the snapshot may not show yet.
-  if (thread.some((entry) => entry.kind === 'question' && entry.text === asked.text)) return detail.phase === 'ask-unfinished' ? { ...detail, phase: 'needs-info' } : detail;
+  // The snapshot has the question: it is the truth, except that a retry only added the label, which the snapshot may not show yet. Only the newest question counts, and only while it is pending:
+  // the same text as an older question that a session answered before this ask is a new question. An info from after the ask answers it, so the snapshot is the truth then.
+  const newest = thread.findLast((entry) => entry.kind === 'question');
+  const askedAt = Date.parse(asked.at);
+  const answeredBefore = newest !== undefined && thread.slice(thread.lastIndexOf(newest) + 1).some((entry) => entry.kind === 'info' && Date.parse(entry.at) < askedAt);
+  if (newest?.text === asked.text && !answeredBefore) return detail.phase === 'ask-unfinished' ? { ...detail, phase: 'needs-info' } : detail;
   return { ...detail, phase: 'needs-info', answer: null, thread: [...thread, { kind: 'question', text: asked.text, at: asked.at, cut: false }] };
 }
 

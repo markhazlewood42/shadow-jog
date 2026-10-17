@@ -74,7 +74,7 @@ async function readAskRequest(c: Context): Promise<{ text: string } | Response> 
   } catch {
     return c.json(apiError('bad-json', say('requestNotJson')), 400);
   }
-  if (!isRecord(body)) return c.json(apiError('bad-request', say('requestAskNeedsText', { max: MAX_NOTE_CHARS })), 400);
+  if (!isRecord(body)) return c.json(apiError('bad-request', say('requestAskNeedsText', { max: MAX_NOTE_CHARS })), 422);
   if (body.option !== undefined) return c.json(apiError('bad-request', say('requestAskHasOption')), 422);
   if (typeof body.note !== 'string') return c.json(apiError('bad-request', say('requestAskNeedsText', { max: MAX_NOTE_CHARS })), 422);
   const text = askText(body.note);

@@ -16,8 +16,10 @@ function newestQuestion(issue: DecisionIssue): string | null {
 }
 
 /**
- * The ask section of an open decision. After a question whose comment landed and whose label did not (phase `ask-unfinished`) it shows the notice "Question sent, label missing"
- * and a Retry button. Otherwise it shows the button, and the box when the button was pressed (or a failed question is waiting for a retry).
+ * The ask section of an open decision. After a question whose comment landed and whose label did not (phase `ask-unfinished`) it shows a notice and a "Flag again" button.
+ * Otherwise it shows the button, and the box when the button was pressed (or a failed question is waiting for a retry).
+ * The same phase also follows an answer that stopped half way: its first step took the `needs-info` label off, and its comment step failed. While the answer has a failure,
+ * the notice and its button stay away, because "Flag again" would put the label back under an answer in progress. The answer's own failure box and Retry are then the only way on.
  */
 export function AskForm({ issue, draft }: { issue: DecisionIssue; draft: AnswerDraft }) {
   const sending = draft.askStatus === 'sending';
@@ -26,7 +28,8 @@ export function AskForm({ issue, draft }: { issue: DecisionIssue; draft: AnswerD
   const open = draft.askOpen;
   const text = draft.askText;
   const empty = text.trim() === '';
-  const unfinished = issue.phase === 'ask-unfinished' ? newestQuestion(issue) : null;
+  const showUnfinished = issue.phase === 'ask-unfinished' && draft.failure === null;
+  const unfinished = showUnfinished ? newestQuestion(issue) : null;
 
   function submit(event: FormEvent<HTMLFormElement>) {
     // The page sends the question itself (the content policy of the server forbids a form to go anywhere).
@@ -37,14 +40,14 @@ export function AskForm({ issue, draft }: { issue: DecisionIssue; draft: AnswerD
 
   return (
     <section aria-label="Ask for more info" className="flex flex-col gap-3">
-      {issue.phase === 'ask-unfinished' && (
+      {showUnfinished && (
         <div className="flex flex-col gap-2">
-          <Notice>Question sent, label missing. The question is on GitHub, but the issue is not marked as waiting for info.</Notice>
+          <Notice>Your question is posted, but it is not flagged for a session. Flag it again, or send your answer.</Notice>
           {unfinished !== null && (
             <div>
               <Button type="button" variant="secondary" isDisabled={busy} onPress={() => void draft.sendAsk(unfinished)}>
                 {sending ? <LoaderCircle aria-hidden className="size-4 motion-safe:animate-spin" /> : <Send aria-hidden className="size-4" />}
-                {sending ? 'Sending…' : 'Retry'}
+                {sending ? 'Sending…' : 'Flag again'}
               </Button>
             </div>
           )}

@@ -288,7 +288,7 @@ Mark answers a decision 100% from the hosted page ("I NEVER WANT TO RUN COMMAND 
   | 2 | `needs-info` set, newest info newer than the ask point (or no ask point) | `info-posted` | "More info posted". A session removes the leftover label |
   | 3 | `needs-info` set, no ask point and no info (a hand edit) | `needs-info-empty` | "Waiting for info: no question found" |
   | 4 | No `needs-info`, newest info newer than the ask point | `info-posted` | "More info posted", sorted first, with the thread |
-  | 5 | No `needs-info`, the ask point is a `Question:` | `ask-unfinished` | "Question sent, label missing", with Retry (adds the label only) |
+  | 5 | No `needs-info`, the ask point is a `Question:` | `ask-unfinished` | "Your question is posted, but it is not flagged for a session", with "Flag again" (adds the label only); hidden while an answer on the page has a failure, because a half answer also gives rule 5 (its first step took the label off) |
   | 6 | No `needs-info`, the ask point is a `Decision:` | `open`, half answer | "Send the answer to finish", as before |
   | 7 | Otherwise | `open` | As before |
 
@@ -300,6 +300,7 @@ Mark answers a decision 100% from the hosted page ("I NEVER WANT TO RUN COMMAND 
 - **Page.** A second button, "Ask for more info", opens its own box, "Your question", with "Send question" (off while the box is empty). Above the forms a thread shows the ask point and the later questions and infos, oldest first, as plain text (a link shows as its address). A comment over 4000 characters is cut, with "Read the rest on GitHub". After a hosted Ask succeeds, the page shows "Waiting for info" at once, until the snapshot has the question. The Now page splits the open decisions into "Waiting for you" (a decision with fresh info first) and "Waiting for info".
 - **Sessions.** The rule in `CLAUDE.md` ("Decisions for Mark") lists `needs-info` issues at session start, answers each with one `Info:` comment, and removes the label.
 - **Accepted risk.** Two tabs that ask in the same second can post two questions, as for answers.
+- **Accepted risk: no lock on the hosted Ask.** The hosted function has no per-issue lock (functions share no memory; the local server has one). Two tabs that send the same question at once can both pass the resume check and post two identical `Question:` comments. We do not build a lock.
 
 ### 5.6 Status panel (revision 2)
 

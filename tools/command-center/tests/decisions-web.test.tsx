@@ -1019,6 +1019,8 @@ const askSend = () => askForm()?.querySelector<HTMLButtonElement>('button[type="
 const answerSend = () => container.querySelector<HTMLButtonElement>('form[aria-label="Answer this decision"] button[type="submit"]');
 const buttonNamed = (name: string) => [...container.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent?.trim() === name) ?? null;
 const thread = () => container.querySelector('ol[aria-label="Questions and info"]');
+/** The notice of a question that is posted and not flagged (phase ask-unfinished). */
+const UNFLAGGED = 'Your question is posted, but it is not flagged for a session.';
 
 async function typeAsk(words: string): Promise<void> {
   const box = askBox();
@@ -1175,13 +1177,49 @@ describe('the ask for more info', () => {
     expect(items[1]?.querySelector('a')).toBeNull();
   });
 
-  it('question sent, label missing: shows the notice and a Retry button that sends the same question text', async () => {
+  it('question posted, not flagged: shows the notice and a Flag again button that sends the same question text', async () => {
     server.detail = { status: 200, body: good(detail({ phase: 'ask-unfinished', thread: [entry('question', 'Why is C slow?', '2026-10-06T09:00:00Z')] })) };
     await show();
-    expect(text()).toContain('Question sent, label missing');
-    await press(buttonNamed('Retry'));
+    expect(text()).toContain(UNFLAGGED);
+    expect(text()).not.toContain('label missing');
+    await press(buttonNamed('Flag again'));
     expect(server.posts).toHaveLength(1);
     expect(server.posts[0]?.body).toEqual({ note: 'Why is C slow?' });
+  });
+
+  it('an answer that stopped after its step 0 (the flag is off, the comment failed) shows the failure of the answer and not the notice of an unfinished question', async () => {
+    // The page before: the decision waits for info, with a question in the thread.
+    server.detail = { status: 200, body: good(asking()) };
+    // The answer sends step 0 (unflag) and fails at the comment. GitHub then holds a Question: as the ask point and no needs-info: rule 5.
+    server.answers = [{ status: 502, body: { ok: false, step: 'comment', error: { code: 'gh-failed', message: 'gh failed: x' } } }];
+    await show();
+    expect(text()).not.toContain(UNFLAGGED);
+    await choose('B');
+    server.detail = { status: 200, body: good(detail({ phase: 'ask-unfinished', thread: [entry('question', 'What does option C cost to undo?', '2026-10-06T09:00:00Z')] })) };
+    await press(answerSend());
+    expect(alert()?.textContent).toContain('Answer not posted');
+    // The notice and its button stay away: Flag again would put needs-info back under an answer in progress.
+    expect(text()).not.toContain(UNFLAGGED);
+    expect(text()).not.toContain('label missing');
+    expect(buttonNamed('Flag again')).toBeNull();
+    // The answer form is usable, and its Retry is the way on. It sends the answer and not a question.
+    expect(answerSend()?.textContent).toContain('Retry');
+    expect(answerSend()?.disabled).toBe(false);
+    expect(radio('B')?.checked).toBe(true);
+    server.answers = [{ status: 200, body: { ok: true } }];
+    await press(answerSend());
+    expect(server.posts).toHaveLength(2);
+    expect(server.posts[1]?.body).toEqual({ option: 'B' });
+  });
+
+  it('an unfinished question keeps its notice while the ask itself has failed, and the Ask button stays usable', async () => {
+    server.detail = { status: 200, body: good(detail({ phase: 'ask-unfinished', thread: [entry('question', 'Why is C slow?', '2026-10-06T09:00:00Z')] })) };
+    server.answers = [{ status: 502, body: { ok: false, step: 'label', error: { code: 'gh-failed', message: 'gh failed: x' } } }];
+    await show();
+    await press(buttonNamed('Flag again'));
+    expect(text()).toContain(UNFLAGGED);
+    expect(alert()?.textContent).toContain('Question posted · Label not added');
+    expect(buttonNamed('Ask for more info') ?? askBox()).not.toBeNull();
   });
 
   it('needs-info with no question and no info: "Waiting for info: no question found"', async () => {
@@ -1226,7 +1264,7 @@ describe('the ask for more info', () => {
     await press(askSend());
     seen.push(...sentencesOnPage());
     const all = seen.map((item) => item.sentence);
-    for (const known of ['Question sent, label missing.', 'Waiting for info: no question found.', 'Question not posted', 'Send question']) {
+    for (const known of [UNFLAGGED, 'Waiting for info: no question found.', 'Question not posted', 'Send question']) {
       expect(
         all.some((sentence) => sentence.includes(known)),
         known,

@@ -124,6 +124,56 @@ describe('pass line 2: what an Ask refuses writes nothing', () => {
     expect(world.githubCalls).toEqual([]);
   });
 
+  it.each([['a list', '[]'], ['null', 'null'], ['a string', '"x"'], ['a number', '5']])('a body that is %s gives 422 with the ask message and no GitHub call', async (_name, rawBody) => {
+    const { world, send } = setup();
+    const response = await send(null, {}, env(), { rawBody });
+    expect(response.status).toBe(422);
+    expect((await errorOf(response)).message).toContain('A question needs text');
+    expect(world.githubCalls).toEqual([]);
+  });
+
+  // Hostile input. The raw JSON text is sent, because `JSON.stringify` of an object with a `__proto__` key drops it. `JSON.parse` makes `__proto__` an own property and never a prototype.
+  const HOSTILE_INVALID: [string, string][] = [
+    ['a __proto__ key that holds the question and no note of its own', '{"number":41,"action":"ask","__proto__":{"note":"x"}}'],
+    ['a __proto__ key that holds the action, with an action that is a list', '{"number":41,"action":["ask"],"__proto__":{"action":"ask"},"note":"x"}'],
+    ['an action that is a list', '{"number":41,"action":["ask"],"note":"x"}'],
+    ['an action that is a list of one object', '{"number":41,"action":[{"ask":1}],"note":"x"}'],
+  ];
+  it.each(HOSTILE_INVALID)('hostile input: %s gives 422 and no GitHub call at all', async (_name, rawBody) => {
+    const { world, send } = setup();
+    const response = await send(null, {}, env(), { rawBody });
+    expect(response.status).toBe(422);
+    expect(world.githubCalls).toEqual([]);
+    expect(world.writes).toEqual([]);
+  });
+
+  const HOSTILE_VALID: [string, string][] = [
+    ['a __proto__ key that holds an option and an action: both are ignored', '{"number":41,"action":"ask","note":"Why?","__proto__":{"option":"A","action":"answer"}}'],
+    ['U+2028 and U+2029 in the note', JSON.stringify({ number: 41, action: 'ask', note: 'one two three' })],
+    ['a byte order mark at the start of the note', JSON.stringify({ number: 41, action: 'ask', note: '﻿Why?' })],
+    ['zero-width characters inside the note', JSON.stringify({ number: 41, action: 'ask', note: 'Wh​y‌?‍⁠' })],
+    ['CRLF, CR and LF line breaks', JSON.stringify({ number: 41, action: 'ask', note: 'a\r\nb\rc\nd' })],
+  ];
+  it.each(HOSTILE_VALID)('hostile input: %s is taken as a plain question: the comment starts with "Question: " and holds no carriage return', async (_name, rawBody) => {
+    const { world, send } = setup();
+    const response = await send(null, {}, env(), { rawBody });
+    expect(response.status).toBe(200);
+    // One comment and one label: the Ask, and no answer (no Decision: comment, no decided, no close).
+    expect(world.writes).toEqual([`POST ${base(41)}/comments`, `POST ${base(41)}/labels`]);
+    const issue = world.issues.get(41);
+    expect(issue?.state).toBe('OPEN');
+    expect(issue?.labels).toEqual(['decision', 'needs-info']);
+    const body = issue?.comments[0]?.body ?? '';
+    expect(body.startsWith('Question: ')).toBe(true);
+    expect(body).not.toContain('\r');
+  });
+
+  it('a note that starts with a byte order mark loses it, and CRLF becomes LF', async () => {
+    const { world, send } = setup();
+    await send({ number: 41, action: 'ask', note: '﻿a\r\nb' });
+    expect(world.issues.get(41)?.comments[0]?.body).toBe('Question: a\nb');
+  });
+
   it('a question of exactly 2000 characters is taken', async () => {
     const { world, ask } = setup();
     expect((await ask('x'.repeat(2000))).status).toBe(200);

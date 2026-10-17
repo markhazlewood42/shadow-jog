@@ -8494,7 +8494,7 @@ async function readBody2(request) {
   } catch {
     return refuse(400, "bad-json", say("requestNotJson"));
   }
-  if (!isRecord5(body)) return refuse(422, "bad-request", say("requestNoOption"));
+  if (!isRecord5(body)) return refuse(422, "bad-request", say("requestAskNeedsText", { max: MAX_NOTE_CHARS }));
   if (body.action !== void 0 && body.action !== "answer" && body.action !== "ask") return refuse(422, "bad-request", 'The "action" of the request must be "answer" or "ask".');
   if (body.action === "ask") return readAsk2(body);
   if (typeof body.option !== "string" || body.option === "" || body.option.length > MAX_OPTION_CHARS) return refuse(422, "bad-request", say("requestNoOption"));

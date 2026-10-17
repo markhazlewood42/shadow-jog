@@ -93,13 +93,21 @@ describe('POST /api/decisions/<n>/ask', () => {
     ['a note that is not text', { note: 5 }, 422],
     ['a note over the limit', { note: 'x'.repeat(MAX_NOTE_CHARS + 1) }, 422],
     ['a note with a control character', { note: 'a\u0000b' }, 422],
-    ['a body that is not an object', [], 400],
+    ['a body that is not an object', [], 422],
     ['a body that is not JSON', 'not json {', 400],
   ])('pass line 2: %s gives %i and writes nothing', async (_name, body, status) => {
     const rig = rigOf();
     const res = await postAsk(rig, 41, body);
     expect(res.status).toBe(status);
     expect(rig.calls()).toEqual([]); // not even a read: the body is wrong
+  });
+
+  it.each([[[]], [null], ['"text"'], [5]])('a body that is not an object (%j) gives 422 with the ask message and writes nothing', async (body) => {
+    const rig = rigOf();
+    const res = await postAsk(rig, 41, body);
+    expect(res.status).toBe(422);
+    expect(await res.json()).toMatchObject({ ok: false, error: { code: 'bad-request', message: expect.stringContaining('A question needs text') } });
+    expect(rig.calls()).toEqual([]);
   });
 
   it('pass line 3: the guards of the answer route run for the ask route too: token, same origin, JSON, method, and one write at a time', async () => {
