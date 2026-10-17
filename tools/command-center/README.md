@@ -9,7 +9,7 @@ tags: [tooling, command-center]
 
 # Shadow Jog Command Center
 
-One local website for Shadow Jog. It shows what is going on now (the live Claude Code sessions with their agents and workflows, pull requests, CI, `status.md`), lets Mark read every doc in one place, and lets him answer design decisions. It reads the repo, `git`, `gh`, Claude Code's session files and its process list. It writes one thing: Mark's answer to a decision, as a comment and a label on a GitHub issue. The design is in `docs/command-center/design.md`.
+One local website for Shadow Jog. It shows what is going on now (the live Claude Code sessions with their agents and workflows, pull requests, CI, `status.md`), lets Mark read every doc in one place, and lets him answer design decisions. It reads the repo, `git`, `gh`, Claude Code's session files and its process list. It writes one thing: Mark's answer to a decision, as a comment and a label on a GitHub issue. Its other write is Mark's ask for more info on a decision: a `Question:` comment and the label `needs-info`. The design is in `docs/command-center/design.md`.
 
 Every page shows labels and links, in simple technical English (ASD-STE100). A sentence is one line of 20 words or fewer. The docs explain, and the page links to them (section 5.8 of the design).
 
