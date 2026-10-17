@@ -209,3 +209,9 @@ Open for Mark (consult section F): Q1 reference gates, Q2 se fit line, Q3 templa
 ## Side track: R4 and the "Rook from a model" spike (2026-10-17)
 
 Mark asked whether a 3D game with pixel shaders would be easier. Opus research R4 (Mark asked for Opus) says: keep the 2D engine and test option B, 3D characters rendered offline to sprites. Mark: run it beside path C, first as a cloud session (try a headless Blender in the cloud), and fall back to a local headed session so he can watch. Cloud dispatch started on branch `spike/rook-3d`, with its own exit criteria file `docs/spikes/rook-3d.md` committed before any code.
+
+## Step 7-5: grade kit round 3, consult C2 step 2 (2026-10-17, unverified)
+
+| Build | What | Numbers | Verdict | Notes |
+|---|---|---|---|---|
+| Grade kit r3 (Sonnet) | Three tiers (style, structure, reference report); style calibration; `facing-checks.json` (R2 and PA rule ids); facing-ID harness (no model run); aligned template check report | 287 tests, tsc 0, biome 0 (biome checks only 2 files). 16 new gate lines go red on mutation. Style: 9 of 10 lines separate (PA-09 pinned, catches 0 of 11). Structure: given and 8 walk frames pass; swapped facings caught 24 of 30 (80 percent, C6 line 90); n reference fails item outline, sw fails lit side. Template check, best of ±2 px and scale 31-33 (path B / proxy / given): s 0.652 / 0.585 / 0.644; n 0.635 / 0.498 / 0.456; ne 0.552 / 0.513 / 0.459; nw 0.530 / 0.504 / 0.448; sw 0.650 / 0.626 / 0.640 | Lean loop pending | Judgment calls: flattening group floor 25 cells (a walk frame fails at 20); facing-ID set 10 items with 4 flips; PA-20 hand size is a report line (given hands 8 and 5 px); legs report-only in the lit-side line |
