@@ -62,23 +62,23 @@ def build_meshes():
     """All parts at the rest pose. Returns {name: object}."""
     o = {}
     # head (bone 'head')
-    o["hair"] = ball("hair", "hair", "head", (0, 0.3, 2.68), (0.98, 0.7, 0.66))
-    o["face"] = ball("face", "skin", "head", (0, -0.1, 2.3), (0.64, 0.58, 0.6))
-    o["beard"] = ball("beard", "beard", "head", (0, -0.32, 2.0), (0.52, 0.4, 0.32))
-    o["glasses"] = box("glasses", "lenses", "head", (0, -0.68, 2.42), (1.3, 0.14, 0.3), bevel=0.04)
+    o["hair"] = ball("hair", "hair", "head", (0, 0.24, 2.62), (0.74, 0.6, 0.64))
+    o["face"] = ball("face", "skin", "head", (0, -0.1, 2.28), (0.54, 0.52, 0.56))
+    o["beard"] = ball("beard", "beard", "head", (0, -0.28, 2.0), (0.42, 0.36, 0.3))
+    o["glasses"] = box("glasses", "lenses", "head", (0, -0.6, 2.38), (0.86, 0.14, 0.28), bevel=0.04)
     # torso (bone 'spine')
-    o["coat"] = box("coat", "coat", "spine", (0, 0.0, 1.38), (1.5, 0.95, 1.0), bevel=0.14)
-    o["skirt"] = box("skirt", "coat", "pelvis", (0, 0.0, 0.98), (1.7, 1.0, 0.5), bevel=0.12)
-    o["zipper"] = box("zipper", "zipper", "spine", (0, -0.47, 1.36), (0.42, 0.06, 0.95), bevel=0.02)
+    o["coat"] = box("coat", "coat", "spine", (0, 0.0, 1.45), (1.5, 0.85, 1.1), bevel=0.14)
+    o["skirt"] = box("skirt", "coat", "pelvis", (0, 0.0, 0.98), (1.7, 0.9, 0.5), bevel=0.12)
+    o["zipper"] = box("zipper", "zipper", "spine", (0, -0.47, 1.42), (0.42, 0.06, 1.0), bevel=0.02)
     # arms (bones upperarm/forearm, L is +X)
     for s, side in ((1, "L"), (-1, "R")):
-        o["upper" + side] = box("upper" + side, "sleeves", "upperarm." + side, (1.0 * s, 0, 1.52), (0.46, 0.52, 0.76), bevel=0.1)
+        o["upper" + side] = box("upper" + side, "sleeves", "upperarm." + side, (1.0 * s, 0, 1.6), (0.46, 0.52, 0.8), bevel=0.1)
         o["fore" + side] = box("fore" + side, "sleeves", "forearm." + side, (1.0 * s, 0, 0.98), (0.42, 0.46, 0.62), bevel=0.1)
         o["hand" + side] = ball("hand" + side, "hands", "forearm." + side, (1.0 * s, 0, 0.6), (0.24, 0.24, 0.24), segs=8, rings=6)
         # legs
         o["thigh" + side] = box("thigh" + side, "legs", "thigh." + side, (0.3 * s, 0, 0.72), (0.52, 0.52, 0.5), bevel=0.08)
         o["shin" + side] = box("shin" + side, "legs", "shin." + side, (0.3 * s, 0, 0.4), (0.46, 0.46, 0.2), bevel=0.05)
-        o["boot" + side] = box("boot" + side, "boots", "shin." + side, (0.3 * s, -0.1, 0.17), (0.54, 0.78, 0.36), bevel=0.1)
+        o["boot" + side] = box("boot" + side, "boots", "shin." + side, (0.3 * s, -0.04, 0.17), (0.54, 0.72, 0.36), bevel=0.1)
     # katana on the back: sheath from the left hip (+X, low) up to the hilt over the right shoulder (-X, high)
     p0, p1, p2 = Vector((0.65, 0.62, 0.85)), Vector((-0.75, 0.62, 2.25)), Vector((-1.3, 0.62, 2.8))
     o["sheath"] = rod("sheath", "sheath", "spine", p0, p1, 0.24)
@@ -106,13 +106,13 @@ BONES = {
     "shin.L": ((0.3, 0, 0.5), (0.3, 0, 0.0), "thigh.L"),
     "thigh.R": ((-0.3, 0, 0.95), (-0.3, 0, 0.5), "pelvis"),
     "shin.R": ((-0.3, 0, 0.5), (-0.3, 0, 0.0), "thigh.R"),
-    "upperarm.L": ((1.0, 0, 1.82), (1.0, 0, 1.22), "spine"),
+    "upperarm.L": ((1.0, 0, 1.92), (1.0, 0, 1.22), "spine"),
     "forearm.L": ((1.0, 0, 1.22), (1.0, 0, 0.6), "upperarm.L"),
-    "upperarm.R": ((-1.0, 0, 1.82), (-1.0, 0, 1.22), "spine"),
+    "upperarm.R": ((-1.0, 0, 1.92), (-1.0, 0, 1.22), "spine"),
     "forearm.R": ((-1.0, 0, 1.22), (-1.0, 0, 0.6), "upperarm.R"),
     "weapon": ((0, 0, 0), (0, 0, 0.5), "root"),
 }
-ARM_LEN = (0.6, 0.62)  # upper arm and forearm lengths
+ARM_LEN = (0.7, 0.62)  # upper arm and forearm lengths
 
 
 def build_rig(meshes):
