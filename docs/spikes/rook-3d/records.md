@@ -68,3 +68,17 @@ Change: texture pass = 2x2 ordered dither added to the light value before the to
 - Not in the exit lines, reported: HL-FLAT texture density fails on 32 of 32 walk frames (hair about 0.5 of the given, even after the dither), HL-SHOULDER on 10, HL-HIP on 8, PA-07 head width on 4. The look gap to the Sprite Fusion given is mostly this: flat toon blocks, no hand-placed texture.
 - Pose cost (exit line 6): `ready` and `downSwing` are one tuple each in `battle_specs` (body angles, grip point, blade direction) in `rook_model.py`; changing downSwing was 1 line plus a 7 s re-render, no drawing.
 - Verdict: all hard lines hold on all frames. Whether it looks like Rook or like pixel art is Mark's gate (lines 2, 3 by a blind grader, and 7). Read of the pictures: the field facings read as a 3D toon model, and the battle poses (silver sleeves, no coat shape) are weaker than the PixelLab idle.
+
+## Verification (one fresh Sonnet verifier, lean loop round 1)
+
+| line | verdict | evidence |
+|---|---|---|
+| 1 hard lines | pass | rebuilt with run.sh; own PIL script: 0 off-palette, 0 half-alpha on 34 frames; walk height 30-31, bottom 30; check.mjs gate 34 of 34 |
+| 2 facing ID | pass, 10 of 10 | blind grader (1x and 4x, 10 shuffled trials, answered before reading any doc); scored against a key kept outside the grader's folder. Two ne/nw guesses were right |
+| 3 katana side | pass | hilt side agrees with the 3D model on 32 of 32 frames (thin at w and sw, 5 to 7 hilt px) |
+| 4 no hand pixels | pass | no pixel edit, download or generated image in the scripts |
+| 5 determinism | pass | runs a and b identical; a third run from another cwd and out path matches the committed sha256.txt |
+| 6 pose cost | pass | one keyframe spec plus a re-render |
+
+Findings: no Critical, no Important. Minor, left for a next commit: the two battle pose names are hard-coded in `render.py` and `sheets.mjs` as well as in `battle_specs`; the "all checker lines" column is NO on all walk frames (HL-FLAT, HL-SHOULDER, HL-HIP, PA-07, not exit lines); the Step 0 line of `rook-3d.md` says Blender 5.2.2 (Mark's machine), this box ran 4.0.2.
+Exit line 7 (Mark's look gate) is not done.
