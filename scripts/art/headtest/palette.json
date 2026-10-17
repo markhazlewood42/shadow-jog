@@ -1,0 +1,73 @@
+{
+  "note": "The 22 colors of the Rook walk art. Use only these colors in the 32x32 facing. palette is the list pixlint reads.",
+  "palette": [
+    "#030102",
+    "#16180d",
+    "#22222b",
+    "#290827",
+    "#352418",
+    "#353a1d",
+    "#393a45",
+    "#454c29",
+    "#4e555b",
+    "#61693c",
+    "#6b7075",
+    "#6f7945",
+    "#7e7974",
+    "#7f8587",
+    "#846042",
+    "#935416",
+    "#9ea5a8",
+    "#af8e46",
+    "#c38260",
+    "#d19c77",
+    "#db9332",
+    "#e4b086"
+  ],
+  "nearBlack": [
+    "#030102",
+    "#16180d",
+    "#22222b",
+    "#290827",
+    "#352418",
+    "#353a1d",
+    "#393a45"
+  ],
+  "nearBlackRule": "luminance below 60",
+  "luminanceFormula": "0.299*R + 0.587*G + 0.114*B (0..255)",
+  "rampGrouping": "By luminance and HSL of each color. ink: luminance below 25. steel: saturation below 0.15 (cool and warm grays). olive: hue 60 to 80 degrees. skin: hue 30 degrees or less and luminance 140 or more. brown-amber: every other color (leather, wood, brass, amber). Inside a family the colors run dark to light by luminance.",
+  "ramps": {
+    "ink": [
+      "#030102",
+      "#290827",
+      "#16180d"
+    ],
+    "steel": [
+      "#22222b",
+      "#393a45",
+      "#4e555b",
+      "#6b7075",
+      "#7e7974",
+      "#7f8587",
+      "#9ea5a8"
+    ],
+    "olive": [
+      "#353a1d",
+      "#454c29",
+      "#61693c",
+      "#6f7945"
+    ],
+    "brown-amber": [
+      "#352418",
+      "#935416",
+      "#846042",
+      "#af8e46",
+      "#db9332"
+    ],
+    "skin": [
+      "#c38260",
+      "#d19c77",
+      "#e4b086"
+    ]
+  }
+}

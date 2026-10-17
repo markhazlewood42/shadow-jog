@@ -1,0 +1,38 @@
+{
+  "note": "Hand edits to the automatic first pass of the reference labels (parts.mjs autoLabel). Made by the grader-side builder on 2026-10-17, by reading the 16x label viewer (view-labels.mjs) and the ASCII class map of each reference. Each edit names the reason. Landmarks are computed from the final rows; landmarkEdits is empty unless a point was moved by hand.",
+  "facings": {
+    "s": {
+      "edits": [
+        { "cells": [[16, 25], [22, 25]], "part": "coat", "from": ["legs"], "why": "two hem pixels that the legs rule took; they sit in the olive hem row" }
+      ],
+      "landmarkEdits": {}
+    },
+    "n": {
+      "edits": [
+        { "box": [19, 7, 26, 16], "part": "guard", "from": ["lenses"], "why": "n has no face. The orange cells right of the head are the brass guard and handle of the katana" },
+        { "box": [12, 18, 19, 25], "part": "sheath", "from": ["hands"], "why": "the dark brown diagonal across the back is the sheath. The hand rule took it for cuffs" }
+      ],
+      "landmarkEdits": {}
+    },
+    "ne": {
+      "edits": [
+        { "box": [11, 17, 18, 25], "part": "sheath", "from": ["hands"], "why": "sheath diagonal over the coat, taken for cuffs by the hand rule" },
+        { "cells": [[18, 9]], "part": "skin", "from": ["lenses"], "why": "dark orange shading on the near cheek, not a lens. ne shows no lens" }
+      ],
+      "landmarkEdits": {}
+    },
+    "nw": {
+      "edits": [
+        { "box": [20, 7, 26, 16], "part": "guard", "from": ["lenses"], "why": "orange and brass cells of the katana hilt right of the head, not lenses" },
+        { "box": [12, 17, 20, 25], "part": "sheath", "from": ["hands"], "why": "sheath diagonal over the coat, taken for cuffs by the hand rule" }
+      ],
+      "landmarkEdits": {}
+    },
+    "sw": {
+      "edits": [
+        { "box": [20, 6, 26, 16], "part": "sheath", "from": ["lenses"], "why": "brown and orange cells of the katana hilt right of the head, not lenses" }
+      ],
+      "landmarkEdits": {}
+    }
+  }
+}

@@ -1,0 +1,554 @@
+{
+  "note": "Gate data for the v2 grade (plan v2 section 4, Amendment 1, Amendment 2). targetMeasures: the reference measures. `start` values come from R3 and the plan; `calibrated`, `separates` and `worstPass`/`bestFail` are written by `node scripts/art/v2/grade/calibrate.mjs --write-gates`. Since Amendment 2 (Mark, Q1) every reference measure has role 'report': none of them gates, because the correct mirror of the given fails them. style: the style tier against the given, written by `node scripts/art/v2/grade/style-calibrate.mjs --write-gates`. dir 'min' means the candidate must be at least the value, 'max' at most the value.",
+  "version": 1,
+  "calibratedOn": "2026-10-17",
+  "targetMeasures": {
+    "bf1": {
+      "name": "Boundary F at 1 px",
+      "dir": "min",
+      "start": 0.85,
+      "calibrated": null,
+      "role": "report",
+      "worstPass": 0.8883,
+      "bestFail": 1,
+      "separates": false
+    },
+    "partMiou": {
+      "name": "Part mIoU (area weighted)",
+      "dir": "min",
+      "start": 0.7,
+      "calibrated": null,
+      "role": "report",
+      "worstPass": 0.5633,
+      "bestFail": 0.6494,
+      "separates": false
+    },
+    "partMin": {
+      "name": "Smallest part IoU",
+      "dir": "min",
+      "start": 0.5,
+      "calibrated": null,
+      "role": "report",
+      "worstPass": 0,
+      "bestFail": 0.1148,
+      "separates": false
+    },
+    "chamferMean": {
+      "name": "Outline chamfer, mean px",
+      "dir": "max",
+      "start": 0.6,
+      "calibrated": null,
+      "role": "report",
+      "worstPass": 0.9169,
+      "bestFail": 0.4408,
+      "separates": false
+    },
+    "chamferP95": {
+      "name": "Outline chamfer, p95 px",
+      "dir": "max",
+      "start": 1.5,
+      "calibrated": null,
+      "role": "report",
+      "worstPass": 2.2361,
+      "bestFail": 1,
+      "separates": false
+    },
+    "valueR": {
+      "name": "Value structure r (8x8, interior)",
+      "dir": "min",
+      "start": 0.8,
+      "calibrated": null,
+      "role": "report",
+      "worstPass": 0.5953,
+      "bestFail": 0.8269,
+      "separates": false
+    },
+    "colorMatch": {
+      "name": "Neighborhood color match (dE00 <= 5, 3x3)",
+      "dir": "min",
+      "start": 0.85,
+      "calibrated": 0.756,
+      "role": "report",
+      "worstPass": 0.7946,
+      "bestFail": 0.7174,
+      "separates": true
+    },
+    "paletteEmd": {
+      "name": "Palette EMD in Lab (dE00)",
+      "dir": "max",
+      "start": 4,
+      "calibrated": null,
+      "role": "report",
+      "worstPass": 4.7613,
+      "bestFail": 4.0447,
+      "separates": false
+    },
+    "pck": {
+      "name": "Landmark PCK at 0.1 x height",
+      "dir": "min",
+      "start": 1,
+      "calibrated": null,
+      "role": "report",
+      "worstPass": 1,
+      "bestFail": 1,
+      "separates": false
+    },
+    "pckHead": {
+      "name": "Head landmark PCK at 0.05 x height",
+      "dir": "min",
+      "start": 1,
+      "calibrated": null,
+      "role": "report",
+      "worstPass": 1,
+      "bestFail": 1,
+      "separates": false
+    },
+    "textureMax": {
+      "name": "Per-part texture density, largest absolute difference",
+      "dir": "max",
+      "start": 0.1,
+      "calibrated": null,
+      "role": "report",
+      "worstPass": 0.45,
+      "bestFail": 0.1923,
+      "separates": false
+    }
+  },
+  "passMeasures": 4,
+  "noReference": {
+    "note": "e and w have no reference. Since Amendment 2 they gate on the hard lines, ST-SIDE (head top, first skin row, leg split and foot row against the battle idle) and Mark. There is no BF1 gate: Amendment 2 replaced the Target gates line that held it. bf1Template is used only by the optional ST-TEMPLATE line, when a layout template is passed.",
+    "bf1Template": 0.9
+  },
+  "hardLines": {
+    "note": "Numbers of the given come from target.json. `start` values are the plan and Amendment 1 lines. `calibrated` is the re-set value when a line failed a should-pass item (calibrate.mjs writes it). Round 3 (Amendment 2, C5): the box width (PA-06) is a report line and the pixlint head width (PA-07) is out of the grade, so widthTol and headWidthFacings are gone; head alone 13 to 15 stays; flattening runs per part group of flatMinCells or more cells (gates.style.flatMinCells) and over the whole figure.",
+    "outlineMin": 0.93,
+    "height": {
+      "given": 31,
+      "tol": 1
+    },
+    "bottomRow": 30,
+    "headAlone": {
+      "min": 13,
+      "max": 15
+    },
+    "shoulderTol": 1,
+    "hipTol": 1,
+    "countFactor": 1.25,
+    "flatteningFloor": 0.8,
+    "faceSkin": {
+      "eyeRows": [
+        5,
+        10
+      ],
+      "s": {
+        "min": 10
+      },
+      "sw": {
+        "min": 10
+      },
+      "se": {
+        "min": 10
+      },
+      "n": {
+        "max": 0
+      },
+      "ne": {
+        "max": 10,
+        "edgeCols": 3
+      },
+      "nw": {
+        "max": 10,
+        "edgeCols": 3
+      }
+    },
+    "distinctN": 151,
+    "calibrated": {
+      "PA-04 orphans / given": {
+        "limit": 1.25,
+        "proposedReset": 2.35,
+        "shouldPassOver": 20,
+        "shouldFailStillCaught": 0
+      },
+      "HL-FLAT lowest part ratio": {
+        "limit": 0.8,
+        "proposedReset": 0.75,
+        "shouldPassOver": 5,
+        "shouldFailStillCaught": 20
+      }
+    },
+    "reset": {
+      "orphanFactor": 2.35,
+      "flatteningFloor": 0.75
+    },
+    "useReset": false
+  },
+  "calibration": {
+    "gating": [
+      "colorMatch"
+    ],
+    "passLine": 4,
+    "walkScope": "all",
+    "items": {
+      "pass-near": 30,
+      "pass-real": 7,
+      "fail-near": 18,
+      "fail-far": 15,
+      "info": 9
+    }
+  },
+  "style": {
+    "note": "Style tier (consult C2 C4, Amendment 2). Written by `node scripts/art/v2/grade/style-calibrate.mjs --write-gates`. role gate = the line gates; basis separates = it passes all 8 walk frames and catches a should-fail item; basis go-hard-line = a pinned line of the spike GO list that stays on and catches nothing here (it gates but does not count toward minGating). The verdict says Mark gates style by eye when fewer than minGating lines separate.",
+    "calibratedOn": "2026-10-17",
+    "minGating": 3,
+    "flatMinCells": 25,
+    "bandPad": 0.1,
+    "markGatesByEye": false,
+    "separating": [
+      "S-PALETTE",
+      "S-RAMP",
+      "S-OUTLINE",
+      "S-ORPHAN",
+      "S-FLAT-GROUP",
+      "S-FLAT-WHOLE",
+      "S-DENS-BAND",
+      "S-SQUINT",
+      "S-RUNORDER"
+    ],
+    "bands": {
+      "hair": {
+        "lo": 0.8902,
+        "hi": 1.1473,
+        "frames": 8
+      },
+      "face": {
+        "lo": 0.871,
+        "hi": 1.2015,
+        "frames": 8
+      },
+      "torso": {
+        "lo": 0.7887,
+        "hi": 1.0072,
+        "frames": 8
+      },
+      "hands": {
+        "lo": 0.648,
+        "hi": 0.8462,
+        "frames": 4
+      },
+      "legs": {
+        "lo": 0.288,
+        "hi": 0.5,
+        "frames": 2
+      },
+      "boots": {
+        "lo": 0.5906,
+        "hi": 0.8148,
+        "frames": 4
+      },
+      "item": {
+        "lo": 1.0607,
+        "hi": 1.2964,
+        "frames": 8
+      }
+    },
+    "lines": {
+      "S-PALETTE": {
+        "limit": 0,
+        "role": "gate",
+        "basis": "separates",
+        "separates": true,
+        "pinned": true,
+        "worstPass": 0,
+        "bestFail": 0,
+        "caught": [
+          "rig-down",
+          "rig-right",
+          "rig-up",
+          "rig-left"
+        ],
+        "passedFail": [
+          "round8-down",
+          "round8-right",
+          "round8-up",
+          "round8-up-right",
+          "blob",
+          "given-flat-parts",
+          "given-speckle10"
+        ],
+        "reset": null,
+        "ran": true
+      },
+      "S-RAMP": {
+        "limit": 0,
+        "role": "gate",
+        "basis": "separates",
+        "separates": true,
+        "pinned": false,
+        "worstPass": 0,
+        "bestFail": 0,
+        "caught": [
+          "rig-down",
+          "rig-right",
+          "rig-up",
+          "rig-left",
+          "given-speckle10"
+        ],
+        "passedFail": [
+          "round8-down",
+          "round8-right",
+          "round8-up",
+          "round8-up-right",
+          "blob",
+          "given-flat-parts"
+        ],
+        "reset": null,
+        "ran": true
+      },
+      "S-OUTLINE": {
+        "limit": 0.93,
+        "role": "gate",
+        "basis": "separates",
+        "separates": true,
+        "pinned": true,
+        "worstPass": 0.9444,
+        "bestFail": 1,
+        "caught": [
+          "round8-down",
+          "round8-right",
+          "round8-up",
+          "round8-up-right",
+          "rig-down",
+          "rig-right",
+          "rig-up",
+          "rig-left",
+          "given-speckle10"
+        ],
+        "passedFail": [
+          "blob",
+          "given-flat-parts"
+        ],
+        "reset": null,
+        "ran": true
+      },
+      "S-ORPHAN": {
+        "limit": 1.25,
+        "role": "gate",
+        "basis": "separates",
+        "separates": true,
+        "pinned": true,
+        "worstPass": 1.0938,
+        "bestFail": 0,
+        "caught": [
+          "rig-down",
+          "rig-right",
+          "rig-up",
+          "rig-left",
+          "given-speckle10"
+        ],
+        "passedFail": [
+          "round8-down",
+          "round8-right",
+          "round8-up",
+          "round8-up-right",
+          "blob",
+          "given-flat-parts"
+        ],
+        "reset": null,
+        "ran": true
+      },
+      "S-SMALL": {
+        "limit": 1.25,
+        "role": "gate",
+        "basis": "go-hard-line",
+        "separates": false,
+        "pinned": true,
+        "worstPass": 1.0909,
+        "bestFail": 0.0606,
+        "caught": [],
+        "passedFail": [
+          "round8-down",
+          "round8-right",
+          "round8-up",
+          "round8-up-right",
+          "rig-down",
+          "rig-right",
+          "rig-up",
+          "rig-left",
+          "blob",
+          "given-flat-parts",
+          "given-speckle10"
+        ],
+        "reset": null,
+        "ran": true
+      },
+      "S-FLAT-GROUP": {
+        "limit": 0.8,
+        "role": "gate",
+        "basis": "separates",
+        "separates": true,
+        "pinned": false,
+        "worstPass": 0.925,
+        "bestFail": 0.7129,
+        "caught": [
+          "round8-down",
+          "round8-right",
+          "round8-up",
+          "round8-up-right",
+          "rig-down",
+          "rig-right",
+          "rig-up",
+          "rig-left",
+          "blob",
+          "given-flat-parts",
+          "given-speckle10"
+        ],
+        "passedFail": [],
+        "reset": null,
+        "ran": true
+      },
+      "S-FLAT-WHOLE": {
+        "limit": 0.8,
+        "role": "gate",
+        "basis": "separates",
+        "separates": true,
+        "pinned": false,
+        "worstPass": 0.9749,
+        "bestFail": 1.1139,
+        "caught": [
+          "round8-down",
+          "round8-right",
+          "round8-up",
+          "round8-up-right",
+          "rig-down",
+          "rig-right",
+          "rig-up",
+          "rig-left",
+          "blob",
+          "given-flat-parts"
+        ],
+        "passedFail": [
+          "given-speckle10"
+        ],
+        "reset": null,
+        "ran": true
+      },
+      "S-DENS-BAND": {
+        "limit": 0,
+        "role": "gate",
+        "basis": "separates",
+        "separates": true,
+        "pinned": false,
+        "worstPass": 0,
+        "bestFail": 1,
+        "caught": [
+          "round8-down",
+          "round8-right",
+          "round8-up",
+          "round8-up-right",
+          "rig-down",
+          "rig-right",
+          "rig-up",
+          "rig-left",
+          "blob",
+          "given-flat-parts",
+          "given-speckle10"
+        ],
+        "passedFail": [],
+        "reset": null,
+        "ran": true
+      },
+      "S-SQUINT": {
+        "lo": 55,
+        "hi": 80,
+        "role": "gate",
+        "basis": "separates",
+        "separates": true,
+        "pinned": false,
+        "worstPass": {
+          "lo": 62,
+          "hi": 72
+        },
+        "bestFail": {
+          "lo": 10,
+          "hi": 71
+        },
+        "caught": [
+          "round8-down",
+          "round8-right",
+          "round8-up",
+          "round8-up-right",
+          "rig-down",
+          "rig-right",
+          "rig-up",
+          "rig-left",
+          "blob"
+        ],
+        "passedFail": [
+          "given-flat-parts",
+          "given-speckle10"
+        ],
+        "reset": null,
+        "ran": true
+      },
+      "S-RUNORDER": {
+        "limit": 3,
+        "role": "gate",
+        "basis": "separates",
+        "separates": true,
+        "pinned": false,
+        "worstPass": 2,
+        "bestFail": 0,
+        "caught": [
+          "round8-down",
+          "round8-right",
+          "round8-up"
+        ],
+        "passedFail": [
+          "round8-up-right",
+          "rig-down",
+          "rig-right",
+          "rig-up",
+          "rig-left",
+          "blob",
+          "given-flat-parts",
+          "given-speckle10"
+        ],
+        "reset": null,
+        "ran": true
+      }
+    }
+  },
+  "swapLine": {
+    "need": 0.9,
+    "rule": "consult C2 C6: rule checks fail on swapped facings in at least 90 percent of items (5 references plus the given, each graded as each other facing). Not moved (orchestrator ruling, fix round 2).",
+    "recorded": {
+      "calibratedOn": "2026-10-17",
+      "swaps": 30,
+      "caught": 22,
+      "rate": 0.7333,
+      "status": "FAILED",
+      "crossClass": {
+        "swaps": 18,
+        "caught": 18
+      },
+      "withinClass": {
+        "swaps": 12,
+        "caught": 4
+      },
+      "missed": [
+        "se->s",
+        "se->sw",
+        "s->se",
+        "n->ne",
+        "n->nw",
+        "nw->ne",
+        "sw->se",
+        "sw->s"
+      ]
+    },
+    "note": "FAILED at 22 of 30 (73 percent). Round 3 measured 24 of 30 (80 percent); the 2 swaps n->ne and n->nw were caught only because the n reference failed ST-ITEM at every facing (0.93 line). After the ST-ITEM re-set to 0.84 (facing-checks.json item.reset) they are missed, so the figure is the honest one. Every swap between the front class (s, se, sw) and the back class (n, ne, nw) is caught. The misses sit inside a class, where the C1 eye and hand rules are the same; the blind facing-ID grader (9 of 10 on calibration) carries s/se/sw and n/ne/nw.",
+    "ownFacingNotes": {
+      "sw": "sw reference inconsistent with se light: the Sprite Fusion sw breaks the one-light rule (hair -2.8 and torso +29.4 against se +28.1 and -21.1), so it fails ST-LIT. ST-LIT is not loosened (orchestrator ruling)."
+    }
+  }
+}

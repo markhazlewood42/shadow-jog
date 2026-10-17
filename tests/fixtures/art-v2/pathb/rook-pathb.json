@@ -1,0 +1,1740 @@
+{
+ "note": "Path B per-facing rule data for Rook. Cell coordinates; a cell is in a box when its center lies inside (17.5 = the line between cells 17 and 18). Boxes paint in list order. Built from the given frame (se) and R2 rules T2 to T8; no reference facing was read. A new character or pose swaps this file, not the code.",
+ "character": {
+  "id": "rook",
+  "size": 32,
+  "height": 31,
+  "bottomRow": 30,
+  "headAlone": [
+   13,
+   15
+  ],
+  "rows": {
+   "headTop": 0,
+   "headBottom": 12,
+   "eye": 8,
+   "shoulder": 14,
+   "hip": 25,
+   "legTop": 26,
+   "bootTop": 28,
+   "foot": 30
+  },
+  "parts": [
+   "hair",
+   "skin",
+   "lenses",
+   "beard",
+   "coat",
+   "sleeves",
+   "zipper",
+   "hands",
+   "legs",
+   "boots",
+   "sheath",
+   "guard",
+   "wrap"
+  ],
+  "headParts": [
+   "hair",
+   "skin",
+   "lenses",
+   "beard"
+  ],
+  "torsoParts": [
+   "coat",
+   "zipper"
+  ],
+  "itemParts": [
+   "sheath",
+   "guard",
+   "wrap"
+  ],
+  "light": {
+   "vector": [
+    -0.45,
+    -0.6,
+    0.66
+   ],
+   "side": "top-left, toward the viewer"
+  },
+  "flatParts": [
+   "coat",
+   "zipper",
+   "lenses",
+   "sheath",
+   "guard",
+   "wrap",
+   "boots"
+  ],
+  "seams": [
+   [
+    "sleeves",
+    "coat"
+   ],
+   [
+    "hands",
+    "sleeves"
+   ],
+   [
+    "boots",
+    "legs"
+   ],
+   [
+    "hair",
+    "skin"
+   ],
+   [
+    "lenses",
+    "skin"
+   ],
+   [
+    "zipper",
+    "coat"
+   ],
+   [
+    "legs",
+    "coat"
+   ]
+  ],
+  "folds": {
+   "coat": [
+    {
+     "support": "shoulder+2",
+     "dir": [
+      0,
+      1
+     ],
+     "len": 4
+    },
+    {
+     "support": "hip-3",
+     "dir": [
+      0,
+      1
+     ],
+     "len": 2
+    }
+   ],
+   "sleeves": [
+    {
+     "support": "top",
+     "dir": [
+      0,
+      1
+     ],
+     "len": 3
+    }
+   ]
+  },
+  "givenAreas": null
+ },
+ "facings": {
+  "se": {
+   "yaw": 45,
+   "mirrorName": "sw",
+   "headCenter": 17.5,
+   "faceAxis": 19.5,
+   "bodyCenter": 17.5,
+   "face": true,
+   "itemSide": "left",
+   "hidden": {},
+   "compare": [],
+   "boxes": [
+    {
+     "use": "hiltLeft"
+    },
+    {
+     "part": "skin",
+     "y": [
+      5,
+      12
+     ],
+     "x": [
+      "face-6.5",
+      "face+3.5"
+     ]
+    },
+    {
+     "part": "coat",
+     "y": [
+      11,
+      12
+     ],
+     "x": [
+      11.5,
+      14.5
+     ],
+     "xe": [
+      11.5,
+      16.5
+     ]
+    },
+    {
+     "part": "hair",
+     "shape": "dome",
+     "y": [
+      0,
+      3
+     ],
+     "x": [
+      "head-6.5",
+      "head+6"
+     ]
+    },
+    {
+     "part": "hair",
+     "y": [
+      4,
+      4
+     ],
+     "x": [
+      "head-5.5",
+      "head+7"
+     ]
+    },
+    {
+     "part": "hair",
+     "y": [
+      5,
+      10
+     ],
+     "x": [
+      "head-6.5",
+      "head-2"
+     ],
+     "xe": [
+      "head-6.5",
+      "head-4.5"
+     ]
+    },
+    {
+     "part": "hair",
+     "y": [
+      5,
+      6
+     ],
+     "x": [
+      "face+2.5",
+      "face+5"
+     ]
+    },
+    {
+     "part": "hair",
+     "y": [
+      5,
+      5
+     ],
+     "x": [
+      "face-1",
+      "face+1"
+     ]
+    },
+    {
+     "part": "lenses",
+     "y": [
+      8,
+      8
+     ],
+     "x": [
+      "face-5.5",
+      "face+3.5"
+     ]
+    },
+    {
+     "part": "lenses",
+     "y": [
+      9,
+      9
+     ],
+     "x": [
+      "face-3.5",
+      "face+3.5"
+     ]
+    },
+    {
+     "part": "lenses",
+     "y": [
+      7,
+      10
+     ],
+     "x": [
+      "face-2.5",
+      "face-1.5"
+     ]
+    },
+    {
+     "part": "lenses",
+     "y": [
+      7,
+      7
+     ],
+     "x": [
+      "face+1.5",
+      "face+3.5"
+     ]
+    },
+    {
+     "part": "lenses",
+     "y": [
+      10,
+      10
+     ],
+     "x": [
+      "face+1.5",
+      "face+2.5"
+     ]
+    },
+    {
+     "part": "beard",
+     "y": [
+      11,
+      11
+     ],
+     "x": [
+      "face-1.5",
+      "face+0.5"
+     ]
+    },
+    {
+     "part": "beard",
+     "y": [
+      12,
+      12
+     ],
+     "x": [
+      "face-2.5",
+      "face-2.5"
+     ]
+    },
+    {
+     "part": "beard",
+     "y": [
+      12,
+      12
+     ],
+     "x": [
+      "face+1.5",
+      "face+1.5"
+     ]
+    },
+    {
+     "part": "beard",
+     "y": [
+      13,
+      13
+     ],
+     "x": [
+      "face-2.5",
+      "face+1.5"
+     ]
+    },
+    {
+     "part": "coat",
+     "y": [
+      13,
+      13
+     ],
+     "x": [
+      10.5,
+      16.5
+     ]
+    },
+    {
+     "part": "coat",
+     "y": [
+      13,
+      13
+     ],
+     "x": [
+      "face+2.5",
+      "face+3.5"
+     ]
+    },
+    {
+     "part": "coat",
+     "y": [
+      14,
+      14
+     ],
+     "x": [
+      10.5,
+      24.5
+     ]
+    },
+    {
+     "part": "coat",
+     "y": [
+      15,
+      24
+     ],
+     "x": [
+      "body-5",
+      "body+5"
+     ]
+    },
+    {
+     "part": "coat",
+     "y": [
+      25,
+      25
+     ],
+     "x": [
+      "body-6",
+      "body+6"
+     ]
+    },
+    {
+     "part": "sleeves",
+     "y": [
+      15,
+      20
+     ],
+     "x": [
+      9.5,
+      12.5
+     ],
+     "xe": [
+      7.5,
+      12.5
+     ]
+    },
+    {
+     "part": "sleeves",
+     "y": [
+      21,
+      24
+     ],
+     "x": [
+      11.5,
+      12.5
+     ]
+    },
+    {
+     "part": "sleeves",
+     "y": [
+      15,
+      20
+     ],
+     "x": [
+      22.5,
+      24.5
+     ],
+     "xe": [
+      22.5,
+      26.5
+     ]
+    },
+    {
+     "part": "sleeves",
+     "y": [
+      21,
+      24
+     ],
+     "x": [
+      22.5,
+      23.5
+     ]
+    },
+    {
+     "part": "zipper",
+     "y": [
+      15,
+      24
+     ],
+     "x": [
+      "face-1.5",
+      "face+0.5"
+     ]
+    },
+    {
+     "part": "hands",
+     "y": [
+      21,
+      23
+     ],
+     "x": [
+      6.5,
+      10.5
+     ]
+    },
+    {
+     "part": "hands",
+     "y": [
+      24,
+      24
+     ],
+     "x": [
+      7.5,
+      9.5
+     ]
+    },
+    {
+     "part": "hands",
+     "y": [
+      21,
+      22
+     ],
+     "x": [
+      23.5,
+      27.5
+     ]
+    },
+    {
+     "part": "hands",
+     "y": [
+      23,
+      23
+     ],
+     "x": [
+      24.5,
+      27.5
+     ]
+    },
+    {
+     "part": "hands",
+     "y": [
+      24,
+      24
+     ],
+     "x": [
+      24.5,
+      25.5
+     ]
+    },
+    {
+     "use": "legsBootsSe"
+    }
+   ],
+   "eyeOffset": [
+    1.5,
+    3.5
+   ]
+  },
+  "s": {
+   "yaw": 0,
+   "mirrorName": "s",
+   "headCenter": 17.5,
+   "faceAxis": 17.5,
+   "bodyCenter": 17.5,
+   "face": true,
+   "itemSide": "left",
+   "hidden": {},
+   "compare": [],
+   "boxes": [
+    {
+     "use": "hiltLeft"
+    },
+    {
+     "part": "skin",
+     "y": [
+      5,
+      12
+     ],
+     "x": [
+      "face-5.5",
+      "face+5.5"
+     ]
+    },
+    {
+     "use": "torsoFront"
+    },
+    {
+     "part": "hair",
+     "shape": "dome",
+     "y": [
+      0,
+      3
+     ],
+     "x": [
+      "head-6.5",
+      "head+6.5"
+     ]
+    },
+    {
+     "part": "hair",
+     "y": [
+      4,
+      4
+     ],
+     "x": [
+      "head-6.5",
+      "head+6.5"
+     ]
+    },
+    {
+     "part": "hair",
+     "y": [
+      5,
+      9
+     ],
+     "x": [
+      "head-6.5",
+      "head-5.5"
+     ]
+    },
+    {
+     "part": "hair",
+     "y": [
+      5,
+      9
+     ],
+     "x": [
+      "head+5.5",
+      "head+6.5"
+     ]
+    },
+    {
+     "part": "hair",
+     "y": [
+      5,
+      5
+     ],
+     "x": [
+      "head-4.5",
+      "head-2.5"
+     ]
+    },
+    {
+     "part": "hair",
+     "y": [
+      5,
+      5
+     ],
+     "x": [
+      "head+2.5",
+      "head+4.5"
+     ]
+    },
+    {
+     "part": "lenses",
+     "y": [
+      7,
+      10
+     ],
+     "x": [
+      "face-4",
+      "face-1.5"
+     ]
+    },
+    {
+     "part": "lenses",
+     "y": [
+      7,
+      10
+     ],
+     "x": [
+      "face+1.5",
+      "face+4"
+     ]
+    },
+    {
+     "part": "lenses",
+     "y": [
+      8,
+      9
+     ],
+     "x": [
+      "face-4.5",
+      "face+4.5"
+     ]
+    },
+    {
+     "part": "beard",
+     "y": [
+      11,
+      11
+     ],
+     "x": [
+      "face-1.5",
+      "face+1.5"
+     ]
+    },
+    {
+     "part": "beard",
+     "y": [
+      12,
+      12
+     ],
+     "x": [
+      "face-2.5",
+      "face-2.5"
+     ]
+    },
+    {
+     "part": "beard",
+     "y": [
+      12,
+      12
+     ],
+     "x": [
+      "face+2.5",
+      "face+2.5"
+     ]
+    },
+    {
+     "part": "beard",
+     "y": [
+      13,
+      13
+     ],
+     "x": [
+      "face-2.5",
+      "face+2.5"
+     ]
+    },
+    {
+     "part": "coat",
+     "y": [
+      15,
+      24
+     ],
+     "x": [
+      "body-4.5",
+      "body+4.5"
+     ]
+    },
+    {
+     "part": "coat",
+     "y": [
+      25,
+      25
+     ],
+     "x": [
+      "body-5.5",
+      "body+5.5"
+     ]
+    },
+    {
+     "use": "armsFront"
+    },
+    {
+     "part": "zipper",
+     "y": [
+      15,
+      24
+     ],
+     "x": [
+      "body-1.5",
+      "body+0.5"
+     ]
+    },
+    {
+     "use": "legsBootsFront"
+    }
+   ],
+   "eyeOffset": [
+    -0.5,
+    0.5
+   ]
+  },
+  "n": {
+   "yaw": 180,
+   "mirrorName": "n",
+   "headCenter": 17.5,
+   "faceAxis": 17.5,
+   "bodyCenter": 17.5,
+   "face": false,
+   "itemSide": "right",
+   "hidden": {
+    "lenses": 0,
+    "beard": 0,
+    "zipper": 0,
+    "skin": 8
+   },
+   "compare": [
+    [
+     "hair",
+     "skin",
+     "lenses",
+     "beard"
+    ],
+    [
+     "coat",
+     "zipper"
+    ],
+    [
+     "sheath",
+     "guard",
+     "wrap"
+    ]
+   ],
+   "boxes": [
+    {
+     "use": "hairBack"
+    },
+    {
+     "part": "skin",
+     "y": [
+      11,
+      11
+     ],
+     "x": [
+      "head-1.5",
+      "head+1.5"
+     ]
+    },
+    {
+     "use": "torsoBack"
+    },
+    {
+     "part": "coat",
+     "y": [
+      15,
+      25
+     ],
+     "x": [
+      "body-4.5",
+      "body+4.5"
+     ]
+    },
+    {
+     "use": "armsFront"
+    },
+    {
+     "use": "hiltLeftTop",
+     "mirror": 35
+    },
+    {
+     "part": "sheath",
+     "shape": "band",
+     "from": [
+      26,
+      11
+     ],
+     "to": [
+      20,
+      17
+     ],
+     "t": 0.6
+    },
+    {
+     "use": "legsBootsFront"
+    }
+   ]
+  },
+  "e": {
+   "yaw": 90,
+   "mirrorName": "w",
+   "headCenter": 17.0,
+   "faceAxis": 21.0,
+   "bodyCenter": 17.0,
+   "face": true,
+   "itemSide": "left",
+   "hidden": {},
+   "compare": [
+    [
+     "coat",
+     "zipper"
+    ]
+   ],
+   "boxes": [
+    {
+     "use": "hiltLeft"
+    },
+    {
+     "part": "skin",
+     "y": [
+      5,
+      12
+     ],
+     "x": [
+      "head+0.5",
+      "head+6.5"
+     ]
+    },
+    {
+     "part": "hair",
+     "shape": "dome",
+     "y": [
+      0,
+      3
+     ],
+     "x": [
+      "head-6",
+      "head+6"
+     ]
+    },
+    {
+     "part": "hair",
+     "y": [
+      4,
+      10
+     ],
+     "x": [
+      "head-6",
+      "head-1"
+     ]
+    },
+    {
+     "part": "hair",
+     "y": [
+      4,
+      5
+     ],
+     "x": [
+      "head-1",
+      "head+6"
+     ]
+    },
+    {
+     "part": "hair",
+     "y": [
+      6,
+      6
+     ],
+     "x": [
+      "head-1",
+      "head+1.5"
+     ]
+    },
+    {
+     "part": "lenses",
+     "y": [
+      8,
+      9
+     ],
+     "x": [
+      "head-5",
+      "face-2"
+     ]
+    },
+    {
+     "part": "lenses",
+     "y": [
+      7,
+      10
+     ],
+     "x": [
+      "face-2",
+      "face+1"
+     ]
+    },
+    {
+     "part": "beard",
+     "y": [
+      11,
+      11
+     ],
+     "x": [
+      "face-2",
+      "face+1"
+     ]
+    },
+    {
+     "part": "beard",
+     "y": [
+      12,
+      12
+     ],
+     "x": [
+      "face-2",
+      "face+0"
+     ]
+    },
+    {
+     "part": "beard",
+     "y": [
+      13,
+      13
+     ],
+     "x": [
+      "face-3",
+      "face+0"
+     ]
+    },
+    {
+     "part": "skin",
+     "y": [
+      11,
+      12
+     ],
+     "x": [
+      "head-3",
+      "head+0.5"
+     ]
+    },
+    {
+     "part": "coat",
+     "y": [
+      11,
+      12
+     ],
+     "x": [
+      "head-5",
+      "head-3.5"
+     ]
+    },
+    {
+     "part": "coat",
+     "y": [
+      13,
+      13
+     ],
+     "x": [
+      "head-6",
+      "head+4.5"
+     ]
+    },
+    {
+     "part": "coat",
+     "y": [
+      14,
+      14
+     ],
+     "x": [
+      "head-6",
+      "head+5"
+     ]
+    },
+    {
+     "part": "coat",
+     "y": [
+      15,
+      24
+     ],
+     "x": [
+      "body-6",
+      "body+5"
+     ]
+    },
+    {
+     "part": "coat",
+     "y": [
+      25,
+      25
+     ],
+     "x": [
+      "body-6",
+      "body+5"
+     ]
+    },
+    {
+     "part": "sleeves",
+     "y": [
+      16,
+      23
+     ],
+     "x": [
+      "body+3.5",
+      "body+5"
+     ]
+    },
+    {
+     "part": "sleeves",
+     "y": [
+      21,
+      22
+     ],
+     "x": [
+      "body+3.5",
+      "body+4.5"
+     ]
+    },
+    {
+     "part": "sleeves",
+     "y": [
+      15,
+      21
+     ],
+     "x": [
+      "body-1",
+      "body+3"
+     ]
+    },
+    {
+     "part": "sleeves",
+     "y": [
+      22,
+      22
+     ],
+     "x": [
+      "body-0.5",
+      "body+2"
+     ]
+    },
+    {
+     "part": "hands",
+     "y": [
+      22,
+      24
+     ],
+     "x": [
+      "body-1.5",
+      "body+2"
+     ]
+    },
+    {
+     "part": "hands",
+     "y": [
+      22,
+      24
+     ],
+     "x": [
+      "body+3",
+      "body+5"
+     ]
+    },
+    {
+     "part": "zipper",
+     "y": [
+      15,
+      24
+     ],
+     "x": [
+      "body+5",
+      "body+5"
+     ]
+    },
+    {
+     "part": "legs",
+     "y": [
+      26,
+      27
+     ],
+     "x": [
+      "body-2.5",
+      "body+3.5"
+     ]
+    },
+    {
+     "part": "boots",
+     "y": [
+      28,
+      28
+     ],
+     "x": [
+      "body-2",
+      "body+2.5"
+     ]
+    },
+    {
+     "part": "boots",
+     "y": [
+      29,
+      30
+     ],
+     "x": [
+      "body-2",
+      "body+5"
+     ]
+    }
+   ],
+   "eyeOffset": null
+  },
+  "ne": {
+   "yaw": 135,
+   "mirrorName": "nw",
+   "headCenter": 17.5,
+   "faceAxis": 19.5,
+   "bodyCenter": 17.5,
+   "face": false,
+   "itemSide": "right",
+   "hidden": {
+    "lenses": 0,
+    "beard": 0,
+    "zipper": 0,
+    "skin": 12
+   },
+   "compare": [
+    [
+     "hair",
+     "skin",
+     "lenses",
+     "beard"
+    ],
+    [
+     "coat",
+     "zipper"
+    ],
+    [
+     "sheath",
+     "guard",
+     "wrap"
+    ]
+   ],
+   "boxes": [
+    {
+     "use": "hairBack"
+    },
+    {
+     "part": "skin",
+     "y": [
+      8,
+      10
+     ],
+     "x": [
+      "head+5",
+      "head+6"
+     ]
+    },
+    {
+     "part": "skin",
+     "y": [
+      11,
+      11
+     ],
+     "x": [
+      "head-0.5",
+      "head+2.5"
+     ]
+    },
+    {
+     "use": "torsoBack"
+    },
+    {
+     "part": "coat",
+     "y": [
+      15,
+      25
+     ],
+     "x": [
+      "body-3.5",
+      "body+4.5"
+     ]
+    },
+    {
+     "part": "sleeves",
+     "y": [
+      15,
+      20
+     ],
+     "x": [
+      10.5,
+      12.5
+     ],
+     "xe": [
+      8.5,
+      12.5
+     ]
+    },
+    {
+     "part": "sleeves",
+     "y": [
+      21,
+      24
+     ],
+     "x": [
+      11.5,
+      12.5
+     ]
+    },
+    {
+     "part": "sleeves",
+     "y": [
+      15,
+      20
+     ],
+     "x": [
+      22.5,
+      24.5
+     ],
+     "xe": [
+      22.5,
+      26.5
+     ]
+    },
+    {
+     "part": "sleeves",
+     "y": [
+      21,
+      24
+     ],
+     "x": [
+      22.5,
+      23.5
+     ]
+    },
+    {
+     "part": "hands",
+     "y": [
+      21,
+      23
+     ],
+     "x": [
+      7.5,
+      10.5
+     ]
+    },
+    {
+     "part": "hands",
+     "y": [
+      24,
+      24
+     ],
+     "x": [
+      8.5,
+      9.5
+     ]
+    },
+    {
+     "part": "hands",
+     "y": [
+      21,
+      22
+     ],
+     "x": [
+      23.5,
+      27.5
+     ]
+    },
+    {
+     "part": "hands",
+     "y": [
+      23,
+      23
+     ],
+     "x": [
+      24.5,
+      27.5
+     ]
+    },
+    {
+     "part": "hands",
+     "y": [
+      24,
+      24
+     ],
+     "x": [
+      24.5,
+      25.5
+     ]
+    },
+    {
+     "use": "hiltLeftTop",
+     "mirror": 35
+    },
+    {
+     "part": "sheath",
+     "shape": "band",
+     "from": [
+      26,
+      11
+     ],
+     "to": [
+      20,
+      17
+     ],
+     "t": 0.6
+    },
+    {
+     "use": "legsBootsSe"
+    }
+   ]
+  }
+ },
+ "blocks": {
+  "hiltLeft": [
+   {
+    "part": "sheath",
+    "y": [
+     11,
+     12
+    ],
+    "x": [
+     7.5,
+     11.5
+    ]
+   },
+   {
+    "use": "hiltLeftTop"
+   }
+  ],
+  "legsBootsSe": [
+   {
+    "part": "legs",
+    "y": [
+     26,
+     27
+    ],
+    "x": [
+     13.5,
+     21.5
+    ],
+    "xe": [
+     13.5,
+     20.5
+    ]
+   },
+   {
+    "part": "boots",
+    "y": [
+     28,
+     28
+    ],
+    "x": [
+     14.5,
+     19.5
+    ]
+   },
+   {
+    "part": "boots",
+    "y": [
+     29,
+     30
+    ],
+    "x": [
+     14.5,
+     20.5
+    ]
+   }
+  ],
+  "legsBootsFront": [
+   {
+    "part": "legs",
+    "y": [
+     26,
+     27
+    ],
+    "x": [
+     "head-3.5",
+     "head+3.5"
+    ]
+   },
+   {
+    "part": "boots",
+    "y": [
+     28,
+     28
+    ],
+    "x": [
+     "head-1.5",
+     "head+2"
+    ]
+   },
+   {
+    "part": "boots",
+    "y": [
+     29,
+     30
+    ],
+    "x": [
+     "head-3.5",
+     "head+3.5"
+    ]
+   }
+  ],
+  "hairBack": [
+   {
+    "part": "hair",
+    "shape": "dome",
+    "y": [
+     0,
+     3
+    ],
+    "x": [
+     "head-6.5",
+     "head+6.5"
+    ]
+   },
+   {
+    "part": "hair",
+    "y": [
+     4,
+     8
+    ],
+    "x": [
+     "head-6.5",
+     "head+6.5"
+    ]
+   },
+   {
+    "part": "hair",
+    "y": [
+     9,
+     10
+    ],
+    "x": [
+     "head-6",
+     "head+6"
+    ],
+    "xe": [
+     "head-5",
+     "head+5"
+    ]
+   }
+  ],
+  "torsoFront": [
+   {
+    "part": "coat",
+    "y": [
+     11,
+     12
+    ],
+    "x": [
+     "head-5.5",
+     "head-3.5"
+    ],
+    "xe": [
+     "head-5.5",
+     "head-1.5"
+    ]
+   },
+   {
+    "part": "coat",
+    "y": [
+     11,
+     12
+    ],
+    "x": [
+     "head+3.5",
+     "head+5.5"
+    ],
+    "xe": [
+     "head+1.5",
+     "head+5.5"
+    ]
+   },
+   {
+    "part": "coat",
+    "y": [
+     13,
+     14
+    ],
+    "x": [
+     "head-7",
+     "head+7"
+    ]
+   }
+  ],
+  "armsFront": [
+   {
+    "part": "sleeves",
+    "y": [
+     15,
+     20
+    ],
+    "x": [
+     9.5,
+     12.5
+    ],
+    "xe": [
+     7.5,
+     12.5
+    ]
+   },
+   {
+    "part": "sleeves",
+    "y": [
+     21,
+     24
+    ],
+    "x": [
+     11.5,
+     12.5
+    ]
+   },
+   {
+    "part": "sleeves",
+    "y": [
+     15,
+     20
+    ],
+    "x": [
+     22.5,
+     25.5
+    ],
+    "xe": [
+     22.5,
+     27.5
+    ]
+   },
+   {
+    "part": "sleeves",
+    "y": [
+     21,
+     24
+    ],
+    "x": [
+     22.5,
+     23.5
+    ]
+   },
+   {
+    "part": "hands",
+    "y": [
+     21,
+     23
+    ],
+    "x": [
+     6.5,
+     10.5
+    ]
+   },
+   {
+    "part": "hands",
+    "y": [
+     24,
+     24
+    ],
+    "x": [
+     7.5,
+     9.5
+    ]
+   },
+   {
+    "part": "hands",
+    "y": [
+     21,
+     23
+    ],
+    "x": [
+     24.5,
+     28.5
+    ]
+   },
+   {
+    "part": "hands",
+    "y": [
+     24,
+     24
+    ],
+    "x": [
+     25.5,
+     27.5
+    ]
+   }
+  ],
+  "torsoBack": [
+   {
+    "part": "coat",
+    "y": [
+     11,
+     12
+    ],
+    "x": [
+     "head-5.5",
+     "head-3.5"
+    ],
+    "xe": [
+     "head-5.5",
+     "head-1.5"
+    ]
+   },
+   {
+    "part": "coat",
+    "y": [
+     11,
+     12
+    ],
+    "x": [
+     "head+3.5",
+     "head+5.5"
+    ],
+    "xe": [
+     "head+1.5",
+     "head+5.5"
+    ]
+   },
+   {
+    "part": "coat",
+    "y": [
+     13,
+     13
+    ],
+    "x": [
+     "head-5.5",
+     "head+5.5"
+    ]
+   },
+   {
+    "part": "coat",
+    "y": [
+     14,
+     14
+    ],
+    "x": [
+     "head-7",
+     "head+7"
+    ]
+   }
+  ],
+  "hiltLeftTop": [
+   {
+    "part": "sheath",
+    "shape": "band",
+    "from": [
+     6,
+     5
+    ],
+    "to": [
+     9,
+     11
+    ],
+    "t": 1.6
+   },
+   {
+    "part": "wrap",
+    "shape": "band",
+    "from": [
+     6,
+     7
+    ],
+    "to": [
+     9,
+     10
+    ],
+    "t": 0.5
+   },
+   {
+    "part": "guard",
+    "shape": "band",
+    "from": [
+     11,
+     9
+    ],
+    "to": [
+     9,
+     11
+    ],
+    "t": 0.5
+   },
+   {
+    "part": "guard",
+    "y": [
+     6,
+     6
+    ],
+    "x": [
+     6,
+     6
+    ]
+   }
+  ]
+ },
+ "checks": {
+  "height": {
+   "value": 31,
+   "tol": 1
+  },
+  "bottomRow": 30,
+  "headAlone": [
+   13,
+   15
+  ],
+  "guideRowTol": 1,
+  "areaTol": 0.3,
+  "shoulderRule": {
+   "part": "sleeves",
+   "offset": -1
+  },
+  "hipRule": {
+   "parts": [
+    "coat",
+    "zipper"
+   ]
+  },
+  "mirrorAgree": {
+   "minSilhouetteIoU": 0.7
+  },
+  "maxFoldsPerPanel": 2,
+  "distinctMinCells": 20,
+  "eyeOffset": {
+   "min": 1.5,
+   "max": 3.5
+  },
+  "copyShift": {
+   "dx": 8,
+   "dy": 2
+  }
+ }
+}

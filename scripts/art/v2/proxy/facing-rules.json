@@ -1,0 +1,124 @@
+{
+  "format": "facing-rules/1",
+  "note": "structure.facingRules of consult C2 section C1 (spec side). It feeds layout.mjs, transplant.mjs and the structure cards. FROZEN: the orchestrator commits this file before the first reference result. Written from R2 only (docs/spikes/rook-turnaround/research/R2-turnaround-craft.md, rules T2 T3 T4 T5 T6 T8 T10 T15) and the pixel-artist-characters pack allow-list PA-21. Every rule names its R2 id and the basis of each number. No number comes from a reference picture, a reference label or a reference score. An edit after any reference result goes to Mark and is logged as reference-informed (Amendment 2, Freeze).",
+  "source": "R2 turnaround craft (2026-10-17), consult C2 C1, Amendment 2. The given frame (walk frame 4) and the proxy spec are the only pictures behind the light numbers.",
+  "light": {
+    "direction": "top-right",
+    "basis": "C2 C1 light evidence. The given is lit from the top: mean luma of the top half 137, of the bottom half 103. The right side reads brighter: right half 125, left half 116 (T0a fit, given frame only). R2 T10 says top and slightly left (from LPC); the given overrides it because T10 asks for one direction for every facing and the given is the only drawing of the character.",
+    "evidence": {
+      "lumaTop": 137,
+      "lumaBottom": 103,
+      "lumaRight": 125,
+      "lumaLeft": 116,
+      "source": "given frame only (C2 C1, T0a fit)"
+    },
+    "rule": "R2 T10",
+    "relightOnFlip": "After a flip, every cell takes the light level of the layout light map of the target facing and is recolored by ramp steps (C2 C1)."
+  },
+  "allowList": {
+    "labels": ["sheath", "guard", "wrap"],
+    "rule": "R2 T4, PA-21",
+    "basis": "The sheath, guard and wrap are asymmetric parts. They are never mirrored and come from the layout at the target yaw, so the katana stays on the same body side (C2 C1). Hands are relit and their shape is kept."
+  },
+  "rules": [
+    {
+      "id": "T2",
+      "text": "Total height, head height, and shoulder, hip and foot rows are the same in all facings (standing).",
+      "r2": "T2",
+      "rowTolerance": 1,
+      "sideFacings": ["e", "w"],
+      "sideFacingNote": "At e and w only the head top and the foot row are compared with the given. The shoulder and hip rows of a side view come from the battle idle (consult C2 C4, ST-SIDE), not from the 3/4 given.",
+      "basis": "R2 T2 gives plus or minus 0 px. The layout is rendered with a 8 degree camera pitch, so a part that turns shifts a row by rounding: the tolerance is 1 px, the same 1 px as the PA-22 guide rows in consult C2 C4."
+    },
+    {
+      "id": "T3",
+      "text": "Limb thickness is the same in all facings.",
+      "r2": "T3",
+      "widthTolerance": 1,
+      "limbLabels": ["sleeves", "hands", "legs", "boots"],
+      "basis": "R2 T3: run-length width of arm and leg clusters within 1 px of the front view."
+    },
+    {
+      "id": "T4",
+      "text": "Left facings are the horizontal flip of the right facings, unless the part is on the allow-list.",
+      "r2": "T4",
+      "mirrorOf": { "sw": "se", "w": "e", "nw": "ne" },
+      "basis": "R2 T4, Slynyrd 22, 55, 58. Pairs follow the facing names; the allow-list above holds the asymmetric parts."
+    },
+    {
+      "id": "T5",
+      "text": "Both eyes sit on one row at the front and 3/4 front facings.",
+      "r2": "T5",
+      "eyeRowSpreadMax": 0,
+      "facings": ["s", "se", "sw"],
+      "basis": "R2 T5, RPG Maker how-to: both eyes on the same row."
+    },
+    {
+      "id": "T6",
+      "text": "The face offset (face axis minus head center) is 0 at the front and 2 to 3 px toward the turn at 3/4 front.",
+      "r2": "T6",
+      "faceOffset": {
+        "s": { "min": 0, "max": 0 },
+        "se": { "min": 2, "max": 3 },
+        "sw": { "min": -3, "max": -2 }
+      },
+      "basis": "R2 T6: the RPG Maker how-to shifts the ears and eyes 2 to 3 px toward the turn. Marked an inference at 32 px in R2. The sign is positive toward the right of the picture."
+    },
+    {
+      "id": "T8",
+      "text": "Eye clusters: two at the front, one at the side, none at the back and 3/4 back.",
+      "r2": "T8",
+      "eyeClusters": { "s": 2, "se": 2, "sw": 2, "e": 1, "w": 1, "n": 0, "ne": 0, "nw": 0 },
+      "basis": "R2 T8 and the section 2 table: side one eye, back and 3/4 back none. The count of two at the front is T5."
+    },
+    {
+      "id": "T10",
+      "text": "One light direction for every facing: the lit side keeps the same sign on the major clusters.",
+      "r2": "T10",
+      "litSide": "right",
+      "groups": ["hair", "torso"],
+      "facings": ["se", "sw", "nw"],
+      "facingsNote": "Checked at se and at the two left diagonals that a flip moves the lit side on (consult C2 C4, sw and nw). At s the two halves of the figure are equal, and at e and w one side is hidden, so the sign is not defined there.",
+      "basis": "R2 T10 with the light numbers above (top-right). The sign is checked by lit-minus-shadow luma on hair and torso."
+    },
+    {
+      "id": "T15",
+      "text": "Folds: at most 2 one-pixel shadow strokes per panel, from a support point, on the shadow side.",
+      "r2": "T15",
+      "strokesPerPanelMax": 2,
+      "shadowSide": "left",
+      "basis": "R2 T15, Clip Studio (px rules are an inference in R2). The shadow side is the side away from the light, left for a top-right light."
+    },
+    {
+      "id": "PA-21",
+      "text": "The sheath, guard and wrap are never mirrored.",
+      "r2": "T4",
+      "pack": "PA-21",
+      "labels": ["sheath", "guard", "wrap"],
+      "basis": "The pixel-artist-characters pack PA-21 and R2 T4 (asymmetric designs keep their hand)."
+    }
+  ],
+  "params": {
+    "hideBelowVisibleShare": {
+      "value": 0.3,
+      "basis": "Consult C2 C2 step 1: hide a part when its visible share is under 0.3. Written before any result."
+    },
+    "columnEdit": {
+      "maxColumns": 1,
+      "minDelta": 2,
+      "basis": "Consult C2 C2 step 1: narrow or widen only by deleting or doubling one column, inside a flat run that no diagonal run crosses (R2 T15, PA-05: no resample). R2 T3 allows a limb width change of 1 px, so a part is edited only when its layout width differs by 2 px or more."
+    },
+    "overflowClip": {
+      "distance": 2,
+      "basis": "Builder choice, measured on the given and the proxy spec only: a layer cell farther than this many cells from the layout silhouette is dropped, so a wide part does not spill into a narrow facing. No reference was used."
+    },
+    "detailMaskCap": {
+      "value": 0.25,
+      "basis": "Consult C2 C2 step 3: the LLM detail pass repaints at most 25 percent of the cells."
+    },
+    "patch": {
+      "size": 3,
+      "basis": "Consult C2 C2 step 2: best 3x3 patch match."
+    }
+  }
+}
