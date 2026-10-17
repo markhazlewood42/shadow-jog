@@ -116,7 +116,7 @@
   },
   "passMeasures": 4,
   "noReference": {
-    "note": "e and w have no reference. Gates: hard lines, BF1 against the proxy template, landmark PCK (y of head and feet points) against s and ne. Plus a G2 pick and Mark.",
+    "note": "e and w have no reference. Since Amendment 2 they gate on the hard lines, ST-SIDE (head top, first skin row, leg split and foot row against the battle idle) and Mark. There is no BF1 gate: Amendment 2 replaced the Target gates line that held it. bf1Template is used only by the optional ST-TEMPLATE line, when a layout template is passed.",
     "bf1Template": 0.9
   },
   "hardLines": {
@@ -186,9 +186,7 @@
     "gating": [
       "colorMatch"
     ],
-    "gatingCount": 1,
     "passLine": 4,
-    "markGates": true,
     "walkScope": "all",
     "items": {
       "pass-near": 30,
@@ -199,7 +197,7 @@
     }
   },
   "style": {
-    "note": "Style tier (consult C2 C4, Amendment 2). Written by `node scripts/art/v2/grade/style-calibrate.mjs --write-gates`. role gate = the line gates; separates = it passes all 8 walk frames and catches a should-fail item; pinned = a line of the spike GO list that stays on. The verdict says Mark gates style by eye when fewer than minGating lines separate.",
+    "note": "Style tier (consult C2 C4, Amendment 2). Written by `node scripts/art/v2/grade/style-calibrate.mjs --write-gates`. role gate = the line gates; basis separates = it passes all 8 walk frames and catches a should-fail item; basis go-hard-line = a pinned line of the spike GO list that stays on and catches nothing here (it gates but does not count toward minGating). The verdict says Mark gates style by eye when fewer than minGating lines separate.",
     "calibratedOn": "2026-10-17",
     "minGating": 3,
     "flatMinCells": 25,
@@ -257,6 +255,7 @@
       "S-PALETTE": {
         "limit": 0,
         "role": "gate",
+        "basis": "separates",
         "separates": true,
         "pinned": true,
         "worstPass": 0,
@@ -282,6 +281,7 @@
       "S-RAMP": {
         "limit": 0,
         "role": "gate",
+        "basis": "separates",
         "separates": true,
         "pinned": false,
         "worstPass": 0,
@@ -307,6 +307,7 @@
       "S-OUTLINE": {
         "limit": 0.93,
         "role": "gate",
+        "basis": "separates",
         "separates": true,
         "pinned": true,
         "worstPass": 0.9444,
@@ -332,6 +333,7 @@
       "S-ORPHAN": {
         "limit": 1.25,
         "role": "gate",
+        "basis": "separates",
         "separates": true,
         "pinned": true,
         "worstPass": 1.0938,
@@ -357,6 +359,7 @@
       "S-SMALL": {
         "limit": 1.25,
         "role": "gate",
+        "basis": "go-hard-line",
         "separates": false,
         "pinned": true,
         "worstPass": 1.0909,
@@ -381,6 +384,7 @@
       "S-FLAT-GROUP": {
         "limit": 0.8,
         "role": "gate",
+        "basis": "separates",
         "separates": true,
         "pinned": false,
         "worstPass": 0.925,
@@ -405,6 +409,7 @@
       "S-FLAT-WHOLE": {
         "limit": 0.8,
         "role": "gate",
+        "basis": "separates",
         "separates": true,
         "pinned": false,
         "worstPass": 0.9749,
@@ -430,6 +435,7 @@
       "S-DENS-BAND": {
         "limit": 0,
         "role": "gate",
+        "basis": "separates",
         "separates": true,
         "pinned": false,
         "worstPass": 0,
@@ -455,6 +461,7 @@
         "lo": 55,
         "hi": 80,
         "role": "gate",
+        "basis": "separates",
         "separates": true,
         "pinned": false,
         "worstPass": {
@@ -486,6 +493,7 @@
       "S-RUNORDER": {
         "limit": 3,
         "role": "gate",
+        "basis": "separates",
         "separates": true,
         "pinned": false,
         "worstPass": 2,
@@ -508,6 +516,39 @@
         "reset": null,
         "ran": true
       }
+    }
+  },
+  "swapLine": {
+    "need": 0.9,
+    "rule": "consult C2 C6: rule checks fail on swapped facings in at least 90 percent of items (5 references plus the given, each graded as each other facing). Not moved (orchestrator ruling, fix round 2).",
+    "recorded": {
+      "calibratedOn": "2026-10-17",
+      "swaps": 30,
+      "caught": 22,
+      "rate": 0.7333,
+      "status": "FAILED",
+      "crossClass": {
+        "swaps": 18,
+        "caught": 18
+      },
+      "withinClass": {
+        "swaps": 12,
+        "caught": 4
+      },
+      "missed": [
+        "se->s",
+        "se->sw",
+        "s->se",
+        "n->ne",
+        "n->nw",
+        "nw->ne",
+        "sw->se",
+        "sw->s"
+      ]
+    },
+    "note": "FAILED at 22 of 30 (73 percent). Round 3 measured 24 of 30 (80 percent); the 2 swaps n->ne and n->nw were caught only because the n reference failed ST-ITEM at every facing (0.93 line). After the ST-ITEM re-set to 0.84 (facing-checks.json item.reset) they are missed, so the figure is the honest one. Every swap between the front class (s, se, sw) and the back class (n, ne, nw) is caught. The misses sit inside a class, where the C1 eye and hand rules are the same; the blind facing-ID grader (9 of 10 on calibration) carries s/se/sw and n/ne/nw.",
+    "ownFacingNotes": {
+      "sw": "sw reference inconsistent with se light: the Sprite Fusion sw breaks the one-light rule (hair -2.8 and torso +29.4 against se +28.1 and -21.1), so it fails ST-LIT. ST-LIT is not loosened (orchestrator ruling)."
     }
   }
 }

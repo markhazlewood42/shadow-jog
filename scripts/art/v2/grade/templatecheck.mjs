@@ -95,7 +95,7 @@ export function alignedPartMiou(candLabels, ref) {
 const FACINGS = REF_FACINGS; // s, n, ne, nw, sw
 
 /** The whole table. sources: { name: { facing: labels } }. Returns { rows: [{ source, facing, aligned, best, shift0 }], gain }. */
-export function templateTable(sources, spec = loadSpec()) {
+export function templateTable(sources) {
   const refs = Object.fromEntries(FACINGS.map((f) => [f, loadReference(f)]));
   const rows = [];
   for (const [source, byFacing] of Object.entries(sources))
@@ -152,7 +152,7 @@ export function formatTemplateReport(sources, table, { date = new Date().toISOSt
   return `${L.join('\n')}\n`;
 }
 
-async function main() {
+async function run() {
   const a = process.argv.slice(2);
   const opt = (n, d = null) => (a.includes(n) ? a[a.indexOf(n) + 1] : d);
   const proxyDir = opt('--proxy-dir', 'C:/Users/markh/AppData/Local/Temp/rook-v2/t0a');
@@ -171,6 +171,15 @@ async function main() {
     writeFileSync(out, report);
     console.log(`report: ${out}`);
   } else console.log(report);
+}
+
+async function main() {
+  try {
+    await run();
+  } catch (e) {
+    console.error(`templatecheck: ${e.message}`);
+    process.exit(1);
+  }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();

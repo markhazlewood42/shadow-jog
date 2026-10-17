@@ -10,6 +10,7 @@
 // (c) the reference measures against the matching Sprite Fusion reference, as report lines that never gate.
 // It measures distance to the target only. It never reads an earlier round, a round number or an earlier score (PA-CM-01).
 // Exit code 0 when style and structure pass, 1 otherwise, 2 for a usage error. When fewer than 3 style lines separate, the verdict says Mark gates style by eye.
+// A gating style line that could not be measured (S-RAMP without template labels, S-FLAT-GROUP with no large enough group) is "not measured": the style tier does not pass.
 import { existsSync, readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { HEX_OF, LETTERS } from '../../headtest/lib.mjs';
@@ -91,31 +92,35 @@ export function noReferencePck(candLabels, alpha = 0.1) {
   return { pck: hit / names.length, dist };
 }
 
-const STRUCTURE_HARD_IDS = ['HL-HEIGHT', 'HL-BOTTOM', 'HL-HEAD', 'HL-SHOULDER', 'HL-HIP', 'HL-FACE', 'HL-DISTINCT', 'PA-21'];
+export const STRUCTURE_HARD_IDS = ['HL-HEIGHT', 'HL-BOTTOM', 'HL-HEAD', 'HL-SHOULDER', 'HL-HIP', 'HL-FACE', 'HL-DISTINCT', 'PA-21'];
 /** Lines of the hard-line checker that the style tier keeps next to the S-lines: the color count and the shared palette across the set. */
 const isStyleExtra = (i) => (i.id === 'PA-01' && /color count/.test(i.name)) || (i.id === 'PA-08' && /another facing/.test(i.name));
 
 /**
- * The style tier (consult C2 C4): lines against the given, read from gates.style. A line gates when its role is gate (it separated the calibration
- * population, or it is a pinned line of the spike GO list). If fewer than gates.style.minGating lines separate, Mark gates style by eye.
+ * The style tier (consult C2 C4): lines against the given, read from gates.style. A line gates when its role is gate: it separated the calibration
+ * population (basis "separates"), or it is a line of the spike GO list (basis "go-hard-line"). Only the separating lines count toward the
+ * "at least minGating" rule: if fewer than gates.style.minGating lines separate, Mark gates style by eye.
+ * A line that could not be measured has the status "not measured". A gating line that is not measured makes the tier not pass.
+ * opts.rampLabels: part labels for S-RAMP when the candidate has no template labels (the calibration uses the automatic labeler this way).
  */
-export function styleTier(img, { spec, gates, labels = null, template = false, hardItems = [] }) {
+export function styleTier(img, { spec, gates, labels = null, template = false, hardItems = [], rampLabels = null }) {
   const sg = gates.style;
   if (!sg) throw new Error('gates.json has no style section: run `node scripts/art/v2/grade/style-calibrate.mjs --write-gates`');
-  const v = styleValues(img, { spec, labels, template, flatMinCells: sg.flatMinCells, bands: sg.bands });
+  const v = styleValues(img, { spec, labels, template, flatMinCells: sg.flatMinCells, bands: sg.bands, rampLabels });
   const rows = STYLE_LINE_IDS.map((id) => {
     const cfg = sg.lines[id];
     const meta = LINE_META[id];
     const value = v.values[id];
-    const skipped = value === null || value === undefined;
-    const pass = skipped ? true : linePasses(meta, cfg, value);
-    return { id, name: meta.name, rule: meta.rule, value, detail: v.detail[id] ?? '', dir: meta.dir, limit: meta.dir === 'band' ? [cfg.lo, cfg.hi] : cfg.limit, role: cfg.role, separates: cfg.separates, pinned: cfg.pinned, status: skipped ? 'skipped' : pass ? 'pass' : 'fail' };
+    const notMeasured = value === null || value === undefined;
+    const pass = notMeasured ? false : linePasses(meta, cfg, value);
+    return { id, name: meta.name, rule: meta.rule, value, detail: v.detail[id] ?? '', dir: meta.dir, limit: meta.dir === 'band' ? [cfg.lo, cfg.hi] : cfg.limit, role: cfg.role, basis: cfg.basis ?? null, separates: cfg.separates, pinned: cfg.pinned, status: notMeasured ? 'not measured' : pass ? 'pass' : 'fail' };
   });
   const extra = hardItems.filter(isStyleExtra);
   const gatingRows = rows.filter((r) => r.role === 'gate');
   const separating = rows.filter((r) => r.separates).map((r) => r.id);
-  const pass = gatingRows.every((r) => r.status !== 'fail') && !hasFail(extra);
-  return { rows, extra, gating: gatingRows.map((r) => r.id), separating, minGating: sg.minGating, markGatesByEye: separating.length < sg.minGating, pass, labelSource: v.labelSource };
+  const notMeasured = gatingRows.filter((r) => r.status === 'not measured').map((r) => r.id);
+  const pass = gatingRows.every((r) => r.status === 'pass') && !hasFail(extra);
+  return { rows, extra, gating: gatingRows.map((r) => r.id), separating, minGating: sg.minGating, markGatesByEye: separating.length < sg.minGating, notMeasured, pass, labelSource: v.labelSource };
 }
 
 /** The reference measures against their start or calibrated values, and their mean margin over all of them (a report: no reference measure gates). */
@@ -132,6 +137,21 @@ function naiveGiven(spec, facing) {
 }
 
 /**
+ * The structure tier (consult C2 C4): the Amendment 1 rows from the hard-line checker plus the reference-free lines of structure.mjs.
+ * hard is the result of checkHardLines for the same candidate. It reads no reference. Also the swap-rate tool uses it.
+ */
+export function structureTier(cand, { facing, spec, hard, labels = null, template = null, gates, checks, idle }) {
+  const structItems = [...hard.items.filter((i) => STRUCTURE_HARD_IDS.includes(i.id)), ...structureLines(cand, { facing, spec, labels, checks: checks ?? loadFacingChecks(), idle })];
+  if (template && (facing === 'e' || facing === 'w')) {
+    const need = gates.noReference.bf1Template;
+    const bf1 = align(cand, { img: toCanvas(template, N), labels: null }, { anchor: 'none' }).bf1;
+    structItems.push({ id: 'ST-TEMPLATE', name: `BF1 against the layout template at least ${need}`, status: bf1 >= need ? 'pass' : 'fail', value: bf1.toFixed(3), detail: 'the template is the layout (code), not a reference' });
+  }
+  const c = checks ?? loadFacingChecks();
+  return { items: structItems, report: hard.items.filter((i) => i.id === 'PA-06'), unchecked: c.uncheckedRules ?? [], pass: !hasFail(structItems) };
+}
+
+/**
  * Grade one candidate. opts: { facing, spec, gates, set, anchors: [{ name, img }], template (image), labels, sheathSide, name, checks, idle }.
  * Returns the verdict: { style, structure, reference, pass, notes, styleByEye }. The reference tier is report only and never gates (Amendment 2 Q1).
  */
@@ -145,16 +165,10 @@ export function grade(candRaw, opts) {
   const verdict = { facing, labelSource: hard.labelSource, notes: ['Distance to the target only. No earlier round, score or verdict was read (PA-CM-01).'] };
 
   // (a) style, against the given
-  verdict.style = styleTier(cand, { spec, gates, labels: opts.labels ?? null, template: Boolean(opts.labels), hardItems: hard.items });
+  verdict.style = styleTier(cand, { spec, gates, labels: opts.labels ?? null, template: Boolean(opts.labels), hardItems: hard.items, rampLabels: opts.rampLabels ?? null });
 
   // (b) structure, reference-free
-  const structItems = [...hard.items.filter((i) => STRUCTURE_HARD_IDS.includes(i.id)), ...structureLines(cand, { facing, spec, labels: opts.labels ?? null, checks: opts.checks ?? loadFacingChecks(), idle: opts.idle })];
-  if (opts.template && (facing === 'e' || facing === 'w')) {
-    const need = gates.noReference.bf1Template;
-    const bf1 = align(cand, { img: toCanvas(opts.template, N), labels: null }, { anchor: 'none' }).bf1;
-    structItems.push({ id: 'ST-TEMPLATE', name: `BF1 against the layout template at least ${need}`, status: bf1 >= need ? 'pass' : 'fail', value: bf1.toFixed(3), detail: 'the template is the layout (code), not a reference' });
-  }
-  verdict.structure = { items: structItems, report: hard.items.filter((i) => i.id === 'PA-06'), pass: !hasFail(structItems) };
+  verdict.structure = structureTier(cand, { facing, spec, hard, labels: opts.labels ?? null, template: opts.template ?? null, gates, checks: opts.checks, idle: opts.idle });
 
   // (c) references: report only
   if (REF_FACINGS.includes(facing) || facing === 'se') {
@@ -191,6 +205,9 @@ export function grade(candRaw, opts) {
   verdict.pass = verdict.style.pass && verdict.structure.pass;
   verdict.styleByEye = verdict.style.markGatesByEye;
   if (verdict.styleByEye) verdict.notes.push(`Mark gates style by eye: only ${verdict.style.separating.length} style lines separate the calibration population (the plan needs ${verdict.style.minGating}).`);
+  if (verdict.style.notMeasured.length) verdict.notes.push(`Not measured: ${verdict.style.notMeasured.join(', ')}. A gating style line that is not measured makes the style tier not pass. Pass --parts (template labels) to measure S-RAMP.`);
+  if (verdict.structure.unchecked.length) verdict.notes.push(`Unchecked R2 rules (structure.facingRules is built in step 3, not in this kit): ${verdict.structure.unchecked.map((u) => `${u.id} ${u.what}`).join('; ')}. A tool pass is not a complete structure check.`);
+  if (facing === 'e' || facing === 'w') verdict.notes.push('e and w gate on ST-SIDE (guide rows against the battle idle) plus Mark. There is no BF1 gate: Amendment 2 replaced the Target gates line that held it.');
   if (hard.labelSource === 'auto') verdict.notes.push('The part labels are automatic (no template given, pass --parts): the ramp lock, eye, hand, item, lit-side and guide-row checks are only as good as the labeler.');
   verdict.notes.push("The blind facing-ID grader (9 of 10 on calibration) and Mark's template look also gate structure. The tool does not run them.");
   return verdict;
@@ -199,12 +216,15 @@ export function grade(candRaw, opts) {
 const num = (v) => (typeof v === 'number' ? Number(v.toFixed(3)) : v);
 
 export function formatVerdict(v) {
-  const L = [`facing ${v.facing}: ${v.pass ? 'PASS' : 'FAIL'} (style ${v.style.pass ? 'pass' : 'FAIL'}, structure ${v.structure.pass ? 'pass' : 'FAIL'}; reference measures are report only)`, `labels: ${v.labelSource}`];
+  const head = v.pass ? (v.styleByEye ? 'PASS (style by eye: Mark)' : 'PASS') : 'FAIL';
+  const L = [`facing ${v.facing}: ${head} (style ${v.style.pass ? 'pass' : 'FAIL'}, structure ${v.structure.pass ? 'pass' : 'FAIL'}; reference measures are report only)`, `labels: ${v.labelSource}`];
   L.push(`style (against the given): ${v.style.gating.length} lines gate, ${v.style.separating.length} separate${v.styleByEye ? ': MARK GATES STYLE BY EYE' : ''}`);
+  for (const r of v.style.rows) if (r.status === 'not measured') L.push(`  NOT MEASURED ${r.id} ${r.name}${r.detail ? ` (${r.detail})` : ''}${r.role === 'gate' ? ' [gating: the style tier does not pass]' : ' [report line]'}`);
   for (const r of v.style.rows) if (r.status === 'fail') L.push(`  FAIL ${r.id} ${r.name}: ${num(r.value)} (${r.dir === 'band' ? `inside ${r.limit.join(' to ')}` : `${r.dir === 'min' ? 'at least' : 'at most'} ${r.limit}`})${r.detail ? ` ${r.detail}` : ''}${r.role === 'gate' ? '' : ' [report line]'}`);
   for (const i of v.style.extra) if (i.status === 'fail') L.push(`  FAIL ${i.id} ${i.name}: ${i.value}`);
   L.push('structure (no reference):');
   for (const i of v.structure.items) if (i.status === 'fail') L.push(`  FAIL ${i.id} ${i.name}: ${i.value}${i.detail ? ` (${i.detail})` : ''}`);
+  for (const u of v.structure.unchecked) L.push(`  unchecked ${u.id}: ${u.what}`);
   const rf = v.reference;
   if (rf.mode === 'reference') {
     L.push(`reference (report only): alignment scale ${rf.transform.s}, shift ${rf.transform.dx},${rf.transform.dy}; part mIoU gain over the naive given ${rf.gain.partMiou >= 0 ? '+' : ''}${rf.gain.partMiou.toFixed(3)}`);

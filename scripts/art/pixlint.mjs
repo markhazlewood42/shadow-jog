@@ -74,6 +74,7 @@ export function paletteSet(list) {
  * opts.katana    list of the item (katana) colors, or []
  * opts.setColors colors of the other images of a facing set (PA-08 across facings), or null
  * opts.facing    true to run the facing checks (height, head width, item side): only for frames of the reference's size
+ * opts.boxWidthReport  true to make the PA-06 box width against the reference a report line (status info) instead of a gate: the v2 grade does this (the width changes with the facing)
  * opts.ranges    for a scale with no single given frame (the battle idle): { orphans: [lo, hi], smallRegions: [lo, hi] }
  */
 export function lintFrame(img, opts) {
@@ -158,7 +159,7 @@ export function lintFrame(img, opts) {
       item(
         'PA-06',
         `box width within ${LINES.widthTolerance} px of reference`,
-        Math.abs(b.w - ref.bboxWidth) <= LINES.widthTolerance ? 'pass' : 'fail',
+        opts.boxWidthReport ? 'info' : Math.abs(b.w - ref.bboxWidth) <= LINES.widthTolerance ? 'pass' : 'fail',
         `width ${b.w}, reference ${ref.bboxWidth}`,
       ),
     );

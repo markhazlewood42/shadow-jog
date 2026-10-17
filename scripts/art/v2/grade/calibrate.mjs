@@ -11,7 +11,7 @@
 // For every measure: worst pass value, best fail value, whether they separate, and the gate in the middle. At least 4 measures must separate.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { PNG } from 'pngjs';
 import { crop, newImage, readPng, unhex } from '../../pixkit/png.mjs';
 import { REPO, loadWalkFrames, unzipEntry } from '../../pipeline/given.mjs';
@@ -21,7 +21,8 @@ import { measureAgainst } from './measures.mjs';
 import { REF_FACINGS, loadReference } from './refs/labels.mjs';
 import { pack } from './color.mjs';
 
-const R8 = 'C:/Users/markh/AppData/Local/Temp/rook-step3/round-8/facings';
+/** Round 8 (the PA-CM-01 miss) is committed as a small fixture: older-round art, not a Sprite Fusion reference. A missing file throws, so no item drops silently. */
+export const ROUND8_DIR = fileURLToPath(new URL('../../../../tests/fixtures/art-v2/round8', import.meta.url));
 const RIG_FIELD = `${REPO}/public/art/rig/field.json`;
 
 // ---------------------------------------------------------------- building blocks
@@ -143,7 +144,7 @@ const NEAR = {
  * and an item with unknown parts (another character, a blob, an older round, a walk frame) uses the automatic labeler (labels null).
  * groupsOnly: measure only these part groups. No gating item uses it (F6): a gate must be calibrated on the groups it runs on. Only the info item 'walk:head-torso' does.
  */
-export function buildCalibrationItems({ spec = loadSpec(), t1Dir = null } = {}) {
+export function buildCalibrationItems({ spec = loadSpec(), t1Dir = null, round8Dir = ROUND8_DIR } = {}) {
   const ramps = JSON.parse(readFileSync(`${dirname(GATES_PATH)}/../../headtest/palette.json`, 'utf8')).ramps;
   const refs = Object.fromEntries(REF_FACINGS.map((f) => [f, loadReference(f)]));
   const items = [];
@@ -181,13 +182,13 @@ export function buildCalibrationItems({ spec = loadSpec(), t1Dir = null } = {}) 
     for (const o of others) add({ id: `${t}<-${o}`, group: 'fail-near', target: t, facing: t, cand: asCand[o].img, labels: asCand[o].labels, note: `adjacent facing ${o} as candidate for ${t}` });
   // round 8 (PA-CM-01) and rig v2
   for (const [file, t] of [['down', 's'], ['up', 'n'], ['up-right', 'ne']]) {
-    const p = `${R8}/${file}.png`;
-    if (existsSync(p)) add({ id: `${t}<-round8-${file}`, group: 'fail-near', target: t, facing: t, cand: readPng(p), note: `round 8 ${file} (the PA-CM-01 miss: graders passed it, Mark said not close)` });
+    const p = `${round8Dir}/${file}.png`;
+    if (!existsSync(p)) throw new Error(`round 8 fixture missing: ${p}`);
+    add({ id: `${t}<-round8-${file}`, group: 'fail-near', target: t, facing: t, cand: readPng(p), note: `round 8 ${file} (the PA-CM-01 miss: graders passed it, Mark said not close)` });
   }
-  if (existsSync(RIG_FIELD)) {
-    add({ id: 's<-rig-down', group: 'fail-near', target: 's', facing: 's', cand: rigFacing('down'), note: 'rig v2 down' });
-    add({ id: 'n<-rig-up', group: 'fail-near', target: 'n', facing: 'n', cand: rigFacing('up'), note: 'rig v2 up' });
-  }
+  if (!existsSync(RIG_FIELD)) throw new Error(`rig v2 field.json missing: ${RIG_FIELD}`);
+  add({ id: 's<-rig-down', group: 'fail-near', target: 's', facing: 's', cand: rigFacing('down'), note: 'rig v2 down' });
+  add({ id: 'n<-rig-up', group: 'fail-near', target: 'n', facing: 'n', cand: rigFacing('up'), note: 'rig v2 up' });
 
   // fail-far
   const hex0 = sheetFrame('hex-overworld-walk', 0);
@@ -391,7 +392,7 @@ export function formatReport(res, gates, { date = new Date().toISOString().slice
   const sf = (rows) => rows.filter((r) => r.group === 'fail-near' || r.group === 'fail-far');
   L.push('', `With the plan's lines, the hard lines together fail ${caught} of ${failItems} should-fail items and also fail ${sp(res.lineRows).filter((r) => !r.pass).length} of ${sp(res.lineRows).length} should-pass items. With the proposed re-set applied they fail ${sf(res.lineRowsReset).filter((r) => !r.pass).length} of ${sf(res.lineRowsReset).length} should-fail items and ${sp(res.lineRowsReset).filter((r) => !r.pass).length} of ${sp(res.lineRowsReset).length} should-pass items.`, '');
   const stillFail = sp(res.lineRowsReset).filter((r) => !r.pass);
-  if (stillFail.length) L.push('Should-pass items that still fail a line after the re-set: ' + stillFail.map((r) => `${r.id} (${r.failed.join('; ')})`).join(', '), '');
+  if (stillFail.length) L.push(`Should-pass items that still fail a line after the re-set: ${stillFail.map((r) => `${r.id} (${r.failed.join('; ')})`).join(', ')}`, '');
   L.push('', '### Numeric hard lines: limit, worst should-pass value, and the re-set that keeps every should-pass item', '', 'The re-set values are in gates.json (hardLines.reset). They apply only when hardLines.useReset is true. The orphan and small-region lines (1.25x) are lines of the spike exit criteria, so re-setting them is for Mark.', '', '| Line | Limit | Should-pass items over the limit | Worst should-pass (item) | Best should-fail (item) | Proposed re-set | Should-fail items still caught |', '|---|---|---|---|---|---|---|');
   for (const m of res.metricRows)
     L.push(`| ${m.name} | ${m.dir === 'min' ? 'at least' : 'at most'} ${f2(m.limit)} | ${m.passBreaking} of ${m.passTotal} | ${f2(m.worstPass.v)} (${m.worstPass.id}) | ${m.bestFail ? `${f2(m.bestFail.v)} (${m.bestFail.id})` : 'n/a'} | ${m.proposed === null ? 'none needed' : f2(m.proposed)} | ${m.failCaughtAfterReset === null ? 'n/a' : `${m.failCaughtAfterReset} of ${m.failTotal}`} |`);
@@ -421,7 +422,7 @@ export function writeGates(res, gates, { date = new Date().toISOString().slice(0
   g.hardLines.reset = res.reset;
   g.hardLines.useReset = g.hardLines.useReset ?? false;
   g.calibratedOn = date;
-  g.calibration = { gating: res.gating, gatingCount: res.gating.length, passLine: g.passMeasures, markGates: res.markGates, walkScope: 'all', items: Object.fromEntries(['pass-near', 'pass-real', 'fail-near', 'fail-far', 'info'].map((k) => [k, res.rows.filter((r) => r.group === k).length])) };
+  g.calibration = { gating: res.gating, passLine: g.passMeasures, walkScope: 'all', items: Object.fromEntries(['pass-near', 'pass-real', 'fail-near', 'fail-far', 'info'].map((k) => [k, res.rows.filter((r) => r.group === k).length])) };
   writeFileSync(path, `${JSON.stringify(g, null, 2)}\n`);
   return g;
 }

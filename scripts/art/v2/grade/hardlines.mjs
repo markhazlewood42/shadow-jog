@@ -158,6 +158,7 @@ export function checkHardLines(candRaw, opts = {}) {
     refColors: spec.palette,
     katana: t.katanaColors,
     facing: true,
+    boxWidthReport: true, // C5: the box width against the given is a report line, not a gate
     setColors,
   });
   for (const it of lint) {

@@ -4,9 +4,9 @@
 //
 //   ST-GUIDE   PA-22 / R2 T2: head top, eye row, shoulder, hip and foot rows within 1 px of the given
 //   ST-EYES    PA-19 / R2 T5, T8: the eye clusters (lens glints): count per facing, one row, 1 to 2 px wide
-//   ST-HANDS   PA-20: each hand is a distinct cluster of at least 2 px; the 3 px upper bound is a report line (see facing-checks.json)
+//   ST-HANDS   PA-20: each hand is a distinct cluster of at least 2 px and at most hands.maxCells (the walk maximum plus a quarter); the 3 px of PA-20 is a report line
 //   ST-ITEM    PA-20 / R2 T9: the item has its own outline (its edge cells are near-black)
-//   ST-LIT     R2 T10 / PA-23: lit-minus-shadow luma on hair, torso and legs has the same sign as at se (sw and nw)
+//   ST-LIT     R2 T10 / PA-23: lit-minus-shadow luma on hair and torso has the same sign as at se (sw and nw); legs are a report line
 //   ST-SIDE    R2 T2: e and w guide rows against the battle idle (head top, first skin row, leg split, foot row), not row widths
 // The Amendment 1 rows (height, bottom row, head alone, shoulder, hip), HL-FACE and HL-DISTINCT are in hardlines.mjs and join this tier by id.
 import { readFileSync } from 'node:fs';
@@ -132,7 +132,7 @@ export function litMinusShadow(img, labels, group) {
   return r === null || l === null ? null : r - l;
 }
 
-/** The side guide rows of a figure, as fractions of its height (0 = head top, 1 = foot row): head top, first skin row, leg split, foot. */
+/** The side guide rows of a figure, in canvas rows: head top, first skin row, leg split row and foot row. */
 export function sideGuide(img) {
   const b = bboxOf(img);
   if (!b) return null;
@@ -143,33 +143,52 @@ export function sideGuide(img) {
   };
   let skin = null;
   for (let y = b.y0; y <= b.y1 && skin === null; y++)
-    for (let x = 0; x < img.w; x++) if (opaqueAt(img, x, y) && classAt(img, x, y) === 'skin') {
-      skin = y;
-      break;
-    }
+    for (let x = 0; x < img.w; x++)
+      if (opaqueAt(img, x, y) && classAt(img, x, y) === 'skin') {
+        skin = y;
+        break;
+      }
   // Leg split: scanning up from the foot row, the highest row of the lowest stretch of rows that hold two or more runs.
   let split = null;
   for (let y = b.y1; y >= b.y0 + Math.floor(b.h / 2); y--) {
     if (rowRuns(y) >= 2) split = y;
     else if (split !== null) break;
   }
-  const f = (y) => (y === null ? null : (y - b.y0) / (b.h - 1));
-  return { headTop: 0, skin: f(skin), split: f(split), foot: 1, h: b.h };
+  return { headTop: b.y0, skin, split, foot: b.y1, h: b.h };
 }
 
-let idleCache = null;
-/** The side guide of the battle idle over its 8 frames: per metric the min and max fraction. */
-export function idleSideGuide() {
-  if (idleCache) return idleCache;
+const idleCache = new Map();
+/**
+ * The side guide rows of the battle idle over its 8 frames, on the 32 px canvas: per row the min and max.
+ * The idle is a bigger sprite (79 by 68). Its whole bounce envelope (the highest top row to the lowest foot row over the frames) is put on the
+ * canvas between the given's top row and the given's foot row, so every frame's head top, skin row, leg split row and foot row are measured
+ * canvas rows, not fractions of the frame's own box (which would fix head top at 0 and foot at 1).
+ * given: { top, bottom } rows of the given figure on the canvas.
+ */
+export function idleSideGuide(given) {
+  const key = `${given.top},${given.bottom}`;
+  if (idleCache.has(key)) return idleCache.get(key);
   const frames = loadIdleFrames();
   if (!frames) return null;
   const per = frames.map((f) => sideGuide({ w: f.w, h: f.h, data: f.data }));
+  const ext0 = Math.min(...per.map((p) => p.headTop));
+  const ext1 = Math.max(...per.map((p) => p.foot));
+  const scale = (given.bottom - given.top) / (ext1 - ext0);
+  const onCanvas = (y) => given.top + (y - ext0) * scale;
   const range = (k) => {
-    const v = per.map((p) => p[k]).filter((x) => x !== null);
+    const v = per.map((p) => p[k]).filter((x) => x !== null).map(onCanvas);
     return v.length ? { min: Math.min(...v), max: Math.max(...v), n: v.length } : null;
   };
-  idleCache = { skin: range('skin'), split: range('split'), frames: per.length };
-  return idleCache;
+  const out = { headTop: range('headTop'), skin: range('skin'), split: range('split'), foot: range('foot'), frames: per.length };
+  idleCache.set(key, out);
+  return out;
+}
+
+/** The largest hand cluster over a list of frames, and the gate taken from it: that size plus a quarter of it, rounded up (facing-checks.json hands.maxCells). */
+export function handBound(frames) {
+  const sizes = frames.flatMap((fr) => handClusters(fr, autoLabel(fr)).map((h) => h.size));
+  const max = Math.max(...sizes);
+  return { max, bound: max + Math.ceil(0.25 * max) };
 }
 
 const sign = (v) => (v > 0 ? 1 : v < 0 ? -1 : 0);
@@ -233,9 +252,11 @@ export function structureLines(img, { facing, spec, labels = null, checks = load
     const far = h.farHandMin.facings.includes(facing);
     const small = sorted.filter((x, i) => x.size < (far && i === 0 ? h.farHandMin.value : h.minCells));
     if (small.length) why.push(`${small.length} hand cluster(s) too small (${small.map((x) => `${x.size}px`).join(', ')}; needs ${h.minCells}${far ? `, the far hand ${h.farHandMin.value}` : ''})`);
-    out.push(item('ST-HANDS', `each hand is a distinct cluster of at least ${h.minCells} px`, why.length ? 'fail' : 'pass', hs.map((x) => `${x.size}px`).join(', ') || 'none', why.join('; ') || h.rule));
-    const big = hs.filter((x) => x.size > h.maxCells);
-    out.push(item('ST-HANDS-MAX', `hand clusters of at most ${h.maxCells} px (the pack's 2 to 3 px; a report line)`, 'info', big.length ? `${big.length} over` : 'ok', h.maxNote));
+    const huge = hs.filter((x) => x.size > h.maxCells);
+    if (huge.length) why.push(`${huge.length} hand cluster(s) too large (${huge.map((x) => `${x.size}px`).join(', ')}; allows ${h.maxCells}, a mitten hand)`);
+    out.push(item('ST-HANDS', `each hand is a distinct cluster of ${h.minCells} to ${h.maxCells} px`, why.length ? 'fail' : 'pass', hs.map((x) => `${x.size}px`).join(', ') || 'none', why.join('; ') || h.rule));
+    const big = hs.filter((x) => x.size > h.reportCells);
+    out.push(item('ST-HANDS-MAX', `hand clusters of at most ${h.reportCells} px (the pack's 2 to 3 px; a report line)`, 'info', big.length ? `${big.length} over` : 'ok', h.maxNote));
   }
 
   // ST-ITEM (PA-20, R2 T9).
@@ -264,19 +285,20 @@ export function structureLines(img, { facing, spec, labels = null, checks = load
       return `${grp} ${v === null ? 'n/a' : v.toFixed(1)} (se ${ref === null ? 'n/a' : ref.toFixed(1)})`;
     });
     out.push(item('ST-LIT-REPORT', 'lit-minus-shadow luma of the report groups (legs change sign with the pose)', 'info', rep.join(', ')));
-    out.push(item('ST-LIT', 'lit-minus-shadow luma has the same sign as at se (hair, torso, legs)', !vals.length ? 'skipped' : why.length ? 'fail' : 'pass', vals.join(', ') || 'no part', why.join('; ') || ls.rule));
+    out.push(item('ST-LIT', `lit-minus-shadow luma has the same sign as at se (${ls.groups.join(' and ')}; ${ls.reportGroups.join(', ')} report only)`, !vals.length ? 'skipped' : why.length ? 'fail' : 'pass', vals.join(', ') || 'no part', why.join('; ') || ls.rule));
   }
 
-  // ST-SIDE: e and w guide rows against the battle idle.
+  // ST-SIDE: e and w guide rows (head top, first skin row, leg split, foot) against the battle idle, in canvas rows.
   if (checks.sideGuide.facings.includes(facing)) {
     const sg = checks.sideGuide;
-    const id = idle === undefined ? idleSideGuide() : idle;
+    const gb = bboxOf(spec.given);
+    const id = idle === undefined ? idleSideGuide({ top: gb.y0, bottom: gb.y1 }) : idle;
     const cand = sideGuide(img);
-    if (!id || !cand) out.push(item('ST-SIDE', 'e and w guide rows against the battle idle', 'skipped', 'no idle sheet or empty image'));
+    if (!id || !cand) out.push(item('ST-SIDE', 'e and w guide rows against the battle idle', 'fail', 'not measured', 'no idle sheet or empty image: the line cannot run'));
     else {
       const why = [];
       const rows = [];
-      for (const k of ['skin', 'split']) {
+      for (const k of ['headTop', 'skin', 'split', 'foot']) {
         const r = id[k];
         const v = cand[k];
         if (!r) continue;
@@ -284,14 +306,11 @@ export function structureLines(img, { facing, spec, labels = null, checks = load
           why.push(`${k} row missing`);
           continue;
         }
-        const lo = (r.min * (cand.h - 1)) - sg.rowTol.value;
-        const hi = (r.max * (cand.h - 1)) + sg.rowTol.value;
-        const y = v * (cand.h - 1);
-        rows.push(`${k} ${y.toFixed(0)} (idle ${(r.min * (cand.h - 1)).toFixed(1)} to ${(r.max * (cand.h - 1)).toFixed(1)})`);
-        if (y < lo - 1e-9 || y > hi + 1e-9) why.push(`${k} row ${y.toFixed(0)} is outside ${lo.toFixed(1)} to ${hi.toFixed(1)}`);
+        const lo = r.min - sg.rowTol.value;
+        const hi = r.max + sg.rowTol.value;
+        rows.push(`${k} ${v} (idle ${r.min.toFixed(1)} to ${r.max.toFixed(1)})`);
+        if (v < lo - 1e-9 || v > hi + 1e-9) why.push(`${k} row ${v} is outside ${lo.toFixed(1)} to ${hi.toFixed(1)}`);
       }
-      const gh = bboxOf(spec.given)?.h ?? cand.h;
-      if (Math.abs(cand.h - gh) > checks.rowTol.value) why.push(`height ${cand.h} against ${gh} (R2 T2: same total height)`);
       out.push(item('ST-SIDE', `e and w guide rows (head top, first skin row, leg split, foot) against the battle idle, within ${sg.rowTol.value} px of its bounce range`, why.length ? 'fail' : 'pass', rows.join(', '), why.join('; ') || sg.rowTol.rule));
     }
   }

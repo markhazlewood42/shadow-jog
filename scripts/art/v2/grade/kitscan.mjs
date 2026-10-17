@@ -168,7 +168,10 @@ const patchCache = new WeakMap();
 function usablePatches(img, minOpaque, minColors) {
   const key = `${minOpaque}|${minColors}`;
   let per = patchCache.get(img);
-  if (!per) patchCache.set(img, (per = new Map()));
+  if (!per) {
+    per = new Map();
+    patchCache.set(img, per);
+  }
   let list = per.get(key);
   if (!list) {
     list = [];

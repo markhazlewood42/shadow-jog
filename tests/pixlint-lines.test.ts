@@ -90,6 +90,10 @@ describe('pixlint hard lines (just inside passes, just past fails)', () => {
     for (const [w, want] of [[16, 'pass'], [8, 'pass'], [17, 'fail'], [7, 'fail']] as const) expect(status(run(box(4, 11, w, 20)), 'PA-06', 'box width')).toBe(want);
   });
 
+  it('PA-06: with boxWidthReport the box width is a report line (info) and never fails (the v2 grade sets it)', () => {
+    for (const w of [7, 8, 16, 17]) expect(status(run(box(4, 11, w, 20), { boxWidthReport: true }), 'PA-06', 'box width')).toBe('info');
+  });
+
   it('PA-06: the sprite must fit inside its cell', () => {
     expect(status(run(box(0, 0, 32, 32)), 'PA-06', 'sprite inside')).toBe('pass');
     expect(status(run(newImage(32, 32)), 'PA-06', 'sprite inside')).toBe('fail');

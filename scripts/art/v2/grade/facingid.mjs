@@ -6,8 +6,10 @@
 // A task item is one picture: the given on the left and one candidate on the right, both at 8x, on a gray ground. The grader names the facing
 // of the right picture from 8 options. The option letters are shuffled per item (fixed seed), so the position of the answer says nothing.
 // The task folder holds only the pictures and the prompt. The key (the right answer per item and the letter map) goes to a separate folder,
-// grader side. A calibration set of 10 items must score 9 of 10 before the grader's facing-ID verdicts count.
+// grader side (out and key must be two separate folders, neither inside the other). A calibration set of 10 items must score 9 of 10 before the
+// grader's facing-ID verdicts count. A candidate task (C6 round 1: 2 items) needs every item right: the pass need is a parameter of the task.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { isAbsolute, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { newImage, readPng, writePng } from '../../pixkit/png.mjs';
 import { candidateFromRef } from './calibrate.mjs';
@@ -27,6 +29,7 @@ export const FACINGS = [
   { id: 'sw', name: 'down-left' },
 ];
 export const FACING_IDS = FACINGS.map((f) => f.id);
+/** The pass need of the calibration set only (9 of 10). A candidate task needs all of its items right. */
 export const PASS_NEED = 9;
 export const SCALE = 8;
 const GAP = 16;
@@ -79,11 +82,23 @@ export function promptText(items) {
   return `${L.join('\n')}`;
 }
 
+/** True when a and b are the same folder, or one is inside the other. */
+export function foldersOverlap(a, b) {
+  const rel = (from, to) => {
+    const r = relative(resolve(from), resolve(to));
+    return r === '' || (!r.startsWith('..') && !isAbsolute(r));
+  };
+  return rel(a, b) || rel(b, a);
+}
+
 /**
  * Build the task. items: [{ id, cand (Img), facing (the right answer) }].
  * Writes <out>/item-NN.png and <out>/prompt.txt, and <key>/key.json (grader side). Returns { items, key }.
+ * passNeed: how many items the grader must get right. The default is every item (a candidate task, C6: 2 of 2). The calibration set passes PASS_NEED (9 of 10).
+ * Throws when out and key are the same folder or one is inside the other: the key would sit in the task folder.
  */
-export function buildFacingIdTask(items, { out, key, given = loadSpec().given, seed = 20261017 } = {}) {
+export function buildFacingIdTask(items, { out, key, given = loadSpec().given, seed = 20261017, passNeed = items.length } = {}) {
+  if (foldersOverlap(out, key)) throw new Error(`out and key must be separate folders, neither inside the other (out ${out}, key ${key}): the key is grader side`);
   const rnd = mulberry32(seed);
   mkdirSync(out, { recursive: true });
   mkdirSync(key, { recursive: true });
@@ -109,7 +124,7 @@ export function buildFacingIdTask(items, { out, key, given = loadSpec().given, s
     keyItems[id] = { facing: it.facing, correct: Object.entries(letters).find(([, f]) => f === it.facing)[0], letters, source: it.source ?? null };
   });
   writeFileSync(`${out}/prompt.txt`, promptText(built));
-  const keyDoc = { note: 'Grader-side answer key. Keep it out of the task folder and out of every grader prompt.', passNeed: PASS_NEED, seed, items: keyItems };
+  const keyDoc = { note: 'Grader-side answer key. Keep it out of the task folder and out of every grader prompt.', passNeed, seed, items: keyItems };
   writeFileSync(`${key}/key.json`, `${JSON.stringify(keyDoc, null, 2)}\n`);
   return { items: built, key: keyDoc };
 }
@@ -129,14 +144,20 @@ export function calibrationItems(spec = loadSpec()) {
   return items;
 }
 
+/** The calibration task: the 10 calibration items, pass need 9 (the only task where 9 applies). */
+export function buildCalibrationTask({ out, key, given, seed } = {}) {
+  return buildFacingIdTask(calibrationItems(), { out, key, given, seed, passNeed: PASS_NEED });
+}
+
 const NAME_TO_ID = Object.fromEntries(FACINGS.flatMap((f) => [[f.id, f.id], [f.name.toLowerCase(), f.id], [f.name.split(' (')[0].toLowerCase(), f.id]]));
 
 /**
  * Score the answers of one blind grader. answers: { 'item-01': 'C', ... } (a letter, or a facing id or name). key: the key.json document.
+ * The pass need is key.passNeed (9 for the calibration set, every item for a candidate task); opts.need overrides it. With no need in either, every item must be right.
  * Returns { correct, total, pass, need, items: [{ id, answer, facing, picked, ok }] }. A missing or unreadable answer is wrong.
  */
-export function scoreFacingId(answers, key) {
-  const need = key.passNeed ?? PASS_NEED;
+export function scoreFacingId(answers, key, { need: needOpt = null } = {}) {
+  const need = needOpt ?? key.passNeed ?? Object.keys(key.items).length;
   const rows = Object.entries(key.items).map(([id, k]) => {
     const raw = answers[id];
     const text = typeof raw === 'string' ? raw.trim() : '';
@@ -159,9 +180,8 @@ function main() {
       const out = opt('--out');
       const key = opt('--key');
       if (!out || !key) throw new Error('build needs --out <taskDir> and --key <keyDir> (a different folder: the key is grader side)');
-      let items;
-      if (a.includes('--calibration')) items = calibrationItems();
-      else {
+      let items = null;
+      if (!a.includes('--calibration')) {
         items = all('--cand').map((s) => {
           const [facing, path] = s.split('=');
           if (!FACING_IDS.includes(facing)) throw new Error(`--cand needs <facing>=<png> with a facing of ${FACING_IDS.join(', ')}`);
@@ -169,7 +189,7 @@ function main() {
         });
         if (!items.length) throw new Error('build needs --calibration or at least one --cand <facing>=<png>');
       }
-      const r = buildFacingIdTask(items, { out, key });
+      const r = items ? buildFacingIdTask(items, { out, key }) : buildCalibrationTask({ out, key });
       console.log(`${r.items.length} items written to ${out}; key written to ${key}/key.json`);
     } else if (cmd === 'score') {
       const key = JSON.parse(readFileSync(opt('--key'), 'utf8'));

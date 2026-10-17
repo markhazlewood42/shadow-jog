@@ -5,9 +5,10 @@
 // should fail   round 8 (4 facings), rig v2 (4 facings), an egg-shaped blob, the given with each part flattened to its mean color,
 //               the given with 10 percent random speckle (fixed seed)
 // For every line: worst pass, best fail, how many fail items it catches, and whether it gates. A line gates when it passes all 8 walk frames
-// and catches at least one should-fail item (it separates something). The lines of the spike's GO list are pinned: they stay on even when no
-// should-fail item breaks them. If fewer than 3 lines gate by separation, the verdict says "Mark gates style by eye".
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+// and catches at least one should-fail item (it separates something: basis "separates"). The lines of the spike's GO list are pinned: they stay on
+// even when no should-fail item breaks them (basis "go-hard-line"). Only the separating lines count toward the "at least 3" rule. If fewer than 3
+// lines separate, the verdict says "Mark gates style by eye". Round 8 comes from tests/fixtures/art-v2/round8/: a missing file throws.
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { readPng } from '../../pixkit/png.mjs';
@@ -16,13 +17,12 @@ import { pack } from './color.mjs';
 import { GATES_PATH, loadGates, loadSpec } from './hardlines.mjs';
 import { N, cloneImg, nearestPacked, opaqueAt, packedAt, packedList, setPixel } from './image.mjs';
 import { GROUP_NAMES, autoLabel } from './parts.mjs';
-import { blobImage, rigFacing } from './calibrate.mjs';
+import { ROUND8_DIR, blobImage, rigFacing } from './calibrate.mjs';
 import { groupDensity } from './flat.mjs';
 import { LINE_META, STYLE_LINE_IDS, linePasses, styleValues } from './style.mjs';
 
 /** The group floor of the spec (consult C2 C5: a group of 20 or more cells). */
 export const SPEC_MIN_CELLS = 20;
-const R8 = 'C:/Users/markh/AppData/Local/Temp/rook-step3/round-8/facings';
 const RIG_FIELD_FACINGS = ['down', 'right', 'up', 'left'];
 
 function mulberry32(seed) {
@@ -84,13 +84,14 @@ export function speckle(img, palette, { share = 0.1, seed = 20261017 } = {}) {
 }
 
 /** The calibration items: { id, group: 'pass' | 'fail', kind, cand, labels }. labels null means the automatic labeler (every item, so the labeler class is the same). */
-export function buildStyleItems(spec = loadSpec()) {
+export function buildStyleItems(spec = loadSpec(), { round8Dir = ROUND8_DIR } = {}) {
   const items = [];
   const add = (it) => items.push({ labels: null, rampLabels: null, ...it });
-  loadWalkFrames().forEach((fr, k) => add({ id: `walk${k}`, group: 'pass', kind: 'walk frame', cand: fr, rampLabels: autoLabel(fr) }));
+  for (const [k, fr] of loadWalkFrames().entries()) add({ id: `walk${k}`, group: 'pass', kind: 'walk frame', cand: fr, rampLabels: autoLabel(fr) });
   for (const f of ['down', 'right', 'up', 'up-right']) {
-    const p = `${R8}/${f}.png`;
-    if (existsSync(p)) add({ id: `round8-${f}`, group: 'fail', kind: 'round 8', cand: readPng(p), rampLabels: 'auto' });
+    const p = `${round8Dir}/${f}.png`;
+    if (!existsSync(p)) throw new Error(`round 8 fixture missing: ${p} (the should-fail set needs all 4 round 8 facings)`);
+    add({ id: `round8-${f}`, group: 'fail', kind: 'round 8', cand: readPng(p), rampLabels: 'auto' });
   }
   for (const f of RIG_FIELD_FACINGS) add({ id: `rig-${f}`, group: 'fail', kind: 'rig v2', cand: rigFacing(f), rampLabels: 'auto' });
   add({ id: 'blob', group: 'fail', kind: 'blob', cand: blobImage(spec), rampLabels: 'auto' });
@@ -119,13 +120,11 @@ export function densityBands(walkDens, minCells, pad) {
  * opts.minCells    the group floor of the flattening and band lines (spec: 20; re-set when a walk frame fails it)
  * opts.pad         how far the walk band widens (a fraction of its edge)
  */
-export function runStyleCalibration({ spec = loadSpec(), gates = loadGates(), minCells = null, pad = 0.1, log = () => {} } = {}) {
+export function runStyleCalibration({ spec = loadSpec(), minCells = null, pad = 0.1, log = () => {} } = {}) {
   const items = buildStyleItems(spec);
   const startMin = SPEC_MIN_CELLS; // the spec value (C5), not the stored one, so a re-run shows the same re-set
   const walk = items.filter((i) => i.group === 'pass');
-  const walkLabels = walk.map((i) => autoLabel(i.cand));
-  const walkDensAt = (n) => walk.map((i, k) => groupDensity(i.cand, walkLabels[k]));
-  const walkDens = walkDensAt(startMin);
+  const walkDens = walk.map((i) => groupDensity(i.cand, autoLabel(i.cand)));
 
   // Floor of the group size: the spec value, or the smallest value (steps of 5) at which every walk frame passes the flattening line at its start ratio.
   const raw = (floor, bands) => items.map((it) => ({ ...it, ...styleValues(it.cand, { spec, labels: it.labels, template: false, flatMinCells: floor, bands, rampLabels: it.rampLabels === 'auto' ? autoLabel(it.cand) : it.rampLabels }) }));
@@ -147,7 +146,7 @@ export function runStyleCalibration({ spec = loadSpec(), gates = loadGates(), mi
   }
   bands = densityBands(walkDens, floor, pad);
   rows = raw(floor, bands);
-  rows.forEach((r) => log(`${r.group.padEnd(5)} ${r.id.padEnd(18)} ${STYLE_LINE_IDS.map((id) => `${id.slice(2, 8)}=${r.values[id] === null ? '-' : Number(r.values[id]).toFixed(2)}`).join(' ')}`));
+  for (const r of rows) log(`${r.group.padEnd(5)} ${r.id.padEnd(18)} ${STYLE_LINE_IDS.map((id) => `${id.slice(2, 8)}=${r.values[id] === null ? '-' : Number(r.values[id]).toFixed(2)}`).join(' ')}`);
 
   // Place every line.
   const lines = {};
@@ -187,7 +186,10 @@ export function runStyleCalibration({ spec = loadSpec(), gates = loadGates(), mi
     const ran = passVals.length > 0;
     const separates = ran && walkPass && caught.length > 0;
     const role = separates || (meta.pinned && ran) ? 'gate' : 'report';
-    lines[id] = { ...line, role, separates, pinned: Boolean(meta.pinned), worstPass: typeof worstPass === 'object' ? worstPass : r4(worstPass), bestFail: typeof bestFail === 'object' ? bestFail : r4(bestFail), caught: caught.map((r) => r.id), passedFail: failPass.map((r) => r.id), reset, ran };
+    // basis: why the line gates. "separates" counts toward the at-least-3 rule; "go-hard-line" (a pinned line of the spike GO list that catches
+    // nothing in this population) gates but does not count.
+    const basis = separates ? 'separates' : role === 'gate' ? 'go-hard-line' : null;
+    lines[id] = { ...line, role, basis, separates, pinned: Boolean(meta.pinned), worstPass: typeof worstPass === 'object' ? worstPass : r4(worstPass), bestFail: typeof bestFail === 'object' ? bestFail : r4(bestFail), caught: caught.map((r) => r.id), passedFail: failPass.map((r) => r.id), reset, ran };
     table.push({ id, name: meta.name, dir: meta.dir, ...lines[id], failTotal: failRows.length, rule: meta.rule });
   }
   const separating = table.filter((t) => t.separates).map((t) => t.id);
@@ -207,7 +209,7 @@ export function formatStyleReport(res, { date = new Date().toISOString().slice(0
   L.push('| Line | Rule | Limit | Worst walk pass | Best should-fail | Catches | Gate |', '|---|---|---|---|---|---|---|');
   for (const t of res.table) {
     const limit = t.dir === 'band' ? `${t.lo} to ${t.hi}` : `${t.dir === 'min' ? 'at least' : 'at most'} ${f3(t.limit)}${t.reset ? ` (re-set from ${t.reset.from})` : ''}`;
-    L.push(`| ${t.id} ${t.name} | ${t.rule} | ${limit} | ${f3(t.worstPass)} | ${f3(t.bestFail)} | ${t.caught.length} of ${t.failTotal} | ${t.role === 'gate' ? (t.separates ? 'gate' : 'gate (pinned)') : 'report'} |`);
+    L.push(`| ${t.id} ${t.name} | ${t.rule} | ${limit} | ${f3(t.worstPass)} | ${f3(t.bestFail)} | ${t.caught.length} of ${t.failTotal} | ${t.role === 'gate' ? `gate: ${t.basis}` : 'report'} |`);
   }
   L.push('', `Should-fail items caught by the gating lines: ${Object.entries(res.caughtBy).map(([k, v]) => `${k} (${v.length})`).join(', ')}.`, res.uncaught.length ? `NOT caught by any gating line: ${res.uncaught.join(', ')}.` : 'Every should-fail item is caught by at least one gating line.', '');
   L.push('### Density band per part group (absolute density, from the walk frames)', '', '| Group | Low | High | Walk frames with the group |', '|---|---|---|---|');
@@ -229,7 +231,7 @@ export function formatStyleReport(res, { date = new Date().toISOString().slice(0
 export function writeStyleGates(res, gates, { date = new Date().toISOString().slice(0, 10), path = GATES_PATH } = {}) {
   const g = JSON.parse(JSON.stringify(gates));
   g.style = {
-    note: 'Style tier (consult C2 C4, Amendment 2). Written by `node scripts/art/v2/grade/style-calibrate.mjs --write-gates`. role gate = the line gates; separates = it passes all 8 walk frames and catches a should-fail item; pinned = a line of the spike GO list that stays on. The verdict says Mark gates style by eye when fewer than minGating lines separate.',
+    note: 'Style tier (consult C2 C4, Amendment 2). Written by `node scripts/art/v2/grade/style-calibrate.mjs --write-gates`. role gate = the line gates; basis separates = it passes all 8 walk frames and catches a should-fail item; basis go-hard-line = a pinned line of the spike GO list that stays on and catches nothing here (it gates but does not count toward minGating). The verdict says Mark gates style by eye when fewer than minGating lines separate.',
     calibratedOn: date,
     minGating: 3,
     flatMinCells: res.floor,
@@ -247,7 +249,7 @@ function main() {
   const a = process.argv.slice(2);
   const opt = (n, d = null) => (a.includes(n) ? a[a.indexOf(n) + 1] : d);
   const gates = loadGates();
-  const res = runStyleCalibration({ gates, log: a.includes('--verbose') ? console.log : () => {} });
+  const res = runStyleCalibration({ log: a.includes('--verbose') ? console.log : () => {} });
   const report = formatStyleReport(res);
   const out = opt('--out');
   if (out) {

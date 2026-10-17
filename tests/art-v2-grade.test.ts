@@ -12,7 +12,7 @@ import type { Img } from '../scripts/art/pixkit/index.mjs';
 import { newImage, readPng, writePng } from '../scripts/art/pixkit/index.mjs';
 import { blankedGiven, getBox } from '../scripts/art/pipeline/heldout/heldout.mjs';
 import { loadGiven, loadWalkFrames } from '../scripts/art/pipeline/index.mjs';
-import type { Gates, Labels, LineItem, Spec } from '../scripts/art/v2/grade/index.mjs';
+import type { FacingChecks, Gates, Labels, LineItem, Spec, StyleLineData } from '../scripts/art/v2/grade/index.mjs';
 import {
   N,
   REF_FACINGS,
@@ -76,6 +76,7 @@ import {
   bandingPairs,
   buildFacingIdTask,
   calibrationItems,
+  GROUP_OF_PART,
   eyeCells,
   flattenParts,
   flipLabels,
@@ -101,10 +102,20 @@ import {
   toGroups,
   valueStructure,
   writeGates,
+  FACING_CLASSES,
+  PASS_NEED,
+  ROUND8_DIR,
+  SWAP_FACINGS,
+  buildCalibrationTask,
+  buildStyleItems,
+  foldersOverlap,
+  formatSwapReport,
+  handBound,
+  swapRates,
 } from '../scripts/art/v2/grade/index.mjs';
 
 const GRADE_DIR = 'scripts/art/v2/grade';
-const hasRound8 = existsSync('C:/Users/markh/AppData/Local/Temp/rook-step3/round-8/facings/down.png');
+const FIXTURES = 'tests/fixtures/art-v2';
 let spec: Spec;
 let gates: Gates;
 const tmp = mkdtempSync(join(tmpdir(), 'art-v2-grade-'));
@@ -409,7 +420,7 @@ describe('hard-line checker', () => {
     mustFail(img, 'HL-FACE', undefined, { facing: 's' });
   });
   it('HL-FACE: ne and nw allow skin only on the near cheek edge (F4: the planted skin stays under the max, so only the edge rule can fail)', () => {
-    const rule = (gates.hardLines.faceSkin as unknown as Record<string, { max: number; edgeCols: number }>).ne as { max: number; edgeCols: number };
+    const rule = gates.hardLines.faceSkin.ne as { max: number; edgeCols: number };
     for (const facing of ['ne', 'nw']) {
       const cand = candidateFromRef(loadReference(facing), spec) as { img: Img; labels: (string | null)[] };
       const base = run(cand.img, { facing, labels: cand.labels });
@@ -541,7 +552,14 @@ describe('calibration set and runner', () => {
     expect(count('pass-real')).toBeGreaterThanOrEqual(7);
     expect(count('fail-near')).toBeGreaterThanOrEqual(13);
     expect(count('fail-far')).toBeGreaterThanOrEqual(15);
-    if (hasRound8) expect(res.rows.some((r) => r.id.includes('round8'))).toBe(true);
+    expect(res.rows.filter((r) => r.id.includes('round8')).length).toBe(3);
+  });
+  it('round 8 is a committed fixture: all four facings exist, and a missing file throws instead of dropping items', () => {
+    expect(ROUND8_DIR.replace(/\\/g, '/')).toMatch(/tests\/fixtures\/art-v2\/round8$/);
+    for (const f of ['down', 'right', 'up', 'up-right']) expect(existsSync(join(ROUND8_DIR, `${f}.png`)), f).toBe(true);
+    const nowhere = join(tmp, 'no-round8');
+    expect(() => buildCalibrationItems({ spec, round8Dir: nowhere })).toThrow(/round 8 fixture missing/);
+    expect(() => buildStyleItems(spec, { round8Dir: nowhere })).toThrow(/round 8 fixture missing/);
   });
   it('has a slot for T1 outputs: <facing>.png files in a folder join the realistic pass group', () => {
     const dir = join(tmp, 't1');
@@ -614,18 +632,19 @@ describe('calibration set and runner', () => {
       expect(t.gate).toBeLessThanOrEqual(hi);
     }
   });
-  it.skipIf(!hasRound8)('gates.json holds this calibration (the round 8 files are part of the set)', () => {
+  it('gates.json holds this calibration (the round 8 files are part of the set)', () => {
     expect(gates.calibratedOn).not.toBeNull();
     for (const t of res.table) {
-      const g = gates.targetMeasures[t.key] as unknown as { role: string; separates: boolean; calibrated: number | null };
+      const g = gates.targetMeasures[t.key] as NonNullable<(typeof gates.targetMeasures)[string]>;
       expect(g.role).toBe('report'); // Amendment 2 Q1: no reference measure gates
       expect(g.separates).toBe(t.separates);
       if (t.separates) expect(g.calibrated).toBeCloseTo(t.gate ?? 0, 3);
     }
     expect(gates.hardLines.distinctN).toBe(distinctCalibration(spec).n);
   });
-  it.skipIf(!hasRound8)('the hard lines catch the PA-CM-01 miss (the round 8 facings)', () => {
+  it('the hard lines catch the PA-CM-01 miss (the round 8 facings)', () => {
     const miss = res.lineRows.filter((r) => r.id.includes('round8'));
+    expect(miss.length).toBe(3);
     for (const r of miss) expect(r.pass).toBe(false);
   });
   it('writes gates in the same shape it read them', () => {
@@ -690,9 +709,15 @@ describe('grade command', () => {
       m.calibrated = m.start;
     }
     expect(grade(c.img, { facing: 's', labels: c.labels, spec, gates: strict }).pass).toBe(grade(c.img, { facing: 's', labels: c.labels, spec, gates }).pass);
-    // the given as a candidate for se passes the style and structure tiers, and its reference rows all meet their lines
+    // The given at se passes the style and structure tiers (a true verdict). Under impossible reference gates every reference row misses its line
+    // and the verdict must stay true: a verdict that required the reference rows would flip here (the s picture above already fails style, so it cannot show this).
     const v = grade(spec.given, { facing: 'se', labels: spec.givenLabels, spec, gates });
+    expect(v.style.pass && v.structure.pass).toBe(true);
     expect(v.pass).toBe(true);
+    const impossible = grade(spec.given, { facing: 'se', labels: spec.givenLabels, spec, gates: strict });
+    expect(impossible.reference.rows?.length).toBeGreaterThan(5);
+    expect(impossible.reference.rows?.every((r) => !r.pass)).toBe(true);
+    expect(impossible.pass).toBe(true);
   });
   it('an anchor is a report line: a worse anchor is beaten, a better one is not, and neither changes the verdict', () => {
     const c = candidateFromRef(loadReference('s'), spec);
@@ -731,6 +756,31 @@ describe('grade command', () => {
     expect(v.notes.join(' ')).toMatch(/Mark gates style by eye/);
     expect(formatVerdict(v)).toContain('MARK GATES STYLE BY EYE');
     expect(grade(c.img, { facing: 's', labels: c.labels, spec, gates }).styleByEye).toBe(gates.style.separating.length < gates.style.minGating);
+  });
+  it('N12: the verdict never prints a bare PASS when style is gated by eye', () => {
+    const real = grade(spec.given, { facing: 'se', labels: spec.givenLabels, spec, gates });
+    expect(real.pass).toBe(true);
+    expect(real.styleByEye).toBe(false);
+    expect(formatVerdict(real)).toMatch(/^facing se: PASS \(style /);
+    const few = JSON.parse(JSON.stringify(gates)) as Gates;
+    for (const l of Object.values(few.style.lines)) l.separates = false;
+    const eye = grade(spec.given, { facing: 'se', labels: spec.givenLabels, spec, gates: few });
+    expect(eye.pass).toBe(true);
+    expect(eye.styleByEye).toBe(true);
+    expect(formatVerdict(eye).split('\n')[0]).toMatch(/^facing se: PASS \(style by eye: Mark\) \(style /);
+    expect(formatVerdict(eye)).not.toMatch(/^facing se: PASS \(style (pass|FAIL)/);
+    const blob = grade(blobImage(spec), { facing: 's', spec, gates: few });
+    expect(formatVerdict(blob)).toMatch(/^facing s: FAIL/);
+  });
+  it('N12: gates.json carries no stale calibration fields, and the types and lint scope are clean', () => {
+    const cal = (gates as Record<string, unknown>).calibration as Record<string, unknown>;
+    expect(cal).not.toHaveProperty('markGates');
+    expect(cal).not.toHaveProperty('gatingCount');
+    expect(readFileSync(`${GRADE_DIR}/index.d.mts`, 'utf8')).not.toMatch(/:\s*any\b|<any>|\bany\[\]|as any/);
+    expect(readFileSync('tests/art-v2-grade.test.ts', 'utf8')).not.toContain('as unknown' + ' as');
+    const biome = JSON.parse(readFileSync('biome.json', 'utf8')) as { files: { includes: string[] } };
+    expect(biome.files.includes).toContain('scripts/art/v2/grade/**/*.mjs');
+    expect(biome.files.includes).toContain('scripts/art/v2/grade/**/*.mts');
   });
   it('the CLI exits 1 for a failing facing, 2 for a usage error, and reads a letter grid', () => {
     const png = join(tmp, 'blob.png');
@@ -911,8 +961,11 @@ describe('isolation of the grader files', () => {
         else files.push(p);
       }
     };
-    if (existsSync('scripts/art/v2/proxy')) walk('scripts/art/v2/proxy');
-    if (existsSync('tests/art-v2-proxy.test.ts')) files.push('tests/art-v2-proxy.test.ts');
+    expect(existsSync('scripts/art/v2/proxy'), 'the proxy folder must exist: this test cannot pass on an empty scan').toBe(true);
+    walk('scripts/art/v2/proxy');
+    expect(existsSync('tests/art-v2-proxy.test.ts')).toBe(true);
+    files.push('tests/art-v2-proxy.test.ts');
+    expect(files.length).toBeGreaterThan(3);
     for (const f of files) {
       expect(/\.labels\.json$|calibration\.md$|rook-8d-ref/i.test(f), f).toBe(false);
       if (/\.(mjs|ts|json|md|txt)$/.test(f)) expect(readFileSync(f, 'utf8'), f).not.toMatch(/rook-8d-ref|v2\/grade\/refs/);
@@ -929,8 +982,8 @@ describe('isolation of the grader files', () => {
 // ---------------------------------------------------------------------------------------------------------------------
 
 describe('style tier (C4): the given and the walk frames pass, and every line has a fail path', () => {
-  const sty = (img: Img, o: { labels?: Labels | null; template?: boolean } = {}) =>
-    styleTier(img, { spec, gates, labels: o.labels === undefined ? spec.givenLabels : o.labels, template: o.template ?? o.labels === undefined });
+  const sty = (img: Img, o: { labels?: Labels | null; template?: boolean; rampLabels?: Labels | null } = {}) =>
+    styleTier(img, { spec, gates, labels: o.labels === undefined ? spec.givenLabels : o.labels, template: o.template ?? o.labels === undefined, rampLabels: o.rampLabels ?? null });
   const row = (t: ReturnType<typeof styleTier>, id: string) => t.rows.find((r) => r.id === id);
   const mustFailLine = (img: Img, id: string, o: { labels?: Labels | null; template?: boolean } = {}) => {
     const t = sty(img, o);
@@ -944,14 +997,68 @@ describe('style tier (C4): the given and the walk frames pass, and every line ha
     expect(t.rows.filter((r) => r.status === 'fail').map((r) => r.id)).toEqual([]);
     expect(t.pass).toBe(true);
     for (const [k, fr] of loadWalkFramesForTest().entries()) {
-      const w = sty(fr, { labels: null, template: false });
+      // the walk frames carry no template, so their ramp lock runs on the automatic labeler (as the calibration does): S-RAMP is then measured
+      const w = sty(fr, { labels: null, template: false, rampLabels: autoLabel(fr) });
       expect(w.rows.filter((r) => r.status === 'fail').map((r) => `${r.id}`), `walk frame ${k}`).toEqual([]);
       expect(w.pass).toBe(true);
     }
   });
-  it('S-RAMP needs template labels: without them it is skipped, never passed', () => {
-    expect(row(sty(spec.given, { labels: null, template: false }), 'S-RAMP')?.status).toBe('skipped');
+  it('S-RAMP needs template labels: without them it is "not measured", never a pass, and a gating line that is not measured fails the tier', () => {
+    const t = sty(spec.given, { labels: null, template: false });
+    expect(row(t, 'S-RAMP')?.status).toBe('not measured');
+    expect(row(t, 'S-RAMP')?.role).toBe('gate');
+    expect(t.notMeasured).toEqual(['S-RAMP']);
+    expect(t.pass).toBe(false);
     expect(row(sty(spec.given), 'S-RAMP')?.status).toBe('pass');
+    // the verdict says so
+    const v = grade(spec.given, { facing: 'se', spec, gates });
+    expect(v.style.pass).toBe(false);
+    expect(v.pass).toBe(false);
+    expect(v.notes.join(' ')).toMatch(/Not measured: S-RAMP/);
+    expect(formatVerdict(v)).toContain('NOT MEASURED S-RAMP');
+    // a report-role line that is not measured does not fail the tier
+    const g = JSON.parse(JSON.stringify(gates)) as Gates;
+    (g.style.lines['S-RAMP'] as { role: string }).role = 'report';
+    const r = styleTier(spec.given, { spec, gates: g, labels: null, template: false });
+    expect(r.rows.find((x) => x.id === 'S-RAMP')?.status).toBe('not measured');
+    expect(r.pass).toBe(true);
+  });
+  it('S-FLAT-GROUP with no part group of the floor size is "not measured" and fails the tier (never a silent pass)', () => {
+    const g = JSON.parse(JSON.stringify(gates)) as Gates;
+    g.style.flatMinCells = 500;
+    const t = styleTier(spec.given, { spec, gates: g, labels: spec.givenLabels, template: true });
+    expect(row(t, 'S-FLAT-GROUP')?.status).toBe('not measured');
+    expect(t.notMeasured).toContain('S-FLAT-GROUP');
+    expect(t.pass).toBe(false);
+  });
+  it('N7: S-SMALL gates as a go-hard-line (the spike GO list), not as a separating line, and does not count toward the at-least-3 rule', () => {
+    const sm = gates.style.lines['S-SMALL'];
+    expect(sm?.role).toBe('gate');
+    expect(sm?.basis).toBe('go-hard-line');
+    expect(sm?.separates).toBe(false);
+    expect(gates.style.separating).not.toContain('S-SMALL');
+    const sepByBasis = Object.entries(gates.style.lines).filter(([, l]) => l.basis === 'separates').map(([k]) => k);
+    expect(sepByBasis.sort()).toEqual([...gates.style.separating].sort());
+    for (const [k, l] of Object.entries(gates.style.lines)) expect(l.role === 'gate' ? l.basis : null, k).toBe(l.role === 'gate' ? (l.separates ? 'separates' : 'go-hard-line') : null);
+    // Two separating lines plus the go-hard-line S-SMALL are still fewer than 3: Mark gates style by eye
+    const g = JSON.parse(JSON.stringify(gates)) as Gates;
+    let keep = 2;
+    for (const l of Object.values(g.style.lines)) {
+      if (l.separates && keep > 0) keep--;
+      else l.separates = false;
+    }
+    const t = styleTier(spec.given, { spec, gates: g, labels: spec.givenLabels, template: true });
+    expect(t.separating.length).toBe(2);
+    expect(t.gating).toContain('S-SMALL');
+    expect(t.markGatesByEye).toBe(true);
+    // with 3 separating lines it gates
+    keep = 3;
+    const g3 = JSON.parse(JSON.stringify(gates)) as Gates;
+    for (const l of Object.values(g3.style.lines)) {
+      if (l.separates && keep > 0) keep--;
+      else l.separates = false;
+    }
+    expect(styleTier(spec.given, { spec, gates: g3, labels: spec.givenLabels, template: true }).markGatesByEye).toBe(false);
   });
   it('S-PALETTE: an off-palette color, and a half-transparent cell, fail', () => {
     const a = clone(spec.given);
@@ -998,16 +1105,16 @@ describe('style tier (C4): the given and the walk frames pass, and every line ha
   it('S-SQUINT (PA-14): too few value clusters (a blob) and too many (heavy speckle) both fail', () => {
     mustFailLine(blobImage(spec), 'S-SQUINT', { labels: null, template: false });
     mustFailLine(speckle(spec.given, spec.palette, { share: 0.5 }), 'S-SQUINT');
-    const sq = gates.style.lines['S-SQUINT'];
+    const sq = gates.style.lines['S-SQUINT'] as Required<StyleLineData>;
     expect(squintClusters(spec.given)).toBeGreaterThanOrEqual(sq.lo);
     expect(squintClusters(spec.given)).toBeLessThanOrEqual(sq.hi);
   });
   it('S-RUNORDER (PA-15, R2 T12): stripes of two colors with aligned ends fail, and bandingPairs counts them', () => {
     const img = clone(spec.given);
     for (let y = 14; y < 22; y++) for (let x = 12; x < 22; x++) put(img, x, y, y % 2 ? '#6f7945' : '#61693c');
-    expect(bandingPairs(img)).toBeGreaterThan(gates.style.lines['S-RUNORDER'].limit);
+    expect(bandingPairs(img)).toBeGreaterThan((gates.style.lines['S-RUNORDER'] as Required<StyleLineData>).limit);
     mustFailLine(img, 'S-RUNORDER');
-    expect(bandingPairs(spec.given)).toBeLessThanOrEqual(gates.style.lines['S-RUNORDER'].limit);
+    expect(bandingPairs(spec.given)).toBeLessThanOrEqual((gates.style.lines['S-RUNORDER'] as Required<StyleLineData>).limit);
   });
   it('the shared palette across the set (PA-08) is a style line: a set that shares under 90 percent fails the tier', () => {
     const lone = newImage(32, 32);
@@ -1045,7 +1152,7 @@ describe('hard-line re-sets (C5, B4): every re-set line passes all 8 walk frames
     expect(t.given.orphans).toBeGreaterThan(0);
   });
   it('HL-FLAT runs per part group of flatMinCells or more cells and on the whole figure, and passes all 8 walk frames', () => {
-    expect(gates.style.flatMinCells).toBeGreaterThanOrEqual(20);
+    expect(gates.style.flatMinCells).toBe(25); // re-set from the spec's 20 by calibration (walk frame 0 is 0.780 at 20)
     for (const [k, fr] of loadWalkFramesForTest().entries()) {
       const res = checkHardLines(fr, { facing: 'se', spec, gates, name: `walk${k}` });
       expect(find(res.items, 'HL-FLAT')?.status, `walk ${k}`).toBe('pass');
@@ -1069,13 +1176,13 @@ describe('style calibration (B2): the walk frames pass, the right fail items are
   let cal: ReturnType<typeof runStyleCalibration>;
   const L = (id: string) => cal.lines[id] as NonNullable<(typeof cal.lines)[string]>;
   beforeAll(() => {
-    cal = runStyleCalibration({ spec, gates });
+    cal = runStyleCalibration({ spec });
   });
   it('the population: 8 walk frames pass; rig v2, a blob, flattened parts and speckle fail (and round 8 when its files exist)', () => {
     expect(cal.rows.filter((r) => r.group === 'pass').length).toBe(8);
     const failIds = cal.rows.filter((r) => r.group === 'fail').map((r) => r.id);
     for (const id of ['rig-down', 'rig-right', 'rig-up', 'rig-left', 'blob', 'given-flat-parts', 'given-speckle10']) expect(failIds).toContain(id);
-    if (hasRound8) expect(failIds.filter((i) => i.startsWith('round8-')).length).toBe(4);
+    expect(failIds.filter((i) => i.startsWith('round8-')).length).toBe(4);
   });
   it('every walk frame passes every line at its calibrated limit', () => {
     for (const r of cal.rows.filter((x) => x.group === 'pass'))
@@ -1094,6 +1201,11 @@ describe('style calibration (B2): the walk frames pass, the right fail items are
   it('at least 3 lines separate, so the style tier gates; the flag follows the count', () => {
     expect(cal.separating.length).toBeGreaterThanOrEqual(3);
     expect(cal.markGatesByEye).toBe(cal.separating.length < 3);
+    // S-SMALL gates as a go-hard-line: it is in the gating set, never in the separating set, so it does not count
+    expect(cal.gating).toContain('S-SMALL');
+    expect(cal.separating).not.toContain('S-SMALL');
+    expect(L('S-SMALL').basis).toBe('go-hard-line');
+    expect(cal.gating.length).toBe(cal.separating.length + 1);
   });
   it('every should-fail item is caught by at least one gating line', () => {
     expect(cal.uncaught).toEqual([]);
@@ -1104,7 +1216,9 @@ describe('style calibration (B2): the walk frames pass, the right fail items are
     expect(L('S-SMALL').limit).toBe(1.25);
     expect(L('S-FLAT-GROUP').limit).toBe(0.8);
     expect(L('S-FLAT-WHOLE').limit).toBe(0.8);
-    expect(cal.floor).toBeGreaterThanOrEqual(20);
+    expect(cal.floor).toBe(25);
+    expect(cal.floor).toBe(gates.style.flatMinCells);
+    expect(cal.floorReset).toEqual({ from: 20, to: 25 });
   });
   it('the density band comes from the walk frames: it holds the frames that have the group, and nothing else decides it', () => {
     for (const [g, b] of Object.entries(cal.bands)) {
@@ -1112,11 +1226,11 @@ describe('style calibration (B2): the walk frames pass, the right fail items are
       expect(b.frames, g).toBeGreaterThanOrEqual(2);
     }
   });
-  it.skipIf(!hasRound8)('gates.json holds this calibration (round 8 files are part of the set)', () => {
+  it('gates.json holds this calibration (round 8 files are part of the set)', () => {
     expect(gates.style.flatMinCells).toBe(cal.floor);
     for (const id of STYLE_LINE_IDS) {
       const want = L(id);
-      const have = gates.style.lines[id];
+      const have = gates.style.lines[id] as StyleLineData;
       expect(have.role, id).toBe(want.role);
       expect(have.separates, id).toBe(want.separates);
       if (want.limit !== undefined) expect(have.limit, id).toBeCloseTo(want.limit, 6);
@@ -1253,6 +1367,62 @@ describe('structure tier (B3): reference-free lines, each with a fail path', () 
     // the far hand may be partly hidden at a 3/4 back facing
     expect(st(lines(tiny, 'ne'), 'ST-HANDS')?.status).toBe('pass');
   });
+  it('ST-HANDS upper bound (N8, orchestrator re-set): the walk-frame maximum plus a quarter; a mitten hand fails, a walk-size hand passes', () => {
+    const h = loadFacingChecks().hands;
+    const walk = handBound(loadWalkFramesForTest());
+    expect(h.maxCells).toBe(walk.bound);
+    expect(walk.bound).toBe(walk.max + Math.ceil(0.25 * walk.max));
+    expect(walk.max).toBeGreaterThan(h.reportCells); // the pack's 3 px cannot gate this character: its own walk hands reach this size
+    for (const [k, fr] of loadWalkFramesForTest().entries()) expect(st(structureLines(fr, { facing: 'se', spec, labels: null }), 'ST-HANDS')?.status, `walk ${k}`).toBe('pass');
+    // a mitten: a 4 by 4 block of skin fused to the right hand, labeled as a hand
+    const cells: [number, number][] = [];
+    for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) if (spec.givenLabels[y * 32 + x] === 'hands' && colorClass(spec.given.data[(y * 32 + x) * 4] ?? 0, spec.given.data[(y * 32 + x) * 4 + 1] ?? 0, spec.given.data[(y * 32 + x) * 4 + 2] ?? 0) === 'skin') cells.push([x, y]);
+    const mid = (Math.min(...cells.map(([x]) => x)) + Math.max(...cells.map(([x]) => x))) / 2;
+    const right = cells.filter(([x]) => x > mid);
+    const x0 = Math.min(...right.map(([x]) => x));
+    const y0 = Math.min(...right.map(([, y]) => y));
+    const mitten = clone(spec.given);
+    const labels: Labels = [...spec.givenLabels];
+    for (let y = y0; y < y0 + 4; y++)
+      for (let x = x0; x < x0 + 4; x++) {
+        put(mitten, x, y, '#e4b086');
+        labels[y * 32 + x] = 'hands';
+      }
+    const r = st(lines(mitten, 's', labels), 'ST-HANDS');
+    expect(r?.status, r?.value).toBe('fail');
+    expect(r?.detail).toMatch(/too large/);
+    // the 3 px of PA-20 stays a report line, which counts the clusters over it
+    expect(st(lines(spec.given, 's'), 'ST-HANDS-MAX')?.status).toBe('info');
+  });
+  it('ST-ITEM (N4): the line is re-set to 0.84 from the walk frames and the references; no outline fails, and the boundary is pinned', () => {
+    const it = loadFacingChecks().item;
+    expect(it.edgeNearBlackMin).toBe(0.84);
+    expect(it.reset).toMatchObject({ from: 0.93, to: 0.84 });
+    // the old line failed the back reference; the new line passes it
+    const n = candidateFromRef(loadReference('n'), spec);
+    expect(itemEdge(n.img, n.labels as Labels).share).toBeLessThan(0.93);
+    expect(st(lines(n.img, 'n', n.labels as Labels), 'ST-ITEM')?.status).toBe('pass');
+    // the item edge cells of the given: 14, all near-black
+    const edge: [number, number][] = [];
+    for (let y = 0; y < 32; y++)
+      for (let x = 0; x < 32; x++) {
+        if (!['sheath', 'guard', 'wrap'].includes(spec.givenLabels[y * 32 + x] ?? '') || !opaqueAt(spec.given, x, y)) continue;
+        const isEdge = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => !opaqueAt(spec.given, x + (dx ?? 0), y + (dy ?? 0)));
+        if (isEdge && packedLuma(spec.given, x, y) < 60) edge.push([x, y]);
+      }
+    expect(edge.length).toBe(14);
+    const lighten = (k: number) => {
+      const img = clone(spec.given);
+      for (const [x, y] of edge.slice(0, k)) put(img, x, y, '#9ea5a8');
+      return img;
+    };
+    expect(st(lines(lighten(2), 's'), 'ST-ITEM')?.status, '12 of 14 is 0.857').toBe('pass');
+    expect(st(lines(lighten(3), 's'), 'ST-ITEM')?.status, '11 of 14 is 0.786').toBe('fail');
+    // an item with no outline at all
+    const none = lighten(14);
+    expect(itemEdge(none, spec.givenLabels).share).toBe(0);
+    mustFailSt(none, 's', 'ST-ITEM');
+  });
   it('ST-ITEM (PA-20, R2 T9): an item whose edge cells are not near-black fails, and the given passes', () => {
     const img = clone(spec.given);
     let n = 0;
@@ -1280,13 +1450,55 @@ describe('structure tier (B3): reference-free lines, each with a fail path', () 
     expect(litMinusShadow(spec.given, spec.givenLabels, 'hair')).toBeGreaterThan(0);
     expect(litMinusShadow(flipped, fl, 'hair')).toBeLessThan(0);
   });
-  it('ST-SIDE: e and w compare head top, first skin row, leg split and foot with the battle idle, not row widths', () => {
-    const idle = idleSideGuide();
+  it('ST-LIT (N9): hair and torso gate, each alone; legs are a report line and cannot fail it', () => {
+    const ls = loadFacingChecks().litSide;
+    expect(ls.groups).toEqual(['hair', 'torso']);
+    expect(ls.reportGroups).toEqual(['legs']);
+    // The given with one part group set to the other lit side: the right half of its cells dark and the left half light, or the reverse.
+    // The rest of the figure is untouched. The lit-minus-shadow luma of that group then has the other sign than at se.
+    const forceSign = (group: string, sign: number): Img => {
+      const out = clone(spec.given);
+      const cells: [number, number][] = [];
+      for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) if (GROUP_OF_PART[spec.givenLabels[y * 32 + x] ?? ''] === group && opaqueAt(spec.given, x, y)) cells.push([x, y]);
+      const xs = cells.map(([x]) => x).sort((p, q) => p - q);
+      const med = xs[Math.floor(xs.length / 2)] ?? 0;
+      for (const [x, y] of cells) if (x !== med) put(out, x, y, (x > med) === sign > 0 ? '#9ea5a8' : '#353a1d');
+      return out;
+    };
+    for (const group of ['hair', 'torso', 'legs']) {
+      const se = litMinusShadow(spec.given, spec.givenLabels, group) ?? 0;
+      const img = forceSign(group, -Math.sign(se));
+      const now = litMinusShadow(img, spec.givenLabels, group) ?? 0;
+      expect(Math.sign(now), `${group} must have the other sign than at se (${now} against ${se})`).toBe(-Math.sign(se));
+      for (const f of ['sw', 'nw']) {
+        const item = st(lines(img, f), 'ST-LIT');
+        if (group === 'legs') {
+          expect(item?.status, `legs alone at ${f}`).toBe('pass');
+          expect(st(lines(img, f), 'ST-LIT-REPORT')?.value).toMatch(/legs/);
+        } else {
+          expect(item?.status, `${group} alone at ${f}: ${item?.value}`).toBe('fail');
+          expect(item?.detail).toContain(group);
+        }
+      }
+    }
+    expect(st(lines(spec.given, 'sw'), 'ST-LIT')?.name).toMatch(/hair and torso; legs report only/);
+  });
+  it('ST-SIDE (N10): e and w compare head top, first skin row, leg split and foot with the battle idle rows, measured, not row widths', () => {
+    const gb = bboxOf(spec.given) as NonNullable<ReturnType<typeof bboxOf>>;
+    const idle = idleSideGuide({ top: gb.y0, bottom: gb.y1 }) as NonNullable<ReturnType<typeof idleSideGuide>>;
     expect(idle).not.toBeNull();
-    if (!idle?.skin || !idle.split) return;
-    const body = (skinRow: number, splitRow: number | null) => {
+    const { headTop, skin, split, foot } = idle;
+    if (!headTop || !skin || !split || !foot) throw new Error('the idle guide must have all four rows');
+    // measured rows on the canvas: head top and foot are the given's own rows plus the bounce, not 0 and 1 by construction
+    expect(foot.min).toBeCloseTo(gb.y1, 5);
+    expect(headTop.min).toBeCloseTo(gb.y0, 5);
+    expect(headTop.max).toBeGreaterThan(headTop.min); // the idle bounces: the head top row moves
+    expect(skin.min).toBeGreaterThan(headTop.max);
+    expect(split.min).toBeGreaterThan(skin.max);
+    // a figure on rows [head, foot] with a skin row and a leg split
+    const body = (head: number, skinRow: number, splitRow: number | null, footRow = foot.min) => {
       const img = newImage(32, 32);
-      for (let y = 0; y <= 30; y++) {
+      for (let y = head; y <= footRow; y++) {
         for (let x = 12; x <= 19; x++) {
           if (splitRow !== null && y >= splitRow && x >= 15 && x <= 16) continue;
           put(img, x, y, y === skinRow ? '#e4b086' : '#61693c');
@@ -1294,20 +1506,44 @@ describe('structure tier (B3): reference-free lines, each with a fail path', () 
       }
       return img;
     };
-    const skinRow = Math.round(idle.skin.min * 30);
-    const splitRow = Math.round(idle.split.min * 30);
-    const ok = structureLines(body(skinRow, splitRow), { facing: 'e', spec, labels: null });
-    expect(st(ok, 'ST-SIDE')?.status, st(ok, 'ST-SIDE')?.detail).toBe('pass');
-    for (const f of ['e', 'w']) expect(st(structureLines(body(skinRow, splitRow), { facing: f, spec, labels: null }), 'ST-SIDE')?.status).toBe('pass');
-    expect(st(structureLines(body(skinRow + 5, splitRow), { facing: 'e', spec, labels: null }), 'ST-SIDE')?.status).toBe('fail');
-    expect(st(structureLines(body(skinRow, splitRow - 6), { facing: 'e', spec, labels: null }), 'ST-SIDE')?.status).toBe('fail');
-    expect(st(structureLines(body(skinRow, null), { facing: 'e', spec, labels: null }), 'ST-SIDE')?.status).toBe('fail');
+    const R = Math.round;
+    const sideItem = (img: Img, f = 'e') => st(structureLines(img, { facing: f, spec, labels: null }), 'ST-SIDE');
+    const ok = sideItem(body(R(headTop.min), R(skin.min), R(split.min)));
+    expect(ok?.status, ok?.detail).toBe('pass');
+    for (const f of ['e', 'w']) expect(sideItem(body(R(headTop.min), R(skin.min), R(split.min)), f)?.status).toBe('pass');
+    // head top 3 rows low, and a foot row 3 rows high, fail: both rows are measured
+    const low = sideItem(body(R(headTop.max) + 3, R(skin.min), R(split.min)));
+    expect(low?.status).toBe('fail');
+    expect(low?.detail).toMatch(/headTop/);
+    const high = sideItem(body(R(headTop.min), R(skin.min), R(split.min), R(foot.min) - 3));
+    expect(high?.status).toBe('fail');
+    expect(high?.detail).toMatch(/foot/);
+    expect(sideItem(body(R(headTop.min), R(skin.min) + 5, R(split.min)))?.status).toBe('fail');
+    expect(sideItem(body(R(headTop.min), R(skin.min), R(split.min) - 6))?.status).toBe('fail');
+    expect(sideItem(body(R(headTop.min), R(skin.min), null))?.status).toBe('fail');
     // a width change alone does not fail the line (widths are not compared)
-    const narrow = body(skinRow, splitRow);
+    const narrow = body(R(headTop.min), R(skin.min), R(split.min));
     for (let y = 0; y < 31; y++) clear(narrow, 12, y);
-    expect(st(structureLines(narrow, { facing: 'e', spec, labels: null }), 'ST-SIDE')?.status).toBe('pass');
-    // the line does not run on other facings
-    expect(st(structureLines(body(skinRow, splitRow), { facing: 's', spec, labels: null }), 'ST-SIDE')).toBeUndefined();
+    expect(sideItem(narrow)?.status).toBe('pass');
+    // the line does not run on other facings, and with no idle it fails (never skips)
+    expect(sideItem(body(R(headTop.min), R(skin.min), R(split.min)), 's')).toBeUndefined();
+    const none = st(structureLines(body(R(headTop.min), R(skin.min), R(split.min)), { facing: 'e', spec, labels: null, idle: null }), 'ST-SIDE');
+    expect(none?.status).toBe('fail');
+    expect(none?.value).toBe('not measured');
+  });
+  it('e and w (N10): the verdict gates on ST-SIDE plus Mark and says there is no BF1 gate; no template is needed', () => {
+    const v = grade(spec.given, { facing: 'e', spec, gates });
+    expect(v.structure.items.some((i) => i.id === 'ST-SIDE')).toBe(true);
+    expect(v.structure.items.some((i) => i.id === 'ST-TEMPLATE')).toBe(false);
+    expect(v.notes.join(' ')).toMatch(/gate on ST-SIDE.*plus Mark.*no BF1 gate/);
+    expect(grade(spec.given, { facing: 'se', spec, gates }).notes.join(' ')).not.toMatch(/no BF1 gate/);
+  });
+  it('the verdict lists the R2 rules that have no structure check yet (T3, T4, T6, T15) as unchecked (N11)', () => {
+    const v = grade(spec.given, { facing: 'se', spec, gates, labels: spec.givenLabels });
+    expect(v.structure.unchecked.map((u) => u.id)).toEqual(['R2 T3', 'R2 T4', 'R2 T6', 'R2 T15']);
+    expect(v.notes.join(' ')).toMatch(/Unchecked R2 rules.*T3.*T4.*T6.*T15/);
+    const text = formatVerdict(v);
+    for (const id of ['T3', 'T4', 'T6', 'T15']) expect(text).toContain(`unchecked R2 ${id}`);
   });
   it('the rule checks catch swapped facings: s, n and 3/4 back references are told apart from the front ones', () => {
     const n = candidateFromRef(loadReference('n'), spec);
@@ -1321,8 +1557,57 @@ describe('structure tier (B3): reference-free lines, each with a fail path', () 
   });
 });
 
+describe('swap line (C6, N3): the 5 references and the given, each graded as each other facing', () => {
+  let res: ReturnType<typeof swapRates>;
+  const classOf = (f: string) => Object.entries(FACING_CLASSES).find(([, l]) => l.includes(f))?.[0];
+  beforeAll(() => {
+    res = swapRates({ spec, gates });
+  });
+  it('grades 6 pictures as the 5 other facings: 30 swaps, and the rate is caught over swaps', () => {
+    expect(SWAP_FACINGS).toEqual(['se', ...REF_FACINGS]);
+    expect(res.swaps).toBe(30);
+    expect(res.rate).toBeCloseTo(res.caught / res.swaps, 10);
+    expect(res.cross.swaps + res.within.swaps).toBe(res.swaps);
+    expect(res.cross.caught + res.within.caught).toBe(res.caught);
+    expect(res.missed.length).toBe(res.swaps - res.caught);
+  });
+  it('the 90 percent line is not moved; it is recorded as FAILED at the computed rate, with the missed pairs', () => {
+    expect(gates.swapLine.need).toBe(0.9);
+    expect(res.line).toBe(0.9);
+    expect(res.met).toBe((res.rate ?? 0) >= 0.9);
+    expect(res.met).toBe(false);
+    expect(gates.swapLine.recorded).toMatchObject({ status: res.met ? 'MET' : 'FAILED', swaps: res.swaps, caught: res.caught, missed: res.missed });
+    expect(gates.swapLine.recorded.rate).toBeCloseTo(res.rate ?? 0, 3);
+    const rep = formatSwapReport(res);
+    expect(rep).toContain('FAILED');
+    expect(rep).toContain(`${res.caught} of ${res.swaps}`);
+    for (const m of res.missed) expect(rep).toContain(m);
+  });
+  it('every swap between facing classes is caught; the misses sit inside a class, where the blind facing-ID grader decides', () => {
+    expect(res.cross.caught).toBe(res.cross.swaps);
+    expect(res.cross.rate).toBe(1);
+    for (const m of res.missed) {
+      const [from, as] = m.split('->');
+      expect(classOf(from ?? ''), m).toBe(classOf(as ?? ''));
+    }
+    expect(res.within.rate).toBeLessThan(1);
+  });
+  it('the rate can fail: with the eye rules of the back facings removed, fewer swaps are caught', () => {
+    const weak = JSON.parse(JSON.stringify(loadFacingChecks())) as ReturnType<typeof loadFacingChecks>;
+    for (const f of Object.keys(weak.eyes)) weak.eyes[f] = { clustersMin: 0, clustersMax: 9, rule: 'R2 T8 (test)' };
+    const noFace = JSON.parse(JSON.stringify(gates)) as Gates;
+    noFace.hardLines.faceSkin = { eyeRows: [5, 10] };
+    const r = swapRates({ spec, gates: noFace, checks: weak });
+    expect(r.caught).toBeLessThan(res.caught);
+  });
+  it('rule checks at the own facing: se, s, n, ne, nw pass; sw fails ST-LIT only, recorded as "inconsistent with se light" (not loosened)', () => {
+    expect(res.own.filter((o) => !o.pass)).toEqual([{ facing: 'sw', pass: false, failed: ['ST-LIT'] }]);
+    expect(gates.swapLine.ownFacingNotes.sw).toMatch(/sw reference inconsistent with se light/);
+  });
+});
+
 describe('facing-checks.json (B3): every tolerance cites a rule, and no reference is named', () => {
-  const checks = loadFacingChecks() as Record<string, unknown>;
+  const checks: FacingChecks = loadFacingChecks();
   const RULE = /(R2 T\d+|R2 section|PA-\d+)/;
   const walkRules = (obj: unknown, inherited: string | null, path: string) => {
     if (obj === null || typeof obj !== 'object') return;
@@ -1359,7 +1644,9 @@ describe('facing-checks.json (B3): every tolerance cites a rule, and no referenc
         else files.push(p);
       }
     };
-    if (existsSync('scripts/art/v2/proxy')) walk('scripts/art/v2/proxy');
+    expect(existsSync('scripts/art/v2/proxy'), 'the proxy folder must exist: this test cannot pass on an empty scan').toBe(true);
+    walk('scripts/art/v2/proxy');
+    expect(files.length).toBeGreaterThan(3);
     for (const f of files.filter((x) => /\.(mjs|ts|json)$/.test(x))) expect(readFileSync(f, 'utf8'), f).not.toMatch(/v2\/grade|\.\.\/grade\//);
   });
 });
@@ -1420,7 +1707,8 @@ describe('facing-ID harness (B5): the task, the key and the scorer (no model run
     expect(new Set(correct).size).toBeGreaterThanOrEqual(4);
   });
   it('the scorer: all right is 10 of 10 and passes, 9 of 10 passes, 8 of 10 fails, and a missing or unreadable answer is wrong', () => {
-    const r = buildFacingIdTask(items, { out: dir(), key: dir(), given: spec.given });
+    const r = buildCalibrationTask({ out: dir(), key: dir(), given: spec.given });
+    expect(r.key.passNeed).toBe(PASS_NEED);
     const ids = Object.keys(r.key.items);
     const perfect = Object.fromEntries(ids.map((id) => [id, r.key.items[id]?.correct ?? '']));
     expect(scoreFacingId(perfect, r.key)).toMatchObject({ correct: 10, total: 10, pass: true });
@@ -1438,6 +1726,59 @@ describe('facing-ID harness (B5): the task, the key and the scorer (no model run
     delete partial['item-01'];
     partial['item-02'] = 'not a letter';
     expect(scoreFacingId(partial, r.key)).toMatchObject({ correct: 8, pass: false });
+  });
+  it('N2: the 9-of-10 need is the calibration set only; a candidate task needs every item right (C6: 2 of 2)', () => {
+    const two = [
+      { cand: spec.given, facing: 'se', source: 'a' },
+      { cand: flipH(spec.given), facing: 'sw', source: 'b' },
+    ];
+    const r = buildFacingIdTask(two, { out: dir(), key: dir(), given: spec.given });
+    expect(r.key.passNeed).toBe(2);
+    const right = Object.fromEntries(Object.entries(r.key.items).map(([id, k]) => [id, k.correct]));
+    expect(scoreFacingId(right, r.key)).toMatchObject({ correct: 2, total: 2, need: 2, pass: true });
+    const [first] = Object.keys(r.key.items);
+    const k0 = r.key.items[first ?? ''];
+    const oneWrong = { ...right, [first ?? '']: Object.keys(k0?.letters ?? {}).find((l) => l !== k0?.correct) ?? 'A' };
+    expect(scoreFacingId(oneWrong, r.key)).toMatchObject({ correct: 1, need: 2, pass: false });
+    expect(scoreFacingId({}, r.key).pass).toBe(false);
+    // the calibration task keeps 9 of 10, and the need can be set by the caller
+    expect(buildCalibrationTask({ out: dir(), key: dir(), given: spec.given }).key.passNeed).toBe(PASS_NEED);
+    expect(PASS_NEED).toBe(9);
+    expect(scoreFacingId(right, r.key, { need: 3 }).pass).toBe(false);
+    // the CLI: a candidate build + all right exits 0, one wrong exits 1
+    const png = (n: string, img: Img) => {
+      const p = join(tmp, n);
+      writePng(img, p);
+      return p;
+    };
+    const task = dir();
+    const key = dir();
+    const b = spawnSync('node', [`${GRADE_DIR}/facingid.mjs`, 'build', '--cand', `se=${png('c-se.png', spec.given)}`, '--cand', `sw=${png('c-sw.png', flipH(spec.given))}`, '--out', task, '--key', key], { encoding: 'utf8' });
+    expect(b.status, b.stderr).toBe(0);
+    const keyDoc = JSON.parse(readFileSync(join(key, 'key.json'), 'utf8')) as { passNeed: number; items: Record<string, { correct: string; letters: Record<string, string> }> };
+    expect(keyDoc.passNeed).toBe(2);
+    const answers = join(tmp, 'cand-answers.json');
+    writeFileSync(answers, JSON.stringify(Object.fromEntries(Object.entries(keyDoc.items).map(([id, k]) => [id, k.correct]))));
+    expect(spawnSync('node', [`${GRADE_DIR}/facingid.mjs`, 'score', '--answers', answers, '--key', join(key, 'key.json')], { encoding: 'utf8' }).status).toBe(0);
+    const bad = Object.fromEntries(Object.entries(keyDoc.items).map(([id, k], i) => [id, i === 0 ? (Object.keys(k.letters).find((l) => l !== k.correct) ?? 'A') : k.correct]));
+    writeFileSync(answers, JSON.stringify(bad));
+    expect(spawnSync('node', [`${GRADE_DIR}/facingid.mjs`, 'score', '--answers', answers, '--key', join(key, 'key.json')], { encoding: 'utf8' }).status).toBe(1);
+  });
+  it('N2b: build refuses an out folder and a key folder that are the same, or one inside the other (the key would sit in the task folder)', () => {
+    const same = dir();
+    expect(foldersOverlap(same, same)).toBe(true);
+    expect(foldersOverlap(same, join(same, 'key'))).toBe(true);
+    expect(foldersOverlap(join(same, 'task'), same)).toBe(true);
+    expect(foldersOverlap(join(same, 'a'), join(same, 'b'))).toBe(false);
+    expect(foldersOverlap(`${same}x`, same)).toBe(false); // a shared name prefix is not nesting
+    const one = [{ cand: spec.given, facing: 'se', source: 'a' }];
+    expect(() => buildFacingIdTask(one, { out: same, key: same, given: spec.given })).toThrow(/separate folders/);
+    expect(() => buildFacingIdTask(one, { out: same, key: join(same, 'key'), given: spec.given })).toThrow(/separate folders/);
+    expect(() => buildFacingIdTask(one, { out: join(same, 'task'), key: same, given: spec.given })).toThrow(/separate folders/);
+    expect(existsSync(join(same, 'key.json'))).toBe(false);
+    const cli = spawnSync('node', [`${GRADE_DIR}/facingid.mjs`, 'build', '--calibration', '--out', same, '--key', same], { encoding: 'utf8' });
+    expect(cli.status).toBe(2);
+    expect(cli.stderr).toMatch(/separate folders/);
   });
   it('the scorer reads a facing id or a direction name as well as a letter', () => {
     const r = buildFacingIdTask(items, { out: dir(), key: dir(), given: spec.given });
@@ -1473,8 +1814,7 @@ describe('facing-ID harness (B5): the task, the key and the scorer (no model run
 });
 
 describe('aligned template-against-reference check (B6): a report, never a gate', () => {
-  const T0A = 'C:/Users/markh/AppData/Local/Temp/rook-v2/t0a';
-  const hasPathB = spawnSync('git', ['rev-parse', '--verify', PATHB_REF], { encoding: 'utf8' }).status === 0;
+  const T0A = `${FIXTURES}/t0a`;
   const shiftLabels = (labels: Labels, dx: number): Labels => {
     const out: Labels = new Array(1024).fill(null);
     for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) if (labels[y * 32 + x] && x + dx >= 0 && x + dx < 32) out[y * 32 + x + dx] = labels[y * 32 + x] ?? null;
@@ -1498,7 +1838,7 @@ describe('aligned template-against-reference check (B6): a report, never a gate'
   });
   it('the table has a row for each source and facing, with values in 0 to 1, and the plan pick never beats the best of the search', () => {
     const g = spec.givenLabels;
-    const table = templateTable({ naive: { s: g, n: g, ne: g, nw: mirrorAxis(g), sw: mirrorAxis(g) } }, spec);
+    const table = templateTable({ naive: { s: g, n: g, ne: g, nw: mirrorAxis(g), sw: mirrorAxis(g) } });
     expect(table.rows.map((r) => r.facing)).toEqual(REF_FACINGS);
     for (const r of table.rows) {
       expect(r.best).toBeGreaterThanOrEqual(0);
@@ -1510,26 +1850,38 @@ describe('aligned template-against-reference check (B6): a report, never a gate'
     expect(rep).toContain('Best of search');
     expect(rep).toContain('gates nothing');
   });
-  it.skipIf(!existsSync(`${T0A}/s-template.json`))('reads a proxy template file as a label grid of part names', () => {
+  it('reads a proxy template file as a label grid of part names (a committed fixture; a missing file fails the test)', () => {
     const s = proxyTemplateLabels(`${T0A}/s-template.json`);
     expect(s.length).toBe(1024);
     expect(s.filter(Boolean).length).toBeGreaterThan(300);
     expect(s.filter((p) => p === 'hair').length).toBeGreaterThan(30);
   });
-  it.skipIf(!hasPathB)('reads path B with git show into a scratch folder and never checks it out', () => {
+  it('reads path B with git show into a scratch folder and never checks it out (a throwaway repo built from the committed path B fixture)', async () => {
+    const repo = mkdtempSync(join(tmp, 'pathb-repo-'));
+    const git = (...args: string[]) => spawnSync('git', ['-c', 'user.name=fixture', '-c', 'user.email=fixture@example.invalid', '-c', 'commit.gpgsign=false', ...args], { cwd: repo, encoding: 'utf8' });
+    mkdirSync(join(repo, 'scripts/art/v2/pathb'), { recursive: true });
+    writeFileSync(join(repo, 'scripts/art/v2/pathb/sheet.mjs'), readFileSync(`${FIXTURES}/pathb/sheet.mjs.fixture`));
+    writeFileSync(join(repo, 'scripts/art/v2/pathb/rook-pathb.json'), readFileSync(`${FIXTURES}/pathb/rook-pathb.json`));
+    expect(git('init', '-q').status).toBe(0);
+    expect(git('add', '.').status).toBe(0);
+    expect(git('commit', '-q', '-m', 'path B fixture').status).toBe(0);
     const head = () => spawnSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { encoding: 'utf8' }).stdout.trim();
     const status = () => spawnSync('git', ['status', '--porcelain', '--', 'scripts/art/v2/pathb'], { encoding: 'utf8' }).stdout.trim();
     const before = [head(), status()];
     const scratch = mkdtempSync(join(tmp, 'pathb-'));
-    return pathBLabels({ scratch }).then((labels) => {
-      expect(Object.keys(labels).sort()).toEqual(['e', 'n', 'ne', 'nw', 's', 'se', 'sw', 'w']);
-      expect(labels.s?.filter(Boolean).length).toBeGreaterThan(300);
-      expect(existsSync(join(scratch, 'scripts/art/v2/pathb/sheet.mjs'))).toBe(true);
-      expect([head(), status()]).toEqual(before);
-      expect(existsSync('scripts/art/v2/pathb')).toBe(false);
-    });
+    const labels = await pathBLabels({ ref: 'HEAD', scratch, cwd: repo });
+    expect(Object.keys(labels).sort()).toEqual(['e', 'n', 'ne', 'nw', 's', 'se', 'sw', 'w']);
+    expect(labels.s?.filter(Boolean).length).toBeGreaterThan(300);
+    expect(existsSync(join(scratch, 'scripts/art/v2/pathb/sheet.mjs'))).toBe(true);
+    expect([head(), status()]).toEqual(before);
+    expect(existsSync('scripts/art/v2/pathb')).toBe(false);
+    expect(typeof PATHB_REF).toBe('string');
   });
-  it('the CLI exits 2 when the proxy folder is missing', () => {
+  it('the CLI exits 2 when the proxy folder is missing, and 1 (with the message) when the run throws', () => {
     expect(spawnSync('node', [`${GRADE_DIR}/templatecheck.mjs`, '--proxy-dir', join(tmp, 'nope')], { encoding: 'utf8' }).status).toBe(2);
+    const empty = mkdtempSync(join(tmp, 'empty-proxy-'));
+    const r = spawnSync('node', [`${GRADE_DIR}/templatecheck.mjs`, '--proxy-dir', empty, '--pathb-ref', 'no-such-ref', '--scratch', join(tmp, 'scratch-x')], { encoding: 'utf8' });
+    expect(r.status).toBe(1);
+    expect(r.stderr).toMatch(/templatecheck: /);
   });
 });

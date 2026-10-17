@@ -14,4 +14,5 @@ export * from './style-calibrate.mjs';
 export * from './facingid.mjs';
 export * from './templatecheck.mjs';
 export * from './grade.mjs';
+export * from './swaprate.mjs';
 export * from './refs/labels.mjs';
