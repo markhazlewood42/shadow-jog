@@ -210,6 +210,8 @@ Open for Mark (consult section F): Q1 reference gates, Q2 se fit line, Q3 templa
 
 Mark asked whether a 3D game with pixel shaders would be easier. Opus research R4 (Mark asked for Opus) says: keep the 2D engine and test option B, 3D characters rendered offline to sprites. Mark: run it beside path C, first as a cloud session (try a headless Blender in the cloud), and fall back to a local headed session so he can watch. Cloud dispatch started on branch `spike/rook-3d`, with its own exit criteria file `docs/spikes/rook-3d.md` committed before any code.
 
+**Result (Mark, 2026-10-17):** the cloud session finished, and Mark judged the results very bad. Mark calls `spike/rook-3d` a failure. Path C (2D sprite art) stays the only method. The handoff step "compare rook-3d with path C" is dropped.
+
 ## Step 7-5: grade kit round 3, consult C2 step 2 (2026-10-17, unverified)
 
 | Build | What | Numbers | Verdict | Notes |
