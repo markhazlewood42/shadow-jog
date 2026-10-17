@@ -164,9 +164,14 @@ describe('the two sources of "Your move"', () => {
     expect(posted.items[0]).toMatchObject({ tag: 'More info posted', text: 'Decision #51: its comments were cut short, so the answer can be missing.' });
   });
 
+  it('the flag decides a cut, not the notice text: a notice worded by another build still links to the decision page', () => {
+    const result = buildYourMove(sources({ decisionIssues: good(decisions([issue(53, { problem: 'Older wording of the cut notice.', commentsCut: true })])) }), NOW_MS);
+    expect(result.items[0]).toMatchObject({ text: 'Decision #53: its comments were cut short, so the answer can be missing.', href: '/decisions/53' });
+  });
+
   it('a cut decision that also has a template problem is unreadable and links to the GitHub issue', () => {
     const problem = `The body does not follow the template. ${say('commentsCutNotice')}`;
-    const result = buildYourMove(sources({ decisionIssues: good(decisions([issue(52, { problem, commentsCut: true })])) }), NOW_MS);
+    const result = buildYourMove(sources({ decisionIssues: good(decisions([issue(52, { problem })])) }), NOW_MS);
     expect(result.items[0]?.text).toBe(`Decision #52 is unreadable: ${problem}`);
     expect(result.items[0]?.href).toBe('https://github.com/fixture-owner/fixture-repo/issues/52');
   });

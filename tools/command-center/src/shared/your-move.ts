@@ -93,8 +93,8 @@ function decisionItem(issue: DecisionIssue): YourMoveItem {
   const at = orNull(issue.createdAt);
   // An issue that does not follow the template cannot be answered on its page. The item says so and links to the issue itself, where Mark can read it and fix it.
   // Comments cut short are not a broken issue: the page still opens and shows the notice, so the item links to the decision's own page.
-  // The typed flag says that the comments were cut. A cut issue whose problem is more than the notice (a template problem too) is still unreadable.
-  const cutOnly = issue.commentsCut === true && issue.problem === say('commentsCutNotice');
+  // The typed flag says that the cut is the only problem. A cut issue with a template problem too has no flag, so it is still unreadable.
+  const cutOnly = issue.commentsCut === true;
   if (issue.problem !== null && !cutOnly) return { source: 'decision-issue', text: `Decision #${issue.number} is unreadable: ${issue.problem}`, href: orNull(issue.url), light: null, at };
   const item: YourMoveItem = {
     source: 'decision-issue',

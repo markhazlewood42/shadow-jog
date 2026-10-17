@@ -8627,7 +8627,7 @@ function withCutNotices(info, cut) {
   const note = (issue) => {
     if (!cut.has(issue.number)) return issue;
     const notice = say("commentsCutNotice");
-    return { ...issue, problem: issue.problem === null ? notice : `${issue.problem} ${notice}`, commentsCut: true };
+    return issue.problem === null ? { ...issue, problem: notice, commentsCut: true } : { ...issue, problem: `${issue.problem} ${notice}` };
   };
   return { ...info, open: info.open.map(note), recent: info.recent.map(note) };
 }

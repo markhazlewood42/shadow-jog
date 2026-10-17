@@ -194,7 +194,8 @@ function withCutNotices(info: DecisionsInfo, cut: ReadonlySet<number>): Decision
   const note = (issue: DecisionIssue): DecisionIssue => {
     if (!cut.has(issue.number)) return issue;
     const notice = say('commentsCutNotice');
-    return { ...issue, problem: issue.problem === null ? notice : `${issue.problem} ${notice}`, commentsCut: true };
+    // The flag goes only on an issue whose sole problem is the cut. An issue with a template problem too is unreadable anyway, so it keeps the joined text and no flag.
+    return issue.problem === null ? { ...issue, problem: notice, commentsCut: true } : { ...issue, problem: `${issue.problem} ${notice}` };
   };
   return { ...info, open: info.open.map(note), recent: info.recent.map(note) };
 }

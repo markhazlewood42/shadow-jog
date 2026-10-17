@@ -272,7 +272,7 @@ describe('vercel.json', () => {
 
   // The hosted page loads its script, styles, fonts and data from its own origin only (it links to github.com but loads nothing from there), and it is not meant to be framed.
   it('sets a Content-Security-Policy on every path: own origin only, no inline script, and no framing', () => {
-    const rule = config.headers.find((candidate) => candidate.source === '/((?!api/).*)');
+    const rule = config.headers.find((candidate) => candidate.source === '/((?!api/|api$).*)');
     expect(rule).toBeDefined();
     // The header is for the page, not for the functions: an /api path keeps the headers its own function sets (the docs function sets a stricter one for SVG).
     const regex = new RegExp(`^${rule?.source}$`);

@@ -571,7 +571,7 @@ export type DecisionIssue = {
   createdAt: string;
   answer: DecisionAnswer | null;
   problem: string | null;
-  /** True when the comments of this decision were not all read (a time limit or a page limit), so the newest comment, which can be the answer, may be missing. `problem` then holds the notice too. Absent means false. */
+  /** True when the comments of this decision were not all read (a time limit or a page limit) and that is its only problem: `problem` is then the notice, and the newest comment, which can be the answer, may be missing. A decision that also breaks the template gets the notice joined onto its `problem` and no flag, because it is unreadable anyway. Absent means false. */
   commentsCut?: boolean;
   /** The place of an open decision in the ask-for-info cycle. Optional because a snapshot that an older build wrote has no such field: absent means `open`. */
   phase?: DecisionPhase;
