@@ -5,7 +5,7 @@ title: "Command Center: ask for more info on a decision (brief)"
 
 # Brief: ask for more info on a decision
 
-Status: DRAFT for Mark's approval, revision 3 (2026-10-16). Engineer verifier: round 1 7.0, fix round 2 about 8.0 with one new Important, fixed here (history at the end). No code before approval.
+Status: DRAFT for Mark's approval, revision 3 (2026-10-16). Engineer verifier: round 1 7.0, fix round 2 about 8.0 with one new Important, fix round 3 PASS (history at the end). No code before approval.
 
 ## Goal
 
@@ -40,6 +40,7 @@ The page and the sessions decide the state of an open issue with `decision` in t
 
 - Rule 6 is today's half-answer state. Rules 1 to 4 now come first, so an old `Decision:` comment counts as a half answer only when no `needs-info` label and no newer `Info:` comment exist. This fixes the backfill shape: #106 to #111 hit rule 1, never rule 6, so the form does not preselect the old option and Send does not re-close the issue with it.
 - Each rule has one cause. Rule 2 is a session that posted `Info:` and stopped before it removed the label. Rule 5 is an Ask whose comment landed and whose label call failed. An Ask whose comment failed wrote nothing, so the state does not change.
+- If Mark asks while a half answer (rule 6) waits, the `Question:` becomes the ask point and the half answer leaves the page. After the info, rule 4 shows a fresh form and Mark sends his answer again. Harmless, by design.
 - Closed issues keep today's rules (answered or closed).
 - **The reader rule does not change.** An answer still needs the newest `Decision:` comment, `CLOSED`, `decided`, and a `labeled` event for `decided` by Mark. An open issue is never answered.
 - A label has no actor in the issue JSON, and any session can set it, so `needs-info` is read by presence only. It grants nothing.
@@ -140,3 +141,4 @@ Lean loop, 3 verifiers (a write path and a trust rule): a runner (touched unit t
 
 - Revision 1 (2026-10-16). Engineer verifier round 1: 7.0. Important: the backfill shape read as a half answer on the live page (F1); the backfilled issues had no `Question:` comment (F2); Ask wrote the comment before the label (F3); no precedence between label and comments (F4); no label-create step and too little data in `DecisionRead` (F5); pass line 5 claimed a label actor (F6). Minor: `action` allowlist and gate order (F7), and nine small gaps (F8). Revision 2 adds the state table, write order, step 0, the setup step, and backfill option 1 after merge.
 - Revision 2, fix round 2: F1 to F3 and F5 to F7 fixed, F4 partly. New Important N1: one rule held two causes (a failed Ask comment, and a session that stopped before it removed the label), so Mark would see "Question missing" on an answered question. Minor: N2 (label with no ask point and no info), N3 (a failed Ask on an issue with an old `Decision:` comment showed the old note as the question), N4 (two questions, only the newest answered). Revision 3 writes the comment first again, adds rule 3 and rule 5 so each rule has one cause, and has the session answer every open question.
+- Revision 3, fix round 3: PASS. N1 to N4 fixed. One Minor note added (an Ask during a half answer).
