@@ -3,7 +3,7 @@ type: workstream
 title: Ask for more info on a decision
 branch: cc-needs-info
 roadmap: cc-followups
-state: active
+state: review
 updated: 2026-10-16
 ---
 

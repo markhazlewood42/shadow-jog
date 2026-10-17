@@ -34,7 +34,7 @@ The page and the sessions decide the state of an open issue with `decision` in t
 | 2 | `needs-info` is set, and the newest info is newer than the ask point (or no ask point exists) | `info-posted` | Mark | As rule 4. A session removes the leftover label |
 | 3 | `needs-info` is set, and no ask point and no info exist (only by a hand edit) | `needs-info-empty` | A session | "Waiting for info: no question found". A session removes the label and posts nothing |
 | 4 | No `needs-info`, and the newest info is newer than the ask point | `info-posted` | Mark | Open decision, sorted first, badge "More info posted", the thread |
-| 5 | No `needs-info`, and the ask point is a `Question:` comment | `ask-unfinished` | Mark (Retry) | "Question sent, label missing", with a Retry button that adds the label only |
+| 5 | No `needs-info`, and the ask point is a `Question:` comment | `ask-unfinished` | Mark (Retry) | "Your question is posted, but it is not flagged for a session", with a "Flag again" button that adds the label only (hidden while an answer has failed) |
 | 6 | No `needs-info`, and the ask point is a `Decision:` comment | `open` with a half answer | Mark | As today: "Send the answer to finish" (a failed answer to resume) |
 | 7 | Otherwise | `open` | Mark | Open decision (as today) |
 
@@ -78,7 +78,7 @@ Option B: a new `POST /api/ask` function. Cleaner to read, but a second copy of 
 ## Failure handling
 
 - **Ask, comment failed.** Nothing is written. The FailureBox shows the step, and the question box keeps the text for Retry.
-- **Ask, label failed after the comment (rule 5).** The page shows "Question sent, label missing". Retry adds the label only. It needs no text, so a reload does not lose it.
+- **Ask, label failed after the comment (rule 5).** The page shows "Your question is posted, but it is not flagged for a session". "Flag again" adds the label only. It needs no text, so a reload does not lose it.
 - **Session crash after `Info:`, before the label removal (rule 2).** The page already shows "More info posted". The next session sees rule 2 and removes the label without a new `Info:` comment. No duplicate loop.
 - **Mark answers while `needs-info` is set.** Step 0 removes it first. A failure at step 0 writes nothing else, and Retry resumes.
 
@@ -142,3 +142,12 @@ Lean loop, 3 verifiers (a write path and a trust rule): a runner (touched unit t
 - Revision 1 (2026-10-16). Engineer verifier round 1: 7.0. Important: the backfill shape read as a half answer on the live page (F1); the backfilled issues had no `Question:` comment (F2); Ask wrote the comment before the label (F3); no precedence between label and comments (F4); no label-create step and too little data in `DecisionRead` (F5); pass line 5 claimed a label actor (F6). Minor: `action` allowlist and gate order (F7), and nine small gaps (F8). Revision 2 adds the state table, write order, step 0, the setup step, and backfill option 1 after merge.
 - Revision 2, fix round 2: F1 to F3 and F5 to F7 fixed, F4 partly. New Important N1: one rule held two causes (a failed Ask comment, and a session that stopped before it removed the label), so Mark would see "Question missing" on an answered question. Minor: N2 (label with no ask point and no info), N3 (a failed Ask on an issue with an old `Decision:` comment showed the old note as the question), N4 (two questions, only the newest answered). Revision 3 writes the comment first again, adds rule 3 and rule 5 so each rule has one cause, and has the session answer every open question.
 - Revision 3, fix round 3: PASS. N1 to N4 fixed. One Minor note added (an Ask during a half answer).
+
+## Build verification (2026-10-16)
+
+| Round | Verifier | Result | Named fixes |
+|---|---|---|---|
+| 1 | Runner (Sonnet) | PASS. `npm run check` 2376 passed; decisions e2e 27/27; hosted e2e 64/64; 3 mutations each failed the right tests | Doc comment `\n` |
+| 1 | Reader (Haiku) | FAIL, 7.5. Important: a false "label missing" notice after a partial answer | Optimistic-state compare, 422 for non-object bodies, type comment |
+| 1 | Attacker (Sonnet) | PASS. A1 to A7 hold | Hostile-input tests; accepted risk: no hosted per-issue lock |
+| 2 | Fix check (Sonnet) | PASS. All named findings fixed; 203 tests in the touched files pass, tsc clean | None. Open Minor for later: a question of only zero-width characters is accepted (`trim` keeps U+200B) |
